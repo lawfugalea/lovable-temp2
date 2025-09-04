@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Theme tokens */
+:root{
+  --hf-bg:#FAF9FB;
+  --hf-surface:#FFFFFF;
+  --hf-ink:#0F172A;
+  --hf-brand:#FB7185;
+  --hf-brand-dark:#DB5870;
+
+  /* header gradient */
+  --hf-grad-from:#FFE5E9; /* rose-100 */
+  --hf-grad-via:#FFEDCC;  /* amber-100 */
+  --hf-grad-to:#E8F8ED;   /* emerald-100 */
+}
+
+/* Base page background */
+html,body { background: var(--hf-bg); color: var(--hf-ink); }
+
+/* Focus ring */
+* :where(:focus-visible) {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--hf-brand);
+  border-radius: .75rem;
+}
+
+/* Reusable “glass” panel */
+.hf-glass {
+  @apply backdrop-blur supports-[backdrop-filter]:bg-white/60;
+  background: linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,.6));
+  border: 1px solid rgba(255,255,255,.65);
+  box-shadow: 0 1px 0 rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
+}
+
+/* Card helper */
+.hf-card { @apply bg-white rounded-2xl border border-gray-200 shadow-card; }
+
+/* Safe-area util (for sticky footers on iOS) */
+.pb-safe { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+
+/* Subtle scrollbars */
+*::-webkit-scrollbar { height: 10px; width: 10px; }
+*::-webkit-scrollbar-thumb { background: rgba(15,23,42,.18); border-radius: 999px; }

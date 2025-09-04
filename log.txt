@@ -1,0 +1,529 @@
+▶️ Starting Smart scraper…
+HTTP probe http://www.smart.com.mt -> 200
+
+📁 [Parallel] Processing: Baby (http://www.smart.com.mt/forms/Products.aspx?=10-55)
+
+📁 [Parallel] Processing: Drinks (http://www.smart.com.mt/forms/Products.aspx?=10-15)
+
+📁 [Parallel] Processing: Bakery (http://www.smart.com.mt/forms/Products.aspx?=10-10)
+Pager text: Page 1 of 72 (717 items)1234567…707172 Items per page:
+Parsed 10 product rows
+🧾 [Baby] Page 1: found 10 items (took 0.019s)
+[DRYRUN] Baby :: Alce Nero Prugna E mela 2x80g - 160 g — €2.76 80g
+[DRYRUN] Baby :: Aptamil 1 - 400g — €9.19 400g
+[DRYRUN] Baby :: Aptamil Anti Regurgitation 2 6m+ - 400g — €12.15 400g
+[DRYRUN] Baby :: Aptamil OrganicMilk 2 - 800g — €20.89 800g
+[DRYRUN] Baby :: Aptamil Pronutra+ 1 0/6 Months - 800g — €18.09 800g
+[DRYRUN] Baby :: Aptamil Pronutra+ 2 6/12m - 800g — €18.09 800g
+[DRYRUN] Baby :: Aptamil Pronutra+ 3 12 Month Onwards - 800g — €18.09 800g
+[DRYRUN] Baby :: Aptamil Pronutra+ 4 24 Months Onwards - 800g — €18.09 800g
+[DRYRUN] Baby :: Aria Bimbo Ammorbidente Blue - 4 L — €3.99 4 L
+[DRYRUN] Baby :: Avent Airflow Soother 18M+ Boy Space — €11.82 
+Found next button with selector; attempting click...
+Pager flip OK in 46ms (from 1 -> 2)
+Pager text: Page 1 of 248 (2474 items)1234567…246247248 Items per page:
+Parsed 10 product rows
+🧾 [Drinks] Page 1: found 10 items (took 0.021s)
+[DRYRUN] Drinks :: 1565 Victory Lager Beer - 500ml — €1.21 500ml
+[DRYRUN] Drinks :: 19 Crimes Cabernet Sauvignon South Eastern Australia - 750ml — €10.39 750ml
+[DRYRUN] Drinks :: 19 Crimes Chardonnay South Eastern Australia -750ml — €10.82 750ml
+[DRYRUN] Drinks :: 19 Crimes Red Wine South Eastern Australia - 750ml — €10.84 750ml
+[DRYRUN] Drinks :: 19 Crimes Snoop Dog Cali Red 750ml — €12.79 750ml
+[DRYRUN] Drinks :: 19 Crimes Snoop Dogg Cali Rose 750ml — €12.79 750ml
+[DRYRUN] Drinks :: 19 Crimes The Banished Park Red Wine - 750ml — €11.80 750ml
+[DRYRUN] Drinks :: 19 Crimes The Unprising Red Wine Part-Aged In Rum Barrels - 750ml — €11.80 750ml
+[DRYRUN] Drinks :: 7 Up 7 Up Free Can 33Cl — €0.72 33Cl
+[DRYRUN] Drinks :: 7 Up 7 Up Free Cans 6x33cl — €4.34 33cl
+Pager text: Page 1 of 43 (429 items)1234567…414243 Items per page:
+Parsed 10 product rows
+🧾 [Bakery] Page 1: found 10 items (took 0.018s)
+[DRYRUN] Bakery :: 7days Cro Van Crm Cook Srp 60g — €3.33 60g
+[DRYRUN] Bakery :: 7days Croi Van Sr Chr Srp 4x60g — €3.33 60g
+[DRYRUN] Bakery :: 7days Crois Van Sr Cher Ac 80g — €1.04 80g
+[DRYRUN] Bakery :: 7days Croissa Choc Van Srp 4X60G — €3.33 60G
+[DRYRUN] Bakery :: 7days Croissant Choc Ac 80g — €1.04 80g
+[DRYRUN] Bakery :: 7days Croissant Choc Srp 4X60g — €3.33 60g
+[DRYRUN] Bakery :: 7days Croissant Choc Srp 5x37g — €2.34 37g
+[DRYRUN] Bakery :: 7days Croissant Choc Srp 60g — €0.89 60g
+[DRYRUN] Bakery :: 7days Croissant Choc Van Srp 60g — €0.89 60g
+[DRYRUN] Bakery :: 7days Croissant Hazelnut Ac 80g — €1.04 80g
+Found next button with selector; attempting click...
+Found next button with selector; attempting click...
+Pager flip OK in 49ms (from 1 -> 2)
+Pager flip OK in 41ms (from 1 -> 2)
+Parsed 10 product rows
+🧾 [Baby] Page 2: found 10 items (took 0.015s)
+[DRYRUN] Baby :: Avent Feed Bottle Natural 125ml 0m+ — €10.79 125ml
+[DRYRUN] Baby :: Avent My Grippy Cup Girl Purple - 300ml — €10.93 300ml
+[DRYRUN] Baby :: Avent Shooter Ula Air Mix Girl 2Pc — €11.86 
+[DRYRUN] Baby :: Avent Soother 0-6M Boy 2Pcs — €11.86 2Pcs
+[DRYRUN] Baby :: Avent Spout Cup 10oz Green — €12.34 
+[DRYRUN] Baby :: Avent Spout Cup 10oz Single Pink — €12.34 
+[DRYRUN] Baby :: Avent Toddler Fork & Spoon Natural — €4.74 
+[DRYRUN] Baby :: Baby Care Calming With Lavender Wipes - 63pcs — €1.58 63pcs
+[DRYRUN] Baby :: Baby Care Fresh Wipes With Camomile - 63pcs — €1.58 63pcs
+[DRYRUN] Baby :: Baby Dove Baby BodyWash Rich Moisutre-400ml — €4.86 400ml
+Found next button with selector; attempting click...
+Pager flip OK in 32ms (from 2 -> 3)
+Parsed 10 product rows
+🧾 [Drinks] Page 2: found 10 items (took 0.017s)
+[DRYRUN] Drinks :: 7 Up 7 Up Zero 1.5l — €1.39 1.5l
+[DRYRUN] Drinks :: 7 Up 7 Up Zero 1.5Lt X 6 Pet  In Stock — €7.49 1.5L
+[DRYRUN] Drinks :: 7 Up 7 Up Zero 1.5Lt X 6 Pet  In Stock — €8.49 1.5L
+[DRYRUN] Drinks :: 7 Up 7 Up Zero 50cl x 6 @ 5.50 — €4.95 50cl
+[DRYRUN] Drinks :: 7 Up Original Pet - 6x1.5Lt — €7.49 1.5L
+[DRYRUN] Drinks :: 7 Up RegularSoft Drink - 1.5 L — €1.39 1.5 L
+[DRYRUN] Drinks :: 7 Up RegularSoft Drink - 330 ml — €0.72 330 ml
+[DRYRUN] Drinks :: 7 Up RegularSoft Drink - 500 ml — €1.24 500 ml
+[DRYRUN] Drinks :: 7 Up RegularSoft Drink 5+1 Free 6X500ml - 3000 ml — €4.60 500ml
+[DRYRUN] Drinks :: 7 Up RegularSoft Drink 6X330ml - 1980 ml — €4.34 330ml
+Parsed 10 product rows
+🧾 [Bakery] Page 2: found 10 items (took 0.02s)
+[DRYRUN] Bakery :: Alfaneshe Bakery Pitta Bread Small x 6 — €1.33 
+[DRYRUN] Bakery :: Alfaneshe Bakery Wholemeal Quinoa Pitta x 5 — €1.70 
+[DRYRUN] Bakery :: Allinson Easy bake yeast — €2.25 
+[DRYRUN] Bakery :: Antalya Tortillas Wraps 18x30cm - 1.62 kg — €6.03 1.62 kg
+[DRYRUN] Bakery :: Antonelli Croissant Pistachio 225g — €3.10 225g
+[DRYRUN] Bakery :: Antonelli Croissants Con Crema Al Cacao Senza Zucchero - 6 piece — €3.71 
+[DRYRUN] Bakery :: Aunt Mabel's Carrot Cream Filling Muffin - 100g — €1.81 100g
+[DRYRUN] Bakery :: Aunt Mabels Muffins Caramel Filled x4Pck — €4.22 
+[DRYRUN] Bakery :: Aunt Mabels Muffins Choco Filled x4Pck — €4.22 
+[DRYRUN] Bakery :: Aunt Mable's Caramel Muffin - 100 g — €1.81 100 g
+Found next button with selector; attempting click...
+Found next button with selector; attempting click...
+Pager flip OK in 31ms (from 2 -> 3)
+Pager flip OK in 31ms (from 2 -> 3)
+Parsed 10 product rows
+🧾 [Baby] Page 3: found 10 items (took 0.017s)
+[DRYRUN] Baby :: Baby Dove Baby BodyWash Sensitive Moisture-400ml — €4.86 400ml
+[DRYRUN] Baby :: Baby Dove Baby Lotion Sensitive Moisture Fragrance Free-200ml — €3.90 200ml
+[DRYRUN] Baby :: Baby Kind Giant Square Wipes - 100pcs — €6.06 100pcs
+[DRYRUN] Baby :: Baby Kind Giant Square Wipes - 40pcs — €2.91 40pcs
+[DRYRUN] Baby :: Baby Lino Pants Eco 6 13-18kg 31Pcs — €9.99 18kg
+[DRYRUN] Baby :: Baby Lino Pants Eco 7 15-25kg 28Pcs — €9.99 25kg
+[DRYRUN] Baby :: Baby Lino Pants Eco N8 20+Kg 26Pcs — €9.99 26Pcs
+[DRYRUN] Baby :: Baby Lino Pants N7 15-25 Kg x16 — €7.31 25 Kg
+[DRYRUN] Baby :: Baby Lino Sensitive Nappies 3 Midi 4-9kg - 22 piece — €4.75 9kg
+[DRYRUN] Baby :: Baby Lino Sensitive Nappies 4 Maxi 7-18kg - 20 piece — €4.88 18kg
+Found next button with selector; attempting click...
+Pager flip OK in 28ms (from 3 -> 4)
+Parsed 10 product rows
+🧾 [Drinks] Page 3: found 10 items (took 0.015s)
+[DRYRUN] Drinks :: 7 Up Zero 50Cl — €1.24 50Cl
+[DRYRUN] Drinks :: 770 Miles Cabernet Sauvignon - 750 ml — €6.88 750 ml
+[DRYRUN] Drinks :: 770 Miles California Zinfandel Wine From usa Rose - 750 ml — €6.88 750 ml
+[DRYRUN] Drinks :: 770 Miles Chardonney - 750 ml — €6.88 750 ml
+[DRYRUN] Drinks :: 770 Miles Zinfandel Wine - 750 ml — €6.88 750 ml
+[DRYRUN] Drinks :: 7Up 7Up 6x1.5Lt 8.49 — €8.49 1.5L
+[DRYRUN] Drinks :: 8.6 Intense India Pale Lager - 500ml — €2.15 500ml
+[DRYRUN] Drinks :: 8.6 Intense Red Beer - 500ml — €2.24 500ml
+[DRYRUN] Drinks :: 86 Original Special Blond Beer - 500 ml — €1.75 500 ml
+[DRYRUN] Drinks :: Aberlour Single Malt Scotch Whisky 12 Years Old - 700 ml — €42.68 700 ml
+Parsed 10 product rows
+🧾 [Bakery] Page 3: found 10 items (took 0.018s)
+[DRYRUN] Bakery :: Balconi Mini Rolls Cioccolato Moist Sponge Mini Rolls With Delicious Chocolate Filling 6X30g - 180 g — €1.40 30g
+[DRYRUN] Bakery :: Balconi Mix MaxMilk Merende 10X35g - 350 g — €2.44 35g
+[DRYRUN] Bakery :: Balconi Mix MaxSponge Cakes With Fat-Reduced Cocoa Filling & Coating 10X35g - 350 g — €2.45 35g
+[DRYRUN] Bakery :: Balconi Rollino Sponge Cakes With Hazelnut Filling 6X37g - 222 g — €1.89 37g
+[DRYRUN] Bakery :: Balconi Rollmilk Sponge Cakes With Milk Filling 6X37g - 222 g — €1.89 37g
+[DRYRUN] Bakery :: Balconi Snack Al Latte Creamy Cake Bar 10X28g - 280 g — €1.99 28g
+[DRYRUN] Bakery :: Balconi TrancettoSnacks With Yogurt & Strawberry Filling 10X28g - 280 g — €1.99 28g
+[DRYRUN] Bakery :: Balconi TrancettoSponge Cakes With Apricot Filling 10X28g - 280 g — €2.20 28g
+[DRYRUN] Bakery :: Balconi TrancettoSponge Cakes With Fat-Reduced Cocoa Filling 10X28g - 280 g — €2.20 28g
+[DRYRUN] Bakery :: Barilla Mulino BiancoFlauti Al Latte x8 - 280 g — €3.94 280 g
+Found next button with selector; attempting click...
+Found next button with selector; attempting click...
+Pager flip OK in 30ms (from 3 -> 4)
+Pager flip OK in 32ms (from 3 -> 4)
+Parsed 10 product rows
+🧾 [Baby] Page 4: found 10 items (took 0.016s)
+[DRYRUN] Baby :: Baby Lino Sensitive Nappies 4+ Maxi Plus 9-20kg - 19 piece — €4.88 20kg
+[DRYRUN] Baby :: Baby Lino Sensitive Nappies 5+ Junior Plus 13-27kg - 16 piece — €4.75 27kg
+[DRYRUN] Baby :: Baby Lino Sensitive Nappies Junior 5 11-25kg - 18 piece — €4.75 25kg
+[DRYRUN] Baby :: Baby Lino Sensitive Pants N6 13-18kgx 18 — €7.31 18kg
+[DRYRUN] Baby :: Baby Lino Unisex Pants 4 7-13kg x22 — €7.31 13kg
+[DRYRUN] Baby :: Baby Lino Wipes Fragrance Free x54 — €1.85 
+[DRYRUN] Baby :: Babycare Wipes Fresh 54pcs — €1.45 54pcs
+[DRYRUN] Baby :: Babylino Aqua Wipes - 64pcs — €3.27 64pcs
+[DRYRUN] Baby :: Babylino Sensitive Nappies With Camomile 7 Extra Large Plus 17+kg - 14pcs — €5.14, 14pcs
+[DRYRUN] Baby :: Babylino Sensitive Nappies With Camomile Extra Large Plus +17kg - 38pcs — €10.39 17kg
+Found next button with selector; attempting click...
+Pager flip OK in 28ms (from 4 -> 5)
+Parsed 10 product rows
+🧾 [Drinks] Page 4: found 10 items (took 0.017s)
+[DRYRUN] Drinks :: Absolut Grapefruit Vodka - 700ml — €17.80 700ml
+[DRYRUN] Drinks :: Absolut Kurant 1lt — €25.41 1l
+[DRYRUN] Drinks :: Absolut Original Vodka Pride Limited Edition - 700ml — €16.14 700ml
+[DRYRUN] Drinks :: Absolut Raspberri Vodka - 750ml — €18.49 750ml
+[DRYRUN] Drinks :: Absolut Vodka - 1000 ml — €23.02 1000 ml
+[DRYRUN] Drinks :: Absolut Vodka - 750ml — €16.45 750ml
+[DRYRUN] Drinks :: Absolut Vodka Berri Acai - 1Lt — €24.80 1L
+[DRYRUN] Drinks :: Absolut Vodka Citron - 700ml — €18.50 700ml
+[DRYRUN] Drinks :: Acqua Azzurra Acqua Pura Da Tavola - 2 L — €0.45 2 L
+[DRYRUN] Drinks :: Acqua Panna Acqua Oligominerale Naturale - 1.5 L — €0.60 1.5 L
+Parsed 10 product rows
+🧾 [Bakery] Page 4: found 10 items (took 0.019s)
+[DRYRUN] Bakery :: Barilla Mulino BiancoFlauti Cioccolato x8 - 280 g — €3.94 280 g
+[DRYRUN] Bakery :: Barilla Mulino BiancoNastrine I Granelli Di Zucchero X6 - 240 g — €4.17 240 g
+[DRYRUN] Bakery :: Bauli Buon EssereCroissant Senza Zuccheri Aggiunti x5 - 185g — €2.61 185g
+[DRYRUN] Bakery :: Bauli Capriccio Alla Crema Croissant - 50 g — €0.44 50 g
+[DRYRUN] Bakery :: Bauli Capriccio Alla Crema Croissant 10X50g - 500 g — €3.85 50g
+[DRYRUN] Bakery :: Bauli Croissant Albicocca - 40g — €0.40 40g
+[DRYRUN] Bakery :: Bauli Croissant Cacao - 10pcs — €3.85 10pcs
+[DRYRUN] Bakery :: Bauli Croissant Pistacchio 5x 50g — €2.62 50g
+[DRYRUN] Bakery :: Bauli Croissant Plain - 40g — €0.43 40g
+[DRYRUN] Bakery :: Bauli Cuor Di Cacao Croissant - 50 g — €0.35 50 g
+Found next button with selector; attempting click...
+Found next button with selector; attempting click...
+Pager flip OK in 32ms (from 4 -> 5)
+Pager flip OK in 32ms (from 4 -> 5)
+Parsed 10 product rows
+🧾 [Baby] Page 5: found 10 items (took 0.015s)
+[DRYRUN] Baby :: Babylino Sensitive Nappies With Camomile Junior Plus 13-27kg - 42pcs — €10.39 27kg
+[DRYRUN] Baby :: Babylino Sensitive Nappies With Camomile Maxi 8-13kg Dry Matrix - 50pcs — €10.39 13kg
+[DRYRUN] Baby :: Babylino Sensitive Nappies With Camomile Maxi Plus - 46pcs — €10.39 46pcs
+[DRYRUN] Baby :: Babylino Sensitive Nappies With Camomile Mini 3-6kg - 50pcs — €9.87 6kg
+[DRYRUN] Baby :: Babylino Sensitive Nappies With Chamomile 5 Junior 11-25 kg Dry Matrix - 44pcs — €10.39 25 kg
+[DRYRUN] Baby :: Babylino Sensitive With Chamomile Midi 4-9kg Dry Matrix - 56pcs — €10.39 9kg
+[DRYRUN] Baby :: Babylino SensitiveMega Pack No. 5 Junior 11 -16 Kg - 72 Pcs — €15.43 16 Kg
+[DRYRUN] Baby :: Babylino SensitiveMega Pack No. 6 Extra Large 13 - 18 Kg - 62 Pcs — €15.43 18 Kg
+[DRYRUN] Baby :: Babylino SensitiveMega Pack With Chamomile 4 Maxi 7-18kg - 78pcs — €16.70 18kg
+[DRYRUN] Baby :: Babylino SensitiveNappies With Chamomile 4+ 10-15kg - 76pcs — €15.43 15kg
+Found next button with selector; attempting click...
+Pager flip OK in 26ms (from 5 -> 6)
+Parsed 10 product rows
+🧾 [Drinks] Page 5: found 10 items (took 0.015s)
+[DRYRUN] Drinks :: Acqua Panna Acqua Panna Mineral Water 50Cl — €0.78 50Cl
+[DRYRUN] Drinks :: Acqua Panna Mineral Water 6X1.5L - 9 L — €3.59, 1.5L
+[DRYRUN] Drinks :: Acqua Panna Mineral Water Sports Cap - 75cl — €1.05 75cl
+[DRYRUN] Drinks :: Acqua Panna Mineral Water Sports Cap6x75Cl — €6.30 75Cl
+[DRYRUN] Drinks :: Acqua Panna Natural Mineral Water Glass Bottle - 750 ml — €1.84 750 ml
+[DRYRUN] Drinks :: Adoneus Syrah Gozo Dok Superior - 750 ml — €10.55 perior
+[DRYRUN] Drinks :: Adoneus Vermentino & Chardonnay Gozo Dok Superior - 750 ml — €9.85 perior
+[DRYRUN] Drinks :: After Shock Cool Citrus Liqueur - 70 cl — €23.61 70 cl
+[DRYRUN] Drinks :: After Shock Hot & Cool Cinnamon Liqueur - 70 cl — €23.61 70 cl
+[DRYRUN] Drinks :: Ahmad Beauty Peach Carob Ro Tea X 20 — €2.98 20 L
+Parsed 10 product rows
+🧾 [Bakery] Page 5: found 10 items (took 0.022s)
+[DRYRUN] Bakery :: Bauli Minuti Mini Croissant Cacao - 75 g — €1.13 75 g
+[DRYRUN] Bakery :: Bauli Minuti Mini Croissant Crema - 75 g — €1.16, 75 g
+[DRYRUN] Bakery :: Bauli Passione Alla Ciliega Croissant - 50 g — €0.44 50 g
+[DRYRUN] Bakery :: Bauli Passione Alla Ciliega Croissant 10X50g - 500 g — €4.39 50g
+[DRYRUN] Bakery :: Bauli Soffice Sfoglia Croissant 10X40g - 400 g — €3.85 40g
+[DRYRUN] Bakery :: Bauli Voglia All'Albicocca Croissant 10X50g - 500 g — €3.85 50g
+[DRYRUN] Bakery :: Belino Mini Croissant Feuille 185g — €2.12 185g
+[DRYRUN] Bakery :: Beniamino Muffins With Cocoa & Chocolate Chips - 240g — €1.99 240g
+[DRYRUN] Bakery :: Beniamino Tortini Filled With Apricot - 250g — €1.99 250g
+[DRYRUN] Bakery :: Beniamino Tortini Filled With Cherry - 250g — €2.65, 250g
+Found next button with selector; attempting click...
+Pager flip OK in 29ms (from 5 -> 6)
+Found next button with selector; attempting click...
+Pager flip OK in 29ms (from 5 -> 6)
+Parsed 10 product rows
+🧾 [Baby] Page 6: found 10 items (took 0.013s)
+[DRYRUN] Baby :: Babylino SensitiveNappies With Chamomile 5+ 13-27kg - 68pcs — €15.43 27kg
+[DRYRUN] Baby :: Bagigi Plaid Baby 100x150cm — €12.88 
+[DRYRUN] Baby :: Bagigi Stroller Toy Hector - 1 unit — €11.19 
+[DRYRUN] Baby :: Bagigi Trapunta Lettino 100x150cm — €23.66 
+[DRYRUN] Baby :: Bambino Cotton Square Baby Pads x50 — €2.76 
+[DRYRUN] Baby :: Bear Paws Single Artic - 20g — €0.89 20g
+[DRYRUN] Baby :: Bear Paws Single Dino - 20g — €0.89 20g
+[DRYRUN] Baby :: Bear Yoyo Single Mango - 20g — €0.94 20g
+[DRYRUN] Baby :: Bear Yoyo Single Raspberry - 20g — €0.94 20g
+[DRYRUN] Baby :: Bear Yoyo Single Strawberry - 20g — €0.94 20g
+Found next button with selector; attempting click...
+Pager flip OK in 30ms (from 6 -> 7)
+Parsed 10 product rows
+🧾 [Drinks] Page 6: found 10 items (took 0.018s)
+[DRYRUN] Drinks :: Ahmad Darjeeling Tea X 20 — €3.15 20 L
+[DRYRUN] Drinks :: Ahmad Detox Herbal Blend Tea x 20 — €3.18 
+[DRYRUN] Drinks :: Ahmad English Breakfast Tea X 20 — €2.60 20 L
+[DRYRUN] Drinks :: Ahmad English Tea no.1 X 20 — €2.60 20 L
+[DRYRUN] Drinks :: Ahmad Green Tea Selection x 20 bags — €3.05 
+[DRYRUN] Drinks :: Ahmad Jasmine Romance Tea x 20 - 40 g — €2.49 40 g
+[DRYRUN] Drinks :: Ahmad Mango Magic Tea x 20 — €2.70 20 L
+[DRYRUN] Drinks :: Ahmad Mint Mystique Green Tea x20 — €2.65 20 L
+[DRYRUN] Drinks :: Ahmad Peach&Passion Fruit Tea X20 — €2.88 20 L
+[DRYRUN] Drinks :: Ahmad Summer Fruits Iced Tea X 20 — €3.48 20 L
+Parsed 10 product rows
+🧾 [Bakery] Page 6: found 10 items (took 0.022s)
+[DRYRUN] Bakery :: Beniamino Tortini Prepared With Yogurt - 216g — €1.99 216g
+[DRYRUN] Bakery :: Beniamino Tortini Wholemeal With Wild Berry Filling - 200g — €1.99 200g
+[DRYRUN] Bakery :: Beniamino Tortini With Chocolate Chips - 200g — €1.99 200g
+[DRYRUN] Bakery :: Beniamino Tortini With Hazelnut Cream - 250g — €1.99 250g
+[DRYRUN] Bakery :: Beniamino Tortini With Lemon Flaour - 216g — €2.65, 216g
+[DRYRUN] Bakery :: Beniamino Tortini With Milk Cream - 250g — €1.99 250g
+[DRYRUN] Bakery :: Brinc's Lemon Rings - 150 g — €1.34 150 g
+[DRYRUN] Bakery :: Brinc's Original Fingers - 280 g — €1.79 280 g
+[DRYRUN] Bakery :: Brinc's Original Ottini - 250 g — €1.53 250 g
+[DRYRUN] Bakery :: Brinc's Qaghaq Tal-Hmira - 6 piece — €1.49 
+Found next button with selector; attempting click...
+Found next button with selector; attempting click...
+Pager flip OK in 28ms (from 6 -> 7)
+Pager flip OK in 28ms (from 6 -> 7)
+Parsed 10 product rows
+🧾 [Baby] Page 7: found 10 items (took 0.015s)
+[DRYRUN] Baby :: Beauty Formulas Kids Toothpaste Fresh & Fruity Strawberry - 100 ml — €2.42 100 ml
+[DRYRUN] Baby :: Bebelac 2 Infant Preci-Nutri Milk - 400gr — €8.49 400g
+[DRYRUN] Baby :: Bebelac 3 Infant Preci-Nutri Milk - 400gr — €8.49 400g
+[DRYRUN] Baby :: Bebelac Infant Milk Lactose Free — €10.69 
+[DRYRUN] Baby :: Bel Baby Cotton Buds x 56 — €1.24 
+[DRYRUN] Baby :: Bel Baby Wipes Ultra Sensitive - 60 piece — €1.77 
+[DRYRUN] Baby :: Beurer BabycareNasal Aspirator — €37.40 
+[DRYRUN] Baby :: Beurer Thermometre For Newborn — €11.18 
+[DRYRUN] Baby :: Biojunior Alpple Biscuits 10+ 100g — €2.61 100g
+[DRYRUN] Baby :: Biojunior Banana Biscuits 7+ 100g — €2.61 100g
+Found next button with selector; attempting click...
+Pager flip OK in 26ms (from 7 -> 8)
+Parsed 10 product rows
+🧾 [Drinks] Page 7: found 10 items (took 0.017s)
+[DRYRUN] Drinks :: Ahmad Tea Apple Black Tea - 20 piece — €2.81 
+[DRYRUN] Drinks :: Ahmad Tea Apricot Black Tea - 20 piece — €2.88 
+[DRYRUN] Drinks :: Ahmad Tea Blackcurrant Black Tea - 20 piece — €2.88 
+[DRYRUN] Drinks :: Ahmad Tea CalmingPeppermint & Lemon Infusion Teabags - 20 piece — €2.88 permint
+[DRYRUN] Drinks :: Ahmad Tea Camomile Honey & Vanilla Teabags - 20pcs — €3.80 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Ceylon Tea — €2.60 
+[DRYRUN] Drinks :: Ahmad Tea Chai Spice Flavoured Black Teabags - 20pcs — €2.88 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Cinnamon Black Tea - 20 piece — €2.88 
+[DRYRUN] Drinks :: Ahmad Tea Classic Selection Tea Bags - 20 piece — €2.88 
+[DRYRUN] Drinks :: Ahmad Tea Decaf Earl Grey Tea - 20 piece — €3.30 
+Parsed 10 product rows
+🧾 [Bakery] Page 7: found 10 items (took 0.018s)
+[DRYRUN] Bakery :: Brincsons Bakery Buskutelli - 20 piece — €1.60 
+[DRYRUN] Bakery :: Brincsons Bakery Buskutelli Loose - 30 piece — €2.98 
+[DRYRUN] Bakery :: Buondi Motta Cacao 6X43g - 258g — €2.93 43g
+[DRYRUN] Bakery :: Cadbury Caramel Cake Bars - 5 piece — €3.37, 
+[DRYRUN] Bakery :: Cadbury Milk Chocolate Cake Bars - 5 piece — €2.79 
+[DRYRUN] Bakery :: Cadbury Mini Rolls Raspberry x5 — €2.79 
+[DRYRUN] Bakery :: Casa Fiesta Flour Tortillas - 320g — €3.00 320g
+[DRYRUN] Bakery :: Da Vinci Barchette Savoury - 12pcs — €2.96 12pcs
+[DRYRUN] Bakery :: Da Vinci Imqaret Baked x15 — €3.00 15 L
+[DRYRUN] Bakery :: Da Vinci Kannoli Small - 12pcs — €3.50 12pcs
+Found next button with selector; attempting click...
+Found next button with selector; attempting click...
+Pager flip OK in 27ms (from 7 -> 8)
+Pager flip OK in 31ms (from 7 -> 8)
+Parsed 10 product rows
+🧾 [Baby] Page 8: found 10 items (took 0.014s)
+[DRYRUN] Baby :: Biojunior Blueberry Bars 10+ 132g — €2.80 132g
+[DRYRUN] Baby :: Biojunior Cocoa Biscuits 10+ 100g — €2.61 100g
+[DRYRUN] Baby :: Biojunior Original Biscuits 7+ 100g — €2.61 100g
+[DRYRUN] Baby :: Biojunior Shells Pasta 10+ 200g — €1.76 200g
+[DRYRUN] Baby :: Bob Snail Banana Blk Crrnt Smoothie 120g — €1.35 120g
+[DRYRUN] Baby :: Bob Snail Banana Raspberry Smoothie 120g — €1.28 120g
+[DRYRUN] Baby :: Bob Snail Banana Strawbery Smoothie 120g — €1.28 120g
+[DRYRUN] Baby :: Canpol Babies Soother Holder Flat — €2.73 
+[DRYRUN] Baby :: Chicco 2in1 Stacking Cups 6-36m — €14.30 
+[DRYRUN] Baby :: Chicco 2in1 Transform A Ball 12-36m — €23.25 
+Found next button with selector; attempting click...
+Pager flip OK in 26ms (from 8 -> 9)
+Parsed 10 product rows
+🧾 [Bakery] Page 8: found 10 items (took 0.017s)
+[DRYRUN] Bakery :: Da Vinci Muffins Chocolate x6 — €3.30 6 L
+[DRYRUN] Bakery :: Da Vinci Muffins Lemon x6 — €3.30 6 L
+[DRYRUN] Bakery :: Da Vinci Pasticceria Tea Cakes Chocolate 200g — €2.64 200g
+[DRYRUN] Bakery :: Da Vinci Qaghad Tal-Ghasel — €2.37 
+[DRYRUN] Bakery :: Da Vinci Tea Cakes 5X40g - 200 g — €2.64 40g
+[DRYRUN] Bakery :: Da Vinci Traditional BiscuitsOrange Fingers - 200 g — €2.80 200 g
+[DRYRUN] Bakery :: Dais Chocolate Croissants x8 - 320gr — €2.39 320g
+[DRYRUN] Bakery :: Dan Cake Family Madeira Cake - 700gr — €7.30 700g
+[DRYRUN] Bakery :: Dan Cake Foil Cake Marble - 400g — €3.74, 400g
+[DRYRUN] Bakery :: Dan Cake Lemon Cut Cake With Icing - 350 g — €5.06 350 g
+Parsed 10 product rows
+🧾 [Drinks] Page 8: found 10 items (took 0.018s)
+[DRYRUN] Drinks :: Ahmad Tea Decaff Evening Tea *20 — €3.10 20 L
+[DRYRUN] Drinks :: Ahmad Tea Digest Sweet Mint & Fennel Teabags - 20pcs — €3.18 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Earl Grey Tea 20 Tea Bags - 40 g — €2.60 40 g
+[DRYRUN] Drinks :: Ahmad Tea Earl Grey Tea Bags - 25 piece — €1.99 
+[DRYRUN] Drinks :: Ahmad Tea Earl Grey Teabas - 20pcs — €1.49 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Energy Grapefruit Mate & Guarana Seed Teabags - 20pcs — €2.98 20pcs
+[DRYRUN] Drinks :: Ahmad tea English Tea N. 1 — €1.94 1 L
+[DRYRUN] Drinks :: Ahmad Tea Fruit & Herbal InfusionsMixed Citrus - 20 piece — €3.18 
+[DRYRUN] Drinks :: Ahmad Tea Fruit Tea Selection - 20 piece — €2.44 
+[DRYRUN] Drinks :: Ahmad Tea Green Tea - 25 piece — €1.99 
+Found next button with selector; attempting click...
+Found next button with selector; attempting click...
+Pager flip OK in 30ms (from 8 -> 9)
+Pager flip OK in 30ms (from 8 -> 9)
+Parsed 10 product rows
+🧾 [Baby] Page 9: found 10 items (took 0.014s)
+[DRYRUN] Baby :: Chicco Advanced Cup 12m+ — €11.58 
+[DRYRUN] Baby :: Chicco Anatomical Potty — €8.46 
+[DRYRUN] Baby :: Chicco Baby Moments Head To Toe Mice - 500ml — €5.70 500ml
+[DRYRUN] Baby :: Chicco Baby Moments Kids Bath and Shower Gel Almond and Peach - 500ml — €6.32 500ml
+[DRYRUN] Baby :: Chicco Baby Moments Kids Detangler Almond and Peach - 200ml — €5.69 200ml
+[DRYRUN] Baby :: Chicco Baby MomentsSoft Cleansing Wipes 0 Months Onwards - 16 piece — €1.57 
+[DRYRUN] Baby :: Chicco Baby Nail Scissors Blue — €5.78 
+[DRYRUN] Baby :: Chicco Baby Scissors Orange - 1 piece — €5.78 
+[DRYRUN] Baby :: Chicco Baby Scissors Pink — €5.38 
+[DRYRUN] Baby :: Chicco Baby SensesPhill the Caterpillar 6-36m — €23.25 
+Found next button with selector; attempting click...
+Pager flip OK in 27ms (from 9 -> 10)
+Parsed 10 product rows
+🧾 [Bakery] Page 9: found 10 items (took 0.017s)
+[DRYRUN] Bakery :: Dan Cake Mini Cakes Typ Vanille - 200gr — €3.94 200g
+[DRYRUN] Bakery :: Dan Cake Strawberry Cake 400g — €3.72, 400g
+[DRYRUN] Bakery :: Delasheras Magdalenas 12X29g - 348 g — €2.16 29g
+[DRYRUN] Bakery :: Delasheras Mini Muffins Lemon - 12 piece — €2.29 
+[DRYRUN] Bakery :: Delasheras Traditional Fairy Cake Mini Muffins 12X23.33g - 279.96 g — €2.29 23.33g
+[DRYRUN] Bakery :: Delasheras Yoghurt Fairy Cake Mini Muffins 12X22.5g — €2.29 22.5g
+[DRYRUN] Bakery :: Delba Sunflower Seed Bread - 500g — €2.02 500g
+[DRYRUN] Bakery :: Delba Three Grain Bread - 500g — €2.02 500g
+[DRYRUN] Bakery :: Deli Sun Corn Tortilla Wraps x 6 - 360 g — €1.76 360 g
+[DRYRUN] Bakery :: Deli Sun Plain Flour Tortilla Wraps x 6 - 360 g — €1.76 360 g
+Parsed 10 product rows
+🧾 [Drinks] Page 9: found 10 items (took 0.024s)
+[DRYRUN] Drinks :: Ahmad Tea Immune Lemon Ginger & Turmeric Tebags x20 - 30g — €3.18 30g
+[DRYRUN] Drinks :: Ahmad Tea Infus Peach & Raspberry x20 — €3.38 20 L
+[DRYRUN] Drinks :: Ahmad Tea Jasmine Green Tea - 25 piece — €1.99 
+[DRYRUN] Drinks :: Ahmad Tea Lemon & Ginger Tea - 20pcs — €3.18 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Lemon & Lime Twist — €2.81 
+[DRYRUN] Drinks :: Ahmad Tea Lemon & Mint Cold Brew Iced Teabags - 20pcs — €3.17 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Lemon Green Tea - 20 piece — €2.65 
+[DRYRUN] Drinks :: Ahmad Tea Mango & Lychee Cold Brew Iced Tea Teabags - 2opcs — €3.17 
+[DRYRUN] Drinks :: Ahmad Tea Mango & Lychee Teabags - 20pcs — €2.65 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Mint Green Tea - 25 piece — €2.08 
+Found next button with selector; attempting click...
+Found next button with selector; attempting click...
+Pager flip OK in 30ms (from 9 -> 10)
+Pager flip OK in 31ms (from 9 -> 10)
+Parsed 10 product rows
+🧾 [Baby] Page 10: found 10 items (took 0.015s)
+[DRYRUN] Baby :: Chicco Baby Softner Sweet Talcum - 1.5lt — €4.59 1.5l
+[DRYRUN] Baby :: Chicco Baobab Shape Sorter 6-36m — €15.48 
+[DRYRUN] Baby :: Chicco Brush And Comb Pink — €6.64 
+[DRYRUN] Baby :: Chicco Brush and Comb Set — €6.27 
+[DRYRUN] Baby :: Chicco Brush For Feeding Bottles And Accessories — €6.29 
+[DRYRUN] Baby :: Chicco Cleansing Wipes For Soother - 16pcs — €3.11 16pcs
+[DRYRUN] Baby :: Chicco Cleansing wipes x 72 — €2.75 72 L
+[DRYRUN] Baby :: Chicco Clip With Chain Blue — €6.90 
+[DRYRUN] Baby :: Chicco Clip With Chain Pink — €6.90 
+[DRYRUN] Baby :: Chicco Cotton Buds 0m+ x60pcs — €1.74 60pcs
+Found next button with selector; attempting click...
+Pager flip OK in 27ms (from 10 -> 11)
+Parsed 10 product rows
+🧾 [Bakery] Page 10: found 10 items (took 0.016s)
+[DRYRUN] Bakery :: Deli Sun Tomato Tortilla Wraps x 6 - 360 g — €1.76 360 g
+[DRYRUN] Bakery :: Deli Sun Whole Wheat Tortilla Wraps x 6 - 360 g — €1.76 360 g
+[DRYRUN] Bakery :: Delisun This & Crispy Pizza Bases — €2.33 
+[DRYRUN] Bakery :: Diablo Chocolate Muffin 45g — €0.89 45g
+[DRYRUN] Bakery :: Diablo NAS Choc Chip Muffin 45g — €0.89 45g
+[DRYRUN] Bakery :: Diablo NAS Vanilla Muffin 45g — €0.89 45g
+[DRYRUN] Bakery :: Emmanuel Spiteri Bakery Coconut Fingers - 400 g — €2.50 400 g
+[DRYRUN] Bakery :: Emmanuel Spiteri Bakery Fingers - 400 g — €2.20 400 g
+[DRYRUN] Bakery :: Emmanuel Spiteri Bakery Krustini Tal-Lewz - 300 g — €2.50 300 g
+[DRYRUN] Bakery :: Emmanuel Spiteri Bakery Lemon Rings - 400 g — €2.50 400 g
+Parsed 10 product rows
+🧾 [Drinks] Page 10: found 10 items (took 0.017s)
+[DRYRUN] Drinks :: Ahmad Tea Original Green Tea - 20 piece — €2.65 
+[DRYRUN] Drinks :: Ahmad Tea Raspberry & Pomegranate — €2.65 
+[DRYRUN] Drinks :: Ahmad Tea Raspberry Black Tea - 20 piece — €2.70 
+[DRYRUN] Drinks :: Ahmad Tea Redbush & Cinnamon Teabags - 20pcs — €2.88 20pcs
+[DRYRUN] Drinks :: Ahmad Tea RelaxingCamomile & Lemongrass Infusion Teabags - 20 piece — €2.77 
+[DRYRUN] Drinks :: Ahmad Tea RevitaliseMixed Berries & Hibiscus Infusion Teabags - 20 piece — €3.23 
+[DRYRUN] Drinks :: Ahmad Tea RevitaliseRosehip, Hibiscus & Cherry Infusion Teabags - 20 piece — €3.32 
+[DRYRUN] Drinks :: Ahmad Tea Sleep Camomile Honey & Lavender Teabags - 20pcs — €3.18 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Slim Lemon Mate & Matcha Green Tea Teabags - 20pcs — €3.18 20pcs
+[DRYRUN] Drinks :: Ahmad Tea Strawberry Black Tea - 20 piece — €2.88 
+Found next button with selector; attempting click...
+Pager flip OK in 30ms (from 10 -> 11)
+Found next button with selector; attempting click...
+Pager flip OK in 27ms (from 10 -> 11)
+Parsed 10 product rows
+🧾 [Baby] Page 11: found 10 items (took 0.015s)
+[DRYRUN] Baby :: Chicco Detergente Stoviglie & Biberon — €4.99 
+[DRYRUN] Baby :: Chicco Easy Bowl With Suction Blue 6m+ — €15.36 
+[DRYRUN] Baby :: Chicco Easy Bowl With Suction Pink 6m+ — €15.36 
+[DRYRUN] Baby :: Chicco Easy Cup Bottle 12m+ — €12.29 
+[DRYRUN] Baby :: Chicco Easy Grip Ring 3 Months Onwards — €5.92 
+[DRYRUN] Baby :: Chicco Easy Menu Section Plate Blue 12m+ — €23.26 
+[DRYRUN] Baby :: Chicco Easy Menu Section Plate Pink 12m+ — €23.26 
+[DRYRUN] Baby :: Chicco Extra Absorbent Sponge — €6.27 
+[DRYRUN] Baby :: Chicco Fashion Clip — €7.09 
+[DRYRUN] Baby :: Chicco Fashion Clip 0+m — €7.09 
+Found next button with selector; attempting click...
+Pager flip OK in 25ms (from 11 -> 12)
+Parsed 10 product rows
+🧾 [Drinks] Page 11: found 10 items (took 0.014s)
+[DRYRUN] Drinks :: Ahmad Tea Wild Strawberry Tea - 20 piece — €3.10 
+[DRYRUN] Drinks :: Ahmad Tea Winter Charm Teabags - 20pcs — €3.34 20pcs
+[DRYRUN] Drinks :: Alamos Cabernet Sauvignon - 750ml — €9.20 750ml
+[DRYRUN] Drinks :: Alamos Chardonnay - 750ml — €9.33 750ml
+[DRYRUN] Drinks :: Alamos Malbec Red Wine - 750 ml — €9.54 750 ml
+[DRYRUN] Drinks :: Alamos Pinot Noir - 750ml — €11.26 750ml
+[DRYRUN] Drinks :: Alamos Torrontes White Wine - 750ml — €9.33 750ml
+[DRYRUN] Drinks :: Alasia Gavi - 750ml — €8.30 750ml
+[DRYRUN] Drinks :: Alasia Moscato D'Asti - 750ml — €7.98 750ml
+[DRYRUN] Drinks :: Albert Bichot Pouilly Fuisse White Wine - 75 cl — €41.80 75 cl
+Found next button with selector; attempting click...
+Parsed 10 product rows
+🧾 [Bakery] Page 11: found 10 items (took 0.014s)
+[DRYRUN] Bakery :: Emmanuel Spiteri Bakery Ottini - 400 g — €2.20 400 g
+[DRYRUN] Bakery :: Ferrero Fiesta Classica x10 360g — €4.04 360g
+[DRYRUN] Bakery :: Ferrero KinderBrioss - 10 piece — €2.69 
+[DRYRUN] Bakery :: Ferrero KinderColazione Piu - 10 piece — €2.89 
+[DRYRUN] Bakery :: Ferrero Nutella Croissant x4 — €5.49 4 L
+[DRYRUN] Bakery :: First Of May Icing Frolla — €2.70 
+[DRYRUN] Bakery :: First Of May Pasti Tat-Tamal — €2.70 
+[DRYRUN] Bakery :: First Of May Rock Cakes — €2.70 
+[DRYRUN] Bakery :: Gecchele Ciambella Al Limone - 400 g — €4.22 400 g
+[DRYRUN] Bakery :: Gecchele Ciambella Bicolore Con Yogurt - 400 g — €4.22 400 g
+Pager flip OK in 32ms (from 11 -> 12)
+Found next button with selector; attempting click...
+Pager flip OK in 26ms (from 11 -> 12)
+Parsed 10 product rows
+🧾 [Baby] Page 12: found 10 items (took 0.015s)
+[DRYRUN] Baby :: Chicco First DreamsDreamlight 0m+ Blue — €23.25 
+[DRYRUN] Baby :: Chicco First DreamsDreamlight 0m+ Pink — €23.25 
+[DRYRUN] Baby :: Chicco First Spoon 8M — €3.41 
+[DRYRUN] Baby :: Chicco Gilby The Giraffe 3-18m — €7.21 
+[DRYRUN] Baby :: Chicco Gums Rubbing Fishes — €7.71 
+[DRYRUN] Baby :: Chicco Happy Color Musical Box — €16.14 
+[DRYRUN] Baby :: Chicco Happy Hippo Vibrating Rattle — €19.66 
+[DRYRUN] Baby :: Chicco Laundry Detergent Babies - 1.5Lt — €5.75 1.5L
+[DRYRUN] Baby :: Chicco Mammy UnderwearPost Natal Sanitary Towels - 30 piece — €7.49 
+[DRYRUN] Baby :: Chicco Metal Cutlery Child-Size Boy 18m+ — €6.81 
+Found next button with selector; attempting click...
+Pager flip OK in 30ms (from 12 -> 13)
+Parsed 10 product rows
+🧾 [Drinks] Page 12: found 10 items (took 0.014s)
+[DRYRUN] Drinks :: Alcesti Frappato Terre Siciliane IGT - 750ml — €9.68 750ml
+[DRYRUN] Drinks :: Aleo Aloe Vera Mango Drink - 500ml — €1.75 500ml
+[DRYRUN] Drinks :: Aleo Aloe Vera Premium Drink - 500ml — €1.75 500ml
+[DRYRUN] Drinks :: Aleo Aloe Vera With Pomegranate - 500ml — €1.75 500ml
+[DRYRUN] Drinks :: Aleo Alore Vera With Coconut - 500ml — €1.75 500ml
+[DRYRUN] Drinks :: Alhambra Beer Reserva 0.33ml — €2.05 0.33ml
+[DRYRUN] Drinks :: Allure Cabernet Sauvignon - 750ml — €7.69, 750ml
+[DRYRUN] Drinks :: Alpro Almond Vanilla Drink - 1 l — €1.85 1 l
+[DRYRUN] Drinks :: Altemura Sasseo Primitivo Salento - 750 ml — €13.48 750 ml
+[DRYRUN] Drinks :: Alwazah Pure Ceylon Blck Tea X110 220G — €5.57 220G
+Found next button with selector; attempting click...
+Parsed 10 product rows
+🧾 [Bakery] Page 12: found 10 items (took 0.016s)
+[DRYRUN] Bakery :: Gecchele Ciambella Yogurt - 400 g — €4.22 400 g
+[DRYRUN] Bakery :: Gecchele Maxi Hamburger Sesame - 300gr — €2.34 300g
+[DRYRUN] Bakery :: Gecchele Pancakes 6 Multipack - 240g — €3.59 240g
+[DRYRUN] Bakery :: Gecchele Pane Arabo - 400g — €3.37 400g
+[DRYRUN] Bakery :: Gecchele Panini Burger Small - 300g — €3.15, 300g
+[DRYRUN] Bakery :: Gecchele Panini Burger Small Sesame - 230gr — €3.15 230g
+[DRYRUN] Bakery :: Gecchele Pita Bread - 450g — €3.67 450g
+[DRYRUN] Bakery :: Gecchele Quadrone Variegato - 400 g — €3.71 400 g
+[DRYRUN] Bakery :: Gecchele Tramezzino Sandwich - 350g — €2.91 350g
+[DRYRUN] Bakery :: GF Schar Muffins Cocoa 225g — €4.40 225g
+Pager flip OK in 36ms (from 12 -> 13)
+Found next button with selector; attempting click...
+Pager flip OK in 28ms (from 12 -> 13)
+Parsed 10 product rows
+🧾 [Baby] Page 13: found 10 items (took 0.015s)
+[DRYRUN] Baby :: Chicco Metal Cutlery Stainless Steel child-Size 18m+ — €7.32 
+[DRYRUN] Baby :: Chicco Milk Teeth tToothbrush 3-6 years — €3.75 
+[DRYRUN] Baby :: Chicco Musical Ball — €18.07 
+[DRYRUN] Baby :: Chicco Nappy Sacks x 50 — €3.75 
+[DRYRUN] Baby :: Chicco Natural Feeling Antibacterial Breast Protection Pads - 30 piece — €5.18 
+[DRYRUN] Baby :: Chicco Pacifier Clip Blue — €7.59 
+[DRYRUN] Baby :: Chicco Physio Anti-Colic Teat 0m+ - 2pcs — €6.64 2pcs
+[DRYRUN] Baby :: Chicco Physio Anti-Colic Teat 4m+ - 2pcs — €6.64 2pcs
+[DRYRUN] Baby :: Chicco Physio Forma Light 2-6m — €7.50 
+[DRYRUN] Baby :: Chicco Physio Teat 2m+ - 2pcs — €6.64 2pcs
+Found next button with selector; attempting click...
+Pager flip OK in 26ms (from 13 -> 14)

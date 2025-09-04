@@ -1,0 +1,206 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model PageState {
+  id          String   @id @default(cuid())
+  householdId String
+  page        String
+  data        Json
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  @@unique([householdId, page])
+}
+
+model User {
+  id                     String         @id @default(cuid())
+  name                   String?
+  email                  String         @unique
+  password               String
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  activeHouseholdId      String?
+  ownedHouseholds        Household[]    @relation("OwnerHouseholds")
+  memberships            Membership[]
+  shoppingItemsCreated   ShoppingItem[] @relation("ShoppingItemCreatedBy")
+  shoppingItemsCompleted ShoppingItem[] @relation("ShoppingItemDoneBy")
+  activeHousehold        Household?     @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id])
+}
+
+model Household {
+  id             String         @id @default(cuid())
+  name           String
+  ownerId        String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  owner          User           @relation("OwnerHouseholds", fields: [ownerId], references: [id])
+  invites        Invite[]
+  members        Membership[]
+  shoppingLists  ShoppingList[]
+  activeForUsers User[]         @relation("ActiveHousehold")
+}
+
+model Membership {
+  id          String     @id @default(cuid())
+  userId      String
+  householdId String
+  role        MemberRole @default(MEMBER)
+  createdAt   DateTime   @default(now())
+  household   Household  @relation(fields: [householdId], references: [id])
+  user        User       @relation(fields: [userId], references: [id])
+
+  @@unique([userId, householdId], name: "userId_householdId")
+  @@index([householdId])
+}
+
+model Invite {
+  id           String       @id @default(cuid())
+  householdId  String
+  email        String?
+  role         MemberRole   @default(MEMBER)
+  token        String       @unique
+  status       InviteStatus @default(PENDING)
+  expiresAt    DateTime
+  invitedById  String
+  acceptedById String?
+  acceptedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  household    Household    @relation(fields: [householdId], references: [id])
+}
+
+model ShoppingList {
+  id          String         @id @default(cuid())
+  householdId String
+  name        String
+  archivedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  items       ShoppingItem[]
+  household   Household      @relation(fields: [householdId], references: [id])
+
+  @@unique([householdId, name], name: "householdId_name_unique")
+  @@index([householdId])
+}
+
+model ShoppingItem {
+  id          String             @id @default(cuid())
+  listId      String
+  title       String
+  qty         String?
+  notes       String?
+  category    String?
+  store       String?
+  status      ShoppingItemStatus @default(ACTIVE)
+  createdById String
+  doneById    String?
+  doneAt      DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  createdBy   User               @relation("ShoppingItemCreatedBy", fields: [createdById], references: [id])
+  doneBy      User?              @relation("ShoppingItemDoneBy", fields: [doneById], references: [id])
+  list        ShoppingList       @relation(fields: [listId], references: [id])
+
+  @@index([listId])
+  @@index([status])
+  @@index([updatedAt])
+}
+
+model Store {
+  id        String         @id @default(cuid())
+  name      String
+  domain    String         @unique
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  offers    PriceOffer[]
+  products  PriceProduct[]
+}
+
+model PriceProduct {
+  id             String       @id @default(cuid())
+  storeId        String
+  name           String
+  brand          String?
+  sku            String?
+  sourceUrl      String       @unique
+  imageUrl       String?
+  nameNormalized String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  offers         PriceOffer[] @relation("ProductOffers")
+  store          Store        @relation(fields: [storeId], references: [id])
+
+  @@index([storeId, nameNormalized])
+}
+
+model PriceOffer {
+  id         String       @id @default(cuid())
+  productId  String
+  priceCents Int
+  currency   String       @default("EUR")
+  unit       String?
+  scrapedAt  DateTime     @default(now())
+  storeId    String?
+  category   String?
+  product    PriceProduct @relation("ProductOffers", fields: [productId], references: [id])
+  Store      Store?       @relation(fields: [storeId], references: [id])
+
+  @@index([productId, scrapedAt])
+}
+
+enum MemberRole {
+  OWNER
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum ShoppingItemStatus {
+  ACTIVE
+  DONE
+}
+
+model ShoppingTemplate {
+  id          String                 @id @default(cuid())
+  householdId String
+  name        String
+  createdAt   DateTime               @default(now())
+  items       ShoppingTemplateItem[] // <-- one-to-many
+
+  @@index([householdId])
+}
+
+model ShoppingTemplateItem {
+  id String @id @default(cuid())
+
+  // FK column
+  templateId String
+
+  // RELATION field (this is what Prisma was missing)
+  template ShoppingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  // optional link to catalogue product
+  productId String?
+
+  name       String
+  quantity   Decimal @default(1)
+  unitId     String?
+  categoryId String?
+  note       String?
+
+  @@index([templateId])
+  @@index([unitId])
+  @@index([categoryId])
+}
