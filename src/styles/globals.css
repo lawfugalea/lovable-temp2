@@ -2,44 +2,140 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme tokens */
-:root{
-  --hf-bg:#FAF9FB;
-  --hf-surface:#FFFFFF;
-  --hf-ink:#0F172A;
-  --hf-brand:#FB7185;
-  --hf-brand-dark:#DB5870;
-
-  /* header gradient */
-  --hf-grad-from:#FFE5E9; /* rose-100 */
-  --hf-grad-via:#FFEDCC;  /* amber-100 */
-  --hf-grad-to:#E8F8ED;   /* emerald-100 */
+/* Warm, cozy design system */
+:root {
+  /* Main background - warm ivory */
+  --cozy-bg: hsl(35, 25%, 97%);
+  --cozy-surface: hsl(35, 15%, 99%);
+  
+  /* Text colors */
+  --cozy-text: hsl(25, 15%, 15%);
+  --cozy-text-muted: hsl(25, 8%, 45%);
+  --cozy-text-soft: hsl(25, 5%, 65%);
+  
+  /* Warm accent colors */
+  --cozy-primary: hsl(18, 75%, 65%);      /* warm coral */
+  --cozy-primary-soft: hsl(18, 85%, 85%);  /* light coral */
+  --cozy-primary-deep: hsl(18, 65%, 45%);  /* deep coral */
+  
+  /* Secondary warm tones */
+  --cozy-sage: hsl(95, 20%, 65%);         /* warm sage */
+  --cozy-sage-soft: hsl(95, 25%, 85%);   /* light sage */
+  --cozy-terracotta: hsl(15, 60%, 60%);  /* terracotta */
+  --cozy-cream: hsl(45, 40%, 92%);       /* warm cream */
+  --cozy-sand: hsl(35, 30%, 85%);        /* warm sand */
+  
+  /* Warm grays */
+  --cozy-gray-100: hsl(25, 8%, 95%);
+  --cozy-gray-200: hsl(25, 6%, 88%);
+  --cozy-gray-300: hsl(25, 5%, 75%);
+  --cozy-gray-400: hsl(25, 4%, 60%);
+  
+  /* Gradients */
+  --cozy-gradient-warm: linear-gradient(135deg, 
+    hsl(35, 40%, 95%) 0%, 
+    hsl(25, 35%, 92%) 50%, 
+    hsl(18, 30%, 90%) 100%
+  );
+  
+  --cozy-gradient-header: linear-gradient(90deg, 
+    hsl(18, 85%, 90%) 0%, 
+    hsl(35, 60%, 88%) 30%, 
+    hsl(95, 30%, 88%) 70%, 
+    hsl(45, 50%, 90%) 100%
+  );
+  
+  /* Shadows - warm and soft */
+  --cozy-shadow-sm: 0 2px 8px hsla(25, 15%, 15%, 0.08);
+  --cozy-shadow-md: 0 4px 16px hsla(25, 15%, 15%, 0.12);
+  --cozy-shadow-lg: 0 8px 32px hsla(25, 15%, 15%, 0.16);
+  --cozy-shadow-glow: 0 0 20px hsla(18, 75%, 65%, 0.15);
 }
 
-/* Base page background */
-html,body { background: var(--hf-bg); color: var(--hf-ink); }
+/* Base styling with warm, cozy foundation */
+html, body { 
+  background: var(--cozy-bg);
+  color: var(--cozy-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
 
-/* Focus ring */
-* :where(:focus-visible) {
+/* Warm focus ring */
+*:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--hf-brand);
-  border-radius: .75rem;
+  box-shadow: 0 0 0 3px var(--cozy-surface), 0 0 0 5px var(--cozy-primary);
+  border-radius: 1rem;
 }
 
-/* Reusable “glass” panel */
-.hf-glass {
-  @apply backdrop-blur supports-[backdrop-filter]:bg-white/60;
-  background: linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,.6));
-  border: 1px solid rgba(255,255,255,.65);
-  box-shadow: 0 1px 0 rgba(16,24,40,.04), 0 8px 24px rgba(16,24,40,.06);
+/* Cozy glass panel */
+.cozy-glass {
+  background: var(--cozy-gradient-warm);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsla(25, 15%, 85%, 0.4);
+  box-shadow: var(--cozy-shadow-md);
 }
 
-/* Card helper */
-.hf-card { @apply bg-white rounded-2xl border border-gray-200 shadow-card; }
+/* Warm card styling */
+.cozy-card { 
+  background: var(--cozy-surface);
+  border-radius: 1.5rem;
+  border: 1px solid var(--cozy-gray-200);
+  box-shadow: var(--cozy-shadow-sm);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.cozy-card:hover {
+  box-shadow: var(--cozy-shadow-md);
+  transform: translateY(-1px);
+}
+
+/* Warm button styles */
+.cozy-btn-primary {
+  background: var(--cozy-primary);
+  color: var(--cozy-surface);
+  border-radius: 1rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: var(--cozy-shadow-sm);
+}
+
+.cozy-btn-primary:hover {
+  background: var(--cozy-primary-deep);
+  box-shadow: var(--cozy-shadow-glow);
+  transform: translateY(-1px);
+}
+
+.cozy-btn-secondary {
+  background: var(--cozy-surface);
+  color: var(--cozy-text);
+  border: 1px solid var(--cozy-gray-300);
+  border-radius: 1rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.cozy-btn-secondary:hover {
+  background: var(--cozy-cream);
+  border-color: var(--cozy-primary-soft);
+}
 
 /* Safe-area util (for sticky footers on iOS) */
-.pb-safe { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.pb-safe { 
+  padding-bottom: max(12px, env(safe-area-inset-bottom)); 
+}
 
-/* Subtle scrollbars */
-*::-webkit-scrollbar { height: 10px; width: 10px; }
-*::-webkit-scrollbar-thumb { background: rgba(15,23,42,.18); border-radius: 999px; }
+/* Cozy scrollbars */
+*::-webkit-scrollbar { 
+  height: 8px; 
+  width: 8px; 
+}
+
+*::-webkit-scrollbar-thumb { 
+  background: var(--cozy-primary-soft); 
+  border-radius: 999px; 
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--cozy-gray-100);
+}

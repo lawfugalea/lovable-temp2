@@ -36,41 +36,65 @@ export default function LoginPage() {
 
   return (
     <>
-      <Head><title>Sign in – HouseFlow</title></Head>
+      <Head><title>Welcome Home – HouseFlow</title></Head>
 
-      <main className="min-h-screen bg-gradient-to-br from-indigo-700 via-violet-700 to-fuchsia-700 flex items-center justify-center p-4">
-        <div className="w-full max-w-sm">
-          <div className="overflow-hidden rounded-3xl shadow-xl">
-            <div className="bg-white/10 backdrop-blur-md border-b border-white/20 flex justify-center py-6">
-              <Image src="/logo.png" alt="HouseFlow" width={80} height={80} className="rounded-2xl" priority />
+      <main className="min-h-screen bg-cozy-warm flex items-center justify-center p-6">
+        <div className="w-full max-w-md">
+          <div className="cozy-card overflow-hidden">
+            <div className="bg-cozy-header border-b border-cozy-gray-200 flex flex-col items-center py-8">
+              <div className="h-16 w-16 rounded-cozy-lg bg-cozy-surface shadow-cozy-md grid place-items-center text-2xl border border-cozy-primary-soft mb-3">
+                🏠
+              </div>
+              <h1 className="text-2xl font-bold text-cozy-text mb-1">HouseFlow</h1>
+              <p className="text-cozy-text-muted text-sm">Your cozy home hub awaits</p>
             </div>
 
-            <div className="bg-white px-6 py-6">
-              <h1 className="text-2xl font-bold text-center text-gray-800 mb-1">HouseFlow</h1>
-              <p className="text-center text-sm text-gray-500 mb-6">Sign in to your household</p>
-
-              <form onSubmit={onSubmit} className="space-y-4">
+            <div className="bg-cozy-surface px-8 py-8">
+              <form onSubmit={onSubmit} className="space-y-5">
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">Email</label>
-                  <input type="email" className="w-full border border-gray-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-fuchsia-400/60" placeholder="you@example.com" value={email} onChange={(e)=>setEmail(e.target.value)} autoComplete="email" required />
+                  <label className="block text-sm font-medium text-cozy-text mb-2">Email</label>
+                  <input 
+                    type="email" 
+                    className="w-full border border-cozy-gray-300 rounded-cozy bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
+                    placeholder="you@home.com" 
+                    value={email} 
+                    onChange={(e)=>setEmail(e.target.value)} 
+                    autoComplete="email" 
+                    required 
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">Password</label>
-                  <input type="password" className="w-full border border-gray-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-fuchsia-400/60" placeholder="••••••••" value={password} onChange={(e)=>setPassword(e.target.value)} autoComplete="current-password" required />
+                  <label className="block text-sm font-medium text-cozy-text mb-2">Password</label>
+                  <input 
+                    type="password" 
+                    className="w-full border border-cozy-gray-300 rounded-cozy bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
+                    placeholder="••••••••" 
+                    value={password} 
+                    onChange={(e)=>setPassword(e.target.value)} 
+                    autoComplete="current-password" 
+                    required 
+                  />
                 </div>
-                {err && <p className="text-sm text-red-600 -mt-1">{err}</p>}
-                <button disabled={loading} className={`w-full rounded-xl py-2.5 font-medium text-white shadow-sm transition ${loading ? 'bg-gray-400' : 'bg-fuchsia-600 hover:bg-fuchsia-700'}`}>
-                  {loading ? 'Signing in…' : 'Sign in'}
+                {err && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-cozy">{err}</p>}
+                <button 
+                  disabled={loading} 
+                  className={`cozy-btn-primary w-full ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  {loading ? '🏡 Signing in…' : '🔑 Enter your home'}
                 </button>
               </form>
 
-              <p className="text-sm text-center mt-4 text-gray-700">
-                No account? <a className="underline text-fuchsia-700 hover:text-fuchsia-800" href="/register">Register</a>
-              </p>
+              <div className="mt-6 pt-6 border-t border-cozy-gray-200 text-center">
+                <p className="text-sm text-cozy-text-muted">
+                  New family? <a className="font-medium text-cozy-primary hover:text-cozy-primary-deep underline" href="/register">Create your household</a>
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="text-center text-xs text-white/80 mt-4">By signing in you agree to the household rules.</div>
+          <div className="text-center text-xs text-cozy-text-soft mt-6 bg-cozy-surface/60 rounded-cozy px-4 py-2 backdrop-blur-sm">
+            ☕ By signing in, you agree to keep our home cozy and welcoming
+          </div>
         </div>
       </main>
     </>

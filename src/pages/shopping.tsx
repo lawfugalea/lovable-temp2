@@ -134,120 +134,164 @@ function ShoppingCore({ householdId, hidError }: { householdId: string; hidError
       <Head><title>Shopping – Houseflow</title></Head>
 
       <PageHeader
-        title="Shopping List"
-        subtitle="Fast, shared list with mobile-first controls."
+        title="🛒 Cozy Shopping"
+        subtitle="Your shared family list, organized with love."
         householdId={householdId}
-        status={hidError ? <span className="text-red-600">{hidError}</span> : (listsLoading || itemsLoading) ? 'Loading…' : isValidating ? 'Syncing…' : 'Up to date'}
+        status={hidError ? <span className="text-red-600">{hidError}</span> : (listsLoading || itemsLoading) ? '🌸 Loading…' : isValidating ? '✨ Syncing…' : '💫 All up to date'}
       />
 
-      {/* filter chips + list picker */}
-      <div className="mx-4 sm:mx-6 mt-3 flex flex-wrap items-center gap-2">
+      {/* Warm filter chips + list picker */}
+      <div className="mx-4 sm:mx-6 mt-4 flex flex-wrap items-center gap-3">
         {(['all','active','done'] as const).map(k=>(
-          <button key={k} onClick={()=>setFilter(k)} className={`px-3 py-1.5 rounded-full border text-sm min-h-[36px] ${filter===k?'bg-gray-900 text-white border-gray-900':'bg-white hover:bg-gray-50'}`}>
-            {k==='all'?'All':k==='active'?'Active':'Purchased'}
+          <button key={k} onClick={()=>setFilter(k)} className={`px-4 py-2 rounded-cozy text-sm font-medium transition-all ${filter===k?'bg-cozy-primary text-cozy-surface shadow-cozy-sm':'bg-cozy-surface border border-cozy-gray-300 text-cozy-text hover:bg-cozy-cream'}`}>
+            {k==='all'?'✨ All Items':k==='active'?'🛒 To Buy':'✅ Purchased'}
           </button>
         ))}
         <div className="ml-auto"><ListPicker selectedId={listId} onChange={(id)=>setListId(id)} /></div>
       </div>
 
-      <main className="mx-4 sm:mx-6 my-5 grid gap-5 pb-[calc(76px+var(--safe-bottom))]">
-        <Section title="Controls" desc="Sort, housekeeping, refresh." tone="indigo">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:items-center">
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Sort</label>
-              <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="flex-1 rounded-lg border bg-white px-3 py-2 text-sm min-h-[40px]">
-                <option value="new">Newest first</option><option value="alpha">A → Z</option>
-              </select>
-            </div>
-            <div />
-            <div className="flex gap-2 sm:justify-end">
-              <button onClick={clearDone} disabled={!listId} className="rounded-xl border bg-white px-3 py-2 text-xs sm:text-sm min-h-[40px] hover:bg-gray-50 disabled:opacity-60">Clear purchased</button>
-              <button onClick={()=>mutate()} className="rounded-xl border bg-white px-3 py-2 text-xs sm:text-sm min-h-[40px] hover:bg-gray-50">Refresh</button>
+      <main className="mx-4 sm:mx-6 my-6 grid gap-6 pb-[calc(80px+var(--safe-bottom))]">
+        <Section title="📋 List Controls" desc="Sort your way, keep things tidy." tone="sage">
+          <div className="cozy-card p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:items-center">
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-medium text-cozy-text">Sort by</label>
+                <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="flex-1 rounded-cozy border border-cozy-gray-300 bg-cozy-surface px-3 py-2 text-sm focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20">
+                  <option value="new">✨ Newest first</option><option value="alpha">🔤 A → Z</option>
+                </select>
+              </div>
+              <div />
+              <div className="flex gap-3 sm:justify-end">
+                <button onClick={clearDone} disabled={!listId} className="cozy-btn-secondary text-xs sm:text-sm disabled:opacity-40">
+                  🧹 Clear done
+                </button>
+                <button onClick={()=>mutate()} className="cozy-btn-primary text-xs sm:text-sm">
+                  🔄 Refresh
+                </button>
+              </div>
             </div>
           </div>
         </Section>
 
-        <Section title="Items" desc="Tap to check off. Edit inline." tone="violet">
-          <Card className="p-0">
+        <Section title="🛍️ Shopping Items" desc="Tap to check off, edit with love." tone="primary">
+          <div className="cozy-card p-0">
             {(itemsLoading || listsLoading) && (
-              <ul className="divide-y animate-pulse">
+              <ul className="divide-y divide-cozy-gray-200 animate-pulse">
                 {Array.from({length:4}).map((_,i)=>(
-                  <li key={i} className="p-4">
-                    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3">
-                      <div className="h-5 w-5 rounded bg-gray-200" />
-                      <div className="space-y-2"><div className="h-3 w-3/5 rounded bg-gray-200"/><div className="h-3 w-2/5 rounded bg-gray-200"/></div>
-                      <div className="h-3 w-16 rounded bg-gray-200" />
+                  <li key={i} className="p-5">
+                    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-4">
+                      <div className="h-5 w-5 rounded bg-cozy-gray-200" />
+                      <div className="space-y-2"><div className="h-4 w-3/5 rounded bg-cozy-gray-200"/><div className="h-3 w-2/5 rounded bg-cozy-gray-200"/></div>
+                      <div className="h-3 w-16 rounded bg-cozy-gray-200" />
                     </div>
                   </li>
                 ))}
               </ul>
             )}
             {!itemsLoading && visible.length===0 ? (
-              <div className="p-6 text-sm text-gray-500">{listId ? 'Nothing here yet — add your first item below.' : 'Create or pick a list above to get started.'}</div>
+              <div className="p-8 text-center">
+                <div className="text-4xl mb-3">🛒</div>
+                <div className="text-sm text-cozy-text-muted">{listId ? 'Your cozy list is empty — add something lovely below!' : 'Create or pick a list above to get started.'}</div>
+              </div>
             ) : (
-              <ul className="divide-y divide-gray-200">
+              <ul className="divide-y divide-cozy-gray-200">
                 {visible.map(item=>(
-                  <li key={item.id} className="px-3 sm:px-4 py-3">
-                    <div className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1fr_auto_auto] items-center gap-3">
-                      <input type="checkbox" checked={item.status==='DONE'} onChange={(e)=>toggle(item.id, e.target.checked)} className="h-5 w-5 accent-fuchsia-600" aria-label={`Toggle ${item.title}`} />
+                  <li key={item.id} className="px-4 sm:px-6 py-4 hover:bg-cozy-cream/30 transition-colors">
+                    <div className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1fr_auto_auto] items-center gap-4">
+                      <input 
+                        type="checkbox" 
+                        checked={item.status==='DONE'} 
+                        onChange={(e)=>toggle(item.id, e.target.checked)} 
+                        className="h-5 w-5 rounded accent-cozy-primary focus:ring-cozy-primary/20" 
+                        aria-label={`Toggle ${item.title}`} 
+                      />
                       <div className="min-w-0">
-                        <input className={`min-w-0 w-full border rounded-xl px-2 py-1 text-sm ${item.status==='DONE'?'line-through text-gray-400':''}`} value={item.title} onChange={(e)=>update(item.id,{title:e.target.value})} />
-                        <div className="text-[11px] text-gray-500 mt-1 truncate">
-                          {(item.qty?`${item.qty} • `:'') + (item.createdBy?`added by ${displayName(item.createdBy)}`:'') + (item.createdAt?` • ${when(item.createdAt)}`:'')}
+                        <input 
+                          className={`min-w-0 w-full border border-cozy-gray-300 rounded-cozy bg-cozy-surface px-3 py-2 text-sm focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all ${item.status==='DONE'?'line-through text-cozy-text-soft':''}`} 
+                          value={item.title} 
+                          onChange={(e)=>update(item.id,{title:e.target.value})} 
+                        />
+                        <div className="text-xs text-cozy-text-muted mt-2 truncate">
+                          {(item.qty?`📦 ${item.qty} • `:'') + (item.createdBy?`added by ${displayName(item.createdBy)}`:'') + (item.createdAt?` • ${when(item.createdAt)}`:'')}
                         </div>
                       </div>
                       <div className="hidden sm:block w-24">
-                        <input className="w-full border rounded-xl px-2 py-1 text-sm" placeholder="Qty" value={item.qty||''} onChange={(e)=>update(item.id,{qty:e.target.value})} />
+                        <input 
+                          className="w-full border border-cozy-gray-300 rounded-cozy bg-cozy-surface px-3 py-2 text-sm focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20" 
+                          placeholder="Qty" 
+                          value={item.qty||''} 
+                          onChange={(e)=>update(item.id,{qty:e.target.value})} 
+                        />
                       </div>
-                      <button onClick={()=>remove(item.id)} className="ml-2 text-xs rounded-xl border px-2 py-1 hover:bg-gray-50 text-red-600">remove</button>
+                      <button onClick={()=>remove(item.id)} className="ml-2 text-xs rounded-cozy border border-red-200 bg-red-50 px-3 py-1.5 hover:bg-red-100 text-red-600">
+                        🗑️ remove
+                      </button>
                     </div>
-                    <div className="mt-2 sm:hidden">
-                      <input className="w-24 border rounded-xl px-2 py-1 text-sm" placeholder="Qty" value={item.qty||''} onChange={(e)=>update(item.id,{qty:e.target.value})} />
+                    <div className="mt-3 sm:hidden">
+                      <input 
+                        className="w-24 border border-cozy-gray-300 rounded-cozy bg-cozy-surface px-3 py-2 text-sm focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20" 
+                        placeholder="Qty" 
+                        value={item.qty||''} 
+                        onChange={(e)=>update(item.id,{qty:e.target.value})} 
+                      />
                     </div>
                   </li>
                 ))}
               </ul>
             )}
-          </Card>
+          </div>
 
-          <div className="flex items-center justify-end mt-3 gap-2">
-            <Chip tone="indigo">{visible.filter(i=>i.status!=='DONE').length} active</Chip>
-            <Chip tone="indigo">{visible.filter(i=>i.status==='DONE').length} purchased</Chip>
+          <div className="flex items-center justify-center mt-4 gap-4">
+            <div className="bg-cozy-sage-soft text-cozy-text px-4 py-2 rounded-cozy text-sm font-medium">
+              🛒 {visible.filter(i=>i.status!=='DONE').length} to buy
+            </div>
+            <div className="bg-cozy-primary-soft text-cozy-text px-4 py-2 rounded-cozy text-sm font-medium">
+              ✅ {visible.filter(i=>i.status==='DONE').length} done
+            </div>
           </div>
         </Section>
       </main>
 
-      {/* sticky quick add */}
-      <form onSubmit={submitQuick} className="fixed bottom-3 left-3 right-3 z-30 pb-safe md:static md:mx-6 md:mb-6">
-        <div className="bg-white border rounded-2xl shadow-lg p-2 sm:p-3 flex items-center gap-2">
-          <div className="relative flex-1">
-            <input
-              ref={inputRef}
-              value={t}
-              onChange={(e)=>{ setT(e.target.value); setShowSug(true); }}
-              onFocus={()=>setShowSug(true)}
-              onBlur={()=>setTimeout(()=>setShowSug(false),120)}
-              placeholder="Quick, add"
-              className="w-full rounded-xl border px-3 py-2 min-h-[44px] focus:outline-none focus:ring-2 focus:ring-fuchsia-400/60"
-              autoComplete="off"
+      {/* Cozy quick add bar */}
+      <form onSubmit={submitQuick} className="fixed bottom-4 left-4 right-4 z-30 pb-safe md:static md:mx-6 md:mb-6">
+        <div className="cozy-card p-4 shadow-cozy-lg backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1">
+              <input
+                ref={inputRef}
+                value={t}
+                onChange={(e)=>{ setT(e.target.value); setShowSug(true); }}
+                onFocus={()=>setShowSug(true)}
+                onBlur={()=>setTimeout(()=>setShowSug(false),120)}
+                placeholder="🛒 Add something lovely..."
+                className="w-full rounded-cozy border border-cozy-gray-300 bg-cozy-surface px-4 py-3 text-cozy-text focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all"
+                autoComplete="off"
+              />
+              {showSug && suggestions.length>0 && (
+                <div className="absolute z-20 mt-2 w-full rounded-cozy-lg border border-cozy-gray-200 bg-cozy-surface shadow-cozy-lg max-h-72 overflow-auto">
+                  {suggestions.map(s=>(
+                    <button type="button" key={s.id+(s.url||'')} className="w-full text-left px-4 py-3 hover:bg-cozy-cream transition-colors flex items-center gap-3"
+                      onClick={()=>{ setT(s.title); if (s.unit && !q) setQ(s.unit); setShowSug(false); inputRef.current?.focus(); }}>
+                      {s.imageUrl ? <img src={s.imageUrl} alt="" className="h-10 w-10 rounded-cozy object-contain bg-cozy-surface border border-cozy-gray-200" /> : <div className="h-10 w-10 rounded-cozy bg-cozy-gray-100" />}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm text-cozy-text font-medium truncate">{s.title}</div>
+                        <div className="text-xs text-cozy-text-muted truncate">{s.store || '—'}{s.price?` • ${s.price}`:''}{s.unit?` • ${s.unit}`:''}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <input 
+              value={q} 
+              onChange={(e)=>setQ(e.target.value)} 
+              placeholder="Qty" 
+              className="w-24 rounded-cozy border border-cozy-gray-300 bg-cozy-surface px-3 py-3 text-cozy-text focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
             />
-            {showSug && suggestions.length>0 && (
-              <div className="absolute z-20 mt-1 w-full rounded-xl border bg-white shadow-xl max-h-72 overflow-auto">
-                {suggestions.map(s=>(
-                  <button type="button" key={s.id+(s.url||'')} className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-3"
-                    onClick={()=>{ setT(s.title); if (s.unit && !q) setQ(s.unit); setShowSug(false); inputRef.current?.focus(); }}>
-                    {s.imageUrl ? <img src={s.imageUrl} alt="" className="h-8 w-8 rounded object-contain bg-white border" /> : <div className="h-8 w-8 rounded bg-gray-100" />}
-                    <div className="min-w-0">
-                      <div className="text-sm text-gray-900 truncate">{s.title}</div>
-                      <div className="text-[11px] text-gray-500 truncate">{s.store || '—'}{s.price?` • ${s.price}`:''}{s.unit?` • ${s.unit}`:''}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+            <button type="submit" disabled={!listId} className="cozy-btn-primary px-6 py-3 disabled:opacity-40">
+              ✨ Add
+            </button>
           </div>
-          <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="Qty / size" className="w-32 rounded-xl border px-3 py-2 min-h-[44px]" />
-          <button type="submit" disabled={!listId} className="rounded-xl bg-fuchsia-600 text-white px-4 py-2 min-h-[44px] hover:bg-fuchsia-700 disabled:opacity-60">Add</button>
         </div>
       </form>
     </Layout>

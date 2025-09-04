@@ -44,66 +44,70 @@ function Core({ householdId, hidError }: { householdId: string; hidError?: strin
       <Head><title>Overview – Houseflow</title></Head>
       <PageHeader title="Overview" subtitle="Quick glance at Shopping & Finances." householdId={householdId} status={hidError ? <span className="text-red-600">{hidError}</span> : 'Up to date'} />
 
-      <main className="mx-4 sm:mx-6 my-5 grid gap-5">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-xl bg-blue-100 grid place-items-center">🧺</div>
+      <main className="mx-4 sm:mx-6 my-6 grid gap-6">
+        <div className="grid gap-5 md:grid-cols-2">
+          <div className="cozy-card p-6 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-cozy bg-cozy-sage-soft grid place-items-center text-2xl border border-cozy-sage/30">🧺</div>
                 <div>
-                  <div className="font-semibold">Shopping List</div>
-                  <div className="text-xs text-gray-500">{firstListId ? `${activeCount} items` : 'No list yet'}</div>
+                  <div className="font-bold text-cozy-text text-lg">Shopping</div>
+                  <div className="text-sm text-cozy-text-muted">{firstListId ? `${activeCount} items to grab` : 'Start your list'}</div>
                 </div>
               </div>
-              <Link href="/shopping" className="rounded-xl bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black">Add</Link>
-            </div>
-            <div className="mt-3">
-              <Link href="/shopping" className="w-full inline-flex items-center justify-between rounded-xl border bg-white px-3 py-2 text-sm hover:bg-gray-50">
-                <span>+ Quick Add</span><span className="text-gray-400">›</span>
+              <Link href="/shopping" className="cozy-btn-primary text-sm px-4 py-2">
+                Add Item
               </Link>
             </div>
-          </Card>
+            <Link href="/shopping" className="cozy-btn-secondary w-full flex items-center justify-center gap-2 group-hover:bg-cozy-cream transition-all">
+              <span>🛒 Quick Shopping</span>
+              <span className="text-cozy-primary">→</span>
+            </Link>
+          </div>
 
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-xl bg-rose-100 grid place-items-center">💰</div>
+          <div className="cozy-card p-6 group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-cozy bg-cozy-primary-soft grid place-items-center text-2xl border border-cozy-primary/30">💰</div>
                 <div>
-                  <div className="font-semibold">Finances</div>
-                  <div className="text-xs text-gray-500">€{income.toFixed(0)} • €{keeps.toFixed(0)} • €{savings.toFixed(2)}</div>
+                  <div className="font-bold text-cozy-text text-lg">Finances</div>
+                  <div className="text-sm text-cozy-text-muted">€{income.toFixed(0)} income • €{savings.toFixed(0)} saved</div>
                 </div>
               </div>
-              <Link href="/finances" className="rounded-xl bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black">Add</Link>
-            </div>
-            <div className="mt-3">
-              <Link href="/finances" className="w-full inline-flex items-center justify-between rounded-xl border bg-white px-3 py-2 text-sm hover:bg-gray-50">
-                <span>Quick Add</span><span className="text-gray-400">›</span>
+              <Link href="/finances" className="cozy-btn-primary text-sm px-4 py-2">
+                Manage
               </Link>
             </div>
-          </Card>
+            <Link href="/finances" className="cozy-btn-secondary w-full flex items-center justify-center gap-2 group-hover:bg-cozy-cream transition-all">
+              <span>📊 View Budget</span>
+              <span className="text-cozy-primary">→</span>
+            </Link>
+          </div>
         </div>
 
-        <Section title="Timeline" desc="Recent household activity." tone="indigo">
-          <Card className="p-0">
-            <ul className="divide-y">
+        <Section title="🌟 Timeline" desc="Recent cozy household moments." tone="cozy">
+          <div className="cozy-card p-0">
+            <ul className="divide-y divide-cozy-gray-200">
               {[
-                { icon: '🍼', title: 'Added Milk to the shopping list', meta: 'Apr 22' },
-                { icon: '🏦', title: 'Paid Rent', meta: 'Apr 1' },
-                { icon: '💸', title: 'Transferred to savings', meta: 'Mar 25' },
+                { icon: '🥛', title: 'Added fresh milk to shopping', meta: 'Today, 2:30 PM', color: 'cozy-sage-soft' },
+                { icon: '🏠', title: 'Paid monthly rent', meta: 'Yesterday', color: 'cozy-primary-soft' },
+                { icon: '💖', title: 'Saved for family vacation', meta: '3 days ago', color: 'cozy-cream' },
               ].map((row, i) => (
-                <li key={i} className="px-4 py-3">
+                <li key={i} className="px-6 py-4 hover:bg-cozy-cream/50 transition-colors">
                   <div className="flex items-center">
-                    <div className="h-8 w-8 rounded-xl bg-gray-50 grid place-items-center mr-3">{row.icon}</div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm text-gray-800 truncate">{row.title}</div>
-                      <div className="text-xs text-gray-500">{row.meta}</div>
+                    <div className={`h-10 w-10 rounded-cozy bg-${row.color} grid place-items-center mr-4 shadow-cozy-sm`}>
+                      {row.icon}
                     </div>
-                    <span className="text-gray-400">›</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-cozy-text font-medium truncate">{row.title}</div>
+                      <div className="text-xs text-cozy-text-muted">{row.meta}</div>
+                    </div>
+                    <span className="text-cozy-primary text-sm">💫</span>
                   </div>
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
         </Section>
       </main>
     </Layout>
