@@ -1,115 +1,195 @@
-// src/pages/dashboard.tsx
-import Head from 'next/head';
-import Link from 'next/link';
-import Layout from '../components/Layout';
-import Card from '@/components/ui/Card';
-import Section from '@/components/ui/Section';
-import PageHeader from '@/components/ui/PageHeader';
-import { useEffect, useState } from 'react';
-import useSWR from 'swr';
-import { useSession } from 'next-auth/react';
-import { useHouseholdId } from '@/lib/useHouseholdId';
-
-const fetcher = (url: string) => fetch(url, { credentials: 'include' }).then(r => r.json());
+import React, { useEffect, useState } from 'react'
+import FunLoading from '../components/ui/FunLoading'
+import FunButton from '../components/ui/FunButton'
+import FunCard, { FunStatsCard } from '../components/ui/FunCard'
+import { Link } from 'react-router-dom'
 
 export default function DashboardPage() {
-  const { status } = useSession();
-  const { householdId, loading: hidLoading, error: hidError } = useHouseholdId();
+  const [isLoading, setIsLoading] = useState(true)
+  const [stats, setStats] = useState({
+    activeItems: 12,
+    completedItems: 8,
+    monthlyIncome: 3200,
+    monthlySavings: 640
+  })
 
-  if (status === 'loading' || hidLoading)
-    return <Layout><div className="min-h-[50vh] grid place-items-center text-gray-500">Loading…</div></Layout>;
-  if (status === 'unauthenticated')
-    return <Layout><div className="p-6 text-red-600">Sign in required</div></Layout>;
-  if (!householdId)
-    return <Layout><div className="min-h-[50vh] grid place-items-center text-gray-500">Creating your household…</div></Layout>;
+  useEffect(() => {
+    // Simulate loading
+    setTimeout(() => setIsLoading(false), 1000)
+  }, [])
 
-  return <Core householdId={householdId} hidError={hidError} />;
-}
-
-function Core({ householdId, hidError }: { householdId: string; hidError?: string | null }) {
-  const { data: listsData } = useSWR('/api/shopping/lists', fetcher, { keepPreviousData: true });
-  const firstListId = listsData?.lists?.find((l: any) => !l.archivedAt)?.id ?? listsData?.lists?.[0]?.id ?? null;
-  const { data: itemsData } = useSWR(firstListId ? `/api/shopping/items?listId=${encodeURIComponent(firstListId)}` : null, fetcher);
-  const items = (itemsData?.items ?? []) as Array<{ status: 'ACTIVE' | 'DONE' }>;
-  const activeCount = items.filter(i => i.status !== 'DONE').length;
-
-  const [sum, setSum] = useState<{ income: number; keeps: number; savingsPct: number } | null>(null);
-  useEffect(() => { try { const raw = localStorage.getItem('hf_finances_summary'); if (raw) setSum(JSON.parse(raw)); } catch {} }, []);
-  const income = sum?.income ?? 1200;
-  const keeps = sum?.keeps ?? 950;
-  const savings = (sum?.savingsPct ?? 20) / 100 * Math.max(0, income - keeps);
+  if (isLoading) {
+    return <FunLoading message="Setting up your cozy home..." type="dance" />
+  }
 
   return (
-    <Layout>
-      <Head><title>Overview – Houseflow</title></Head>
-      <PageHeader title="Overview" subtitle="Quick glance at Shopping & Finances." householdId={householdId} status={hidError ? <span className="text-red-600">{hidError}</span> : 'Up to date'} />
+    <div className="space-y-6">
+      {/* Page Title */}
+      <div className="text-center animate-cozy-bounce-in">
+        <h1 className="text-3xl font-bold text-cozy-text mb-2 flex items-center justify-center gap-3">
+          <span className="animate-cozy-wiggle">🏠</span>
+          Welcome home!
+          <span className="animate-cozy-pulse-gentle">✨</span>
+        </h1>
+        <p className="text-cozy-text-muted">Here's what's happening in your cozy household</p>
+      </div>
 
-      <main className="mx-4 sm:mx-6 my-6 grid gap-6">
-        <div className="grid gap-5 md:grid-cols-2">
-          <div className="cozy-card p-6 group">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-cozy bg-cozy-sage-soft grid place-items-center text-2xl border border-cozy-sage/30">🧺</div>
-                <div>
-                  <div className="font-bold text-cozy-text text-lg">Shopping</div>
-                  <div className="text-sm text-cozy-text-muted">{firstListId ? `${activeCount} items to grab` : 'Start your list'}</div>
+      {/* Fun stats overview */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <FunStatsCard
+          icon="🛒"
+          label="Items to buy"
+          value={stats.activeItems}
+          trend={stats.activeItems > 0 ? 'up' : 'neutral'}
+          color="sage"
+        />
+        <FunStatsCard
+          icon="✅"
+          label="Items done"
+          value={stats.completedItems}
+          trend={stats.completedItems > stats.activeItems ? 'up' : 'neutral'}
+          color="primary"
+        />
+        <FunStatsCard
+          icon="💰"
+          label="Monthly income"
+          value={`€${stats.monthlyIncome}`}
+          trend="up"
+          color="terracotta"
+        />
+        <FunStatsCard
+          icon="🏦"
+          label="Savings this month"
+          value={`€${stats.monthlySavings}`}
+          trend="up"
+          color="primary"
+        />
+      </div>
+
+      {/* Main action cards */}
+      <div className="grid gap-5 md:grid-cols-2">
+        <FunCard hover bounce className="p-6 group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-cozy bg-cozy-sage-soft grid place-items-center text-2xl border border-cozy-sage/30 cozy-emoji">
+                🧺
+              </div>
+              <div>
+                <div className="font-bold text-cozy-text text-lg">Shopping Adventure</div>
+                <div className="text-sm text-cozy-text-muted">
+                  {stats.activeItems} cozy items await you! 🛍️
                 </div>
               </div>
-              <Link href="/shopping" className="cozy-btn-primary text-sm px-4 py-2">
+            </div>
+            <Link to="/shopping" className="animate-cozy-bounce-in">
+              <FunButton variant="primary" size="sm" emoji="✨">
                 Add Item
-              </Link>
-            </div>
-            <Link href="/shopping" className="cozy-btn-secondary w-full flex items-center justify-center gap-2 group-hover:bg-cozy-cream transition-all">
-              <span>🛒 Quick Shopping</span>
-              <span className="text-cozy-primary">→</span>
+              </FunButton>
             </Link>
           </div>
+          <Link to="/shopping">
+            <FunButton variant="secondary" className="w-full group-hover:animate-cozy-wiggle" emoji="🛒">
+              <span>Quick Shopping</span>
+              <span className="text-cozy-primary ml-2 transition-transform group-hover:translate-x-1">→</span>
+            </FunButton>
+          </Link>
+        </FunCard>
 
-          <div className="cozy-card p-6 group">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-cozy bg-cozy-primary-soft grid place-items-center text-2xl border border-cozy-primary/30">💰</div>
-                <div>
-                  <div className="font-bold text-cozy-text text-lg">Finances</div>
-                  <div className="text-sm text-cozy-text-muted">€{income.toFixed(0)} income • €{savings.toFixed(0)} saved</div>
-                </div>
+        <FunCard hover bounce className="p-6 group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-cozy bg-cozy-primary-soft grid place-items-center text-2xl border border-cozy-primary/30 cozy-emoji animate-cozy-glow">
+                💎
               </div>
-              <Link href="/finances" className="cozy-btn-primary text-sm px-4 py-2">
-                Manage
-              </Link>
+              <div>
+                <div className="font-bold text-cozy-text text-lg">Financial Wellness</div>
+                <div className="text-sm text-cozy-text-muted">€{stats.monthlyIncome} earned • €{stats.monthlySavings} saved with love 💝</div>
+              </div>
             </div>
-            <Link href="/finances" className="cozy-btn-secondary w-full flex items-center justify-center gap-2 group-hover:bg-cozy-cream transition-all">
-              <span>📊 View Budget</span>
-              <span className="text-cozy-primary">→</span>
+            <Link to="/finances" className="animate-cozy-bounce-in animation-delay-200">
+              <FunButton variant="primary" size="sm" emoji="📊">
+                Manage
+              </FunButton>
             </Link>
           </div>
-        </div>
+          <Link to="/finances">
+            <FunButton variant="secondary" className="w-full group-hover:animate-cozy-wiggle" emoji="💰">
+              <span>View Budget Magic</span>
+              <span className="text-cozy-primary ml-2 transition-transform group-hover:translate-x-1">→</span>
+            </FunButton>
+          </Link>
+        </FunCard>
+      </div>
 
-        <Section title="🌟 Timeline" desc="Recent cozy household moments." tone="cozy">
-          <div className="cozy-card p-0">
-            <ul className="divide-y divide-cozy-gray-200">
-              {[
-                { icon: '🥛', title: 'Added fresh milk to shopping', meta: 'Today, 2:30 PM', color: 'cozy-sage-soft' },
-                { icon: '🏠', title: 'Paid monthly rent', meta: 'Yesterday', color: 'cozy-primary-soft' },
-                { icon: '💖', title: 'Saved for family vacation', meta: '3 days ago', color: 'cozy-cream' },
-              ].map((row, i) => (
-                <li key={i} className="px-6 py-4 hover:bg-cozy-cream/50 transition-colors">
-                  <div className="flex items-center">
-                    <div className={`h-10 w-10 rounded-cozy bg-${row.color} grid place-items-center mr-4 shadow-cozy-sm`}>
-                      {row.icon}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm text-cozy-text font-medium truncate">{row.title}</div>
-                      <div className="text-xs text-cozy-text-muted">{row.meta}</div>
-                    </div>
-                    <span className="text-cozy-primary text-sm">💫</span>
+      {/* Household Timeline */}
+      <div className="animate-cozy-bounce-in animation-delay-400">
+        <div className="mb-4">
+          <h2 className="text-xl font-bold text-cozy-text mb-2 flex items-center gap-2">
+            <span className="animate-cozy-pulse-gentle">🌟</span>
+            Household Timeline
+          </h2>
+          <p className="text-cozy-text-muted">Recent cozy moments and memories.</p>
+        </div>
+        
+        <FunCard className="p-0">
+          <ul className="divide-y divide-cozy-gray-200">
+            {[
+              { 
+                icon: '🥛', 
+                title: 'Added fresh milk to shopping', 
+                meta: 'Today, 2:30 PM', 
+                color: 'cozy-sage-soft',
+                celebration: '🌸'
+              },
+              { 
+                icon: '🏠', 
+                title: 'Paid monthly rent like a boss', 
+                meta: 'Yesterday', 
+                color: 'cozy-primary-soft',
+                celebration: '✨'
+              },
+              { 
+                icon: '💖', 
+                title: 'Saved for family vacation dreams', 
+                meta: '3 days ago', 
+                color: 'cozy-cream',
+                celebration: '🎉'
+              },
+              { 
+                icon: '🧺', 
+                title: 'Completed weekly grocery haul', 
+                meta: '5 days ago', 
+                color: 'cozy-sage-soft',
+                celebration: '🎊'
+              },
+            ].map((row, i) => (
+              <li key={i} className="px-6 py-4 hover:bg-cozy-cream/50 transition-all duration-300 group animate-cozy-bounce-in" style={{ animationDelay: `${i * 100}ms` }}>
+                <div className="flex items-center">
+                  <div className={`h-12 w-12 rounded-cozy bg-${row.color} grid place-items-center mr-4 shadow-cozy-sm border border-cozy-gray-200 cozy-emoji group-hover:animate-cozy-wiggle`}>
+                    {row.icon}
                   </div>
-                </li>
-              ))}
-            </ul>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm text-cozy-text font-medium truncate">{row.title}</div>
+                    <div className="text-xs text-cozy-text-muted">{row.meta}</div>
+                  </div>
+                  <div className="text-lg animate-cozy-pulse-gentle">
+                    {row.celebration}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          
+          {/* Cute footer */}
+          <div className="px-6 py-4 bg-cozy-warm border-t border-cozy-gray-200 text-center">
+            <div className="text-sm text-cozy-text-muted flex items-center justify-center gap-2">
+              <span className="animate-cozy-pulse-gentle">💫</span>
+              <span>Your household is thriving with love!</span>  
+              <span className="animate-cozy-pulse-gentle animation-delay-500">💝</span>
+            </div>
           </div>
-        </Section>
-      </main>
-    </Layout>
-  );
+        </FunCard>
+      </div>
+    </div>
+  )
 }

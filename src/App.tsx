@@ -10,15 +10,31 @@ import SettingsPage from './pages/settings'
 function App() {
   return (
     <Router>
-      <Layout>
+      <div className="min-h-screen bg-cozy-bg">
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/shopping" element={<ShoppingPage />} />
-          <Route path="/finances" element={<FinancesPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/dashboard" element={
+            <Layout>
+              <DashboardPage />
+            </Layout>
+          } />
+          <Route path="/shopping" element={
+            <Layout>
+              <ShoppingPage />
+            </Layout>
+          } />
+          <Route path="/finances" element={
+            <Layout>
+              <FinancesPage />
+            </Layout>
+          } />
+          <Route path="/settings" element={
+            <Layout>
+              <SettingsPage />
+            </Layout>
+          } />
         </Routes>
-      </Layout>
+      </div>
     </Router>
   )
 }
