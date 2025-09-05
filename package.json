@@ -22,6 +22,7 @@
     "@vitejs/plugin-react": "^5.0.2",
     "bcryptjs": "^3.0.2",
     "cuid": "^3.0.0",
+    "lovable-tagger": "^1.1.9",
     "next": "^14.2.5",
     "next-auth": "^4.24.7",
     "puppeteer": "^24.17.0",
