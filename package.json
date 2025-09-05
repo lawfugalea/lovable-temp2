@@ -14,7 +14,8 @@
     "start": "next start",
     "lint": "next lint",
     "scrape:smart": "node scripts/scrape-smart.js",
-    "scrape:smart:headed": "node scripts/scrape-smart.js headed"
+    "scrape:smart:headed": "node scripts/scrape-smart.js headed",
+    "build:dev": "vite build --mode development"
   },
   "dependencies": {
     "@prisma/client": "^6.15.0",
