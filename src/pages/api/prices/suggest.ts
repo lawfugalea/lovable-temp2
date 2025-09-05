@@ -66,7 +66,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           },
         },
       },
-      take: 60, // raw candidate cap
+      take: 200, // raw candidate cap - increased to find more products
     });
 
     const now = Date.now();
@@ -132,7 +132,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Prefer higher score and products with very recent offer first (small tie-breaker)
     withOffers.sort((a, b) => b._score - a._score);
 
-    const items = withOffers.slice(0, 12).map(({ _score, ...rest }) => rest);
+    const items = withOffers.slice(0, 50).map(({ _score, ...rest }) => rest);
 
     return res.status(200).json({ items });
   } catch (err: any) {

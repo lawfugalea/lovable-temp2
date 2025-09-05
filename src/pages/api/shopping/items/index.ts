@@ -49,21 +49,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    const { listId, title, qty } = (req.body || {}) as {
+    const { listId, title, qty, price, imageUrl, productUrl, store } = (req.body || {}) as {
       listId?: string;
       title?: string;
-      qty?: string;
+      qty?: string | number;
+      price?: number;
+      imageUrl?: string;
+      productUrl?: string;
+      store?: string;
     };
     if (!listId || !title) return res.status(400).json({ error: 'Missing listId or title' });
 
     const list = await requireListAccess(userId, listId);
     if (!list) return res.status(403).json({ error: 'Forbidden' });
 
+    // Store additional product info in notes as JSON
+    const productInfo = {
+      price: price || null,
+      imageUrl: imageUrl || null,
+      productUrl: productUrl || null,
+      originalStore: store || null,
+    };
+
     const item = await prisma.shoppingItem.create({
       data: {
         listId,
         title: title.trim(),
-        qty: qty?.trim() || undefined,
+        qty: qty ? String(qty).trim() : undefined,
+        store: store || undefined,
+        notes: Object.values(productInfo).some(v => v !== null) ? JSON.stringify(productInfo) : undefined,
         createdById: userId,
         status: 'ACTIVE',
       },

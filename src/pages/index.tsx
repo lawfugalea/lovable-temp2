@@ -1,23 +1,46 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useRouter } from 'next/router'
+import { signIn, getSession } from 'next-auth/react'
 import FunButton from '../components/ui/FunButton'
 import FunCard from '../components/ui/FunCard'
 
 export default function HomePage() {
-  const navigate = useNavigate()
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError('')
     
-    // Simulate login process
-    setTimeout(() => {
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError('Invalid email or password')
+        setIsLoading(false)
+      } else {
+        // Check if we have a session
+        const session = await getSession()
+        if (session) {
+          router.push('/dashboard')
+        } else {
+          setError('Login failed. Please try again.')
+          setIsLoading(false)
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      setError('Something went wrong. Please try again.')
       setIsLoading(false)
-      navigate('/dashboard')
-    }, 1500)
+    }
   }
 
   return (
@@ -42,14 +65,14 @@ export default function HomePage() {
 
           <div className="bg-cozy-surface px-8 py-8">
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="animate-cozy-bounce-in animation-delay-200">
+              <div>
                 <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
-                  <span className="animate-cozy-pulse-gentle">📧</span>
+                  <span>📧</span>
                   Email
                 </label>
                 <input 
                   type="email" 
-                  className="w-full border border-cozy-gray-300 rounded-cozy bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all hover:border-cozy-primary-soft" 
+                  className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
                   placeholder="you@home.com" 
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
@@ -58,21 +81,37 @@ export default function HomePage() {
                 />
               </div>
               
-              <div className="animate-cozy-bounce-in animation-delay-300">
+              <div>
                 <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
-                  <span className="animate-cozy-pulse-gentle">🔒</span>
+                  <span>🔒</span>
                   Password
                 </label>
                 <input 
                   type="password" 
-                  className="w-full border border-cozy-gray-300 rounded-cozy bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all hover:border-cozy-primary-soft" 
+                  className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
                   placeholder="••••••••" 
                   value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
+                  onChange={(e) => {
+                    console.log('Password input changed:', e.target.value)
+                    setPassword(e.target.value)
+                  }} 
+                  onInput={(e) => {
+                    // Additional input handler to ensure all characters are captured
+                    setPassword(e.currentTarget.value)
+                  }}
                   autoComplete="current-password" 
                   required 
                 />
               </div>
+              
+              {error && (
+                <div className="animate-cozy-bounce-in animation-delay-400">
+                  <div className="bg-red-50 border border-red-200 rounded-cozy px-4 py-3 text-red-700 text-sm flex items-center gap-2">
+                    <span>⚠️</span>
+                    {error}
+                  </div>
+                </div>
+              )}
               
               <div className="animate-cozy-bounce-in animation-delay-400">
                 <FunButton 
@@ -91,7 +130,10 @@ export default function HomePage() {
             <div className="mt-6 pt-6 border-t border-cozy-gray-200 text-center animate-cozy-bounce-in animation-delay-500">
               <p className="text-sm text-cozy-text-muted flex items-center justify-center gap-2">
                 <span>New family?</span>
-                <button className="font-medium text-cozy-primary hover:text-cozy-primary-deep underline hover:animate-cozy-wiggle transition-all">
+                <button 
+                  onClick={() => router.push('/register')}
+                  className="font-medium text-cozy-primary hover:text-cozy-primary-deep underline hover:animate-cozy-wiggle transition-all"
+                >
                   Create your household
                 </button>
                 <span className="animate-cozy-pulse-gentle">🏡</span>

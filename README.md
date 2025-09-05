@@ -21,7 +21,7 @@ npm install
 npm run dev
 
 # build and start the production server
-npm run build && npm start
+npmnpm run build && npm start
 ```
 
 During development the app is available at `http://localhost:3000`.

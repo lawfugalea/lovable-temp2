@@ -1,5 +1,5 @@
 // src/components/finance/ContribBlock.tsx
-import Card from "@/components/ui/Card";
+import { Card } from "../Card";
 
 type AccountLite = { id: string; name: string; target: number };
 type EarnerLite = { id: string; name: string };
