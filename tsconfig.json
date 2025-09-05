@@ -1,4 +1,4 @@
-{
+eeeeeeeeee{
   "compilerOptions": {
     "target": "ES2022",
     "lib": [
@@ -9,7 +9,6 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
     "esModuleInterop": true,
     "module": "ESNext",
     "moduleResolution": "node",
