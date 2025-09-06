@@ -41,11 +41,15 @@ export default function MedicineNotifications() {
   const [dismissed, setDismissed] = useState<string[]>([])
 
   useEffect(() => {
-    if (!householdId || householdLoading || typeof householdId !== 'string') return
+    if (!householdId || householdLoading) return
+    
+    // Ensure householdId is a string
+    const householdIdStr = typeof householdId === 'string' ? householdId : String(householdId)
+    if (!householdIdStr || householdIdStr === 'undefined' || householdIdStr === 'null') return
 
     const fetchNotifications = async () => {
       try {
-        const response = await fetch(`/api/medicine/notifications?householdId=${householdId}`)
+        const response = await fetch(`/api/medicine/notifications?householdId=${encodeURIComponent(householdIdStr)}`)
         if (response.ok) {
           const data = await response.json()
           setNotifications(data)
@@ -130,7 +134,7 @@ export default function MedicineNotifications() {
                            notifications.dueIn15Minutes.length
 
   return (
-    <div className="fixed top-4 right-4 z-50 max-w-md">
+    <div className="fixed top-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-50">
       <Card className="border-orange-200 bg-orange-50 shadow-lg">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">

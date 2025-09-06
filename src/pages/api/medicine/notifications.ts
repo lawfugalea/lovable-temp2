@@ -49,9 +49,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const nextDoseTime = calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
         
         // Check if medicine is due now, in 5 minutes, or in 15 minutes
+        const timeUntilNext = nextDoseTime.getTime() - now.getTime()
         return now >= nextDoseTime || 
-               (nextDoseTime <= fiveMinutesFromNow && nextDoseTime > now) ||
-               (nextDoseTime <= fifteenMinutesFromNow && nextDoseTime > fiveMinutesFromNow)
+               (timeUntilNext <= 5 * 60 * 1000 && timeUntilNext > 0) ||
+               (timeUntilNext <= 15 * 60 * 1000 && timeUntilNext > 5 * 60 * 1000)
       })
 
       // Group by reminder type
@@ -67,11 +68,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           ? calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
           : new Date(medicine.startDate)
 
+        const timeUntilNext = nextDoseTime.getTime() - now.getTime()
+
         if (now >= nextDoseTime) {
           reminders.dueNow.push(medicine)
-        } else if (nextDoseTime <= fiveMinutesFromNow) {
+        } else if (timeUntilNext <= 5 * 60 * 1000 && timeUntilNext > 0) {
           reminders.dueIn5Minutes.push(medicine)
-        } else if (nextDoseTime <= fifteenMinutesFromNow) {
+        } else if (timeUntilNext <= 15 * 60 * 1000 && timeUntilNext > 5 * 60 * 1000) {
           reminders.dueIn15Minutes.push(medicine)
         }
       })
