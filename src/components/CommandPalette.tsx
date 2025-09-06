@@ -99,7 +99,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       description: 'Add a new item to your shopping list',
       icon: Plus,
       action: () => {
-        navigate('/shopping')
+        router.push('/shopping')
         // Could trigger add item modal here
       },
       category: 'Quick Actions',
@@ -136,7 +136,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       title: 'Profile Settings',
       description: 'Edit your personal information',
       icon: User,
-      action: () => navigate('/settings?tab=profile'),
+      action: () => router.push('/settings?tab=profile'),
       category: 'Settings',
       keywords: ['profile', 'personal', 'info', 'account']
     },
@@ -145,7 +145,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       title: 'Notification Settings',
       description: 'Manage notification preferences',
       icon: Bell,
-      action: () => navigate('/settings?tab=notifications'),
+      action: () => router.push('/settings?tab=notifications'),
       category: 'Settings',
       keywords: ['notifications', 'alerts', 'preferences']
     },
@@ -154,7 +154,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       title: 'Privacy Settings',
       description: 'Control your privacy and security',
       icon: Shield,
-      action: () => navigate('/settings?tab=privacy'),
+      action: () => router.push('/settings?tab=privacy'),
       category: 'Settings',
       keywords: ['privacy', 'security', 'data']
     },
@@ -163,7 +163,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       title: 'Appearance Settings',
       description: 'Customize the app appearance',
       icon: Palette,
-      action: () => navigate('/settings?tab=appearance'),
+      action: () => router.push('/settings?tab=appearance'),
       category: 'Settings',
       keywords: ['appearance', 'theme', 'colors', 'design']
     },
@@ -172,7 +172,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       title: 'Data Management',
       description: 'Export, import, or delete data',
       icon: Database,
-      action: () => navigate('/settings?tab=data'),
+      action: () => router.push('/settings?tab=data'),
       category: 'Settings',
       keywords: ['data', 'export', 'import', 'backup']
     }
