@@ -3,6 +3,7 @@ import { Card } from "../Card";
 
 type AccountLite = { id: string; name: string; target: number };
 type EarnerLite = { id: string; name: string };
+type Earner = { id: string; name: string; salary: number; keep: number };
 
 const money = (n: number) =>
   n.toLocaleString(undefined, { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
@@ -10,8 +11,8 @@ const money = (n: number) =>
 export function ContribTableDesktop({
   accounts, earners, split, autoSavingsTarget, savingsPct,
 }:{
-  accounts: AccountLite[]; earners: EarnerLite[];
-  split: (target:number, e:EarnerLite)=>number;
+  accounts: AccountLite[]; earners: Earner[];
+  split: (target:number, e:Earner)=>number;
   autoSavingsTarget: number; savingsPct: number;
 }) {
   return (
@@ -45,8 +46,8 @@ export function ContribTableDesktop({
 export function ContribCardsMobile({
   accounts, earners, split, autoSavingsTarget, savingsPct,
 }:{
-  accounts: AccountLite[]; earners: EarnerLite[];
-  split: (target:number, e:EarnerLite)=>number;
+  accounts: AccountLite[]; earners: Earner[];
+  split: (target:number, e:Earner)=>number;
   autoSavingsTarget: number; savingsPct: number;
 }) {
   return (
