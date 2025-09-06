@@ -26,3 +26,5 @@ coverage
 **/*.Zone.Identifier
 *.Zone.Identifier
 **/*.Zone.Identifier
+*.Zone.Identifier
+**/*.Zone.Identifier
