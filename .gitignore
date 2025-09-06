@@ -22,3 +22,5 @@ coverage
 *.log
 .vscode
 .idea
+*.Zone.Identifier
+**/*.Zone.Identifier
