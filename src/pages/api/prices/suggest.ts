@@ -21,6 +21,19 @@ function centsToEUR(cents: number) {
   return (cents / 100).toFixed(2) + ' EUR';
 }
 
+// Helper function to format image URLs through our proxy
+function formatImageUrl(imageUrl: string | null): string | null {
+  if (!imageUrl) return null;
+  
+  // If it's an HTTP URL from smart.com.mt, proxy it through our API
+  if (imageUrl.startsWith('http://www.smart.com.mt/')) {
+    return `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+  }
+  
+  // If it's already HTTPS or a relative path, return as is
+  return imageUrl;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -112,7 +125,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           price,
           nowCents: latest.priceCents,
           wasCents,
-          imageUrl: p.imageUrl!,
+          imageUrl: formatImageUrl(p.imageUrl),
           url: p.sourceUrl,
           _score: score(p.name),
         };
@@ -124,7 +137,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         price: string;
         nowCents: number;
         wasCents?: number;
-        imageUrl: string;
+        imageUrl: string | null;
         url: string;
         _score: number;
       }>;
