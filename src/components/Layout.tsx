@@ -1,5 +1,6 @@
 import React from "react"
-import { Link, useLocation } from "react-router-dom"
+import Link from "next/link"
+import { useRouter } from "next/router"
 
 type NavItem = { href: string; label: string; icon: string }
 
@@ -11,11 +12,11 @@ const NAV: NavItem[] = [
 ]
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const location = useLocation()
+  const router = useRouter()
 
   const isActive = (href: string) =>
-    location.pathname === href || 
-    (href === "/dashboard" && (location.pathname === "/" || location.pathname.startsWith("/dashboard")))
+    router.pathname === href || 
+    (href === "/dashboard" && (router.pathname === "/" || router.pathname.startsWith("/dashboard")))
 
   return (
     <div className="min-h-screen bg-cozy-bg text-cozy-text">
@@ -23,7 +24,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-40 md:pl-60">
         <div className="bg-cozy-header border-b border-cozy-gray-200/60 backdrop-blur-md">
           <div className="h-16 flex items-center justify-between px-4 sm:px-6">
-            <Link to="/dashboard" className="flex items-center gap-3 group">
+            <Link href="/dashboard" className="flex items-center gap-3 group">
               <div className="h-10 w-10 rounded-cozy bg-cozy-surface shadow-cozy-sm grid place-items-center text-cozy-primary text-lg font-bold border border-cozy-primary-soft transition-transform group-hover:animate-cozy-wiggle">
                 🏠
               </div>
@@ -49,7 +50,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               {NAV.map((n, index) => (
                 <Link
                   key={n.href}
-                  to={n.href}
+                  href={n.href}
                   className={[
                     "flex items-center gap-4 px-4 py-3 rounded-cozy transition-all duration-200 group animate-cozy-bounce-in",
                     isActive(n.href)
@@ -110,7 +111,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             return (
               <Link
                 key={n.href}
-                to={n.href}
+                href={n.href}
                 className={[
                   "flex-1 mx-1 flex flex-col items-center justify-center gap-1 rounded-cozy py-3 text-xs font-medium transition-all duration-200 group",
                   active 
