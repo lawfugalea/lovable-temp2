@@ -24,3 +24,5 @@ coverage
 .idea
 *.Zone.Identifier
 **/*.Zone.Identifier
+*.Zone.Identifier
+**/*.Zone.Identifier
