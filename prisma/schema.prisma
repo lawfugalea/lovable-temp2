@@ -45,6 +45,7 @@ model Household {
   members        Membership[]
   shoppingLists  ShoppingList[]
   activeForUsers User[]         @relation("ActiveHousehold")
+  children       Child[]
 }
 
 model Membership {
@@ -203,4 +204,87 @@ model ShoppingTemplateItem {
   @@index([templateId])
   @@index([unitId])
   @@index([categoryId])
+}
+
+// Kids Medicine Control Models
+model Child {
+  id          String   @id @default(cuid())
+  householdId String
+  name        String
+  dateOfBirth DateTime
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  household   Household @relation(fields: [householdId], references: [id])
+  medicines   Medicine[]
+  doses       MedicineDose[]
+  reminders   MedicineReminder[]
+  
+  @@index([householdId])
+}
+
+model Medicine {
+  id          String   @id @default(cuid())
+  childId     String
+  name        String
+  description String?
+  dosage      String   // e.g., "5ml", "1 tablet", "2 drops"
+  frequency   String   // e.g., "every 6 hours", "twice daily", "as needed"
+  startDate   DateTime
+  endDate     DateTime?
+  isActive    Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  child       Child         @relation(fields: [childId], references: [id])
+  doses       MedicineDose[]
+  reminders   MedicineReminder[]
+  
+  @@index([childId])
+  @@index([isActive])
+}
+
+model MedicineDose {
+  id         String   @id @default(cuid())
+  childId    String
+  medicineId String
+  takenAt    DateTime
+  dosage     String   // Actual dosage taken (might differ from prescribed)
+  notes      String?
+  takenBy    String?  // User ID who administered the dose
+  createdAt  DateTime @default(now())
+  
+  child      Child    @relation(fields: [childId], references: [id])
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+  
+  @@index([childId, takenAt])
+  @@index([medicineId])
+  @@index([takenAt])
+}
+
+model MedicineReminder {
+  id         String   @id @default(cuid())
+  childId    String
+  medicineId String
+  scheduledAt DateTime
+  reminderType ReminderType
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  child      Child    @relation(fields: [childId], references: [id])
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+  
+  @@index([childId, scheduledAt])
+  @@index([medicineId])
+  @@index([scheduledAt, isActive])
+}
+
+enum ReminderType {
+  FIFTEEN_MINUTES
+  FIVE_MINUTES
+  DUE_NOW
 }

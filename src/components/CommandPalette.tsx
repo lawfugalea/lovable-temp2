@@ -18,7 +18,8 @@ import {
   Database,
   Command,
   ArrowRight,
-  Hash
+  Hash,
+  Pill
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -72,6 +73,15 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       action: () => router.push('/finances'),
       category: 'Navigation',
       keywords: ['finances', 'money', 'budget', 'expenses']
+    },
+    {
+      id: 'nav-medicine',
+      title: 'Go to Medicine',
+      description: 'Track children\'s medications',
+      icon: Pill,
+      action: () => router.push('/medicine'),
+      category: 'Navigation',
+      keywords: ['medicine', 'medication', 'children', 'kids', 'health']
     },
     {
       id: 'nav-settings',

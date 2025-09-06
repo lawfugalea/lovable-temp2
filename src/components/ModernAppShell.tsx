@@ -12,17 +12,20 @@ import {
   Bell,
   Menu,
   X,
-  Command
+  Command,
+  Pill
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import CommandPalette from './CommandPalette'
+import MedicineNotifications from './MedicineNotifications'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
   { name: 'Shopping', href: '/shopping', icon: ShoppingCart },
   { name: 'Finances', href: '/finances', icon: DollarSign },
+  { name: 'Medicine', href: '/medicine', icon: Pill },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Household', href: '/household', icon: Users },
 ]
@@ -198,6 +201,9 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
         isOpen={commandPaletteOpen} 
         onClose={() => setCommandPaletteOpen(false)} 
       />
+
+      {/* Medicine Notifications */}
+      <MedicineNotifications />
     </div>
   )
 }
