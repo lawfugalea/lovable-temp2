@@ -912,9 +912,26 @@ export default function MedicinePage() {
       )}
 
       {/* Fever Journal Section */}
-      {householdId && (
-        <FeverJournal householdId={householdId} children={children} />
-      )}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold text-cozy-text mb-4 flex items-center gap-2">
+          <span className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
+            🌡️
+          </span>
+          Fever Journal
+        </h2>
+        {householdId ? (
+          <FeverJournal householdId={householdId} children={children} />
+        ) : (
+          <Card>
+            <CardContent className="text-center py-8">
+              <div className="text-6xl mb-4">🌡️</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Fever Journal</h3>
+              <p className="text-gray-600 mb-4">Track your child's temperature readings</p>
+              <p className="text-sm text-gray-500">Please set up your household first to access the fever journal.</p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
 
       {/* Report Modal */}
       {showReportModal && (
