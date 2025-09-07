@@ -125,6 +125,69 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(201).json(reading)
     }
 
+    if (req.method === 'PUT') {
+      console.log('PUT /api/medicine/fever-readings - Request body:', req.body)
+      
+      const { id, childId, temperature, unit = 'C', method = 'oral', notes, takenBy, takenAt } = req.body
+
+      if (!id || !childId || temperature === undefined) {
+        console.log('Validation failed:', { id, childId, temperature })
+        return res.status(400).json({ error: 'Reading ID, child ID and temperature are required' })
+      }
+
+      // Verify reading belongs to household
+      const existingReading = await prisma.feverReading.findFirst({
+        where: {
+          id,
+          child: {
+            householdId: householdId
+          }
+        }
+      })
+
+      if (!existingReading) {
+        console.log('Reading not found:', { id, householdId })
+        return res.status(404).json({ error: 'Reading not found' })
+      }
+
+      // Verify child belongs to household
+      const child = await prisma.child.findFirst({
+        where: {
+          id: childId,
+          householdId: householdId
+        }
+      })
+
+      if (!child) {
+        console.log('Child not found:', { childId, householdId })
+        return res.status(404).json({ error: 'Child not found' })
+      }
+
+      const updatedReading = await prisma.feverReading.update({
+        where: { id },
+        data: {
+          childId,
+          temperature: parseFloat(temperature),
+          unit,
+          method,
+          notes,
+          takenBy,
+          takenAt: takenAt ? new Date(takenAt) : existingReading.takenAt
+        },
+        include: {
+          child: {
+            select: {
+              id: true,
+              name: true,
+              dateOfBirth: true
+            }
+          }
+        }
+      })
+
+      return res.status(200).json(updatedReading)
+    }
+
     if (req.method === 'DELETE') {
       const { id } = req.query
 

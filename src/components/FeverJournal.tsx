@@ -71,6 +71,8 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
   const [readings, setReadings] = useState<FeverReading[]>([])
   const [loading, setLoading] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editingReading, setEditingReading] = useState<FeverReading | null>(null)
+  const [selectedChildFilter, setSelectedChildFilter] = useState<string>('all')
   const [newReading, setNewReading] = useState({
     childId: '',
     temperature: '',
@@ -138,6 +140,78 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
     }
   }
 
+  const handleEditReading = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingReading || !newReading.childId || !newReading.temperature) return
+
+    setLoading(true)
+    try {
+      const requestData = {
+        id: editingReading.id,
+        ...newReading,
+        householdId: householdId
+      }
+      console.log('Updating fever reading data:', requestData)
+      
+      const response = await fetch('/api/medicine/fever-readings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+      })
+
+      if (response.ok) {
+        await loadReadings()
+        setEditingReading(null)
+        setNewReading({
+          childId: '',
+          temperature: '',
+          unit: 'C',
+          method: 'oral',
+          notes: '',
+          takenBy: '',
+          takenAt: new Date().toISOString().slice(0, 16)
+        })
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to update fever reading:', response.status, errorData)
+      }
+    } catch (error) {
+      console.error('Failed to update fever reading:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const startEdit = (reading: FeverReading) => {
+    setEditingReading(reading)
+    setNewReading({
+      childId: reading.childId,
+      temperature: reading.temperature.toString(),
+      unit: reading.unit,
+      method: reading.method,
+      notes: reading.notes || '',
+      takenBy: reading.takenBy || '',
+      takenAt: new Date(reading.takenAt).toISOString().slice(0, 16)
+    })
+  }
+
+  const cancelEdit = () => {
+    setEditingReading(null)
+    setNewReading({
+      childId: '',
+      temperature: '',
+      unit: 'C',
+      method: 'oral',
+      notes: '',
+      takenBy: '',
+      takenAt: new Date().toISOString().slice(0, 16)
+    })
+  }
+
+  const filteredReadings = selectedChildFilter === 'all' 
+    ? readings 
+    : readings.filter(reading => reading.childId === selectedChildFilter)
+
   const handleDeleteReading = async (id: string) => {
     if (!confirm('Are you sure you want to delete this reading?')) return
 
@@ -187,7 +261,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
       }))
   }
 
-  const groupedReadings = groupReadingsByDate(readings)
+  const groupedReadings = groupReadingsByDate(filteredReadings)
 
   return (
     <div className="space-y-6">
@@ -202,13 +276,28 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
             <p className="text-sm text-gray-600">Track your child's temperature readings</p>
           </div>
         </div>
-        <Button 
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Add Reading
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Child Filter */}
+          <select
+            value={selectedChildFilter}
+            onChange={(e) => setSelectedChildFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          >
+            <option value="all">All Children</option>
+            {children.map(child => (
+              <option key={child.id} value={child.id}>
+                {child.name}
+              </option>
+            ))}
+          </select>
+          <Button 
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Reading
+          </Button>
+        </div>
       </div>
 
       {/* Quick Stats */}
@@ -293,14 +382,28 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
                             {reading.notes}
                           </div>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteReading(reading.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEdit(reading)}
+                            className="text-blue-500 hover:text-blue-700"
+                            title="Edit reading"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteReading(reading.id)}
+                            className="text-red-500 hover:text-red-700"
+                            title="Delete reading"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -323,15 +426,17 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
         </Card>
       )}
 
-      {/* Add Reading Modal */}
-      {showAddModal && (
+      {/* Add/Edit Reading Modal */}
+      {(showAddModal || editingReading) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <CardTitle>Add Temperature Reading</CardTitle>
+              <CardTitle>
+                {editingReading ? 'Edit Temperature Reading' : 'Add Temperature Reading'}
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleAddReading} className="space-y-4">
+              <form onSubmit={editingReading ? handleEditReading : handleAddReading} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Child</label>
                   <select
@@ -421,7 +526,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setShowAddModal(false)}
+                    onClick={editingReading ? cancelEdit : () => setShowAddModal(false)}
                     className="flex-1"
                   >
                     Cancel
@@ -431,7 +536,10 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
                     disabled={loading}
                     className="flex-1"
                   >
-                    {loading ? 'Adding...' : 'Add Reading'}
+                    {loading 
+                      ? (editingReading ? 'Updating...' : 'Adding...') 
+                      : (editingReading ? 'Update Reading' : 'Add Reading')
+                    }
                   </Button>
                 </div>
               </form>
