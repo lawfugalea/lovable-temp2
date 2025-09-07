@@ -73,21 +73,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
-      const { childId, temperature, unit = 'C', method = 'oral', notes, takenBy, takenAt } = req.body
+      const { childId, temperature, unit = 'C', method = 'oral', notes, takenBy, takenAt, householdId: bodyHouseholdId } = req.body
 
       if (!childId || temperature === undefined) {
         return res.status(400).json({ error: 'Child ID and temperature are required' })
       }
 
+      // Use householdId from body if provided, otherwise use query parameter
+      const effectiveHouseholdId = bodyHouseholdId || householdId
+
       // Verify child belongs to household
       const child = await prisma.child.findFirst({
         where: {
           id: childId,
-          householdId: householdId
+          householdId: effectiveHouseholdId
         }
       })
 
       if (!child) {
+        console.log('Child not found:', { childId, effectiveHouseholdId })
         return res.status(404).json({ error: 'Child not found' })
       }
 

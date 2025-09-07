@@ -106,7 +106,10 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
       const response = await fetch('/api/medicine/fever-readings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newReading)
+        body: JSON.stringify({
+          ...newReading,
+          householdId: householdId
+        })
       })
 
       if (response.ok) {
