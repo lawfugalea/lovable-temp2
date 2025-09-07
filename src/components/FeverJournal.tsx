@@ -375,7 +375,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
                           {reading.child.name} ({ageInMonths}mo)
                         </div>
                         <div className="text-sm text-gray-500">
-                          {TEMPERATURE_METHODS.find(m => m.value === reading.method)?.icon} {reading.method}
+                          {TEMPERATURE_METHODS.find(m => m.value === reading.method)?.icon} {TEMPERATURE_METHODS.find(m => m.value === reading.method)?.label}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
