@@ -217,10 +217,11 @@ model Child {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  household   Household @relation(fields: [householdId], references: [id])
-  medicines   Medicine[]
-  doses       MedicineDose[]
-  reminders   MedicineReminder[]
+  household     Household @relation(fields: [householdId], references: [id])
+  medicines     Medicine[]
+  doses         MedicineDose[]
+  reminders     MedicineReminder[]
+  feverReadings FeverReading[]
   
   @@index([householdId])
 }
@@ -287,4 +288,19 @@ enum ReminderType {
   FIFTEEN_MINUTES
   FIVE_MINUTES
   DUE_NOW
+}
+
+model FeverReading {
+  id          String   @id @default(cuid())
+  childId     String
+  temperature Float    // Temperature in Celsius
+  unit        String   @default("C") // C or F
+  method      String   @default("oral") // oral, rectal, axillary, ear, forehead
+  takenAt     DateTime @default(now())
+  notes       String?
+  takenBy     String?  // Who took the reading
+  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, takenAt])
+  @@index([takenAt])
 }
