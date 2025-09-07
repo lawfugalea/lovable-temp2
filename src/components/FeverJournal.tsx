@@ -89,10 +89,14 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
 
   const loadReadings = async () => {
     try {
+      console.log('Loading fever readings...')
       const response = await fetch(`/api/medicine/fever-readings?householdId=${householdId}`)
       if (response.ok) {
         const data = await response.json()
+        console.log('Loaded readings:', data.length, 'items')
         setReadings(data)
+      } else {
+        console.error('Failed to load readings:', response.status)
       }
     } catch (error) {
       console.error('Failed to load fever readings:', error)
@@ -160,7 +164,9 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
       })
 
       if (response.ok) {
+        console.log('Update successful, refreshing readings...')
         await loadReadings()
+        console.log('Readings refreshed')
         setEditingReading(null)
         setNewReading({
           childId: '',
