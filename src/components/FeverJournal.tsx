@@ -103,13 +103,16 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
 
     setLoading(true)
     try {
+      const requestData = {
+        ...newReading,
+        householdId: householdId
+      }
+      console.log('Sending fever reading data:', requestData)
+      
       const response = await fetch('/api/medicine/fever-readings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newReading,
-          householdId: householdId
-        })
+        body: JSON.stringify(requestData)
       })
 
       if (response.ok) {
@@ -124,6 +127,9 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
           takenBy: '',
           takenAt: new Date().toISOString().slice(0, 16)
         })
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to add fever reading:', response.status, errorData)
       }
     } catch (error) {
       console.error('Failed to add fever reading:', error)

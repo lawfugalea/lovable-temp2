@@ -73,9 +73,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
+      console.log('POST /api/medicine/fever-readings - Request body:', req.body)
+      console.log('POST /api/medicine/fever-readings - Query params:', req.query)
+      
       const { childId, temperature, unit = 'C', method = 'oral', notes, takenBy, takenAt, householdId: bodyHouseholdId } = req.body
 
       if (!childId || temperature === undefined) {
+        console.log('Validation failed:', { childId, temperature })
         return res.status(400).json({ error: 'Child ID and temperature are required' })
       }
 
