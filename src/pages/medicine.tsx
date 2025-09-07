@@ -19,6 +19,7 @@ import {
   User
 } from 'lucide-react'
 import { format, addDays, isToday, isTomorrow, parseISO } from 'date-fns'
+import FeverJournal from '../components/FeverJournal'
 
 interface Child {
   id: string
@@ -908,6 +909,11 @@ export default function MedicinePage() {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Fever Journal Section */}
+      {householdId && (
+        <FeverJournal householdId={householdId} children={children} />
       )}
 
       {/* Report Modal */}
