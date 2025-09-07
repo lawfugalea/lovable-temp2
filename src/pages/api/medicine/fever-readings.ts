@@ -10,7 +10,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  const { householdId } = req.query
+  const { householdId: queryHouseholdId } = req.query
+  const { householdId: bodyHouseholdId } = req.body || {}
+  
+  // For GET requests, householdId should be in query params
+  // For POST requests, householdId can be in either query params or body
+  const householdId = queryHouseholdId || bodyHouseholdId
 
   if (!householdId || typeof householdId !== 'string') {
     return res.status(400).json({ error: 'Household ID is required' })
@@ -76,26 +81,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log('POST /api/medicine/fever-readings - Request body:', req.body)
       console.log('POST /api/medicine/fever-readings - Query params:', req.query)
       
-      const { childId, temperature, unit = 'C', method = 'oral', notes, takenBy, takenAt, householdId: bodyHouseholdId } = req.body
+      const { childId, temperature, unit = 'C', method = 'oral', notes, takenBy, takenAt } = req.body
 
       if (!childId || temperature === undefined) {
         console.log('Validation failed:', { childId, temperature })
         return res.status(400).json({ error: 'Child ID and temperature are required' })
       }
 
-      // Use householdId from body if provided, otherwise use query parameter
-      const effectiveHouseholdId = bodyHouseholdId || householdId
-
       // Verify child belongs to household
       const child = await prisma.child.findFirst({
         where: {
           id: childId,
-          householdId: effectiveHouseholdId
+          householdId: householdId
         }
       })
 
       if (!child) {
-        console.log('Child not found:', { childId, effectiveHouseholdId })
+        console.log('Child not found:', { childId, householdId })
         return res.status(404).json({ error: 'Child not found' })
       }
 
