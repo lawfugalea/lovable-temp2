@@ -16,11 +16,9 @@ import {
   CheckCircle,
   FileText,
   Bell,
-  User,
-  Thermometer
+  User
 } from 'lucide-react'
 import { format, addDays, isToday, isTomorrow, parseISO } from 'date-fns'
-import FeverJournal from '../components/FeverJournal'
 
 interface Child {
   id: string
@@ -911,12 +909,6 @@ export default function MedicinePage() {
           </Card>
         </div>
       )}
-
-        {/* Fever Journal Section */}
-        {householdId && (
-          <FeverJournal householdId={householdId} children={children} />
-        )}
-      </div>
 
       {/* Report Modal */}
       {showReportModal && (
