@@ -2,7 +2,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',          // <-- needed for .next/standalone
-  reactStrictMode: true,         // optional
+  reactStrictMode: false,        // Disable strict mode
+  webpack: (config, { dev, isServer }) => {
+    if (dev) {
+      // Reduce noisy watching; ignore huge folders
+      config.watchOptions = {
+        ignored: [
+          '**/node_modules/**',
+          '**/.next/**',
+          '**/public/smart-images/**'
+        ],
+      };
+    }
+    return config;
+  },
   images: {
     domains: [
       'smart.com.mt',
@@ -18,32 +31,38 @@ const nextConfig = {
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-  async headers() {
-    return [
-      {
-        source: '/(.*)',
-        headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
-          },
-        ],
-      },
-      {
-        source: '/manifest.json',
-        headers: [
-          {
-            key: 'Content-Type',
-            value: 'application/manifest+json',
-          },
-        ],
-      },
-    ]
-  },
   async redirects() {
     return [
       { source: '/api/invites/accept', destination: '/invites/accept', permanent: false },
     ];
+  },
+  async headers() {
+    // In dev, make sure HMR and API responses are never cached by the browser
+    if (process.env.NODE_ENV === 'development') {
+      return [
+        {
+          source: '/_next/webpack-hmr',
+          headers: [
+            { key: 'Cache-Control', value: 'no-store' },
+            { key: 'Pragma', value: 'no-cache' },
+          ],
+        },
+        {
+          source: '/_next/static/webpack/:path*',
+          headers: [
+            { key: 'Cache-Control', value: 'no-store' },
+            { key: 'Pragma', value: 'no-cache' },
+          ],
+        },
+        {
+          source: '/api/:path*',
+          headers: [
+            { key: 'Cache-Control', value: 'no-store' },
+          ],
+        },
+      ];
+    }
+    return [];
   },
 };
 

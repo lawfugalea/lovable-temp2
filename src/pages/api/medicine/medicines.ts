@@ -10,22 +10,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Unauthorized' })
   }
 
-  if (req.method === 'GET') {
-    const { householdId } = req.query
-    
-    if (!householdId) {
-      return res.status(400).json({ error: 'Household ID required' })
-    }
+  const householdId = req.query.householdId as string
 
+  if (!householdId) {
+    return res.status(400).json({ error: 'Household ID required' })
+  }
+
+  if (req.method === 'GET') {
     try {
       const medicines = await prisma.medicine.findMany({
         where: { 
-          child: { householdId: householdId as string }
+          child: {
+            householdId
+          }
         },
-        include: { child: true },
+        include: {
+          child: true
+        },
         orderBy: { createdAt: 'desc' }
       })
-      
       return res.json(medicines)
     } catch (error) {
       console.error('Failed to fetch medicines:', error)
@@ -34,26 +37,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    const { childId, name, description, dosage, frequency, startDate, endDate, notes } = req.body
-    
-    if (!childId || !name || !dosage || !frequency) {
-      return res.status(400).json({ error: 'Missing required fields' })
-    }
-
     try {
-      const medicine = await prisma.medicine.create({
-        data: {
-          childId,
-          name,
-          description,
-          dosage,
-          frequency,
-          startDate: new Date(startDate),
-          endDate: endDate ? new Date(endDate) : null,
-          notes
+      const { name, dosage, frequency, unit, instructions, childId } = req.body
+
+      if (!name || !dosage || !frequency || !childId) {
+        return res.status(400).json({ error: 'Missing required fields: name, dosage, frequency, childId' })
+      }
+
+      // Verify the child belongs to the household
+      const child = await prisma.child.findFirst({
+        where: {
+          id: childId,
+          householdId
         }
       })
-      
+
+      if (!child) {
+        return res.status(400).json({ error: 'Child not found or does not belong to household' })
+      }
+
+      const medicine = await prisma.medicine.create({
+        data: {
+          name,
+          dosage: `${dosage} ${unit || 'mg'}`,
+          frequency: `every ${frequency} hours`,
+          notes: instructions || '',
+          childId,
+          startDate: new Date()
+        },
+        include: {
+          child: true
+        }
+      })
+
       return res.json(medicine)
     } catch (error) {
       console.error('Failed to create medicine:', error)

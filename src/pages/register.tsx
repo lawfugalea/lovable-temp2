@@ -1,57 +1,184 @@
-// src/pages/register.tsx
-import { FormEvent, useState } from 'react';
-import { useRouter } from 'next/router';
-import Head from 'next/head';
+import React, { useState } from 'react'
+import { useRouter } from 'next/router'
+import Head from 'next/head'
+import FunButton from '../components/ui/FunButton'
+import FunCard from '../components/ui/FunCard'
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [err, setErr] = useState<string | null>(null);
-  const [ok, setOk] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setErr(null); setOk(false); setLoading(true);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+    setError('')
+    setSuccess(false)
+    
     try {
-      const res = await fetch('/api/register', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({ name, email, password }) });
-      setLoading(false);
-      if (!res.ok) throw new Error(await res.text());
-      setOk(true);
-      setTimeout(()=>router.replace('/'), 900);
-    } catch (e:any) { setErr(e?.message || 'Could not register'); }
-  };
+      const res = await fetch('/api/register', { 
+        method: 'POST', 
+        headers: { 'content-type': 'application/json' }, 
+        body: JSON.stringify({ name, email, password }) 
+      })
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(errorText || 'Could not register')
+      }
+      
+      setSuccess(true)
+      setTimeout(() => router.replace('/'), 1500)
+    } catch (e: any) { 
+      setError(e?.message || 'Could not register')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <>
       <Head><title>Register – Houseflow</title></Head>
-      <div className="min-h-screen grid place-items-center px-4" style={{ background:'linear-gradient(90deg,var(--hf-grad-from),var(--hf-grad-via),var(--hf-grad-to))' }}>
-        <div className="w-full max-w-md bg-white/80 backdrop-blur rounded-2xl border border-white/70 shadow-card p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-10 w-10 rounded-xl bg-white grid place-items-center shadow-sm">H</div>
-            <h1 className="text-xl font-semibold">Create your account</h1>
+      <main className="min-h-screen bg-cozy-warm flex items-center justify-center p-6">
+        <div className="w-full max-w-md animate-cozy-bounce-in">
+          <FunCard className="overflow-hidden" hover bounce>
+            {/* Header with personality */}
+            <div className="bg-cozy-header border-b border-cozy-gray-200 flex flex-col items-center py-8">
+              <div className="h-16 w-16 rounded-cozy-lg bg-cozy-surface shadow-cozy-md grid place-items-center text-2xl border border-cozy-primary-soft mb-3 animate-cozy-float cozy-emoji">
+                🏡
+              </div>
+              <h1 className="text-2xl font-bold text-cozy-text mb-1 flex items-center gap-2">
+                <span>Join HouseFlow</span>
+                <span className="animate-cozy-pulse-gentle">✨</span>
+              </h1>
+              <p className="text-cozy-text-muted text-sm text-center">
+                Create your cozy home hub
+                <br />
+                <span className="animate-cozy-wiggle inline-block">🫖</span> Where your family story begins
+              </p>
+            </div>
+
+            <div className="bg-cozy-surface px-8 py-8">
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
+                    <span>👤</span>
+                    Full Name
+                  </label>
+                  <input 
+                    type="text" 
+                    className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
+                    placeholder="Your name" 
+                    value={name} 
+                    onChange={(e) => setName(e.target.value)} 
+                    autoComplete="name" 
+                    required 
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
+                    <span>📧</span>
+                    Email
+                  </label>
+                  <input 
+                    type="email" 
+                    className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
+                    placeholder="you@home.com" 
+                    value={email} 
+                    onChange={(e) => setEmail(e.target.value)} 
+                    autoComplete="email" 
+                    required 
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
+                    <span>🔒</span>
+                    Password
+                  </label>
+                  <input 
+                    type="password" 
+                    className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
+                    placeholder="••••••••" 
+                    value={password} 
+                    onChange={(e) => setPassword(e.target.value)} 
+                    autoComplete="new-password" 
+                    required 
+                  />
+                </div>
+                
+                {error && (
+                  <div className="animate-cozy-bounce-in animation-delay-400">
+                    <div className="bg-red-50 border border-red-200 rounded-cozy px-4 py-3 text-red-700 text-sm flex items-center gap-2">
+                      <span>⚠️</span>
+                      {error}
+                    </div>
+                  </div>
+                )}
+
+                {success && (
+                  <div className="animate-cozy-bounce-in animation-delay-400">
+                    <div className="bg-green-50 border border-green-200 rounded-cozy px-4 py-3 text-green-700 text-sm flex items-center gap-2">
+                      <span>🎉</span>
+                      Account created! Redirecting to your home...
+                    </div>
+                  </div>
+                )}
+                
+                <div className="animate-cozy-bounce-in animation-delay-400">
+                  <FunButton 
+                    type="submit"
+                    disabled={isLoading} 
+                    className="w-full"
+                    variant={isLoading ? "secondary" : "primary"}
+                    emoji={isLoading ? "🏡" : "✨"}
+                    celebration={!isLoading}
+                  >
+                    {isLoading ? 'Creating your home…' : 'Create your household'}
+                  </FunButton>
+                </div>
+              </form>
+
+              <div className="mt-6 pt-6 border-t border-cozy-gray-200 text-center animate-cozy-bounce-in animation-delay-500">
+                <p className="text-sm text-cozy-text-muted flex items-center justify-center gap-2">
+                  <span>Already have a home?</span>
+                  <button 
+                    onClick={() => router.push('/')}
+                    className="font-medium text-cozy-primary hover:text-cozy-primary-deep underline hover:animate-cozy-wiggle transition-all"
+                  >
+                    Sign in
+                  </button>
+                  <span className="animate-cozy-pulse-gentle">🏠</span>
+                </p>
+              </div>
+            </div>
+          </FunCard>
+
+          <div className="text-center text-xs text-cozy-text-soft mt-6 bg-cozy-surface/60 rounded-cozy px-4 py-2 backdrop-blur-sm animate-cozy-bounce-in animation-delay-600">
+            <div className="flex items-center justify-center gap-2">
+              <span className="animate-cozy-pulse-gentle">☕</span>
+              <span>By creating an account, you agree to keep our home cozy and welcoming</span>
+              <span className="animate-cozy-pulse-gentle animation-delay-300">💝</span>
+            </div>
           </div>
-          <form onSubmit={onSubmit} className="grid gap-3">
-            <label className="text-sm">Name
-              <input className="mt-1 w-full rounded-xl border px-3 py-2" value={name} onChange={(e)=>setName(e.target.value)} required />
-            </label>
-            <label className="text-sm">Email
-              <input type="email" className="mt-1 w-full rounded-xl border px-3 py-2" value={email} onChange={(e)=>setEmail(e.target.value)} required />
-            </label>
-            <label className="text-sm">Password
-              <input type="password" className="mt-1 w-full rounded-xl border px-3 py-2" value={password} onChange={(e)=>setPassword(e.target.value)} required />
-            </label>
-            {err && <div className="text-sm text-red-600">{err}</div>}
-            {ok && <div className="text-sm text-emerald-700">Account created! Redirecting…</div>}
-            <button type="submit" disabled={loading} className="rounded-xl bg-gray-900 text-white px-4 py-2 min-h-[44px] hover:bg-black disabled:opacity-60">
-              {loading ? 'Creating…' : 'Create account'}
-            </button>
-            <div className="text-xs text-center text-gray-600">Already have an account? <a className="underline" href="/">Sign in</a></div>
-          </form>
+
+          {/* Fun floating elements */}
+          <div className="fixed top-10 left-10 text-2xl animate-cozy-float animation-delay-1000 opacity-20 pointer-events-none">
+            🌸
+          </div>
+          <div className="fixed top-20 right-20 text-xl animate-cozy-pulse-gentle animation-delay-1500 opacity-30 pointer-events-none">
+            ✨
+          </div>
+          <div className="fixed bottom-32 left-20 text-lg animate-cozy-wiggle animation-delay-2000 opacity-25 pointer-events-none">
+            🫖
+          </div>
         </div>
-      </div>
+      </main>
     </>
-  );
+  )
 }

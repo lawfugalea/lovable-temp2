@@ -1,0 +1,10 @@
+[33ma1489b0[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fixes for medicine
+[33m1f1d4cc[m Added medicine control page
+[33m1d3b05d[m added proxy for images of smart
+[33m58a7476[m Add debug endpoint and expand image domains configuration
+[33ma9b1f0a[m Fix image loading in production by adding Smart Supermarket domains to Next.js config
+[33md7ff588[m Remove Vite config files - not needed for Next.js project
+[33mb4a91ff[m Fix type mismatch in ContribBlock components - use Earner instead of EarnerLite
+[33m6863ba6[m Remove unnecessary main.tsx file - Next.js uses pages/_app.tsx as entry point
+[33mc14b21b[m Fix debounce function TypeScript error by removing this context
+[33mf5d8053[m Fix Layout.tsx to use Next.js routing instead of react-router-dom
