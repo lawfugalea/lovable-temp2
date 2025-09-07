@@ -76,28 +76,21 @@ const semail = session?.user?.email?.toLowerCase() || undefined;
         });
       }
 
-      // Ensure membership exists
-      const existing = await tx.membership.findFirst({
-        where: { userId: userId!, householdId: invite.householdId },
-        select: { id: true },
+      // SINGLE HOUSEHOLD MODEL: Remove user from any existing households
+      await tx.membership.deleteMany({
+        where: { userId: userId! },
       });
 
-      if (!existing) {
-        try {
-          await tx.membership.create({
-            data: {
-              userId: userId!,
-              householdId: invite.householdId,
-              role: (invite.role ?? "MEMBER") as MemberRole,
-            },
-          });
-        } catch (e: any) {
-          // If you later add a unique index on (userId, householdId), ignore duplicate race
-          if (!(String(e?.code || "").includes("P2002"))) throw e;
-        }
-      }
+      // Create new membership in the invited household
+      await tx.membership.create({
+        data: {
+          userId: userId!,
+          householdId: invite.householdId,
+          role: (invite.role ?? "MEMBER") as MemberRole,
+        },
+      });
 
-      // Set active household
+      // Set this household as the user's active (and only) household
       await tx.user.update({
         where: { id: userId! },
         data: { activeHouseholdId: invite.householdId },

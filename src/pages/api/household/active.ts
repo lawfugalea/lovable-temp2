@@ -23,21 +23,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (valid) return res.status(200).json({ householdId: u.activeHouseholdId });
     }
 
-    // 2) Fallback: use most-recent membership (global default)
-    const latest = await prisma.membership.findFirst({
+    // 2) Fallback: use their only membership (SINGLE HOUSEHOLD MODEL)
+    const membership = await prisma.membership.findFirst({
       where: { userId },
       select: { householdId: true },
-      orderBy: { createdAt: 'desc' }, // latest joined
     });
-    if (!latest) return res.status(404).json({ error: 'No household' });
+    if (!membership) return res.status(404).json({ error: 'No household' });
 
-    // Persist fallback to user for next time (global)
+    // Persist fallback to user for next time
     await prisma.user.update({
       where: { id: userId },
-      data: { activeHouseholdId: latest.householdId },
+      data: { activeHouseholdId: membership.householdId },
     });
 
-    return res.status(200).json({ householdId: latest.householdId });
+    return res.status(200).json({ householdId: membership.householdId });
   }
 
   if (req.method === 'POST') {

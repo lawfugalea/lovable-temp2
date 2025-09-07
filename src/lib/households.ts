@@ -2,12 +2,12 @@ import { prisma } from "@/lib/prisma";
 
 /**
  * Decide a safe active household for a user and (optionally) write it.
+ * SINGLE HOUSEHOLD MODEL: Users can only belong to one household at a time.
  * Order:
  * 1) preferredId if the user is a member
  * 2) keep current if still valid
- * 3) any OWNER membership
- * 4) first membership
- * 5) null
+ * 3) their only membership (if any)
+ * 4) null
  */
 export async function reconcileActiveHousehold(
   userId: string,
@@ -39,21 +39,14 @@ export async function reconcileActiveHousehold(
   // 2) Current still valid?
   if (isMember(user.activeHouseholdId)) return { activeId: user.activeHouseholdId!, changed: false };
 
-  // 3) OWNER
-  const owner = user.memberships.find((m) => m.role === "OWNER");
-  if (owner) {
-    if (write) await prisma.user.update({ where: { id: userId }, data: { activeHouseholdId: owner.householdId } });
-    return { activeId: owner.householdId, changed: true };
+  // 3) Their only membership (SINGLE HOUSEHOLD MODEL)
+  const membership = user.memberships[0]; // Should only be one
+  if (membership) {
+    if (write) await prisma.user.update({ where: { id: userId }, data: { activeHouseholdId: membership.householdId } });
+    return { activeId: membership.householdId, changed: true };
   }
 
-  // 4) First membership
-  const first = user.memberships[0];
-  if (first) {
-    if (write) await prisma.user.update({ where: { id: userId }, data: { activeHouseholdId: first.householdId } });
-    return { activeId: first.householdId, changed: true };
-  }
-
-  // 5) No households
+  // 4) No households
   if (write && user.activeHouseholdId !== null) {
     await prisma.user.update({ where: { id: userId }, data: { activeHouseholdId: null } });
   }
