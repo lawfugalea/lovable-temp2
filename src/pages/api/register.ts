@@ -25,7 +25,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       select: { id: true, email: true, name: true },
     });
 
-    return res.status(201).json({ ok: true, user });
+    // Create a default household for the new user
+    const defaultName = (user.name?.split(' ')[0] || user.email.split('@')[0] || 'My') + "'s Household";
+    
+    const household = await prisma.$transaction(async (tx) => {
+      const h = await tx.household.create({
+        data: { name: defaultName, ownerId: user.id },
+        select: { id: true },
+      });
+
+      await tx.membership.create({
+        data: { userId: user.id, householdId: h.id, role: 'OWNER' },
+      });
+
+      // Set this newly created household as the user's active household
+      await tx.user.update({
+        where: { id: user.id },
+        data: { activeHouseholdId: h.id },
+      });
+
+      return h;
+    });
+
+    return res.status(201).json({ ok: true, user, householdId: household.id });
   } catch (err: any) {
     return res.status(500).json({ ok: false, error: 'Server error' });
   }
