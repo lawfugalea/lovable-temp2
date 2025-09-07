@@ -72,7 +72,6 @@ export default function MedicinePage() {
   const [doses, setDoses] = useState<MedicineDose[]>([])
   const [reminders, setReminders] = useState<MedicineReminder[]>([])
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'medicines' | 'fever'>('medicines')
   
   // Modal states
   const [showAddChild, setShowAddChild] = useState(false)
@@ -454,43 +453,8 @@ export default function MedicinePage() {
           <p className="text-cozy-text-muted">Track and manage your children's medications</p>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="border-b border-cozy-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab('medicines')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'medicines'
-                  ? 'border-cozy-primary text-cozy-primary'
-                  : 'border-transparent text-cozy-text-muted hover:text-cozy-text hover:border-cozy-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Pill className="h-4 w-4" />
-                Medicines & Doses
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('fever')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'fever'
-                  ? 'border-cozy-primary text-cozy-primary'
-                  : 'border-transparent text-cozy-text-muted hover:text-cozy-text hover:border-cozy-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <Thermometer className="h-4 w-4" />
-                Fever Journal
-              </div>
-            </button>
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'medicines' && (
-          <>
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -947,13 +911,12 @@ export default function MedicinePage() {
           </Card>
         </div>
       )}
-          </>
-        )}
 
-        {/* Fever Journal Tab */}
-        {activeTab === 'fever' && householdId && (
+        {/* Fever Journal Section */}
+        {householdId && (
           <FeverJournal householdId={householdId} children={children} />
         )}
+      </div>
 
       {/* Report Modal */}
       {showReportModal && (
