@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import Head from 'next/head'
@@ -161,6 +161,13 @@ export default function AdminPage() {
     }
   }
 
+  const tabs = [
+    { id: 'dashboard', label: 'Dashboard', icon: Activity },
+    { id: 'users', label: 'Users', icon: Users },
+    { id: 'households', label: 'Households', icon: Home },
+    { id: 'system', label: 'System', icon: Settings },
+  ]
+
   if (status === 'loading' || loading) {
     return (
       <ModernAppShell>
@@ -188,13 +195,6 @@ export default function AdminPage() {
       </ModernAppShell>
     )
   }
-
-  const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: Activity },
-    { id: 'users', label: 'Users', icon: Users },
-    { id: 'households', label: 'Households', icon: Home },
-    { id: 'system', label: 'System', icon: Settings },
-  ]
 
   return (
     <ModernAppShell>
@@ -239,7 +239,11 @@ export default function AdminPage() {
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
-                      className={lex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm }
+                      className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === tab.id
+                          ? 'border-cozy-primary text-cozy-primary'
+                          : 'border-transparent text-cozy-text-muted hover:text-cozy-text hover:border-cozy-gray-300'
+                      }`}
                     >
                       <Icon className="w-4 h-4" />
                       {tab.label}
@@ -445,7 +449,7 @@ export default function AdminPage() {
                                   size="sm"
                                   variant="destructive"
                                   onClick={() => {
-                                    if (confirm(Are you sure you want to delete user ?)) {
+                                    if (confirm(`Are you sure you want to delete user ${user.email}?`)) {
                                       handleUserAction(user.id, 'delete')
                                     }
                                   }}
@@ -522,7 +526,7 @@ export default function AdminPage() {
                                   size="sm"
                                   variant="destructive"
                                   onClick={() => {
-                                    if (confirm(Are you sure you want to delete household ""? This will delete ALL related data!)) {
+                                    if (confirm(`Are you sure you want to delete household "${household.name}"? This will delete ALL related data!`)) {
                                       handleHouseholdAction(household.id, 'delete')
                                     }
                                   }}
