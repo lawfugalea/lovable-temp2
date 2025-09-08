@@ -214,7 +214,7 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
 
             {/* Features preview */}
             <div>
-              <h3 className="text-sm font-medium text-cozy-text mb-3">What you'll get:</h3>
+              <h3 className="text-sm font-medium text-cozy-text mb-3">What you&apos;ll get:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex items-center gap-2 text-sm text-cozy-text-muted">
                   <Users className="w-4 h-4" />

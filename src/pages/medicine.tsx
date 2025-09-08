@@ -1424,13 +1424,13 @@ export default function MedicinePage() {
           Fever Journal
         </h2>
         {householdId ? (
-          <FeverJournal householdId={householdId} children={children} />
+          <FeverJournal householdId={householdId} kids={children} />
         ) : (
           <Card>
             <CardContent className="text-center py-8">
               <div className="text-6xl mb-4">🌡️</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Fever Journal</h3>
-              <p className="text-gray-600 mb-4">Track your child's temperature readings</p>
+              <p className="text-gray-600 mb-4">Track your child&apos;s temperature readings</p>
               <p className="text-sm text-gray-500">Please set up your household first to access the fever journal.</p>
             </CardContent>
           </Card>

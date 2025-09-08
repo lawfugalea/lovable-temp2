@@ -36,7 +36,7 @@ interface FeverReading {
 
 interface FeverJournalProps {
   householdId: string
-  children: Child[]
+  kids: Child[]
 }
 
 const TEMPERATURE_METHODS = [
@@ -77,7 +77,7 @@ const getCurrentLocalTime = () => {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
-export default function FeverJournal({ householdId, children }: FeverJournalProps) {
+export default function FeverJournal({ householdId, kids }: FeverJournalProps) {
   const [readings, setReadings] = useState<FeverReading[]>([])
   const [loading, setLoading] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -289,7 +289,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
           </div>
           <div>
             <h2 className="text-xl font-semibold">Fever Journal</h2>
-            <p className="text-sm text-gray-600">Track your child's temperature readings</p>
+            <p className="text-sm text-gray-600">Track your child&apos;s temperature readings</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -300,7 +300,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
           >
             <option value="all">All Children</option>
-            {children.map(child => (
+            {kids.map(child => (
               <option key={child.id} value={child.id}>
                 {child.name}
               </option>
@@ -319,7 +319,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
       {/* Quick Stats */}
       {readings.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {children.map(child => {
+          {kids.map(child => {
             const childReadings = readings.filter(r => r.childId === child.id)
             const latestReading = childReadings[0]
             const trend = getRecentTrend(child.id)
@@ -433,7 +433,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
           <CardContent className="text-center py-8">
             <Thermometer className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No fever readings yet</h3>
-            <p className="text-gray-600 mb-4">Start tracking your child's temperature to monitor their health</p>
+            <p className="text-gray-600 mb-4">Start tracking your child&apos;s temperature to monitor their health</p>
             <Button onClick={() => setShowAddModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add First Reading
@@ -462,7 +462,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
                     required
                   >
                     <option value="">Select a child</option>
-                    {children.map(child => (
+                    {kids.map(child => (
                       <option key={child.id} value={child.id}>
                         {child.name} ({getAgeInMonths(child.dateOfBirth)}mo)
                       </option>

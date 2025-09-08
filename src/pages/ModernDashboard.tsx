@@ -131,7 +131,7 @@ export default function ModernDashboard() {
           Welcome back! 👋
         </h1>
         <p className="text-cozy-text-muted">
-          Here's what's happening with your household today.
+          Here&apos;s what&apos;s happening with your household today.
         </p>
       </div>
 

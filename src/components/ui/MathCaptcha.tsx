@@ -48,6 +48,7 @@ export default function MathCaptcha({ onVerify, className = '' }: MathCaptchaPro
 
   useEffect(() => {
     generateQuestion();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,7 +115,7 @@ export default function MathCaptcha({ onVerify, className = '' }: MathCaptchaPro
       )}
       
       <p className="text-xs text-cozy-text-muted">
-        Please solve this simple math problem to verify you're human
+        Please solve this simple math problem to verify you&apos;re human
       </p>
     </div>
   );
