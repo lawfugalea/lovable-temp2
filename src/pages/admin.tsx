@@ -121,7 +121,7 @@ export default function AdminPage() {
 
   const handleUserAction = async (userId: string, action: string) => {
     try {
-      const res = await fetch(/api/admin/users/, {
+      const res = await fetch(`/api/admin/users/${userId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action })
@@ -144,7 +144,7 @@ export default function AdminPage() {
 
   const handleHouseholdAction = async (householdId: string, action: string) => {
     try {
-      const res = await fetch(/api/admin/households/, {
+      const res = await fetch(`/api/admin/households/${householdId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action })
