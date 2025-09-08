@@ -845,23 +845,30 @@ export default function MedicinePage() {
                             )}
                             <div className="mt-2">
                               {nextDoseInfo.timeUntilNext !== null ? (
-                                <p className={`text-xs font-medium ${nextDoseInfo.isOverdue ? 'text-red-600' : 'text-blue-600'}`}>
-                                  {nextDoseInfo.isOverdue ? 'Overdue' : 'Next dose in'} {nextDoseInfo.timeUntilNext > 0 ? formatTimeUntilNext(nextDoseInfo.timeUntilNext) : 'now'}
-                                  {nextDoseInfo.isOverride && (
-                                    <span className="ml-2 text-xs text-purple-600 font-medium">
-                                      (Manual override)
-                                    </span>
-                                  )}
-                                </p>
+                                <div>
+                                  <p className={`text-xs font-medium ${nextDoseInfo.isOverdue ? 'text-red-600' : 'text-blue-600'}`}>
+                                    {nextDoseInfo.isOverdue ? 'Overdue' : 'Next dose in'} {nextDoseInfo.timeUntilNext > 0 ? formatTimeUntilNext(nextDoseInfo.timeUntilNext) : 'now'}
+                                    {nextDoseInfo.isOverride && (
+                                      <span className="ml-2 text-xs text-purple-600 font-medium">
+                                        (Manual override)
+                                      </span>
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-cozy-text-muted mt-1">
+                                    Due at: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
+                                  </p>
+                                </div>
                               ) : (
-                                <p className="text-xs text-cozy-text-muted">
-                                  Next dose: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
-                                  {nextDoseInfo.isOverride && (
-                                    <span className="ml-2 text-xs text-purple-600 font-medium">
-                                      (Manual override)
-                                    </span>
-                                  )}
-                                </p>
+                                <div>
+                                  <p className="text-xs text-cozy-text-muted">
+                                    Next dose: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
+                                    {nextDoseInfo.isOverride && (
+                                      <span className="ml-2 text-xs text-purple-600 font-medium">
+                                        (Manual override)
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
                               )}
                               {nextDoseInfo.isOverride && nextDoseInfo.overrideReason && (
                                 <p className="text-xs text-purple-600 mt-1">
