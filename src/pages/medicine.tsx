@@ -698,7 +698,7 @@ export default function MedicinePage() {
         {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-cozy-text mb-2">Kids Medicine Control</h1>
-          <p className="text-cozy-text-muted">Track and manage your children's medications</p>
+          <p className="text-cozy-text-muted">Track and manage your children&apos;s medications</p>
         </div>
 
         {/* Quick Stats */}
@@ -744,7 +744,7 @@ export default function MedicinePage() {
               <div className="flex items-center">
                 <CheckCircle className="h-8 w-8 text-emerald-500 mr-3" />
                 <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Today's Doses</p>
+                  <p className="text-sm font-medium text-cozy-text-muted">Today&apos;s Doses</p>
                   <p className="text-2xl font-bold text-cozy-text">{getTodaysDoses().length}</p>
                 </div>
               </div>
