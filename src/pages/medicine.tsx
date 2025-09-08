@@ -542,7 +542,7 @@ export default function MedicinePage() {
     }
   }
 
-  const setNextDoseOverride = async () => {
+  const handleSetNextDoseOverride = async () => {
     if (!nextDoseOverride.medicineId || !nextDoseOverride.nextDoseTime) return
     
     setLoading(true)
@@ -1343,7 +1343,7 @@ export default function MedicinePage() {
                 />
               </div>
               <div className="flex gap-2">
-                <Button onClick={setNextDoseOverride} disabled={loading} className="flex-1">
+                <Button onClick={handleSetNextDoseOverride} disabled={loading} className="flex-1">
                   Set Override
                 </Button>
                 <Button onClick={() => {
