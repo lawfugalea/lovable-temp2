@@ -10,6 +10,14 @@ export default function HomePage() {
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+
+  // Check for registration success message
+  React.useEffect(() => {
+    if (router.query.registered === '1') {
+      setSuccessMessage('Account created successfully! Please sign in to continue.')
+    }
+  }, [router.query])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -103,6 +111,15 @@ export default function HomePage() {
                   required 
                 />
               </div>
+              
+              {successMessage && (
+                <div className="animate-cozy-bounce-in animation-delay-400">
+                  <div className="bg-green-50 border border-green-200 rounded-cozy px-4 py-3 text-green-700 text-sm flex items-center gap-2">
+                    <span>✅</span>
+                    {successMessage}
+                  </div>
+                </div>
+              )}
               
               {error && (
                 <div className="animate-cozy-bounce-in animation-delay-400">

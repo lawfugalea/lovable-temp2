@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
-import { Users, Plus, Mail, UserPlus, Settings } from 'lucide-react'
+import { Users, Plus, Mail, UserPlus, Settings, RefreshCw } from 'lucide-react'
 
 interface Household {
   id: string
@@ -227,10 +227,13 @@ export default function HouseholdPage() {
             <CardContent className="p-8 text-center">
               <div className="text-6xl mb-4">🏠</div>
               <h2 className="text-xl font-semibold text-cozy-text mb-2">No Household Found</h2>
-              <p className="text-cozy-text-muted mb-4">You don't have an active household yet.</p>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Household
+              <p className="text-cozy-text-muted mb-4">Your household is being set up automatically. Please refresh the page in a moment.</p>
+              <Button 
+                onClick={() => window.location.reload()}
+                variant="outline"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh Page
               </Button>
             </CardContent>
           </Card>

@@ -32,7 +32,11 @@ export default function RegisterPage() {
       }
       
       setSuccess(true)
-      setTimeout(() => router.replace('/'), 1500)
+      // Auto sign in after successful registration
+      setTimeout(() => {
+        // Redirect to login page with a success message
+        router.replace('/?registered=1')
+      }, 1500)
     } catch (e: any) { 
       setError(e?.message || 'Could not register')
     } finally {
