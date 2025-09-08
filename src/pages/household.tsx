@@ -5,7 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
-import { Users, Plus, Mail, UserPlus, Settings, RefreshCw } from 'lucide-react'
+import HouseholdCreationWizard from '../components/HouseholdCreationWizard'
+import EnhancedInvitePanel from '../components/EnhancedInvitePanel'
+import { Users, Plus, Mail, UserPlus, Settings, RefreshCw, Home, AlertCircle } from 'lucide-react'
 
 interface Household {
   id: string
@@ -33,7 +35,8 @@ export default function HouseholdPage() {
   const [household, setHousehold] = useState<Household | null>(null)
   const [members, setMembers] = useState<Membership[]>([])
   const [loading, setLoading] = useState(true)
-  const [inviteEmail, setInviteEmail] = useState('')
+  const [showCreationWizard, setShowCreationWizard] = useState(false)
+  const [householdError, setHouseholdError] = useState('')
 
   // Load household data
   useEffect(() => {
@@ -46,6 +49,7 @@ export default function HouseholdPage() {
 
   const loadHouseholdData = async () => {
     try {
+      setHouseholdError('')
       // Load active household
       const householdRes = await fetch('/api/household/active')
       const householdData = await householdRes.json()
@@ -63,37 +67,23 @@ export default function HouseholdPage() {
         const membersRes = await fetch(`/api/household/members?householdId=${householdData.householdId}`)
         const membersData = await membersRes.json()
         setMembers(membersData.members || [])
+      } else {
+        // No household found - this is normal for new users
+        setHousehold(null)
       }
     } catch (error) {
       console.error('Failed to load household data:', error)
+      setHouseholdError('Failed to load household data. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  const sendInvite = async () => {
-    if (!inviteEmail || !household) return
 
-    try {
-      const response = await fetch('/api/household/invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: inviteEmail,
-          householdId: household.id
-        })
-      })
-
-      if (response.ok) {
-        alert('Invite sent successfully!')
-        setInviteEmail('')
-      } else {
-        alert('Failed to send invite')
-      }
-    } catch (error) {
-      console.error('Failed to send invite:', error)
-      alert('Failed to send invite')
-    }
+  const handleHouseholdCreated = (householdId: string) => {
+    setShowCreationWizard(false)
+    // Reload household data to show the new household
+    loadHouseholdData()
   }
 
   if (status === 'loading' || loading) {
@@ -159,31 +149,11 @@ export default function HouseholdPage() {
               </CardContent>
             </Card>
 
-            {/* Invite Members */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserPlus className="w-5 h-5" />
-                  Invite Members
-                </CardTitle>
-                <CardDescription>Send invitations to join your household</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-3">
-                  <Input
-                    type="email"
-                    placeholder="Enter email address"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button onClick={sendInvite} disabled={!inviteEmail}>
-                    <Mail className="w-4 h-4 mr-2" />
-                    Send Invite
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Enhanced Invite Panel */}
+            <EnhancedInvitePanel 
+              householdId={household.id}
+              householdName={household.name}
+            />
 
             {/* Members List */}
             <Card>
@@ -223,20 +193,59 @@ export default function HouseholdPage() {
             </Card>
           </>
         ) : (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="text-6xl mb-4">🏠</div>
-              <h2 className="text-xl font-semibold text-cozy-text mb-2">No Household Found</h2>
-              <p className="text-cozy-text-muted mb-4">Your household is being set up automatically. Please refresh the page in a moment.</p>
-              <Button 
-                onClick={() => window.location.reload()}
-                variant="outline"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh Page
-              </Button>
-            </CardContent>
-          </Card>
+          <>
+            {householdError ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <div className="text-6xl mb-4">⚠️</div>
+                  <h2 className="text-xl font-semibold text-cozy-text mb-2">Error Loading Household</h2>
+                  <p className="text-cozy-text-muted mb-4">{householdError}</p>
+                  <div className="flex gap-3 justify-center">
+                    <Button 
+                      onClick={() => window.location.reload()}
+                      variant="outline"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Try Again
+                    </Button>
+                    <Button 
+                      onClick={() => setShowCreationWizard(true)}
+                    >
+                      <Home className="w-4 h-4 mr-2" />
+                      Create Household
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : showCreationWizard ? (
+              <HouseholdCreationWizard
+                onComplete={handleHouseholdCreated}
+                onCancel={() => setShowCreationWizard(false)}
+              />
+            ) : (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <div className="text-6xl mb-4">🏠</div>
+                  <h2 className="text-xl font-semibold text-cozy-text mb-2">Welcome to Houseflow!</h2>
+                  <p className="text-cozy-text-muted mb-6">
+                    Create your household to start managing your home, family, and daily tasks together.
+                  </p>
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={() => setShowCreationWizard(true)}
+                      className="w-full"
+                    >
+                      <Home className="w-4 h-4 mr-2" />
+                      Create Your Household
+                    </Button>
+                    <p className="text-sm text-cozy-text-muted">
+                      Or join an existing household with an invite link
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
       </div>
     </ModernAppShell>
