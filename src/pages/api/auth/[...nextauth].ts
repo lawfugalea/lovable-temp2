@@ -69,32 +69,65 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user, trigger }) {
-      if (user) {
-        token.id = (user as any).id;
-        token.email = user.email;
-        token.name = user.name;
-      }
-
-      if (token?.id && (user || trigger === "update")) {
-        const u = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { activeHouseholdId: true },
+      try {
+        console.log('NextAuth: JWT callback called', { 
+          hasUser: !!user, 
+          hasToken: !!token,
+          trigger,
+          tokenId: token?.id 
         });
-        (token as any).activeHouseholdId = u?.activeHouseholdId ?? null;
-      }
+        
+        if (user) {
+          token.id = (user as any).id;
+          token.email = user.email;
+          token.name = user.name;
+          console.log('NextAuth: JWT updated with user data', { userId: token.id, email: token.email });
+        }
 
-      return token;
+        if (token?.id && (user || trigger === "update")) {
+          const u = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { activeHouseholdId: true },
+          });
+          (token as any).activeHouseholdId = u?.activeHouseholdId ?? null;
+          console.log('NextAuth: JWT updated with household data', { activeHouseholdId: (token as any).activeHouseholdId });
+        }
+
+        return token;
+      } catch (error) {
+        console.error('NextAuth: JWT callback error:', error);
+        return token;
+      }
     },
 
     async session({ session, token }) {
-      if (session.user && token) {
-        (session.user as any).id = token.id as string;
-        session.user.email = (token.email as string) ?? "";
-        session.user.name = (token.name as string) ?? "";
-        (session.user as any).activeHouseholdId = (token as any).activeHouseholdId ?? null;
-        (session as any).activeHouseholdId = (token as any).activeHouseholdId ?? null;
+      try {
+        console.log('NextAuth: Session callback called', { 
+          hasSession: !!session, 
+          hasToken: !!token,
+          tokenId: token?.id,
+          tokenEmail: token?.email 
+        });
+        
+        if (session.user && token) {
+          (session.user as any).id = token.id as string;
+          session.user.email = (token.email as string) ?? "";
+          session.user.name = (token.name as string) ?? "";
+          (session.user as any).activeHouseholdId = (token as any).activeHouseholdId ?? null;
+          (session as any).activeHouseholdId = (token as any).activeHouseholdId ?? null;
+          
+          console.log('NextAuth: Session updated successfully', {
+            userId: session.user.id,
+            email: session.user.email,
+            activeHouseholdId: (session as any).activeHouseholdId
+          });
+        }
+        
+        return session;
+      } catch (error) {
+        console.error('NextAuth: Session callback error:', error);
+        return session;
       }
-      return session;
     },
   },
 };
