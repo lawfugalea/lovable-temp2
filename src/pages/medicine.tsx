@@ -16,7 +16,9 @@ import {
   CheckCircle,
   FileText,
   Bell,
-  User
+  User,
+  Edit,
+  Trash2
 } from 'lucide-react'
 import { format, addDays, isToday, isTomorrow, parseISO } from 'date-fns'
 import FeverJournal from '../components/FeverJournal'
@@ -79,6 +81,10 @@ export default function MedicinePage() {
   const [showReportModal, setShowReportModal] = useState(false)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null)
+  
+  // Edit states
+  const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null)
+  const [editingDose, setEditingDose] = useState<MedicineDose | null>(null)
   
   // Form states
   const [newChild, setNewChild] = useState({ name: '', dateOfBirth: '', notes: '' })
@@ -334,6 +340,65 @@ export default function MedicinePage() {
     }
   }
 
+  const editMedicine = async () => {
+    if (!editingMedicine || !newMedicine.name || !newMedicine.dosage || !newMedicine.frequency) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/medicine/medicines/${editingMedicine.id}?householdId=${householdId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newMedicine.name,
+          dosage: newMedicine.dosage,
+          frequency: newMedicine.frequency,
+          unit: 'mg', // Default unit
+          instructions: newMedicine.description || newMedicine.notes || '',
+          isActive: true
+        })
+      })
+      
+      if (response.ok) {
+        setNewMedicine({ 
+          childId: '', 
+          name: '', 
+          description: '', 
+          dosage: '', 
+          frequency: '', 
+          startDate: '', 
+          endDate: '', 
+          notes: '' 
+        })
+        setEditingMedicine(null)
+        setShowAddMedicine(false)
+        loadMedicines()
+      }
+    } catch (error) {
+      console.error('Failed to edit medicine:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deleteMedicine = async (medicineId: string) => {
+    if (!confirm('Are you sure you want to delete this medicine template? This will also deactivate it if it has associated doses.')) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/medicine/medicines/${medicineId}?householdId=${householdId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        loadMedicines()
+      }
+    } catch (error) {
+      console.error('Failed to delete medicine:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const recordDose = async () => {
     if (!newDose.medicineId || !newDose.dosage) return
     
@@ -369,6 +434,59 @@ export default function MedicinePage() {
       }
     } catch (error) {
       console.error('Failed to record dose:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const editDose = async () => {
+    if (!editingDose || !newDose.dosage) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/medicine/doses/${editingDose.id}?householdId=${householdId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          takenAt: newDose.takenAt,
+          dosage: newDose.dosage,
+          notes: newDose.notes || ''
+        })
+      })
+      
+      if (response.ok) {
+        setNewDose({ 
+          childId: '',
+          medicineId: '', 
+          dosage: '', 
+          notes: '', 
+          takenAt: new Date().toISOString().slice(0, 16) 
+        })
+        setEditingDose(null)
+        setShowDoseModal(false)
+        loadDoses()
+      }
+    } catch (error) {
+      console.error('Failed to edit dose:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const deleteDose = async (doseId: string) => {
+    if (!confirm('Are you sure you want to delete this dose record?')) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/medicine/doses/${doseId}?householdId=${householdId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        loadDoses()
+      }
+    } catch (error) {
+      console.error('Failed to delete dose:', error)
     } finally {
       setLoading(false)
     }
@@ -654,23 +772,54 @@ export default function MedicinePage() {
                             {isDue && (
                               <Badge variant="destructive">Due</Badge>
                             )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setNewDose({
-                                  ...newDose,
-                                  childId: medicine.childId,
-                                  medicineId: medicine.id,
-                                  dosage: medicine.dosage,
-                                  takenAt: new Date().toISOString().slice(0, 16)
-                                })
-                                setShowDoseModal(true)
-                              }}
-                              className="text-xs"
-                            >
-                              Give Now
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setNewDose({
+                                    ...newDose,
+                                    childId: medicine.childId,
+                                    medicineId: medicine.id,
+                                    dosage: medicine.dosage,
+                                    takenAt: new Date().toISOString().slice(0, 16)
+                                  })
+                                  setShowDoseModal(true)
+                                }}
+                                className="text-xs"
+                              >
+                                Give Now
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingMedicine(medicine)
+                                  setNewMedicine({
+                                    childId: medicine.childId,
+                                    name: medicine.name,
+                                    description: medicine.description || '',
+                                    dosage: medicine.dosage,
+                                    frequency: medicine.frequency,
+                                    startDate: medicine.startDate ? new Date(medicine.startDate).toISOString().split('T')[0] : '',
+                                    endDate: medicine.endDate ? new Date(medicine.endDate).toISOString().split('T')[0] : '',
+                                    notes: medicine.notes || ''
+                                  })
+                                  setShowAddMedicine(true)
+                                }}
+                                className="text-xs"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteMedicine(medicine.id)}
+                                className="text-xs text-red-600 hover:text-red-700"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -707,7 +856,7 @@ export default function MedicinePage() {
                     
                     return (
                       <div key={dose.id} className="flex items-center justify-between p-4 border border-cozy-gray-200 rounded-lg">
-                        <div>
+                        <div className="flex-1">
                           <h3 className="font-semibold text-cozy-text">{medicine?.name}</h3>
                           <p className="text-sm text-cozy-text-muted">
                             {child?.name} • {dose.dosage} • {format(new Date(dose.takenAt), 'MMM dd, yyyy HH:mm')}
@@ -716,11 +865,39 @@ export default function MedicinePage() {
                             <p className="text-sm text-cozy-text-muted mt-1">{dose.notes}</p>
                           )}
                         </div>
-                        <Badge variant="outline">
-                          {isToday(new Date(dose.takenAt)) ? 'Today' : 
-                           isTomorrow(new Date(dose.takenAt)) ? 'Tomorrow' : 
-                           format(new Date(dose.takenAt), 'MMM dd')}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">
+                            {isToday(new Date(dose.takenAt)) ? 'Today' : 
+                             isTomorrow(new Date(dose.takenAt)) ? 'Tomorrow' : 
+                             format(new Date(dose.takenAt), 'MMM dd')}
+                          </Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingDose(dose)
+                              setNewDose({
+                                childId: dose.childId,
+                                medicineId: dose.medicineId,
+                                dosage: dose.dosage,
+                                notes: dose.notes || '',
+                                takenAt: new Date(dose.takenAt).toISOString().slice(0, 16)
+                              })
+                              setShowDoseModal(true)
+                            }}
+                            className="text-xs"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deleteDose(dose.id)}
+                            className="text-xs text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     )
                   })}
@@ -772,9 +949,9 @@ export default function MedicinePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
-              <CardTitle>Add Medicine Template</CardTitle>
+              <CardTitle>{editingMedicine ? 'Edit Medicine Template' : 'Add Medicine Template'}</CardTitle>
               <p className="text-sm text-cozy-text-muted mt-1">
-                Create a reusable medicine template that can be used to record doses
+                {editingMedicine ? 'Update the medicine template details' : 'Create a reusable medicine template that can be used to record doses'}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -874,10 +1051,23 @@ export default function MedicinePage() {
                 />
               </div>
               <div className="flex gap-2">
-                <Button onClick={addMedicine} disabled={loading} className="flex-1">
-                  Create Template
+                <Button onClick={editingMedicine ? editMedicine : addMedicine} disabled={loading} className="flex-1">
+                  {editingMedicine ? 'Update Template' : 'Create Template'}
                 </Button>
-                <Button onClick={() => setShowAddMedicine(false)} variant="outline">
+                <Button onClick={() => {
+                  setShowAddMedicine(false)
+                  setEditingMedicine(null)
+                  setNewMedicine({ 
+                    childId: '', 
+                    name: '', 
+                    description: '', 
+                    dosage: '', 
+                    frequency: '', 
+                    startDate: '', 
+                    endDate: '', 
+                    notes: '' 
+                  })
+                }} variant="outline">
                   Cancel
                 </Button>
               </div>
@@ -891,9 +1081,9 @@ export default function MedicinePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
-              <CardTitle>Give Medicine</CardTitle>
+              <CardTitle>{editingDose ? 'Edit Dose Record' : 'Give Medicine'}</CardTitle>
               <p className="text-sm text-cozy-text-muted mt-1">
-                Record when a medicine from your templates was given
+                {editingDose ? 'Update the dose record details' : 'Record when a medicine from your templates was given'}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -954,10 +1144,20 @@ export default function MedicinePage() {
                 onChange={(e) => setNewDose({ ...newDose, notes: e.target.value })}
               />
               <div className="flex gap-2">
-                <Button onClick={recordDose} disabled={loading} className="flex-1">
-                  Record Medicine Given
+                <Button onClick={editingDose ? editDose : recordDose} disabled={loading} className="flex-1">
+                  {editingDose ? 'Update Dose Record' : 'Record Medicine Given'}
                 </Button>
-                <Button onClick={() => setShowDoseModal(false)} variant="outline">
+                <Button onClick={() => {
+                  setShowDoseModal(false)
+                  setEditingDose(null)
+                  setNewDose({ 
+                    childId: '',
+                    medicineId: '', 
+                    dosage: '', 
+                    notes: '', 
+                    takenAt: new Date().toISOString().slice(0, 16) 
+                  })
+                }} variant="outline">
                   Cancel
                 </Button>
               </div>
