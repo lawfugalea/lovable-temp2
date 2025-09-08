@@ -300,12 +300,16 @@ export default function MedicinePage() {
     
     setLoading(true)
     try {
-      const response = await fetch('/api/medicine/medicines', {
+      const response = await fetch(`/api/medicine/medicines?householdId=${householdId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...newMedicine,
-          startDate: newMedicine.startDate || new Date().toISOString()
+          name: newMedicine.name,
+          dosage: newMedicine.dosage,
+          frequency: newMedicine.frequency,
+          unit: 'mg', // Default unit
+          instructions: newMedicine.description || newMedicine.notes || '',
+          childId: newMedicine.childId
         })
       })
       
