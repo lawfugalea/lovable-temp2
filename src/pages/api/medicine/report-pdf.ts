@@ -110,19 +110,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // Header with app branding
       pdf.setFillColor(139, 69, 19) // Cozy brown
-      pdf.rect(0, 0, pageWidth, 30, 'F')
+      pdf.rect(0, 0, pageWidth, 35, 'F')
       
       // App logo/icon (using text for now)
       pdf.setTextColor(255, 255, 255)
-      pdf.setFontSize(24)
+      pdf.setFontSize(20)
       pdf.setFont('helvetica', 'bold')
-      pdf.text('🏠 HouseFlow', 20, 20)
+      pdf.text('HouseFlow', 20, 22)
+      
+      // Subtitle
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('Medicine & Health Management', 20, 28)
       
       // Report title
       pdf.setTextColor(0, 0, 0)
       pdf.setFontSize(18)
       pdf.setFont('helvetica', 'bold')
-      yPosition = addText('Medicine & Health Report', 20, 45, pageWidth - 40, 18)
+      yPosition = addText('Medicine & Health Report', 20, 50, pageWidth - 40, 18)
       
       // Report period
       pdf.setFontSize(12)
@@ -145,11 +150,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Summary section
       pdf.setFontSize(14)
       pdf.setFont('helvetica', 'bold')
-      yPosition = addText('📊 Summary', 20, yPosition, pageWidth - 40, 14)
+      pdf.setTextColor(139, 69, 19) // Cozy brown
+      yPosition = addText('Summary', 20, yPosition, pageWidth - 40, 14)
       yPosition += 5
+      
+      // Add a subtle background for summary
+      pdf.setFillColor(250, 250, 250)
+      pdf.rect(15, yPosition - 2, pageWidth - 30, 25, 'F')
       
       pdf.setFontSize(10)
       pdf.setFont('helvetica', 'normal')
+      pdf.setTextColor(0, 0, 0)
       yPosition = addText(`• Total doses administered: ${doses.length}`, 25, yPosition, pageWidth - 45, 10)
       yPosition = addText(`• Active medicines: ${medicines.length}`, 25, yPosition, pageWidth - 45, 10)
       yPosition = addText(`• Children: ${children.length}`, 25, yPosition, pageWidth - 45, 10)
@@ -164,7 +175,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         checkNewPage(50)
         pdf.setFontSize(14)
         pdf.setFont('helvetica', 'bold')
-        yPosition = addText('💊 Medicine Doses Administered', 20, yPosition, pageWidth - 40, 14)
+        pdf.setTextColor(139, 69, 19) // Cozy brown
+        yPosition = addText('Medicine Doses Administered', 20, yPosition, pageWidth - 40, 14)
         yPosition += 5
 
         // Group doses by child
@@ -181,7 +193,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           pdf.setFontSize(12)
           pdf.setFont('helvetica', 'bold')
           pdf.setTextColor(139, 69, 19) // Cozy brown
-          yPosition = addText(`👶 ${childName}`, 25, yPosition, pageWidth - 45, 12)
+          yPosition = addText(`${childName}`, 25, yPosition, pageWidth - 45, 12)
           yPosition += 3
           
           pdf.setFontSize(9)
@@ -211,7 +223,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         checkNewPage(50)
         pdf.setFontSize(14)
         pdf.setFont('helvetica', 'bold')
-        yPosition = addText('📋 Active Medicine Templates', 20, yPosition, pageWidth - 40, 14)
+        pdf.setTextColor(139, 69, 19) // Cozy brown
+        yPosition = addText('Active Medicine Templates', 20, yPosition, pageWidth - 40, 14)
         yPosition += 5
 
         medicines.forEach(medicine => {
@@ -254,7 +267,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         checkNewPage(50)
         pdf.setFontSize(14)
         pdf.setFont('helvetica', 'bold')
-        yPosition = addText('🌡️ Fever Journal', 20, yPosition, pageWidth - 40, 14)
+        pdf.setTextColor(139, 69, 19) // Cozy brown
+        yPosition = addText('Fever Journal', 20, yPosition, pageWidth - 40, 14)
         yPosition += 5
 
         // Group fever readings by child
@@ -271,7 +285,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           pdf.setFontSize(12)
           pdf.setFont('helvetica', 'bold')
           pdf.setTextColor(220, 38, 38) // Red for fever
-          yPosition = addText(`👶 ${childName}`, 25, yPosition, pageWidth - 45, 12)
+          yPosition = addText(`${childName}`, 25, yPosition, pageWidth - 45, 12)
           yPosition += 3
           
           pdf.setFontSize(9)

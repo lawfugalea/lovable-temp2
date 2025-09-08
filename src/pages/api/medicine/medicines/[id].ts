@@ -63,8 +63,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { id },
         data: {
           name,
-          dosage: `${dosage} ${unit || 'mg'}`,
-          frequency: `every ${frequency} hours`,
+          dosage: dosage.includes(unit || 'mg') ? dosage : `${dosage} ${unit || 'mg'}`,
+          frequency: frequency.includes('every') ? frequency : `every ${frequency} hours`,
           notes: instructions || '',
           isActive: isActive !== undefined ? isActive : existingMedicine.isActive,
           nextDoseOverride: nextDoseOverride ? new Date(nextDoseOverride) : null,

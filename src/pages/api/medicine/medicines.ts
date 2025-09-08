@@ -59,8 +59,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const medicine = await prisma.medicine.create({
         data: {
           name,
-          dosage: `${dosage} ${unit || 'mg'}`,
-          frequency: `every ${frequency} hours`,
+          dosage: dosage.includes(unit || 'mg') ? dosage : `${dosage} ${unit || 'mg'}`,
+          frequency: frequency.includes('every') ? frequency : `every ${frequency} hours`,
           notes: instructions || '',
           childId,
           startDate: new Date()
