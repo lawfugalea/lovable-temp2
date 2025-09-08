@@ -104,20 +104,34 @@ export default function DashboardPage() {
 
   const loadMedicineData = async (hid: string) => {
     try {
+      console.log('Loading medicine data for household:', hid)
+      
       // Load active medicines
       const medicinesResponse = await fetch(`/api/medicine/medicines?householdId=${hid}`)
+      console.log('Medicines response status:', medicinesResponse.status)
+      
       if (medicinesResponse.ok) {
         const medicinesData = await medicinesResponse.json()
-        setMedicines(medicinesData.medicines || [])
+        console.log('Medicines data:', medicinesData)
+        // API returns array directly, not wrapped in object
+        setMedicines(Array.isArray(medicinesData) ? medicinesData : [])
+      } else {
+        console.error('Failed to fetch medicines:', medicinesResponse.status, medicinesResponse.statusText)
       }
 
       // Load recent doses (last 7 days)
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
       const dosesResponse = await fetch(`/api/medicine/doses?householdId=${hid}&startDate=${sevenDaysAgo.toISOString().split('T')[0]}`)
+      console.log('Doses response status:', dosesResponse.status)
+      
       if (dosesResponse.ok) {
         const dosesData = await dosesResponse.json()
-        setRecentDoses(dosesData.doses || [])
+        console.log('Doses data:', dosesData)
+        // API returns array directly, not wrapped in object
+        setRecentDoses(Array.isArray(dosesData) ? dosesData : [])
+      } else {
+        console.error('Failed to fetch doses:', dosesResponse.status, dosesResponse.statusText)
       }
     } catch (error) {
       console.error('Failed to load medicine data:', error)

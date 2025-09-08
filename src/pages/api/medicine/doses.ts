@@ -11,17 +11,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
-    const { householdId } = req.query
+    const { householdId, startDate } = req.query
     
     if (!householdId) {
       return res.status(400).json({ error: 'Household ID required' })
     }
 
     try {
+      const whereClause: any = { 
+        child: { householdId: householdId as string }
+      }
+
+      // Add date filter if startDate is provided
+      if (startDate) {
+        whereClause.takenAt = {
+          gte: new Date(startDate as string)
+        }
+      }
+
       const doses = await prisma.medicineDose.findMany({
-        where: { 
-          child: { householdId: householdId as string }
-        },
+        where: whereClause,
         include: { 
           child: true,
           medicine: true 
