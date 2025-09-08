@@ -3,6 +3,8 @@ import { useRouter } from 'next/router'
 import Head from 'next/head'
 import FunButton from '../components/ui/FunButton'
 import FunCard from '../components/ui/FunCard'
+import PasswordInput from '../components/ui/PasswordInput'
+import MathCaptcha from '../components/ui/MathCaptcha'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -12,9 +14,16 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!isCaptchaVerified) {
+      setError('Please complete the security check')
+      return
+    }
+    
     setIsLoading(true)
     setError('')
     setSuccess(false)
@@ -26,9 +35,10 @@ export default function RegisterPage() {
         body: JSON.stringify({ name, email, password }) 
       })
       
+      const data = await res.json()
+      
       if (!res.ok) {
-        const errorText = await res.text()
-        throw new Error(errorText || 'Could not register')
+        throw new Error(data.error || 'Could not register')
       }
       
       setSuccess(true)
@@ -105,16 +115,25 @@ export default function RegisterPage() {
                     <span>🔒</span>
                     Password
                   </label>
-                  <input 
-                    type="password" 
-                    className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
-                    placeholder="••••••••" 
-                    value={password} 
-                    onChange={(e) => setPassword(e.target.value)} 
-                    autoComplete="new-password" 
-                    required 
+                  <PasswordInput
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="new-password"
+                    required
+                    minLength={8}
+                    maxLength={128}
                   />
+                  <p className="text-xs text-cozy-text-muted mt-1">
+                    Must contain uppercase, lowercase, and numbers
+                  </p>
                 </div>
+
+                {/* Math CAPTCHA */}
+                <MathCaptcha 
+                  onVerify={setIsCaptchaVerified}
+                  className="animate-cozy-bounce-in animation-delay-300"
+                />
                 
                 {error && (
                   <div className="animate-cozy-bounce-in animation-delay-400">
@@ -137,7 +156,7 @@ export default function RegisterPage() {
                 <div className="animate-cozy-bounce-in animation-delay-400">
                   <FunButton 
                     type="submit"
-                    disabled={isLoading} 
+                    disabled={isLoading || !isCaptchaVerified} 
                     className="w-full"
                     variant={isLoading ? "secondary" : "primary"}
                     emoji={isLoading ? "🏡" : "✨"}

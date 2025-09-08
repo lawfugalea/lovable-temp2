@@ -3,6 +3,7 @@ import { useRouter } from 'next/router'
 import { signIn, getSession } from 'next-auth/react'
 import FunButton from '../components/ui/FunButton'
 import FunCard from '../components/ui/FunCard'
+import PasswordInput from '../components/ui/PasswordInput'
 
 export default function HomePage() {
   const router = useRouter()
@@ -88,21 +89,15 @@ export default function HomePage() {
                   <span>🔒</span>
                   Password
                 </label>
-                <input 
-                  type="password" 
-                  className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
-                  placeholder="••••••••" 
-                  value={password} 
+                <PasswordInput
+                  value={password}
                   onChange={(e) => {
                     console.log('Password input changed:', e.target.value)
                     setPassword(e.target.value)
-                  }} 
-                  onInput={(e) => {
-                    // Additional input handler to ensure all characters are captured
-                    setPassword(e.currentTarget.value)
                   }}
-                  autoComplete="current-password" 
-                  required 
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                  required
                 />
               </div>
               
