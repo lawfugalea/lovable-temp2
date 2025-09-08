@@ -75,6 +75,12 @@ export default function AdminPage() {
   useEffect(() => {
     if (status === 'loading') return
     
+    // Handle NextAuth errors gracefully
+    if (status === 'unauthenticated') {
+      router.push('/')
+      return
+    }
+
     if (!session) {
       router.push('/')
       return
@@ -175,6 +181,21 @@ export default function AdminPage() {
           <div className="text-center">
             <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-cozy-primary" />
             <p className="text-cozy-text-muted">Loading admin panel...</p>
+          </div>
+        </div>
+      </ModernAppShell>
+    )
+  }
+
+  // Handle authentication errors
+  if (status === 'unauthenticated') {
+    return (
+      <ModernAppShell>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Shield className="w-16 h-16 mx-auto mb-4 text-red-500" />
+            <h1 className="text-2xl font-bold text-cozy-text mb-2">Authentication Required</h1>
+            <p className="text-cozy-text-muted">Please log in to access the admin panel.</p>
           </div>
         </div>
       </ModernAppShell>
