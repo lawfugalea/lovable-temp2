@@ -86,7 +86,7 @@ export default function AdminPage() {
     }
 
     loadAdminData()
-  }, [session, status, isAdmin])
+  }, [session, status, isAdmin, router])
 
   const loadAdminData = async () => {
     try {
@@ -188,7 +188,7 @@ export default function AdminPage() {
           <div className="text-center">
             <Shield className="w-16 h-16 mx-auto mb-4 text-red-500" />
             <h1 className="text-2xl font-bold text-cozy-text mb-2">Access Denied</h1>
-            <p className="text-cozy-text-muted">You don't have permission to access this page.</p>
+            <p className="text-cozy-text-muted">You don&apos;t have permission to access this page.</p>
             <p className="text-sm text-cozy-text-muted mt-2">Admin access required: lawfinuu@gmail.com</p>
           </div>
         </div>
