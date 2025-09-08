@@ -523,22 +523,28 @@ export default function MedicinePage() {
 
   const generateReport = async () => {
     if (!reportDates.startDate || !reportDates.endDate) return
-    
+
+    setLoading(true)
     try {
-      const response = await fetch(`/api/medicine/report?householdId=${householdId}&startDate=${reportDates.startDate}&endDate=${reportDates.endDate}`)
+      const response = await fetch(`/api/medicine/report-pdf?householdId=${householdId}&startDate=${reportDates.startDate}&endDate=${reportDates.endDate}`)
       if (response.ok) {
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `medicine-report-${reportDates.startDate}-to-${reportDates.endDate}.txt`
+        a.download = `houseflow-medicine-report-${reportDates.startDate}-to-${reportDates.endDate}.pdf`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
+        setShowReportModal(false)
+      } else {
+        console.error('Failed to generate PDF report')
       }
     } catch (error) {
       console.error('Failed to generate report:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -722,7 +728,7 @@ export default function MedicinePage() {
           </Button>
           <Button onClick={() => setShowReportModal(true)} variant="outline" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
-            Generate Report
+            Generate PDF Report
           </Button>
         </div>
 
@@ -1389,7 +1395,10 @@ export default function MedicinePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
-              <CardTitle>Generate Report</CardTitle>
+              <CardTitle>Generate PDF Report</CardTitle>
+              <p className="text-sm text-cozy-text-muted mt-1">
+                Create a comprehensive PDF report with medicine doses, templates, and fever readings
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <Input
@@ -1406,7 +1415,7 @@ export default function MedicinePage() {
               />
               <div className="flex gap-2">
                 <Button onClick={generateReport} disabled={loading} className="flex-1">
-                  Generate Report
+                  {loading ? 'Generating PDF...' : 'Generate PDF Report'}
                 </Button>
                 <Button onClick={() => setShowReportModal(false)} variant="outline">
                   Cancel
