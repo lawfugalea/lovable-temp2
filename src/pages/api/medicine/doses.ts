@@ -53,11 +53,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     try {
+      // Handle datetime-local input which comes as "2024-01-15T14:30"
+      // This is local time, so we need to treat it as such
+      let takenAtDate
+      if (takenAt.includes('T') && !takenAt.includes('Z') && !takenAt.includes('+')) {
+        // This is a datetime-local format, treat as local time
+        takenAtDate = new Date(takenAt + ':00.000Z') // Add seconds and treat as UTC to preserve the exact time
+        // Actually, we need to create the date in local timezone
+        const [datePart, timePart] = takenAt.split('T')
+        const [year, month, day] = datePart.split('-')
+        const [hour, minute] = timePart.split(':')
+        takenAtDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
+      } else {
+        takenAtDate = new Date(takenAt)
+      }
+
       const dose = await prisma.medicineDose.create({
         data: {
           childId,
           medicineId,
-          takenAt: new Date(takenAt),
+          takenAt: takenAtDate,
           dosage,
           notes,
           takenBy

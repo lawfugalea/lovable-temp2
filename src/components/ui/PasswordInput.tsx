@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
 interface PasswordInputProps {
@@ -29,6 +29,12 @@ export default function PasswordInput({
   disabled = false,
 }: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure component is mounted before showing password toggle
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
@@ -37,7 +43,7 @@ export default function PasswordInput({
   return (
     <div className="relative">
       <input
-        type={showPassword ? "text" : "password"}
+        type={isMounted && showPassword ? "text" : "password"}
         id={id}
         name={name}
         value={value}
@@ -51,19 +57,21 @@ export default function PasswordInput({
         className={`w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 pr-12 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all ${className}`}
       />
       
-      <button
-        type="button"
-        onClick={togglePasswordVisibility}
-        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cozy-text-muted hover:text-cozy-primary transition-colors focus:outline-none focus:text-cozy-primary"
-        tabIndex={-1}
-        aria-label={showPassword ? "Hide password" : "Show password"}
-      >
-        {showPassword ? (
-          <EyeOff size={20} />
-        ) : (
-          <Eye size={20} />
-        )}
-      </button>
+      {isMounted && (
+        <button
+          type="button"
+          onClick={togglePasswordVisibility}
+          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cozy-text-muted hover:text-cozy-primary transition-colors focus:outline-none focus:text-cozy-primary"
+          tabIndex={-1}
+          aria-label={showPassword ? "Hide password" : "Show password"}
+        >
+          {showPassword ? (
+            <EyeOff size={20} />
+          ) : (
+            <Eye size={20} />
+          )}
+        </button>
+      )}
     </div>
   );
 }

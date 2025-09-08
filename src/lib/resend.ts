@@ -15,13 +15,20 @@ export async function sendInviteEmail(opts: {
   }
   const from = process.env.INVITES_FROM || 'Houseflow <no-reply@galeahub.online>';
 
-  const subject = `You're invited to ${opts.householdName} on Houseflow`;
+  const subject = `You're invited to join ${opts.householdName} on HouseFlow`;
   const text = [
-    opts.invitedByName ? `${opts.invitedByName} invited you to join their household.` : `You’ve been invited to join a household.`,
+    `Hello!`,
     '',
-    `Accept the invite: ${opts.acceptUrl}`,
+    `${opts.invitedByName || 'Someone'} has invited you to join ${opts.householdName} on HouseFlow - a cozy app for managing your household together.`,
     '',
-    `If you weren’t expecting this, you can ignore this email.`,
+    `HouseFlow helps families organize shopping lists, track children's medicine, manage finances, and stay connected with everything that makes your house a home.`,
+    '',
+    `Accept your invitation: ${opts.acceptUrl}`,
+    '',
+    `This invitation will expire in 7 days. If you weren't expecting this invitation, you can safely ignore this email.`,
+    '',
+    `Welcome to the HouseFlow family!`,
+    `The HouseFlow Team`,
   ].join('\n');
 
   try {

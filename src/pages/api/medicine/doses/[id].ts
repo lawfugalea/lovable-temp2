@@ -51,10 +51,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Missing required fields: takenAt, dosage' })
       }
 
+      // Handle datetime-local input which comes as "2024-01-15T14:30"
+      // This is local time, so we need to treat it as such
+      let takenAtDate
+      if (takenAt.includes('T') && !takenAt.includes('Z') && !takenAt.includes('+')) {
+        // This is a datetime-local format, treat as local time
+        const [datePart, timePart] = takenAt.split('T')
+        const [year, month, day] = datePart.split('-')
+        const [hour, minute] = timePart.split(':')
+        takenAtDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
+      } else {
+        takenAtDate = new Date(takenAt)
+      }
+
       const updatedDose = await prisma.medicineDose.update({
         where: { id },
         data: {
-          takenAt: new Date(takenAt),
+          takenAt: takenAtDate,
           dosage,
           notes: notes || ''
         },

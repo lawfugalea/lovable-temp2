@@ -36,6 +36,8 @@ export default function HomePage() {
         setError('Invalid email or password')
         setIsLoading(false)
       } else {
+        
+        
         // Authentication was successful, redirect to dashboard
         router.push('/dashboard')
       }
@@ -91,10 +93,7 @@ export default function HomePage() {
                 </label>
                 <PasswordInput
                   value={password}
-                  onChange={(e) => {
-                    console.log('Password input changed:', e.target.value)
-                    setPassword(e.target.value)
-                  }}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   autoComplete="current-password"
                   required

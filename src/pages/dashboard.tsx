@@ -340,7 +340,7 @@ export default function DashboardPage() {
                         {dose.medicine.name} given to {dose.child.name}
                       </p>
                       <p className="text-xs text-cozy-text-muted">
-                        {new Date(dose.takenAt).toLocaleDateString()} • {dose.dosage}
+                        {new Date(dose.takenAt).toLocaleDateString()} at {new Date(dose.takenAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {dose.dosage}
                       </p>
                     </div>
                   </div>
