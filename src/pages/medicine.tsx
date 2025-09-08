@@ -108,7 +108,7 @@ export default function MedicinePage() {
     medicineId: '', 
     dosage: '', 
     notes: '', 
-    takenAt: new Date().toISOString().slice(0, 16) 
+    takenAt: new Date().toISOString().slice(0, 16)
   })
   const [nextDoseOverride, setNextDoseOverride] = useState({
     medicineId: '',
@@ -448,12 +448,12 @@ export default function MedicinePage() {
       })
       
       if (response.ok) {
-        setNewDose({ 
+        setNewDose({
           childId: '',
-          medicineId: '', 
-          dosage: '', 
-          notes: '', 
-          takenAt: new Date().toISOString().slice(0, 16) 
+          medicineId: '',
+          dosage: '',
+          notes: '',
+          takenAt: getCurrentLocalTime()
         })
         setShowDoseModal(false)
         loadDoses()
@@ -484,12 +484,12 @@ export default function MedicinePage() {
       })
       
       if (response.ok) {
-        setNewDose({ 
+        setNewDose({
           childId: '',
-          medicineId: '', 
-          dosage: '', 
-          notes: '', 
-          takenAt: new Date().toISOString().slice(0, 16) 
+          medicineId: '',
+          dosage: '',
+          notes: '',
+          takenAt: getCurrentLocalTime()
         })
         setEditingDose(null)
         setShowDoseModal(false)
@@ -598,6 +598,16 @@ export default function MedicinePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getCurrentLocalTime = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
   }
 
   const getChildAge = (dateOfBirth: string) => {
@@ -891,7 +901,7 @@ export default function MedicinePage() {
                                     childId: medicine.childId,
                                     medicineId: medicine.id,
                                     dosage: medicine.dosage,
-                                    takenAt: new Date().toISOString().slice(0, 16)
+                                    takenAt: getCurrentLocalTime()
                                   })
                                   setShowDoseModal(true)
                                 }}
@@ -1292,7 +1302,7 @@ export default function MedicinePage() {
                     medicineId: '', 
                     dosage: '', 
                     notes: '', 
-                    takenAt: new Date().toISOString().slice(0, 16) 
+                    takenAt: getCurrentLocalTime()
                   })
                 }} variant="outline">
                   Cancel
@@ -1363,7 +1373,7 @@ export default function MedicinePage() {
                   setShowNextDoseModal(false)
                   setNextDoseOverride({
                     medicineId: '',
-                    nextDoseTime: '',
+                    nextDoseTime: getCurrentLocalTime(),
                     reason: ''
                   })
                 }} variant="outline">

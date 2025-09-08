@@ -67,6 +67,16 @@ const getAgeInMonths = (dateOfBirth: string) => {
   return diffInMonths
 }
 
+const getCurrentLocalTime = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
 export default function FeverJournal({ householdId, children }: FeverJournalProps) {
   const [readings, setReadings] = useState<FeverReading[]>([])
   const [loading, setLoading] = useState(false)
@@ -80,7 +90,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
     method: 'oral',
     notes: '',
     takenBy: '',
-    takenAt: new Date().toISOString().slice(0, 16)
+    takenAt: getCurrentLocalTime()
   })
 
   useEffect(() => {
@@ -131,7 +141,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
           method: 'oral',
           notes: '',
           takenBy: '',
-          takenAt: new Date().toISOString().slice(0, 16)
+          takenAt: getCurrentLocalTime()
         })
       } else {
         const errorData = await response.json()
@@ -175,7 +185,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
           method: 'oral',
           notes: '',
           takenBy: '',
-          takenAt: new Date().toISOString().slice(0, 16)
+          takenAt: getCurrentLocalTime()
         })
       } else {
         const errorData = await response.json()
@@ -210,7 +220,7 @@ export default function FeverJournal({ householdId, children }: FeverJournalProp
       method: 'oral',
       notes: '',
       takenBy: '',
-      takenAt: new Date().toISOString().slice(0, 16)
+      takenAt: getCurrentLocalTime()
     })
   }
 
