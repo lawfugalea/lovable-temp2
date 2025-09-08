@@ -130,15 +130,15 @@ export default function AdminPage() {
       if (res.ok) {
         const result = await res.json()
         if (action === 'reset_password' && result.tempPassword) {
-          alert(Temporary password: )
+          alert(`Temporary password: ${result.tempPassword}`)
         }
         await loadAdminData() // Refresh data
       } else {
         const errorData = await res.json()
-        setError(errorData.error || Failed to  user)
+        setError(errorData.error || `Failed to ${action} user`)
       }
     } catch (err) {
-      setError(Failed to  user)
+      setError(`Failed to ${action} user`)
     }
   }
 
@@ -154,10 +154,10 @@ export default function AdminPage() {
         await loadAdminData() // Refresh data
       } else {
         const errorData = await res.json()
-        setError(errorData.error || Failed to  household)
+        setError(errorData.error || `Failed to ${action} household`)
       }
     } catch (err) {
-      setError(Failed to  household)
+      setError(`Failed to ${action} household`)
     }
   }
 
