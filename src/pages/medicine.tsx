@@ -77,6 +77,7 @@ export default function MedicinePage() {
   const [doses, setDoses] = useState<MedicineDose[]>([])
   const [reminders, setReminders] = useState<MedicineReminder[]>([])
   const [loading, setLoading] = useState(false)
+  const [dataLoading, setDataLoading] = useState(true)
   
   // Modal states
   const [showAddChild, setShowAddChild] = useState(false)
@@ -123,21 +124,29 @@ export default function MedicinePage() {
   // Load data
   useEffect(() => {
     if (householdId && !householdLoading) {
-      loadChildren()
-      loadMedicines()
-      loadDoses()
-      loadReminders()
+      setDataLoading(true)
+      Promise.all([
+        loadChildren(),
+        loadMedicines(),
+        loadDoses(),
+        loadReminders()
+      ]).finally(() => {
+        setDataLoading(false)
+      })
     }
   }, [householdId, householdLoading])
 
-  // Check for due medicines every minute
+  // Check for due medicines every minute (only when data is loaded)
   useEffect(() => {
-    const interval = setInterval(() => {
-      checkDueMedicines()
-    }, 60000) // Check every minute
+    // Only set up the interval if we have data loaded
+    if (medicines.length > 0 || doses.length > 0) {
+      const interval = setInterval(() => {
+        checkDueMedicines()
+      }, 60000) // Check every minute
 
-    return () => clearInterval(interval)
-  }, [medicines])
+      return () => clearInterval(interval)
+    }
+  }, [medicines, doses])
 
   const loadChildren = async () => {
     try {
@@ -188,9 +197,19 @@ export default function MedicinePage() {
   }
 
   const checkDueMedicines = () => {
+    // Don't check if we don't have data loaded yet
+    if (medicines.length === 0 && doses.length === 0) {
+      return
+    }
+
     const now = new Date()
     const dueMedicines = medicines.filter(medicine => {
       if (!medicine.isActive) return false
+      
+      // Check if there's a manual override first
+      if (medicine.nextDoseOverride) {
+        return new Date(medicine.nextDoseOverride) <= now
+      }
       
       const lastDose = doses
         .filter(dose => dose.medicineId === medicine.id)
@@ -247,6 +266,17 @@ export default function MedicinePage() {
   }
 
   const getNextDoseInfo = (medicine: any) => {
+    // Don't calculate if we don't have data loaded yet
+    if (medicines.length === 0 && doses.length === 0) {
+      return {
+        nextDoseTime: new Date(),
+        isOverdue: false,
+        timeUntilNext: null,
+        lastDoseTime: null,
+        isOverride: false
+      }
+    }
+
     const lastDose = doses
       .filter(d => d.medicineId === medicine.id)
       .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
@@ -649,7 +679,7 @@ export default function MedicinePage() {
     return <div>Please sign in to access medicine tracking.</div>
   }
 
-  if (householdLoading) {
+  if (householdLoading || dataLoading) {
     return (
       <ModernAppShell title="Medicine">
         <div className="flex items-center justify-center min-h-[400px]">
