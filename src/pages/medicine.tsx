@@ -18,7 +18,9 @@ import {
   Bell,
   User,
   Edit,
-  Trash2
+  Trash2,
+  Settings,
+  X
 } from 'lucide-react'
 import { format, addDays, isToday, isTomorrow, parseISO } from 'date-fns'
 import FeverJournal from '../components/FeverJournal'
@@ -42,6 +44,8 @@ interface Medicine {
   endDate?: string
   isActive: boolean
   notes?: string
+  nextDoseOverride?: string
+  overrideReason?: string
 }
 
 interface MedicineDose {
@@ -79,6 +83,7 @@ export default function MedicinePage() {
   const [showAddMedicine, setShowAddMedicine] = useState(false)
   const [showDoseModal, setShowDoseModal] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [showNextDoseModal, setShowNextDoseModal] = useState(false)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null)
   
@@ -104,6 +109,11 @@ export default function MedicinePage() {
     dosage: '', 
     notes: '', 
     takenAt: new Date().toISOString().slice(0, 16) 
+  })
+  const [nextDoseOverride, setNextDoseOverride] = useState({
+    medicineId: '',
+    nextDoseTime: '',
+    reason: ''
   })
   const [reportDates, setReportDates] = useState({ 
     startDate: '', 
@@ -241,11 +251,29 @@ export default function MedicinePage() {
       .filter(d => d.medicineId === medicine.id)
       .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
     
+    // Check if there's a manual override for next dose
+    if (medicine.nextDoseOverride) {
+      const overrideTime = new Date(medicine.nextDoseOverride)
+      const now = new Date()
+      const isOverdue = now > overrideTime
+      const timeUntilNext = overrideTime > now ? overrideTime.getTime() - now.getTime() : 0
+
+      return {
+        nextDoseTime: overrideTime,
+        isOverdue,
+        timeUntilNext,
+        lastDoseTime: lastDose ? new Date(lastDose.takenAt) : null,
+        isOverride: true,
+        overrideReason: medicine.overrideReason
+      }
+    }
+    
     if (!lastDose) {
       return {
         nextDoseTime: new Date(medicine.startDate),
         isOverdue: new Date() > new Date(medicine.startDate),
-        timeUntilNext: null
+        timeUntilNext: null,
+        isOverride: false
       }
     }
 
@@ -258,7 +286,8 @@ export default function MedicinePage() {
       nextDoseTime,
       isOverdue,
       timeUntilNext,
-      lastDoseTime: new Date(lastDose.takenAt)
+      lastDoseTime: new Date(lastDose.takenAt),
+      isOverride: false
     }
   }
 
@@ -513,6 +542,58 @@ export default function MedicinePage() {
     }
   }
 
+  const setNextDoseOverride = async () => {
+    if (!nextDoseOverride.medicineId || !nextDoseOverride.nextDoseTime) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/medicine/next-dose-override?householdId=${householdId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          medicineId: nextDoseOverride.medicineId,
+          nextDoseOverride: nextDoseOverride.nextDoseTime,
+          overrideReason: nextDoseOverride.reason || null
+        })
+      })
+      
+      if (response.ok) {
+        setNextDoseOverride({
+          medicineId: '',
+          nextDoseTime: '',
+          reason: ''
+        })
+        setShowNextDoseModal(false)
+        loadMedicines()
+      }
+    } catch (error) {
+      console.error('Failed to set next dose override:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const clearNextDoseOverride = async (medicineId: string) => {
+    if (!confirm('Are you sure you want to clear the next dose override? This will revert to the automatic schedule.')) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/medicine/next-dose-override?householdId=${householdId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ medicineId })
+      })
+      
+      if (response.ok) {
+        loadMedicines()
+      }
+    } catch (error) {
+      console.error('Failed to clear next dose override:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getChildAge = (dateOfBirth: string) => {
     const birth = new Date(dateOfBirth)
     const now = new Date()
@@ -760,10 +841,25 @@ export default function MedicinePage() {
                               {nextDoseInfo.timeUntilNext !== null ? (
                                 <p className={`text-xs font-medium ${nextDoseInfo.isOverdue ? 'text-red-600' : 'text-blue-600'}`}>
                                   {nextDoseInfo.isOverdue ? 'Overdue' : 'Next dose in'} {nextDoseInfo.timeUntilNext > 0 ? formatTimeUntilNext(nextDoseInfo.timeUntilNext) : 'now'}
+                                  {nextDoseInfo.isOverride && (
+                                    <span className="ml-2 text-xs text-purple-600 font-medium">
+                                      (Manual override)
+                                    </span>
+                                  )}
                                 </p>
                               ) : (
                                 <p className="text-xs text-cozy-text-muted">
                                   Next dose: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
+                                  {nextDoseInfo.isOverride && (
+                                    <span className="ml-2 text-xs text-purple-600 font-medium">
+                                      (Manual override)
+                                    </span>
+                                  )}
+                                </p>
+                              )}
+                              {nextDoseInfo.isOverride && nextDoseInfo.overrideReason && (
+                                <p className="text-xs text-purple-600 mt-1">
+                                  Reason: {nextDoseInfo.overrideReason}
                                 </p>
                               )}
                             </div>
@@ -819,6 +915,34 @@ export default function MedicinePage() {
                               >
                                 <Trash2 className="w-3 h-3" />
                               </Button>
+                              {nextDoseInfo.isOverride ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => clearNextDoseOverride(medicine.id)}
+                                  className="text-xs text-purple-600 hover:text-purple-700"
+                                  title="Clear next dose override"
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setNextDoseOverride({
+                                      medicineId: medicine.id,
+                                      nextDoseTime: '',
+                                      reason: ''
+                                    })
+                                    setShowNextDoseModal(true)
+                                  }}
+                                  className="text-xs"
+                                  title="Set next dose timing"
+                                >
+                                  <Settings className="w-3 h-3" />
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1156,6 +1280,78 @@ export default function MedicinePage() {
                     dosage: '', 
                     notes: '', 
                     takenAt: new Date().toISOString().slice(0, 16) 
+                  })
+                }} variant="outline">
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Next Dose Override Modal */}
+      {showNextDoseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Set Next Dose Timing</CardTitle>
+              <p className="text-sm text-cozy-text-muted mt-1">
+                Override the automatic schedule for the next dose
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Medicine Template
+                </label>
+                <select
+                  className="w-full p-2 border border-cozy-gray-300 rounded-md"
+                  value={nextDoseOverride.medicineId}
+                  onChange={(e) => setNextDoseOverride({ ...nextDoseOverride, medicineId: e.target.value })}
+                >
+                  <option value="">Select medicine template</option>
+                  {medicines.filter(m => m.isActive).map(medicine => {
+                    const child = children.find(c => c.id === medicine.childId)
+                    return (
+                      <option key={medicine.id} value={medicine.id}>
+                        {medicine.name} ({medicine.dosage}) - {child?.name}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Next Dose Time *
+                </label>
+                <Input
+                  type="datetime-local"
+                  value={nextDoseOverride.nextDoseTime}
+                  onChange={(e) => setNextDoseOverride({ ...nextDoseOverride, nextDoseTime: e.target.value })}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Reason (optional)
+                </label>
+                <Input
+                  placeholder="e.g., Sleep schedule, meal timing, doctor's advice"
+                  value={nextDoseOverride.reason}
+                  onChange={(e) => setNextDoseOverride({ ...nextDoseOverride, reason: e.target.value })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={setNextDoseOverride} disabled={loading} className="flex-1">
+                  Set Override
+                </Button>
+                <Button onClick={() => {
+                  setShowNextDoseModal(false)
+                  setNextDoseOverride({
+                    medicineId: '',
+                    nextDoseTime: '',
+                    reason: ''
                   })
                 }} variant="outline">
                   Cancel

@@ -44,7 +44,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PUT') {
     try {
-      const { name, dosage, frequency, unit, instructions, isActive } = req.body
+      const { 
+        name, 
+        dosage, 
+        frequency, 
+        unit, 
+        instructions, 
+        isActive,
+        nextDoseOverride,
+        overrideReason
+      } = req.body
 
       if (!name || !dosage || !frequency) {
         return res.status(400).json({ error: 'Missing required fields: name, dosage, frequency' })
@@ -57,7 +66,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           dosage: `${dosage} ${unit || 'mg'}`,
           frequency: `every ${frequency} hours`,
           notes: instructions || '',
-          isActive: isActive !== undefined ? isActive : existingMedicine.isActive
+          isActive: isActive !== undefined ? isActive : existingMedicine.isActive,
+          nextDoseOverride: nextDoseOverride ? new Date(nextDoseOverride) : null,
+          overrideReason: overrideReason || null
         },
         include: {
           child: true

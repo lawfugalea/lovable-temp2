@@ -240,6 +240,10 @@ model Medicine {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
+  // Next dose override fields
+  nextDoseOverride DateTime? // When parent manually sets next dose time
+  overrideReason   String?   // Reason for override (e.g., "sleep schedule", "meal timing")
+  
   child       Child         @relation(fields: [childId], references: [id])
   doses       MedicineDose[]
   reminders   MedicineReminder[]
