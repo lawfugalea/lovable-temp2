@@ -20,7 +20,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Users,
-  Calculator
+  Calculator,
+  Trash2
 } from 'lucide-react'
 
 interface Earner {
@@ -272,53 +273,113 @@ export default function FinancesPage() {
         {/* Earners Section */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Income Earners
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Income Earners
+              </div>
+              <Button
+                onClick={() => {
+                  const newEarner = {
+                    id: Date.now().toString(),
+                    name: `Earner ${earners.length + 1}`,
+                    salary: 0,
+                    keep: 0
+                  }
+                  const newEarners = [...earners, newEarner]
+                  setEarners(newEarners)
+                  saveFinancialData({ earners: newEarners })
+                }}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" />
+                Add Earner
+              </Button>
             </CardTitle>
             <CardDescription>Define who contributes to the household income</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {earners.map((earner, index) => (
-                <div key={earner.id} className="flex items-center gap-4 p-4 border rounded-lg">
-                  <div className="flex-1">
-                    <Input
-                      value={earner.name}
-                      onChange={(e) => {
-                        const newEarners = [...earners]
-                        newEarners[index].name = e.target.value
-                        setEarners(newEarners)
-                        saveFinancialData({ earners: newEarners })
-                      }}
-                      className="font-medium"
-                    />
-                  </div>
-                  <div className="w-32">
-                    <Input
-                      type="number"
-                      placeholder="Salary"
-                      value={earner.salary || ''}
-                      onChange={(e) => {
-                        const newEarners = [...earners]
-                        newEarners[index].salary = parseFloat(e.target.value) || 0
-                        setEarners(newEarners)
-                        saveFinancialData({ earners: newEarners })
-                      }}
-                    />
-                  </div>
-                  <div className="w-32">
-                    <Input
-                      type="number"
-                      placeholder="Keep"
-                      value={earner.keep || ''}
-                      onChange={(e) => {
-                        const newEarners = [...earners]
-                        newEarners[index].keep = parseFloat(e.target.value) || 0
-                        setEarners(newEarners)
-                        saveFinancialData({ earners: newEarners })
-                      }}
-                    />
+                <div key={earner.id} className="p-4 border rounded-lg">
+                  {/* Mobile-first responsive layout */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
+                    {/* Name field - full width on mobile, 1 column on desktop */}
+                    <div className="sm:col-span-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
+                        Name
+                      </label>
+                      <Input
+                        value={earner.name}
+                        onChange={(e) => {
+                          const newEarners = [...earners]
+                          newEarners[index].name = e.target.value
+                          setEarners(newEarners)
+                          saveFinancialData({ earners: newEarners })
+                        }}
+                        className="font-medium w-full"
+                        placeholder="Earner name"
+                      />
+                    </div>
+                    
+                    {/* Salary field */}
+                    <div className="sm:col-span-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
+                        Salary (€)
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="Salary"
+                        value={earner.salary || ''}
+                        onChange={(e) => {
+                          const newEarners = [...earners]
+                          newEarners[index].salary = parseFloat(e.target.value) || 0
+                          setEarners(newEarners)
+                          saveFinancialData({ earners: newEarners })
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    {/* Keep field */}
+                    <div className="sm:col-span-1">
+                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
+                        Personal Keep (€)
+                      </label>
+                      <Input
+                        type="number"
+                        placeholder="Keep"
+                        value={earner.keep || ''}
+                        onChange={(e) => {
+                          const newEarners = [...earners]
+                          newEarners[index].keep = parseFloat(e.target.value) || 0
+                          setEarners(newEarners)
+                          saveFinancialData({ earners: newEarners })
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+                    
+                    {/* Remove button */}
+                    <div className="sm:col-span-1 flex justify-end">
+                      {earners.length > 1 && (
+                        <Button
+                          onClick={() => {
+                            const newEarners = earners.filter((_, i) => i !== index)
+                            setEarners(newEarners)
+                            saveFinancialData({ earners: newEarners })
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline ml-1">Remove</span>
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
