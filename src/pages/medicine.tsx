@@ -475,7 +475,7 @@ export default function MedicinePage() {
               <div className="flex items-center">
                 <Pill className="h-8 w-8 text-green-500 mr-3" />
                 <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Active Medicines</p>
+                  <p className="text-sm font-medium text-cozy-text-muted">Medicine Templates</p>
                   <p className="text-2xl font-bold text-cozy-text">{medicines.filter(m => m.isActive).length}</p>
                 </div>
               </div>
@@ -515,11 +515,11 @@ export default function MedicinePage() {
           </Button>
           <Button onClick={() => setShowAddMedicine(true)} variant="outline" className="flex items-center gap-2">
             <Pill className="h-4 w-4" />
-            Add Medicine
+            Add Medicine Template
           </Button>
           <Button onClick={() => setShowDoseModal(true)} variant="outline" className="flex items-center gap-2">
             <CheckCircle className="h-4 w-4" />
-            Record Dose
+            Give Medicine
           </Button>
           <Button onClick={() => setShowReportModal(true)} variant="outline" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -595,20 +595,20 @@ export default function MedicinePage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Pill className="h-5 w-5" />
-                Active Medicines
+                Medicine Templates
               </CardTitle>
             </CardHeader>
             <CardContent>
               {medicines.filter(m => m.isActive).length === 0 ? (
                 <div className="text-center py-8 text-cozy-text-muted">
                   <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No active medicines</p>
+                  <p>No medicine templates yet</p>
                   <Button 
                     onClick={() => setShowAddMedicine(true)} 
                     variant="outline" 
                     className="mt-4"
                   >
-                    Add First Medicine
+                    Create First Template
                   </Button>
                 </div>
               ) : (
@@ -669,7 +669,7 @@ export default function MedicinePage() {
                               }}
                               className="text-xs"
                             >
-                              Record Dose
+                              Give Now
                             </Button>
                           </div>
                         </div>
@@ -772,7 +772,10 @@ export default function MedicinePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
-              <CardTitle>Add Medicine</CardTitle>
+              <CardTitle>Add Medicine Template</CardTitle>
+              <p className="text-sm text-cozy-text-muted mt-1">
+                Create a reusable medicine template that can be used to record doses
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <select
@@ -785,39 +788,59 @@ export default function MedicinePage() {
                   <option key={child.id} value={child.id}>{child.name}</option>
                 ))}
               </select>
-              <Input
-                placeholder="Medicine name"
-                value={newMedicine.name}
-                onChange={(e) => setNewMedicine({ ...newMedicine, name: e.target.value })}
-              />
-              <Input
-                placeholder="Description (optional)"
-                value={newMedicine.description}
-                onChange={(e) => setNewMedicine({ ...newMedicine, description: e.target.value })}
-              />
-              <Input
-                placeholder="Dosage (e.g., 5ml, 1 tablet)"
-                value={newMedicine.dosage}
-                onChange={(e) => setNewMedicine({ ...newMedicine, dosage: e.target.value })}
-              />
-              <select
-                className="w-full p-2 border border-cozy-gray-300 rounded-md"
-                value={newMedicine.frequency}
-                onChange={(e) => setNewMedicine({ ...newMedicine, frequency: e.target.value })}
-              >
-                <option value="">Select frequency</option>
-                <option value="every 2 hours">Every 2 hours</option>
-                <option value="every 4 hours">Every 4 hours</option>
-                <option value="every 6 hours">Every 6 hours</option>
-                <option value="every 8 hours">Every 8 hours</option>
-                <option value="every 12 hours">Every 12 hours</option>
-                <option value="twice daily">Twice daily</option>
-                <option value="once daily">Once daily</option>
-                <option value="as needed">As needed</option>
-              </select>
               <div>
                 <label className="block text-sm font-medium text-cozy-text mb-1">
-                  Treatment Start Date *
+                  Medicine Name *
+                </label>
+                <Input
+                  placeholder="e.g., Paracetamol, Ibuprofen"
+                  value={newMedicine.name}
+                  onChange={(e) => setNewMedicine({ ...newMedicine, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Description (optional)
+                </label>
+                <Input
+                  placeholder="e.g., For fever and pain relief"
+                  value={newMedicine.description}
+                  onChange={(e) => setNewMedicine({ ...newMedicine, description: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Standard Dosage *
+                </label>
+                <Input
+                  placeholder="e.g., 5ml, 1 tablet, 2 drops"
+                  value={newMedicine.dosage}
+                  onChange={(e) => setNewMedicine({ ...newMedicine, dosage: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Recommended Frequency *
+                </label>
+                <select
+                  className="w-full p-2 border border-cozy-gray-300 rounded-md"
+                  value={newMedicine.frequency}
+                  onChange={(e) => setNewMedicine({ ...newMedicine, frequency: e.target.value })}
+                >
+                  <option value="">Select frequency</option>
+                  <option value="every 2 hours">Every 2 hours</option>
+                  <option value="every 4 hours">Every 4 hours</option>
+                  <option value="every 6 hours">Every 6 hours</option>
+                  <option value="every 8 hours">Every 8 hours</option>
+                  <option value="every 12 hours">Every 12 hours</option>
+                  <option value="twice daily">Twice daily</option>
+                  <option value="once daily">Once daily</option>
+                  <option value="as needed">As needed</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Template Valid From *
                 </label>
                 <Input
                   type="date"
@@ -828,7 +851,7 @@ export default function MedicinePage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-cozy-text mb-1">
-                  Treatment End Date (optional)
+                  Template Valid Until (optional)
                 </label>
                 <Input
                   type="date"
@@ -837,17 +860,22 @@ export default function MedicinePage() {
                   className="w-full"
                 />
                 <p className="text-xs text-cozy-text-muted mt-1">
-                  Leave empty for ongoing treatment
+                  Leave empty for ongoing template availability
                 </p>
               </div>
-              <Input
-                placeholder="Notes (optional)"
-                value={newMedicine.notes}
-                onChange={(e) => setNewMedicine({ ...newMedicine, notes: e.target.value })}
-              />
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Template Notes (optional)
+                </label>
+                <Input
+                  placeholder="e.g., Take with food, avoid dairy products"
+                  value={newMedicine.notes}
+                  onChange={(e) => setNewMedicine({ ...newMedicine, notes: e.target.value })}
+                />
+              </div>
               <div className="flex gap-2">
                 <Button onClick={addMedicine} disabled={loading} className="flex-1">
-                  Add Medicine
+                  Create Template
                 </Button>
                 <Button onClick={() => setShowAddMedicine(false)} variant="outline">
                   Cancel
@@ -863,29 +891,52 @@ export default function MedicinePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <Card className="w-full max-w-md mx-4">
             <CardHeader>
-              <CardTitle>Record Dose</CardTitle>
+              <CardTitle>Give Medicine</CardTitle>
+              <p className="text-sm text-cozy-text-muted mt-1">
+                Record when a medicine from your templates was given
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <select
-                className="w-full p-2 border border-cozy-gray-300 rounded-md"
-                value={newDose.medicineId}
-                onChange={(e) => setNewDose({ ...newDose, medicineId: e.target.value })}
-              >
-                <option value="">Select medicine</option>
-                {medicines.filter(m => m.isActive).map(medicine => {
-                  const child = children.find(c => c.id === medicine.childId)
-                  return (
-                    <option key={medicine.id} value={medicine.id}>
-                      {medicine.name} - {child?.name}
-                    </option>
-                  )
-                })}
-              </select>
-              <Input
-                placeholder="Dosage taken"
-                value={newDose.dosage}
-                onChange={(e) => setNewDose({ ...newDose, dosage: e.target.value })}
-              />
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Select Medicine Template *
+                </label>
+                <select
+                  className="w-full p-2 border border-cozy-gray-300 rounded-md"
+                  value={newDose.medicineId}
+                  onChange={(e) => {
+                    const selectedMedicine = medicines.find(m => m.id === e.target.value)
+                    setNewDose({ 
+                      ...newDose, 
+                      medicineId: e.target.value,
+                      dosage: selectedMedicine?.dosage || '' // Pre-fill with template dosage
+                    })
+                  }}
+                >
+                  <option value="">Select medicine template</option>
+                  {medicines.filter(m => m.isActive).map(medicine => {
+                    const child = children.find(c => c.id === medicine.childId)
+                    return (
+                      <option key={medicine.id} value={medicine.id}>
+                        {medicine.name} ({medicine.dosage}) - {child?.name}
+                      </option>
+                    )
+                  })}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Actual Dosage Given *
+                </label>
+                <Input
+                  placeholder="e.g., 5ml, 1 tablet (pre-filled from template)"
+                  value={newDose.dosage}
+                  onChange={(e) => setNewDose({ ...newDose, dosage: e.target.value })}
+                />
+                <p className="text-xs text-cozy-text-muted mt-1">
+                  Pre-filled from template, adjust if different
+                </p>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-cozy-text mb-1">
                   When was this dose taken?
@@ -904,7 +955,7 @@ export default function MedicinePage() {
               />
               <div className="flex gap-2">
                 <Button onClick={recordDose} disabled={loading} className="flex-1">
-                  Record Dose
+                  Record Medicine Given
                 </Button>
                 <Button onClick={() => setShowDoseModal(false)} variant="outline">
                   Cancel
