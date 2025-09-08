@@ -34,15 +34,21 @@ export default function HomePage() {
       if (result?.error) {
         setError('Invalid email or password')
         setIsLoading(false)
+      } else if (result?.ok) {
+        // Authentication was successful, redirect to dashboard
+        // Don't check session immediately as it might not be available yet
+        router.push('/dashboard')
       } else {
-        // Check if we have a session
-        const session = await getSession()
-        if (session) {
-          router.push('/dashboard')
-        } else {
-          setError('Login failed. Please try again.')
-          setIsLoading(false)
-        }
+        // Fallback: try to get session after a short delay
+        setTimeout(async () => {
+          const session = await getSession()
+          if (session) {
+            router.push('/dashboard')
+          } else {
+            setError('Login failed. Please try again.')
+            setIsLoading(false)
+          }
+        }, 100)
       }
     } catch (error) {
       console.error('Login error:', error)
