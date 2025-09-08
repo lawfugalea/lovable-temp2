@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             child: { householdId: householdId as string },
             takenAt: {
               gte: new Date(startDate as string),
-              lte: new Date(endDate as string)
+              lte: new Date(new Date(endDate as string).setHours(23, 59, 59, 999))
             }
           },
           include: { 
@@ -50,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               where: {
                 takenAt: {
                   gte: new Date(startDate as string),
-                  lte: new Date(endDate as string)
+                  lte: new Date(new Date(endDate as string).setHours(23, 59, 59, 999))
                 }
               },
               orderBy: { takenAt: 'desc' }
@@ -70,7 +70,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             child: { householdId: householdId as string },
             takenAt: {
               gte: new Date(startDate as string),
-              lte: new Date(endDate as string)
+              lte: new Date(new Date(endDate as string).setHours(23, 59, 59, 999))
             }
           },
           include: { child: true },
@@ -162,22 +162,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       pdf.setFont('helvetica', 'normal')
       pdf.setTextColor(0, 0, 0)
       yPosition = addText(`• Total doses administered: ${doses.length}`, 25, yPosition, pageWidth - 45, 10)
-      yPosition = addText(`• Active medicines: ${medicines.length}`, 25, yPosition, pageWidth - 45, 10)
-      yPosition = addText(`• Children: ${children.length}`, 25, yPosition, pageWidth - 45, 10)
-      yPosition = addText(`• Fever readings: ${feverReadings.length}`, 25, yPosition, pageWidth - 45, 10)
+      yPosition = addText(`• Fever readings recorded: ${feverReadings.length}`, 25, yPosition, pageWidth - 45, 10)
+      yPosition = addText(`• Active medicine templates: ${medicines.length}`, 25, yPosition, pageWidth - 45, 10)
+      yPosition = addText(`• Children in household: ${children.length}`, 25, yPosition, pageWidth - 45, 10)
       
       yPosition += 10
       drawLine(yPosition)
       yPosition += 10
 
       // Medicine doses section
+      checkNewPage(50)
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(139, 69, 19) // Cozy brown
+      yPosition = addText('Medicine Doses Administered', 20, yPosition, pageWidth - 40, 14)
+      yPosition += 5
+      
       if (doses.length > 0) {
-        checkNewPage(50)
-        pdf.setFontSize(14)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(139, 69, 19) // Cozy brown
-        yPosition = addText('Medicine Doses Administered', 20, yPosition, pageWidth - 40, 14)
-        yPosition += 5
 
         // Group doses by child
         const groupedByChild = doses.reduce((acc, dose) => {
@@ -214,9 +215,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         })
         
         yPosition += 5
-        drawLine(yPosition)
-        yPosition += 10
+      } else {
+        pdf.setFontSize(10)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(128, 128, 128)
+        yPosition = addText('No medicine doses were administered during this period.', 25, yPosition, pageWidth - 45, 10)
+        yPosition += 5
       }
+      
+      drawLine(yPosition)
+      yPosition += 10
 
       // Active medicines section
       if (medicines.length > 0) {
@@ -263,13 +271,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Fever readings section
+      checkNewPage(50)
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(139, 69, 19) // Cozy brown
+      yPosition = addText('Fever Journal', 20, yPosition, pageWidth - 40, 14)
+      yPosition += 5
+      
       if (feverReadings.length > 0) {
-        checkNewPage(50)
-        pdf.setFontSize(14)
-        pdf.setFont('helvetica', 'bold')
-        pdf.setTextColor(139, 69, 19) // Cozy brown
-        yPosition = addText('Fever Journal', 20, yPosition, pageWidth - 40, 14)
-        yPosition += 5
 
         // Group fever readings by child
         const groupedFeverByChild = feverReadings.reduce((acc, reading) => {
@@ -308,6 +317,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           })
           yPosition += 5
         })
+      } else {
+        pdf.setFontSize(10)
+        pdf.setFont('helvetica', 'normal')
+        pdf.setTextColor(128, 128, 128)
+        yPosition = addText('No fever readings were recorded during this period.', 25, yPosition, pageWidth - 45, 10)
+        yPosition += 5
       }
 
       // Footer
