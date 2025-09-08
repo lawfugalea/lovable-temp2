@@ -8,7 +8,7 @@ export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   secret: process.env.NEXTAUTH_SECRET,
   pages: { signIn: "/" },
-  debug: true, // Enable debug logging to troubleshoot authentication
+  debug: process.env.NODE_ENV === 'development', // Only enable debug in development
   logger: {
     error: (code, metadata) => {
       console.error('NextAuth Error:', code, metadata);
@@ -17,7 +17,9 @@ export const authOptions: NextAuthOptions = {
       console.warn('NextAuth Warning:', code);
     },
     debug: (code, metadata) => {
-      console.log('NextAuth Debug:', code, metadata);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('NextAuth Debug:', code, metadata);
+      }
     },
   },
 
@@ -29,17 +31,38 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        const email = (credentials?.email ?? "").toString().trim();
-        const password = (credentials?.password ?? "").toString();
-        if (!email || !password) return null;
+        try {
+          const email = (credentials?.email ?? "").toString().trim();
+          const password = (credentials?.password ?? "").toString();
+          
+          if (!email || !password) {
+            console.log('NextAuth: Missing email or password');
+            return null;
+          }
 
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (!user || !user.password) return null;
+          const user = await prisma.user.findUnique({ where: { email } });
+          if (!user) {
+            console.log('NextAuth: User not found:', email);
+            return null;
+          }
+          
+          if (!user.password) {
+            console.log('NextAuth: User has no password set:', email);
+            return null;
+          }
 
-        const ok = await bcrypt.compare(password, user.password);
-        if (!ok) return null;
+          const ok = await bcrypt.compare(password, user.password);
+          if (!ok) {
+            console.log('NextAuth: Invalid password for:', email);
+            return null;
+          }
 
-        return { id: user.id, email: user.email, name: user.name ?? user.email };
+          console.log('NextAuth: Successful login for:', email);
+          return { id: user.id, email: user.email, name: user.name ?? user.email };
+        } catch (error) {
+          console.error('NextAuth: Authorization error:', error);
+          return null;
+        }
       },
     }),
   ],
