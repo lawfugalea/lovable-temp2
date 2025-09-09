@@ -6,6 +6,7 @@ import {
   Home, 
   ShoppingCart, 
   DollarSign, 
+  CreditCard,
   Settings, 
   Users,
   Plus,
@@ -20,7 +21,8 @@ import {
   Command,
   ArrowRight,
   Hash,
-  Pill
+  Pill,
+  Gift
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -69,12 +71,12 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     },
     {
       id: 'nav-finances',
-      title: 'Go to Finances',
-      description: 'Track income and expenses',
+      title: 'Go to Finance Planner',
+      description: 'Plan your household budget and splits',
       icon: DollarSign,
       action: () => router.push('/finances'),
       category: 'Navigation',
-      keywords: ['finances', 'money', 'budget', 'expenses']
+      keywords: ['finances', 'money', 'budget', 'planning']
     },
     {
       id: 'nav-medicine',
@@ -84,6 +86,15 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       action: () => router.push('/medicine'),
       category: 'Navigation',
       keywords: ['medicine', 'medication', 'children', 'kids', 'health']
+    },
+    {
+      id: 'nav-gift-wishlist',
+      title: 'Go to Gift Wishlist',
+      description: 'Manage your family\'s gift wishlist',
+      icon: Gift,
+      action: () => router.push('/gift-wishlist'),
+      category: 'Navigation',
+      keywords: ['gift', 'wishlist', 'presents', 'birthday', 'christmas', 'holidays']
     },
     {
       id: 'nav-settings',
@@ -151,6 +162,18 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       },
       category: 'Quick Actions',
       keywords: ['add', 'income', 'salary', 'money']
+    },
+    {
+      id: 'add-gift',
+      title: 'Add Gift to Wishlist',
+      description: 'Add a new gift to your wishlist',
+      icon: Gift,
+      action: () => {
+        router.push('/gift-wishlist')
+        // Could trigger add gift modal here
+      },
+      category: 'Quick Actions',
+      keywords: ['add', 'gift', 'wishlist', 'present', 'birthday']
     },
 
     // Settings

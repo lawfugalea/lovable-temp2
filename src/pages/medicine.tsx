@@ -323,6 +323,18 @@ export default function MedicinePage() {
     }
     
     if (!lastDose) {
+      // For templates, if no doses have been taken, don't show next dose time
+      if (medicine.isTemplate) {
+        return {
+          nextDoseTime: new Date(),
+          isOverdue: false,
+          timeUntilNext: null,
+          lastDoseTime: null,
+          isOverride: false
+        }
+      }
+      
+      // For active courses, use start date
       return {
         nextDoseTime: new Date(medicine.startDate),
         isOverdue: new Date() > new Date(medicine.startDate),
@@ -510,11 +522,16 @@ export default function MedicinePage() {
   }
 
   const recordDose = async () => {
-    if (!newDose.medicineId || !newDose.dosage) return
-    
-    // Get the childId from the selected medicine
-    const selectedMedicine = medicines.find(m => m.id === newDose.medicineId)
-    if (!selectedMedicine) return
+    console.log('Attempting to record dose:', newDose)
+    if (!newDose.medicineId || !newDose.dosage || !newDose.childId) {
+      console.log('Validation failed:', {
+        medicineId: newDose.medicineId,
+        dosage: newDose.dosage,
+        childId: newDose.childId
+      })
+      alert('Please select a child, medicine, and enter a dosage before recording the dose.')
+      return
+    }
     
     setLoading(true)
     try {
@@ -523,12 +540,12 @@ export default function MedicinePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newDose,
-          childId: selectedMedicine.childId,
           takenBy: session?.user?.id
         })
       })
       
       if (response.ok) {
+        console.log('Dose recorded successfully')
         setNewDose({
           childId: '',
           medicineId: '',
@@ -541,6 +558,7 @@ export default function MedicinePage() {
       } else {
         const errorData = await response.json()
         console.error('Failed to record dose:', errorData.error)
+        alert(`Failed to record dose: ${errorData.error}`)
       }
     } catch (error) {
       console.error('Failed to record dose:', error)
@@ -684,30 +702,71 @@ export default function MedicinePage() {
   const startCourseFromTemplate = async (template: Medicine) => {
     if (!confirm(`Start a new medicine course from template "${template.name}"?`)) return
     
-    setLoading(true)
-    try {
-      const response = await fetch(`/api/medicine/medicines?householdId=${householdId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          templateId: template.id,
-          childId: template.childId,
-          isTemplate: false
-        })
-      })
+    // For templates, we need to select a child
+    if (template.isTemplate && !template.childId) {
+      // Show a simple prompt to select child
+      const childOptions = children.map((child, index) => `${index + 1}. ${child.name}`).join('\n')
+      const childIndex = prompt(`Select a child for this medicine course:\n\n${childOptions}\n\nEnter the number (1-${children.length}):`)
       
-      if (response.ok) {
-        await loadMedicines()
-        alert('Medicine course started successfully!')
-      } else {
-        const error = await response.json()
-        alert(error.error || 'Failed to start medicine course')
+      if (!childIndex || isNaN(parseInt(childIndex)) || parseInt(childIndex) < 1 || parseInt(childIndex) > children.length) {
+        alert('Invalid selection. Please try again.')
+        return
       }
-    } catch (error) {
-      console.error('Failed to start medicine course:', error)
-      alert('Failed to start medicine course')
-    } finally {
-      setLoading(false)
+      
+      const selectedChild = children[parseInt(childIndex) - 1]
+      
+      setLoading(true)
+      try {
+        const response = await fetch(`/api/medicine/medicines?householdId=${householdId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateId: template.id,
+            childId: selectedChild.id,
+            isTemplate: false
+          })
+        })
+        
+        if (response.ok) {
+          await loadMedicines()
+          alert(`Medicine course started successfully for ${selectedChild.name}!`)
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Failed to start medicine course')
+        }
+      } catch (error) {
+        console.error('Failed to start medicine course:', error)
+        alert('Failed to start medicine course')
+      } finally {
+        setLoading(false)
+      }
+    } else {
+      // For active courses, use the existing childId
+      setLoading(true)
+      try {
+        const response = await fetch(`/api/medicine/medicines?householdId=${householdId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateId: template.id,
+            childId: template.childId,
+            isTemplate: false
+          })
+        })
+        
+        if (response.ok) {
+          await loadMedicines()
+          alert('Medicine course started successfully!')
+        } else {
+          const error = await response.json()
+          alert(error.error || 'Failed to start medicine course')
+        }
+      } catch (error) {
+        console.error('Failed to start medicine course:', error)
+        alert('Failed to start medicine course')
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
@@ -749,6 +808,40 @@ export default function MedicinePage() {
       const nextDoseTime = calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
       return now >= nextDoseTime
     })
+  }
+
+  const isMedicineDue = (medicine: Medicine) => {
+    const now = new Date()
+    
+    // For active courses, use the existing logic
+    if (medicine.isActive) {
+      const lastDose = doses
+        .filter(dose => dose.medicineId === medicine.id)
+        .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
+      
+      if (!lastDose) return true
+      
+      const nextDoseTime = calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
+      return now >= nextDoseTime
+    }
+    
+    // For templates, check if there are any doses and if the next dose is due
+    if (medicine.isTemplate) {
+      const lastDose = doses
+        .filter(dose => dose.medicineId === medicine.id)
+        .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
+      
+      if (!lastDose) return false // Templates with no doses are not due
+      
+      const nextDoseTime = calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
+      return now >= nextDoseTime
+    }
+    
+    return false
+  }
+
+  const getAllDueMedicines = () => {
+    return medicines.filter(medicine => isMedicineDue(medicine))
   }
 
   const getTodaysDoses = () => {
@@ -826,7 +919,7 @@ export default function MedicinePage() {
                 <AlertTriangle className="h-6 w-6 text-orange-500 mr-2" />
                 <div>
                   <p className="text-xs font-medium text-cozy-text-muted">Due Now</p>
-                  <p className="text-xl font-bold text-cozy-text">{getDueMedicines().length}</p>
+                  <p className="text-xl font-bold text-cozy-text">{getAllDueMedicines().length}</p>
                 </div>
               </div>
             </CardContent>
@@ -866,7 +959,7 @@ export default function MedicinePage() {
         </div>
 
         {/* Due Medicines Alert */}
-        {getDueMedicines().length > 0 && (
+        {getAllDueMedicines().length > 0 && (
           <Card className="border-orange-200 bg-orange-50">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
@@ -874,7 +967,7 @@ export default function MedicinePage() {
                 <div>
                   <h3 className="font-semibold text-orange-800">Medicines Due</h3>
                   <p className="text-orange-700">
-                    {getDueMedicines().length} medicine(s) are due for administration
+                    {getAllDueMedicines().length} medicine(s) are due for administration
                   </p>
                 </div>
               </div>
@@ -956,7 +1049,7 @@ export default function MedicinePage() {
                       .filter(dose => dose.medicineId === medicine.id)
                       .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
                     
-                    const isDue = getDueMedicines().some(m => m.id === medicine.id)
+                    const isDue = isMedicineDue(medicine)
                     const nextDoseInfo = getNextDoseInfo(medicine)
                     
                     return (
@@ -987,6 +1080,26 @@ export default function MedicinePage() {
                             </p>
                           )}
                           
+                          {/* Next dose info */}
+                          {lastDose && nextDoseInfo.timeUntilNext !== null && (
+                            <div className="text-xs">
+                              {nextDoseInfo.timeUntilNext > 0 ? (
+                                <div>
+                                  <p className={`font-medium ${nextDoseInfo.isOverdue ? 'text-red-600' : 'text-blue-600'}`}>
+                                    {nextDoseInfo.isOverdue ? 'Overdue' : 'Next dose in'} {formatTimeUntilNext(nextDoseInfo.timeUntilNext)}
+                                  </p>
+                                  <p className="text-cozy-text-muted mt-1">
+                                    Due at: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-cozy-text-muted">
+                                  Next dose: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
                           {/* Action buttons - responsive layout */}
                           <div className="flex flex-col sm:flex-row gap-2 pt-2">
                             <Button
@@ -995,7 +1108,7 @@ export default function MedicinePage() {
                               onClick={() => {
                                 setNewDose({
                                   ...newDose,
-                                  childId: medicine.childId,
+                                  childId: '', // User will select child in modal
                                   medicineId: medicine.id,
                                   dosage: medicine.dosage,
                                   takenAt: getCurrentLocalTime()
@@ -1021,7 +1134,7 @@ export default function MedicinePage() {
                                 onClick={() => {
                                   setEditingMedicine(medicine)
                                   setNewMedicine({
-                                    childId: medicine.childId,
+                                    childId: medicine.childId || '',
                                     name: medicine.name,
                                     description: medicine.description || '',
                                     dosage: medicine.dosage,
@@ -1080,7 +1193,7 @@ export default function MedicinePage() {
                       .filter(dose => dose.medicineId === medicine.id)
                       .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
                     
-                    const isDue = getDueMedicines().some(m => m.id === medicine.id)
+                    const isDue = isMedicineDue(medicine)
                     const nextDoseInfo = getNextDoseInfo(medicine)
                     
                     return (
@@ -1144,7 +1257,7 @@ export default function MedicinePage() {
                               onClick={() => {
                                 setNewDose({
                                   ...newDose,
-                                  childId: medicine.childId,
+                                  childId: '', // User will select child in modal
                                   medicineId: medicine.id,
                                   dosage: medicine.dosage,
                                   takenAt: getCurrentLocalTime()
@@ -1170,7 +1283,7 @@ export default function MedicinePage() {
                                 onClick={() => {
                                   setEditingMedicine(medicine)
                                   setNewMedicine({
-                                    childId: medicine.childId,
+                                    childId: medicine.childId || '',
                                     name: medicine.name,
                                     description: medicine.description || '',
                                     dosage: medicine.dosage,
@@ -1480,6 +1593,23 @@ export default function MedicinePage() {
             <CardContent className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Select Child *
+                </label>
+                <select
+                  className="w-full p-2 border border-cozy-gray-300 rounded-md"
+                  value={newDose.childId}
+                  onChange={(e) => setNewDose({ ...newDose, childId: e.target.value })}
+                >
+                  <option value="">Select child</option>
+                  {children.map(child => (
+                    <option key={child.id} value={child.id}>
+                      {child.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
                   Select Medicine Template *
                 </label>
                 <select
@@ -1495,14 +1625,11 @@ export default function MedicinePage() {
                   }}
                 >
                   <option value="">Select medicine template</option>
-                  {medicines.filter(m => m.isTemplate).map(medicine => {
-                    const child = children.find(c => c.id === medicine.childId)
-                    return (
-                      <option key={medicine.id} value={medicine.id}>
-                        {medicine.name} ({medicine.dosage}) - {child?.name}
-                      </option>
-                    )
-                  })}
+                  {medicines.filter(m => m.isTemplate).map(medicine => (
+                    <option key={medicine.id} value={medicine.id}>
+                      {medicine.name} ({medicine.dosage})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

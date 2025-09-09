@@ -25,12 +25,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let whereClause: any
       
       if (templates === 'true') {
-        // Templates are household-level, so we get all children in the household
+        // Templates are household-level and have childId: null
         whereClause = {
           isTemplate: true,
-          child: {
-            householdId
-          }
+          childId: null
         }
       } else if (templates === 'false') {
         // Active courses are child-specific
@@ -41,11 +39,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       } else {
-        // Get all medicines for the household
+        // Get all medicines for the household (both templates and active courses)
         whereClause = {
-          child: {
-            householdId
-          }
+          OR: [
+            {
+              isTemplate: true,
+              childId: null
+            },
+            {
+              isTemplate: false,
+              child: {
+                householdId
+              }
+            }
+          ]
         }
       }
       
@@ -93,13 +100,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // If starting a course from a template, get template data
-      let templateData = {}
+      let templateData: { name?: string; dosage?: string; frequency?: string; notes?: string } = {}
       if (templateId && !isTemplate) {
         const template = await prisma.medicine.findFirst({
           where: {
             id: templateId,
             isTemplate: true,
-            child: { householdId }
+            childId: null
           }
         })
         
@@ -119,11 +126,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: {
           name: templateData.name || name,
           dosage: templateData.dosage || (dosage.includes(unit || 'mg') ? dosage : `${dosage} ${unit || 'mg'}`),
-          frequency: templateData.frequency || (frequency.includes('every') ? frequency : `every ${frequency} hours`),
+          frequency: templateData.frequency || (frequency.toLowerCase().includes('every') ? frequency : `every ${frequency} hours`),
           notes: templateData.notes || instructions || '',
           childId: isTemplate ? null : childId,
           startDate: new Date(),
-          isTemplate: isTemplate || false
+          isTemplate: isTemplate || false,
+          isActive: isTemplate ? false : true // Templates should be inactive, active courses should be active
         },
         include: {
           child: true
