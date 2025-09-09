@@ -1,3 +1,5 @@
+
+
 // src/pages/invites/accept.tsx
 import type { GetServerSideProps } from 'next';
 import Head from 'next/head';
@@ -69,7 +71,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
     setProcessError(null);
 
     try {
-      const response = await fetch(`/api/invites/accept?token=${encodeURIComponent(token)}`, {
+      const response = await fetch(`/api/invites/accept-invite?token=${encodeURIComponent(token)}`, {
         method: 'GET',
         credentials: 'include',
       });
