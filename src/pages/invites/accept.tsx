@@ -2,89 +2,153 @@
 import type { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
 
-type Props = { error?: string };
+type Props = { 
+  token?: string;
+  error?: string;
+  inviteInfo?: {
+    householdName?: string;
+    inviterName?: string;
+  };
+};
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const token = (ctx.query.token as string | undefined)?.trim() || '';
   if (!token) return { props: { error: 'Missing token' } };
 
-  // 1) Find invite & validate
-  const invite = await prisma.invite.findUnique({
-    where: { token },
-    select: { id: true, status: true, role: true, expiresAt: true, householdId: true },
-  });
-  if (!invite) return { props: { error: 'Invite not found' } };
-  if (invite.status !== 'PENDING') return { props: { error: 'Invite already used or not pending' } };
-  if (invite.expiresAt <= new Date()) return { props: { error: 'Invite expired' } };
-
-  // 2) Check if user is logged in
-  const session = (await getServerSession(ctx.req, ctx.res, authOptions as any)) as any;
-  const userId = session?.user?.id as string | undefined;
-  if (!userId) {
-    // User not logged in - redirect to login/register with invite token
-    const next = `/invites/accept?token=${encodeURIComponent(token)}`;
-    return { redirect: { destination: `/?signin=1&next=${encodeURIComponent(next)}&invite=${encodeURIComponent(token)}`, permanent: false } };
+  // Just validate the token exists and is valid, don't do heavy operations here
+  try {
+    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/invites/validate?token=${encodeURIComponent(token)}`);
+    if (!response.ok) {
+      return { props: { error: 'Invalid or expired invite' } };
+    }
+    const data = await response.json();
+    return { 
+      props: { 
+        token,
+        inviteInfo: {
+          householdName: data.householdName,
+          inviterName: data.inviterName
+        }
+      } 
+    };
+  } catch (error) {
+    return { props: { error: 'Failed to validate invite' } };
   }
-
-  // 3) Check if user is already a member
-  const existing = await prisma.membership.findFirst({
-    where: { userId, householdId: invite.householdId },
-    select: { id: true, role: true },
-  });
-  
-  if (!existing) {
-    // User is not a member, create membership
-    await prisma.membership.create({
-      data: { userId, householdId: invite.householdId, role: invite.role },
-    });
-  } else {
-    // User is already a member, but we still need to mark the invite as accepted
-    // This handles the case where someone clicks the invite link multiple times
-  }
-
-  // 4) Mark invite accepted and set active household
-  await prisma.$transaction(async (tx) => {
-    // Mark invite as accepted
-    await tx.invite.update({
-      where: { id: invite.id },
-      data: { status: 'ACCEPTED', acceptedAt: new Date(), acceptedById: userId },
-    });
-    
-    // Set this household as the user's active household
-    await tx.user.update({
-      where: { id: userId },
-      data: { activeHouseholdId: invite.householdId },
-    });
-  });
-
-  // 5) Redirect to Settings with success banner
-  return {
-    redirect: {
-      destination: `/settings?hid=${encodeURIComponent(invite.householdId)}&joined=1`,
-      permanent: false,
-    },
-  };
 };
 
-export default function AcceptInvitePage({ error }: Props) {
+export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [processing, setProcessing] = useState(false);
+  const [processError, setProcessError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error || !token) return;
+
+    // If user is not authenticated, redirect to login with invite token
+    if (status === 'unauthenticated') {
+      const next = `/invites/accept?token=${encodeURIComponent(token)}`;
+      router.push(`/?signin=1&next=${encodeURIComponent(next)}&invite=${encodeURIComponent(token)}`);
+      return;
+    }
+
+    // If user is authenticated, process the invite
+    if (status === 'authenticated' && !processing && !processError) {
+      processInvite();
+    }
+  }, [status, token, error, processing, processError]);
+
+  const processInvite = async () => {
+    if (!token) return;
+    
+    setProcessing(true);
+    setProcessError(null);
+
+    try {
+      const response = await fetch(`/api/invites/accept?token=${encodeURIComponent(token)}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to accept invite');
+      }
+
+      // Redirect to dashboard on success
+      router.push('/dashboard?joined=1');
+    } catch (error: any) {
+      console.error('Invite acceptance error:', error);
+      setProcessError(error.message || 'Failed to accept invite');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  if (error) {
+    return (
+      <>
+        <Head><title>Invite Error – Houseflow</title></Head>
+        <main className="min-h-screen flex items-center justify-center p-6">
+          <div className="max-w-md w-full rounded-3xl border border-black/5 bg-white shadow p-6">
+            <h1 className="text-lg font-semibold mb-2 text-red-600">Invite Error</h1>
+            <p className="text-sm text-gray-700 mb-3">{error}</p>
+            <Link href="/" className="text-sm text-fuchsia-600 underline">Go to Home</Link>
+          </div>
+        </main>
+      </>
+    );
+  }
+
+  if (processError) {
+    return (
+      <>
+        <Head><title>Invite Error – Houseflow</title></Head>
+        <main className="min-h-screen flex items-center justify-center p-6">
+          <div className="max-w-md w-full rounded-3xl border border-black/5 bg-white shadow p-6">
+            <h1 className="text-lg font-semibold mb-2 text-red-600">Error</h1>
+            <p className="text-sm text-gray-700 mb-3">{processError}</p>
+            <div className="flex gap-2">
+              <button 
+                onClick={processInvite}
+                className="text-sm text-fuchsia-600 underline hover:text-fuchsia-800"
+              >
+                Try Again
+              </button>
+              <Link href="/" className="text-sm text-gray-600 underline">Go to Home</Link>
+            </div>
+          </div>
+        </main>
+      </>
+    );
+  }
+
   return (
     <>
-      <Head><title>Invite – Houseflow</title></Head>
+      <Head><title>Accepting Invite – Houseflow</title></Head>
       <main className="min-h-screen flex items-center justify-center p-6">
         <div className="max-w-md w-full rounded-3xl border border-black/5 bg-white shadow p-6">
-          <h1 className="text-lg font-semibold mb-2">Invite</h1>
-          {error ? (
-            <>
-              <p className="text-sm text-gray-700 mb-3">{error}</p>
-              <Link href="/settings" className="text-sm text-fuchsia-600 underline">Go to Settings</Link>
-            </>
-          ) : (
-            <p className="text-sm text-gray-600">Completing…</p>
+          <h1 className="text-lg font-semibold mb-2">Accepting Invite</h1>
+          {inviteInfo && (
+            <div className="mb-4">
+              <p className="text-sm text-gray-700">
+                You&apos;ve been invited to join <strong>{inviteInfo.householdName}</strong>
+                {inviteInfo.inviterName && (
+                  <span> by {inviteInfo.inviterName}</span>
+                )}
+              </p>
+            </div>
           )}
+          <div className="flex items-center gap-3">
+            <div className="w-6 h-6 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm text-gray-600">
+              {processing ? 'Processing invite...' : 'Checking authentication...'}
+            </p>
+          </div>
         </div>
       </main>
     </>

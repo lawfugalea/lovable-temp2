@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const token = (req.query.token as string | undefined)?.trim();
-  if (!token) return res.redirect("/?invite_error=missing_token");
+  if (!token) return res.status(400).json({ error: "Missing token" });
 
   // If not signed in → push to NextAuth and bounce back here with the same token
 const session = (await getServerSession(req, res, authOptions)) as {
@@ -22,8 +22,7 @@ const session = (await getServerSession(req, res, authOptions)) as {
 const sid = session?.user?.id;
 const semail = session?.user?.email?.toLowerCase() || undefined;
   if (!sid && !semail) {
-    const callbackUrl = `/api/invites/accept?token=${encodeURIComponent(token)}`;
-    return res.redirect(`/api/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    return res.status(401).json({ error: "Authentication required" });
   }
 
   // Resolve DB user id (your original pattern)
@@ -36,7 +35,7 @@ const semail = session?.user?.email?.toLowerCase() || undefined;
     const u = await prisma.user.findUnique({ where: { email: semail }, select: { id: true } });
     if (u) userId = u.id;
   }
-  if (!userId) return res.redirect("/?invite_error=no_user");
+  if (!userId) return res.status(401).json({ error: "User not found" });
 
   // Load invite by token
   const invite = await prisma.invite.findFirst({
@@ -50,16 +49,16 @@ const semail = session?.user?.email?.toLowerCase() || undefined;
       expiresAt: true,
     },
   });
-  if (!invite) return res.redirect("/?invite_error=not_found");
+  if (!invite) return res.status(404).json({ error: "Invite not found" });
 
   // Email mismatch only if invite targets a specific email
   if (invite.email && semail && invite.email.toLowerCase() !== semail) {
-    return res.redirect("/?invite_error=email_mismatch");
+    return res.status(400).json({ error: "Email mismatch" });
   }
 
   // Expiry check
   if (invite.expiresAt && invite.expiresAt.getTime() < Date.now()) {
-    return res.redirect("/?invite_error=expired");
+    return res.status(400).json({ error: "Invite expired" });
   }
 
   try {
@@ -97,10 +96,10 @@ const semail = session?.user?.email?.toLowerCase() || undefined;
       });
     });
 
-    // ✅ Success → into the app with banner
-    return res.redirect(`/dashboard?joined=1&household=${invite.householdId}`);
+    // ✅ Success
+    return res.status(200).json({ success: true, householdId: invite.householdId });
   } catch (err) {
     console.error("Invite accept failed:", err);
-    return res.redirect("/?invite_error=server_error");
+    return res.status(500).json({ error: "Server error" });
   }
 }
