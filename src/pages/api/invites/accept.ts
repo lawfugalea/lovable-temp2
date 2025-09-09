@@ -12,7 +12,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const token = (req.query.token as string | undefined)?.trim();
-  if (!token) return res.redirect("/app?invite_error=missing_token");
+  if (!token) return res.redirect("/?invite_error=missing_token");
 
   // If not signed in → push to NextAuth and bounce back here with the same token
 const session = (await getServerSession(req, res, authOptions)) as {
@@ -36,7 +36,7 @@ const semail = session?.user?.email?.toLowerCase() || undefined;
     const u = await prisma.user.findUnique({ where: { email: semail }, select: { id: true } });
     if (u) userId = u.id;
   }
-  if (!userId) return res.redirect("/app?invite_error=no_user");
+  if (!userId) return res.redirect("/?invite_error=no_user");
 
   // Load invite by token
   const invite = await prisma.invite.findFirst({
@@ -50,16 +50,16 @@ const semail = session?.user?.email?.toLowerCase() || undefined;
       expiresAt: true,
     },
   });
-  if (!invite) return res.redirect("/app?invite_error=not_found");
+  if (!invite) return res.redirect("/?invite_error=not_found");
 
   // Email mismatch only if invite targets a specific email
   if (invite.email && semail && invite.email.toLowerCase() !== semail) {
-    return res.redirect("/app?invite_error=email_mismatch");
+    return res.redirect("/?invite_error=email_mismatch");
   }
 
   // Expiry check
   if (invite.expiresAt && invite.expiresAt.getTime() < Date.now()) {
-    return res.redirect("/app?invite_error=expired");
+    return res.redirect("/?invite_error=expired");
   }
 
   try {
@@ -98,9 +98,9 @@ const semail = session?.user?.email?.toLowerCase() || undefined;
     });
 
     // ✅ Success → into the app with banner
-    return res.redirect(`/app?joined=1&household=${invite.householdId}`);
+    return res.redirect(`/dashboard?joined=1&household=${invite.householdId}`);
   } catch (err) {
     console.error("Invite accept failed:", err);
-    return res.redirect("/app?invite_error=server_error");
+    return res.redirect("/?invite_error=server_error");
   }
 }
