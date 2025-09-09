@@ -1,5 +1,6 @@
 
 
+
 // src/pages/invites/accept.tsx
 import type { GetServerSideProps } from 'next';
 import Head from 'next/head';

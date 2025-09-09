@@ -458,6 +458,32 @@ export default function MedicinePage() {
     }
   }
 
+  const stopTreatment = async (medicineId: string) => {
+    if (!confirm('Are you sure you want to stop this treatment? This will prevent new doses from being scheduled, but existing doses will remain in the history.')) return
+    
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/medicine/medicines/${medicineId}?householdId=${householdId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: medicines.find(m => m.id === medicineId)?.name || '',
+          dosage: medicines.find(m => m.id === medicineId)?.dosage || '',
+          frequency: medicines.find(m => m.id === medicineId)?.frequency || '',
+          isActive: false
+        })
+      })
+      
+      if (response.ok) {
+        loadMedicines()
+      }
+    } catch (error) {
+      console.error('Failed to stop treatment:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const recordDose = async () => {
     if (!newDose.medicineId || !newDose.dosage) return
     
@@ -847,7 +873,7 @@ export default function MedicinePage() {
               {medicines.filter(m => m.isActive).length === 0 ? (
                 <div className="text-center py-8 text-cozy-text-muted">
                   <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No medicine templates yet</p>
+                  <p>No active medicine templates yet</p>
                   <Button 
                     onClick={() => setShowAddMedicine(true)} 
                     variant="outline" 
@@ -963,6 +989,15 @@ export default function MedicinePage() {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                onClick={() => stopTreatment(medicine.id)}
+                                className="text-xs text-orange-600 hover:text-orange-700"
+                                title="Stop treatment"
+                              >
+                                Stop
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={() => deleteMedicine(medicine.id)}
                                 className="text-xs text-red-600 hover:text-red-700"
                               >
@@ -1006,6 +1041,85 @@ export default function MedicinePage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Stopped Treatments */}
+          {medicines.filter(m => !m.isActive).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <X className="h-5 w-5" />
+                  Stopped Treatments
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {medicines.filter(m => !m.isActive).map(medicine => {
+                    const child = children.find(c => c.id === medicine.childId)
+                    const lastDose = doses
+                      .filter(dose => dose.medicineId === medicine.id)
+                      .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
+                    
+                    return (
+                      <div key={medicine.id} className="p-4 border border-gray-300 rounded-lg bg-gray-50 opacity-75">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-600 line-through">{medicine.name}</h3>
+                            <p className="text-sm text-gray-500">
+                              {child?.name} • {medicine.dosage} • {medicine.frequency}
+                            </p>
+                            {medicine.description && (
+                              <p className="text-sm text-gray-500 mt-1">{medicine.description}</p>
+                            )}
+                            {lastDose && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Last dose: {format(new Date(lastDose.takenAt), 'MMM dd, HH:mm')}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary">Stopped</Badge>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingMedicine(medicine)
+                                  setNewMedicine({
+                                    childId: medicine.childId,
+                                    name: medicine.name,
+                                    description: medicine.description || '',
+                                    dosage: medicine.dosage,
+                                    frequency: medicine.frequency,
+                                    startDate: medicine.startDate ? new Date(medicine.startDate).toISOString().split('T')[0] : '',
+                                    endDate: medicine.endDate ? new Date(medicine.endDate).toISOString().split('T')[0] : '',
+                                    notes: medicine.notes || ''
+                                  })
+                                  setShowAddMedicine(true)
+                                }}
+                                className="text-xs"
+                                title="Edit medicine"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteMedicine(medicine.id)}
+                                className="text-xs text-red-600 hover:text-red-700"
+                                title="Delete medicine"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Recent Doses */}
