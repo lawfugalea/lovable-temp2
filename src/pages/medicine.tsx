@@ -86,6 +86,9 @@ export default function MedicinePage() {
   const [showDoseModal, setShowDoseModal] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
   const [showNextDoseModal, setShowNextDoseModal] = useState(false)
+  const [showFAB, setShowFAB] = useState(false)
+  const [showFABMenu, setShowFABMenu] = useState(false)
+  const [triggerFeverAddModal, setTriggerFeverAddModal] = useState(false)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null)
   
@@ -136,6 +139,26 @@ export default function MedicinePage() {
       })
     }
   }, [householdId, householdLoading])
+
+  // Show/hide FAB based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768
+      setShowFAB(isMobile)
+      if (!isMobile) {
+        setShowFABMenu(false)
+      }
+    }
+
+    // Check on mount
+    handleResize()
+    
+    window.addEventListener('resize', handleResize)
+    
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
 
   // Check for due medicines every minute (only when data is loaded)
   useEffect(() => {
@@ -1607,7 +1630,7 @@ export default function MedicinePage() {
       )}
 
       {/* Fever Journal Section */}
-      <div className="mt-8">
+      <div className="mt-8" data-fever-journal>
         <h2 className="text-2xl font-bold text-cozy-text mb-4 flex items-center gap-2">
           <span className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
             🌡️
@@ -1615,12 +1638,16 @@ export default function MedicinePage() {
           Fever Journal
         </h2>
         {householdId ? (
-          <FeverJournal householdId={householdId} kids={children} />
+          <FeverJournal 
+            householdId={householdId} 
+            kids={children} 
+            triggerAddModal={triggerFeverAddModal}
+            onAddModalTriggered={() => setTriggerFeverAddModal(false)}
+          />
         ) : (
           <Card>
             <CardContent className="text-center py-8">
               <div className="text-6xl mb-4">🌡️</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Fever Journal</h3>
               <p className="text-gray-600 mb-4">Track your child&apos;s temperature readings</p>
               <p className="text-sm text-gray-500">Please set up your household first to access the fever journal.</p>
             </CardContent>
@@ -1661,6 +1688,62 @@ export default function MedicinePage() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Floating Action Button - Mobile Only */}
+      {showFAB && (
+        <div className="fixed bottom-6 right-6 z-40 md:hidden">
+          {/* FAB Menu */}
+          {showFABMenu && (
+            <div className="absolute bottom-16 right-0 space-y-3">
+              <div className="bg-cozy-surface rounded-lg shadow-cozy-glow border border-cozy-gray-300 p-2 min-w-[200px]">
+                <button
+                  onClick={() => {
+                    setShowDoseModal(true)
+                    setShowFABMenu(false)
+                  }}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-cozy-cream rounded-lg transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-full bg-cozy-primary-soft flex items-center justify-center">
+                    <Pill className="h-4 w-4 text-cozy-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-cozy-text">Record Dose</p>
+                    <p className="text-xs text-cozy-text-muted">Give medicine to child</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    // Scroll to fever journal section and trigger add modal
+                    const feverSection = document.querySelector('[data-fever-journal]')
+                    if (feverSection) {
+                      feverSection.scrollIntoView({ behavior: 'smooth' })
+                    }
+                    setTriggerFeverAddModal(true)
+                    setShowFABMenu(false)
+                  }}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-cozy-cream rounded-lg transition-colors"
+                >
+                  <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                    <span className="text-red-600">🌡️</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-cozy-text">Add Reading</p>
+                    <p className="text-xs text-cozy-text-muted">Record temperature</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Main FAB Button */}
+          <button
+            onClick={() => setShowFABMenu(!showFABMenu)}
+            className="h-14 w-14 bg-cozy-primary hover:bg-cozy-primary-deep text-white rounded-full shadow-cozy-glow flex items-center justify-center transition-all duration-200 transform hover:scale-105 hover:-translate-y-0.5"
+          >
+            <Plus className={`h-6 w-6 transition-transform duration-200 ${showFABMenu ? 'rotate-45' : ''}`} />
+          </button>
         </div>
       )}
     </ModernAppShell>

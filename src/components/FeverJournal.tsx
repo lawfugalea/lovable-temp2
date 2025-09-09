@@ -37,6 +37,8 @@ interface FeverReading {
 interface FeverJournalProps {
   householdId: string
   kids: Child[]
+  triggerAddModal?: boolean
+  onAddModalTriggered?: () => void
 }
 
 const TEMPERATURE_METHODS = [
@@ -77,12 +79,21 @@ const getCurrentLocalTime = () => {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
-export default function FeverJournal({ householdId, kids }: FeverJournalProps) {
+export default function FeverJournal({ householdId, kids, triggerAddModal, onAddModalTriggered }: FeverJournalProps) {
   const [readings, setReadings] = useState<FeverReading[]>([])
   const [loading, setLoading] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingReading, setEditingReading] = useState<FeverReading | null>(null)
   const [selectedChildFilter, setSelectedChildFilter] = useState<string>('all')
+
+  // Handle external trigger to open add modal
+  useEffect(() => {
+    if (triggerAddModal) {
+      setShowAddModal(true)
+      onAddModalTriggered?.()
+    }
+  }, [triggerAddModal, onAddModalTriggered])
+
   const [newReading, setNewReading] = useState({
     childId: '',
     temperature: '',
@@ -287,16 +298,7 @@ export default function FeverJournal({ householdId, kids }: FeverJournalProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
-            <Thermometer className="h-5 w-5 text-red-600" />
-          </div>
-          <div>
-            <h2 className="text-xl font-semibold">Fever Journal</h2>
-            <p className="text-sm text-gray-600">Track your child&apos;s temperature readings</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-3">
           {/* Child Filter */}
           <select
