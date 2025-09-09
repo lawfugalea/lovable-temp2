@@ -7,6 +7,7 @@ import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import HouseholdCreationWizard from '../components/HouseholdCreationWizard'
 import EnhancedInvitePanel from '../components/EnhancedInvitePanel'
+import HouseholdManagement from '../components/HouseholdManagement'
 import { Users, Plus, Mail, UserPlus, Settings, RefreshCw, Home, AlertCircle } from 'lucide-react'
 
 interface Household {
@@ -33,7 +34,6 @@ interface Membership {
 export default function HouseholdPage() {
   const { data: session, status } = useSession()
   const [household, setHousehold] = useState<Household | null>(null)
-  const [members, setMembers] = useState<Membership[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreationWizard, setShowCreationWizard] = useState(false)
   const [householdError, setHouseholdError] = useState('')
@@ -63,10 +63,7 @@ export default function HouseholdPage() {
           updatedAt: householdData.updatedAt || new Date().toISOString(),
         })
 
-        // Load members
-        const membersRes = await fetch(`/api/household/members?householdId=${householdData.householdId}`)
-        const membersData = await membersRes.json()
-        setMembers(membersData.members || [])
+        // Members are now loaded by HouseholdManagement component
       } else {
         // No household found - this is normal for new users
         setHousehold(null)
@@ -137,9 +134,6 @@ export default function HouseholdPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Badge variant="secondary">Active Household</Badge>
-                    <span className="text-sm text-cozy-text-muted">
-                      {members.length} member{members.length !== 1 ? 's' : ''}
-                    </span>
                   </div>
                   <Button variant="outline" size="sm">
                     <Settings className="w-4 h-4 mr-2" />
@@ -155,42 +149,11 @@ export default function HouseholdPage() {
               householdName={household.name}
             />
 
-            {/* Members List */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Household Members</CardTitle>
-                <CardDescription>People who have access to your household</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {members.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-cozy-primary rounded-full flex items-center justify-center">
-                          <span className="text-xs font-medium text-white">
-                            {member.user.name?.charAt(0)?.toUpperCase() || 'U'}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="font-medium text-cozy-text">{member.user.name}</div>
-                          <div className="text-sm text-cozy-text-muted">{member.user.email}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={member.role === 'OWNER' ? 'default' : 'secondary'}>
-                          {member.role}
-                        </Badge>
-                        {member.role !== 'OWNER' && (
-                          <Button variant="outline" size="sm">
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {/* Household Management */}
+            <HouseholdManagement 
+              householdId={household.id}
+              householdName={household.name}
+            />
           </>
         ) : (
           <>
