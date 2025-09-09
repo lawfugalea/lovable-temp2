@@ -44,8 +44,15 @@ export default function RegisterPage() {
       setSuccess(true)
       // Auto sign in after successful registration
       setTimeout(() => {
-        // Redirect to login page with a success message
-        router.replace('/?registered=1')
+        // Check if there's an invite token to handle
+        const inviteToken = router.query.invite as string
+        if (inviteToken) {
+          // Redirect to login with invite token preserved
+          router.replace(`/?registered=1&invite=${encodeURIComponent(inviteToken)}`)
+        } else {
+          // Redirect to login page with a success message
+          router.replace('/?registered=1')
+        }
       }, 1500)
     } catch (e: any) { 
       setError(e?.message || 'Could not register')

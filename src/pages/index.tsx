@@ -13,10 +13,13 @@ export default function HomePage() {
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
-  // Check for registration success message
+  // Check for registration success message and invite token
   React.useEffect(() => {
     if (router.query.registered === '1') {
       setSuccessMessage('Account created successfully! Please sign in to continue.')
+    }
+    if (router.query.invite) {
+      setSuccessMessage('You have been invited to join a household! Please sign in or create an account to accept the invitation.')
     }
   }, [router.query])
 
@@ -36,10 +39,14 @@ export default function HomePage() {
         setError('Invalid email or password')
         setIsLoading(false)
       } else {
-        
-        
-        // Authentication was successful, redirect to dashboard
-        router.push('/dashboard')
+        // Authentication was successful
+        if (router.query.next) {
+          // Redirect to the next URL (e.g., invite acceptance)
+          router.push(router.query.next as string)
+        } else {
+          // Default redirect to dashboard
+          router.push('/dashboard')
+        }
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -136,7 +143,14 @@ export default function HomePage() {
               <p className="text-sm text-cozy-text-muted flex items-center justify-center gap-2">
                 <span>New family?</span>
                 <button 
-                  onClick={() => router.push('/register')}
+                  onClick={() => {
+                    const inviteToken = router.query.invite as string
+                    if (inviteToken) {
+                      router.push(`/register?invite=${encodeURIComponent(inviteToken)}`)
+                    } else {
+                      router.push('/register')
+                    }
+                  }}
                   className="font-medium text-cozy-primary hover:text-cozy-primary-deep underline hover:animate-cozy-wiggle transition-all"
                 >
                   Create your household

@@ -21,29 +21,44 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   if (invite.status !== 'PENDING') return { props: { error: 'Invite already used or not pending' } };
   if (invite.expiresAt <= new Date()) return { props: { error: 'Invite expired' } };
 
-  // 2) Require login
+  // 2) Check if user is logged in
   const session = (await getServerSession(ctx.req, ctx.res, authOptions as any)) as any;
   const userId = session?.user?.id as string | undefined;
   if (!userId) {
+    // User not logged in - redirect to login/register with invite token
     const next = `/invites/accept?token=${encodeURIComponent(token)}`;
-    return { redirect: { destination: `/?signin=1&next=${encodeURIComponent(next)}`, permanent: false } };
+    return { redirect: { destination: `/?signin=1&next=${encodeURIComponent(next)}&invite=${encodeURIComponent(token)}`, permanent: false } };
   }
 
-  // 3) Ensure membership exists
+  // 3) Check if user is already a member
   const existing = await prisma.membership.findFirst({
     where: { userId, householdId: invite.householdId },
-    select: { id: true },
+    select: { id: true, role: true },
   });
+  
   if (!existing) {
+    // User is not a member, create membership
     await prisma.membership.create({
       data: { userId, householdId: invite.householdId, role: invite.role },
     });
+  } else {
+    // User is already a member, but we still need to mark the invite as accepted
+    // This handles the case where someone clicks the invite link multiple times
   }
 
-  // 4) Mark invite accepted (so it disappears from "Pending invites")
-  await prisma.invite.update({
-    where: { id: invite.id },
-    data: { status: 'ACCEPTED', acceptedAt: new Date(), acceptedById: userId },
+  // 4) Mark invite accepted and set active household
+  await prisma.$transaction(async (tx) => {
+    // Mark invite as accepted
+    await tx.invite.update({
+      where: { id: invite.id },
+      data: { status: 'ACCEPTED', acceptedAt: new Date(), acceptedById: userId },
+    });
+    
+    // Set this household as the user's active household
+    await tx.user.update({
+      where: { id: userId },
+      data: { activeHouseholdId: invite.householdId },
+    });
   });
 
   // 5) Redirect to Settings with success banner
