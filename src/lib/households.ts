@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import type { Prisma, PrismaClient } from "@prisma/client";
 
 /**
  * Decide a safe active household for a user and (optionally) write it.
@@ -11,12 +12,13 @@ import { prisma } from "@/lib/prisma";
  */
 export async function reconcileActiveHousehold(
   userId: string,
-  opts?: { preferredId?: string | null; write?: boolean }
+  opts?: { preferredId?: string | null; write?: boolean; db?: PrismaClient | Prisma.TransactionClient }
 ): Promise<{ activeId: string | null; changed: boolean }> {
   const preferredId = opts?.preferredId ?? null;
   const write = !!opts?.write;
+  const db = (opts?.db as PrismaClient | Prisma.TransactionClient | undefined) ?? prisma;
 
-  const user = await prisma.user.findUnique({
+  const user = await db.user.findUnique({
     where: { id: userId },
     select: {
       activeHouseholdId: true,
@@ -31,7 +33,7 @@ export async function reconcileActiveHousehold(
   // 1) Preferred?
   if (preferredId && isMember(preferredId)) {
     if (write && user.activeHouseholdId !== preferredId) {
-      await prisma.user.update({ where: { id: userId }, data: { activeHouseholdId: preferredId } });
+      await db.user.update({ where: { id: userId }, data: { activeHouseholdId: preferredId } });
     }
     return { activeId: preferredId, changed: user.activeHouseholdId !== preferredId };
   }
@@ -42,13 +44,13 @@ export async function reconcileActiveHousehold(
   // 3) Their only membership (SINGLE HOUSEHOLD MODEL)
   const membership = user.memberships[0]; // Should only be one
   if (membership) {
-    if (write) await prisma.user.update({ where: { id: userId }, data: { activeHouseholdId: membership.householdId } });
+    if (write) await db.user.update({ where: { id: userId }, data: { activeHouseholdId: membership.householdId } });
     return { activeId: membership.householdId, changed: true };
   }
 
   // 4) No households
   if (write && user.activeHouseholdId !== null) {
-    await prisma.user.update({ where: { id: userId }, data: { activeHouseholdId: null } });
+    await db.user.update({ where: { id: userId }, data: { activeHouseholdId: null } });
   }
   return { activeId: null, changed: user.activeHouseholdId !== null };
 }

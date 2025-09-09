@@ -34,8 +34,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   // Remove membership and reconcile active household
   await prisma.$transaction(async (tx) => {
     await tx.membership.delete({ where: { id: membership.id } });
-    // Important: fix their activeHouseholdId immediately
-    await reconcileActiveHousehold(userId, { write: true });
+    // Important: fix their activeHouseholdId immediately within same tx
+    await reconcileActiveHousehold(userId, { write: true, db: tx });
   });
 
   return res.status(200).json({ ok: true });

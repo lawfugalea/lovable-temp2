@@ -232,15 +232,20 @@ export default function FeverJournal({ householdId, kids }: FeverJournalProps) {
     if (!confirm('Are you sure you want to delete this reading?')) return
 
     try {
-      const response = await fetch(`/api/medicine/fever-readings?id=${id}`, {
+      const response = await fetch(`/api/medicine/fever-readings?id=${id}&householdId=${householdId}`, {
         method: 'DELETE'
       })
 
       if (response.ok) {
         await loadReadings()
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to delete fever reading:', response.status, errorData)
+        alert('Failed to delete fever reading. Please try again.')
       }
     } catch (error) {
       console.error('Failed to delete fever reading:', error)
+      alert('Failed to delete fever reading. Please try again.')
     }
   }
 

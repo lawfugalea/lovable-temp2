@@ -228,7 +228,7 @@ model Child {
 
 model Medicine {
   id          String   @id @default(cuid())
-  childId     String
+  childId     String?  // Optional for templates, required for active courses
   name        String
   description String?
   dosage      String   // e.g., "5ml", "1 tablet", "2 drops"
@@ -236,6 +236,7 @@ model Medicine {
   startDate   DateTime
   endDate     DateTime?
   isActive    Boolean  @default(true)
+  isTemplate  Boolean  @default(false) // True for reusable templates, false for active courses
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -244,12 +245,13 @@ model Medicine {
   nextDoseOverride DateTime? // When parent manually sets next dose time
   overrideReason   String?   // Reason for override (e.g., "sleep schedule", "meal timing")
   
-  child       Child         @relation(fields: [childId], references: [id])
+  child       Child?        @relation(fields: [childId], references: [id])
   doses       MedicineDose[]
   reminders   MedicineReminder[]
   
   @@index([childId])
   @@index([isActive])
+  @@index([isTemplate])
 }
 
 model MedicineDose {

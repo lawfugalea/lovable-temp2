@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
+import { useSession } from 'next-auth/react'
 import { 
   Search, 
   Home, 
@@ -42,6 +43,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const router = useRouter()
+  const { data: session } = useSession()
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -101,6 +103,17 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       category: 'Navigation',
       keywords: ['household', 'members', 'family']
     },
+    
+    // Admin Panel (only for admin user)
+    ...(session?.user?.email === 'lawfinuu@gmail.com' ? [{
+      id: 'nav-admin',
+      title: 'Go to Admin Panel',
+      description: 'Manage users, households, and view system statistics',
+      icon: Shield,
+      action: () => router.push('/admin'),
+      category: 'Navigation',
+      keywords: ['admin', 'management', 'users', 'statistics', 'system']
+    }] : []),
 
     // Quick Actions
     {

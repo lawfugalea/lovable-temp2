@@ -13,7 +13,8 @@ import {
   Menu,
   X,
   Command,
-  Pill
+  Pill,
+  Shield
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
@@ -115,6 +116,23 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
               </Link>
             )
           })}
+          
+          {/* Admin Panel Link - Only for admin user */}
+          {session?.user?.email === 'lawfinuu@gmail.com' && (
+            <Link
+              href="/admin"
+              onClick={() => setSidebarOpen(false)}
+              className={cn(
+                "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                currentPath === '/admin'
+                  ? "bg-cozy-primary text-white shadow-cozy-sm"
+                  : "text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-cream"
+              )}
+            >
+              <Shield className="w-5 h-5" />
+              <span>Admin Panel</span>
+            </Link>
+          )}
         </nav>
 
         {/* Sidebar footer */}
