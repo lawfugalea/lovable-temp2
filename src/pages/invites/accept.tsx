@@ -5,7 +5,7 @@
 import type { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useSession } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 
@@ -82,8 +82,9 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
         throw new Error(errorData.error || 'Failed to accept invite');
       }
 
-      // Redirect to dashboard on success
-      router.push('/dashboard?joined=1');
+      // Redirect to dashboard with success flag and force page reload
+      // This ensures the session is refreshed and data is reloaded
+      window.location.href = '/dashboard?joined=1';
     } catch (error: any) {
       console.error('Invite acceptance error:', error);
       setProcessError(error.message || 'Failed to accept invite');

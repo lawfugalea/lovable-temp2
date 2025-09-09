@@ -48,7 +48,8 @@ export default function RegisterPage() {
         const inviteToken = router.query.invite as string
         if (inviteToken) {
           // Redirect to login with invite token preserved
-          router.replace(`/?registered=1&invite=${encodeURIComponent(inviteToken)}`)
+          // Use window.location.href to ensure proper navigation
+          window.location.href = `/?registered=1&invite=${encodeURIComponent(inviteToken)}`
         } else {
           // Redirect to login page with a success message
           router.replace('/?registered=1')

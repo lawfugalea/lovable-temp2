@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/router'
 import ModernAppShell from '../components/ModernAppShell'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -53,31 +54,53 @@ interface MedicineDose {
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
+  const router = useRouter()
   const [householdId, setHouseholdId] = useState<string>('')
   const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([])
   const [totalItems, setTotalItems] = useState(0)
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [recentDoses, setRecentDoses] = useState<MedicineDose[]>([])
   const [loading, setLoading] = useState(true)
+  const [showJoinSuccess, setShowJoinSuccess] = useState(false)
 
-  // Get household ID
+  // Check for join success message
+  useEffect(() => {
+    if (router.query.joined === '1') {
+      setShowJoinSuccess(true)
+      // Clear the query parameter from URL
+      router.replace('/dashboard', undefined, { shallow: true })
+      // Hide success message after 5 seconds
+      setTimeout(() => setShowJoinSuccess(false), 5000)
+    }
+  }, [router.query.joined, router])
+
+  // Get household ID and load data
   useEffect(() => {
     if (status === 'authenticated') {
-      fetch('/api/household/active')
-        .then(res => res.json())
-        .then(data => {
-          if (data.householdId) {
-            setHouseholdId(data.householdId)
-            loadShoppingData(data.householdId)
-            loadMedicineData(data.householdId)
-          }
-          setLoading(false)
-        })
-        .catch(() => setLoading(false))
+      loadHouseholdData()
     } else if (status === 'unauthenticated') {
       setLoading(false)
     }
   }, [status])
+
+  const loadHouseholdData = async () => {
+    try {
+      const res = await fetch('/api/household/active')
+      const data = await res.json()
+      
+      if (data.householdId) {
+        setHouseholdId(data.householdId)
+        await Promise.all([
+          loadShoppingData(data.householdId),
+          loadMedicineData(data.householdId)
+        ])
+      }
+    } catch (error) {
+      console.error('Failed to load household data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const loadShoppingData = async (hid: string) => {
     try {
@@ -183,6 +206,31 @@ export default function DashboardPage() {
           <h1 className="text-3xl font-bold text-cozy-text">Welcome Home</h1>
           <p className="text-cozy-text-muted">Your cozy home hub awaits</p>
         </div>
+
+        {/* Join Success Message */}
+        {showJoinSuccess && (
+          <Card className="border-green-200 bg-green-50 animate-cozy-bounce-in">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="text-green-600 text-2xl">🎉</div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-800">
+                    Welcome to your new household!
+                  </h3>
+                  <p className="text-sm text-green-700">
+                    You&apos;ve successfully joined the household. Your data is being loaded...
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setShowJoinSuccess(false)}
+                  className="text-green-600 hover:text-green-800 text-sm underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Medicine Alerts */}
         {dueMedicines.length > 0 && (

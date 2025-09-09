@@ -42,7 +42,8 @@ export default function HomePage() {
         // Authentication was successful
         if (router.query.next) {
           // Redirect to the next URL (e.g., invite acceptance)
-          router.push(router.query.next as string)
+          // Use window.location.href to ensure full page reload for proper session handling
+          window.location.href = router.query.next as string
         } else {
           // Default redirect to dashboard
           router.push('/dashboard')
