@@ -351,21 +351,21 @@ export default function AdminPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-cozy-cream p-1 rounded-lg">
+        <div className="flex space-x-1 bg-cozy-cream p-1 rounded-lg overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === tab.id
                     ? 'bg-white text-cozy-primary shadow-sm'
                     : 'text-cozy-text-muted hover:text-cozy-text'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                {tab.name}
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden sm:inline">{tab.name}</span>
               </button>
             );
           })}
@@ -375,56 +375,64 @@ export default function AdminPage() {
         {activeTab === 'overview' && stats && (
           <div className="space-y-6">
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.overview.totalUsers}</div>
-                  <p className="text-xs text-muted-foreground">
-                    +{stats.overview.recentUsers} new this week
-                  </p>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-cozy-text-muted">Total Users</p>
+                      <p className="text-lg font-bold text-cozy-text">{stats.overview.totalUsers}</p>
+                      <p className="text-xs text-cozy-text-muted">
+                        +{stats.overview.recentUsers} new this week
+                      </p>
+                    </div>
+                    <Users className="h-4 w-4 text-cozy-text-muted" />
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Households</CardTitle>
-                  <Home className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.overview.totalHouseholds}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats.overview.activeHouseholds} active
-                  </p>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-cozy-text-muted">Households</p>
+                      <p className="text-lg font-bold text-cozy-text">{stats.overview.totalHouseholds}</p>
+                      <p className="text-xs text-cozy-text-muted">
+                        {stats.overview.activeHouseholds} active
+                      </p>
+                    </div>
+                    <Home className="h-4 w-4 text-cozy-text-muted" />
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Shopping Items</CardTitle>
-                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.overview.totalShoppingItems}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats.shopping.activeItems} active, {stats.shopping.completedItems} done
-                  </p>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-cozy-text-muted">Shopping Items</p>
+                      <p className="text-lg font-bold text-cozy-text">{stats.overview.totalShoppingItems}</p>
+                      <p className="text-xs text-cozy-text-muted">
+                        {stats.shopping.activeItems} active, {stats.shopping.completedItems} done
+                      </p>
+                    </div>
+                    <ShoppingCart className="h-4 w-4 text-cozy-text-muted" />
+                  </div>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Medicines</CardTitle>
-                  <Pill className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{stats.overview.totalMedicines}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {stats.medicine.activeMedicines} active
-                  </p>
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-medium text-cozy-text-muted">Medicines</p>
+                      <p className="text-lg font-bold text-cozy-text">{stats.overview.totalMedicines}</p>
+                      <p className="text-xs text-cozy-text-muted">
+                        {stats.medicine.activeMedicines} active
+                      </p>
+                    </div>
+                    <Pill className="h-4 w-4 text-cozy-text-muted" />
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -469,35 +477,38 @@ export default function AdminPage() {
             <CardContent>
               <div className="space-y-4">
                 {users.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border border-cozy-gray-200 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-cozy-primary rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium">
-                            {user.name?.charAt(0)?.toUpperCase() || user.email.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="font-medium">{user.name || 'No name'}</p>
-                          <p className="text-sm text-cozy-text-muted">{user.email}</p>
-                          <p className="text-xs text-cozy-text-muted">
-                            Joined: {formatDate(user.createdAt)}
-                          </p>
-                        </div>
+                  <div key={user.id} className="p-4 border border-cozy-gray-200 rounded-lg space-y-4">
+                    {/* User Info */}
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-cozy-primary rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-medium">
+                          {user.name?.charAt(0)?.toUpperCase() || user.email.charAt(0).toUpperCase()}
+                        </span>
                       </div>
-                      <div className="mt-2 flex gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {user.ownedHouseholds.length} households owned
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {user.memberships.length} memberships
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {user._count.shoppingItemsCreated} items created
-                        </Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{user.name || 'No name'}</p>
+                        <p className="text-sm text-cozy-text-muted truncate">{user.email}</p>
+                        <p className="text-xs text-cozy-text-muted">
+                          Joined: {formatDate(user.createdAt)}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    
+                    {/* Badges */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {user.ownedHouseholds.length} households owned
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {user.memberships.length} memberships
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {user._count.shoppingItemsCreated} items created
+                      </Badge>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => adminUserAction(user.id, 'reconcile')} title="Reconcile active household">
                         <RefreshCw className="w-4 h-4" />
                       </Button>
@@ -545,38 +556,41 @@ export default function AdminPage() {
             <CardContent>
               <div className="space-y-4">
                 {households.map((household) => (
-                  <div key={household.id} className="flex items-center justify-between p-4 border border-cozy-gray-200 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-cozy-primary rounded-full flex items-center justify-center">
-                          <Home className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{household.name}</p>
-                          <p className="text-sm text-cozy-text-muted">
-                            Owner: {household.owner.name || household.owner.email}
-                          </p>
-                          <p className="text-xs text-cozy-text-muted">
-                            Created: {formatDate(household.createdAt)}
-                          </p>
-                        </div>
+                  <div key={household.id} className="p-4 border border-cozy-gray-200 rounded-lg space-y-4">
+                    {/* Household Info */}
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-cozy-primary rounded-full flex items-center justify-center flex-shrink-0">
+                        <Home className="w-5 h-5 text-white" />
                       </div>
-                      <div className="mt-2 flex gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {household._count.members} members
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {household._count.shoppingLists} lists
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {household._count.children} children
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {household.invites.length} invites
-                        </Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{household.name}</p>
+                        <p className="text-sm text-cozy-text-muted truncate">
+                          Owner: {household.owner.name || household.owner.email}
+                        </p>
+                        <p className="text-xs text-cozy-text-muted">
+                          Created: {formatDate(household.createdAt)}
+                        </p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    
+                    {/* Badges */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {household._count.members} members
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {household._count.shoppingLists} lists
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {household._count.children} children
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {household.invites.length} invites
+                      </Badge>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" title="Transfer ownership" onClick={async () => {
                         const uid = prompt('Enter new owner userId:');
                         if (!uid) return; await transferOwnership(household.id, uid);
@@ -614,12 +628,12 @@ export default function AdminPage() {
             <CardContent>
               <div className="space-y-3">
                 {invites.map((i) => (
-                  <div key={i.id} className="flex items-center justify-between p-3 border border-cozy-gray-200 rounded-lg">
+                  <div key={i.id} className="p-3 border border-cozy-gray-200 rounded-lg space-y-3">
                     <div>
-                      <p className="font-medium">{i.email || 'Open invite'} → {i.household.name}</p>
+                      <p className="font-medium truncate">{i.email || 'Open invite'} → {i.household.name}</p>
                       <p className="text-xs text-cozy-text-muted">Role: {i.role} • Status: {i.status} • Expires: {formatDate(i.expiresAt)}</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={async () => {
                         const url = await getAcceptUrl(i.token);
                         if (url) {
