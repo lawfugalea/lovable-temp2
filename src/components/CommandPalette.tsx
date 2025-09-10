@@ -22,7 +22,6 @@ import {
   ArrowRight,
   Hash,
   Pill,
-  Gift
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -88,13 +87,13 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       keywords: ['medicine', 'medication', 'children', 'kids', 'health']
     },
     {
-      id: 'nav-gift-wishlist',
-      title: 'Go to Gift Wishlist',
-      description: 'Manage your family\'s gift wishlist',
-      icon: Gift,
-      action: () => router.push('/gift-wishlist'),
+      id: 'nav-notes',
+      title: 'Go to Notes',
+      description: 'Manage your personal and shared notes',
+      icon: FileText,
+      action: () => router.push('/notes'),
       category: 'Navigation',
-      keywords: ['gift', 'wishlist', 'presents', 'birthday', 'christmas', 'holidays']
+      keywords: ['notes', 'writing', 'personal', 'shared', 'memo', 'journal']
     },
     {
       id: 'nav-settings',
@@ -164,16 +163,16 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       keywords: ['add', 'income', 'salary', 'money']
     },
     {
-      id: 'add-gift',
-      title: 'Add Gift to Wishlist',
-      description: 'Add a new gift to your wishlist',
-      icon: Gift,
+      id: 'add-note',
+      title: 'Add New Note',
+      description: 'Create a new personal or shared note',
+      icon: FileText,
       action: () => {
-        router.push('/gift-wishlist')
-        // Could trigger add gift modal here
+        router.push('/notes')
+        // Could trigger add note modal here
       },
       category: 'Quick Actions',
-      keywords: ['add', 'gift', 'wishlist', 'present', 'birthday']
+      keywords: ['add', 'note', 'writing', 'memo', 'personal', 'shared']
     },
 
     // Settings

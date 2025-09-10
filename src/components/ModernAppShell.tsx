@@ -16,7 +16,7 @@ import {
   Command,
   Pill,
   Shield,
-  Gift
+  FileText
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
@@ -29,7 +29,7 @@ const navigation = [
   { name: 'Shopping', href: '/shopping', icon: ShoppingCart },
   { name: 'Finance Planner', href: '/finances', icon: DollarSign },
   { name: 'Medicine', href: '/medicine', icon: Pill },
-  { name: 'Gift Wishlist', href: '/gift-wishlist', icon: Gift },
+  { name: 'Notes', href: '/notes', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },
   { name: 'Household', href: '/household', icon: Users },
 ]

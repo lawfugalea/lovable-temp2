@@ -101,6 +101,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'Child not found' })
       }
 
+      // Handle datetime-local input which comes as "2024-01-15T14:30"
+      // This is local time, so we need to treat it as such
+      let takenAtDate
+      if (takenAt && takenAt.includes('T') && !takenAt.includes('Z') && !takenAt.includes('+')) {
+        // This is a datetime-local format, treat as local time
+        const [datePart, timePart] = takenAt.split('T')
+        const [year, month, day] = datePart.split('-')
+        const [hour, minute] = timePart.split(':')
+        takenAtDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
+      } else {
+        takenAtDate = takenAt ? new Date(takenAt) : new Date()
+      }
+
       const reading = await prisma.feverReading.create({
         data: {
           childId,
@@ -109,7 +122,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           method,
           notes,
           takenBy,
-          takenAt: takenAt ? new Date(takenAt) : new Date()
+          takenAt: takenAtDate
         },
         include: {
           child: {
@@ -163,6 +176,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(404).json({ error: 'Child not found' })
       }
 
+      // Handle datetime-local input which comes as "2024-01-15T14:30"
+      // This is local time, so we need to treat it as such
+      let takenAtDate
+      if (takenAt && takenAt.includes('T') && !takenAt.includes('Z') && !takenAt.includes('+')) {
+        // This is a datetime-local format, treat as local time
+        const [datePart, timePart] = takenAt.split('T')
+        const [year, month, day] = datePart.split('-')
+        const [hour, minute] = timePart.split(':')
+        takenAtDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
+      } else {
+        takenAtDate = takenAt ? new Date(takenAt) : existingReading.takenAt
+      }
+
       const updatedReading = await prisma.feverReading.update({
         where: { id },
         data: {
@@ -172,7 +198,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           method,
           notes,
           takenBy,
-          takenAt: takenAt ? new Date(takenAt) : existingReading.takenAt
+          takenAt: takenAtDate
         },
         include: {
           child: {

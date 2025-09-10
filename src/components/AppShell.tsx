@@ -8,6 +8,7 @@ const nav = [
   { href: "/overview", label: "Overview", icon: "🏠" },
   { href: "/finances", label: "Finances", icon: "💰" },
   { href: "/shopping", label: "Shopping", icon: "🧺" },
+  { href: "/notes", label: "Notes", icon: "📝" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
   { href: "/household", label: "Household", icon: "👪" },
 ];

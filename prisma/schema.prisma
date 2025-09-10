@@ -32,6 +32,9 @@ model User {
   shoppingItemsCreated   ShoppingItem[] @relation("ShoppingItemCreatedBy")
   shoppingItemsCompleted ShoppingItem[] @relation("ShoppingItemDoneBy")
   activeHousehold        Household?     @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id])
+  notesCreated           Note[]         @relation("NoteCreatedBy")
+  noteCollaborations     NoteCollaborator[] @relation("NoteCollaborator")
+  noteCollaborationsAdded NoteCollaborator[] @relation("NoteCollaboratorAddedBy")
 }
 
 model Household {
@@ -46,6 +49,7 @@ model Household {
   shoppingLists  ShoppingList[]
   activeForUsers User[]         @relation("ActiveHousehold")
   children       Child[]
+  notes          Note[]
 }
 
 model Membership {
@@ -309,4 +313,54 @@ model FeverReading {
 
   @@index([childId, takenAt])
   @@index([takenAt])
+}
+
+// Notes System Models
+model Note {
+  id          String   @id @default(cuid())
+  title       String
+  content     String   // Rich text content (HTML or Markdown)
+  isShared    Boolean  @default(false) // true = shared with household, false = personal
+  color       String   @default("yellow") // Note color theme
+  isPinned    Boolean  @default(false) // Pin important notes
+  isArchived  Boolean  @default(false) // Archive old notes
+  createdById String
+  householdId String?  // null for personal notes, set for shared notes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  createdBy   User     @relation("NoteCreatedBy", fields: [createdById], references: [id])
+  household   Household? @relation(fields: [householdId], references: [id])
+  collaborators NoteCollaborator[] // Users who can edit shared notes
+  
+  @@index([createdById])
+  @@index([householdId])
+  @@index([isShared])
+  @@index([isPinned])
+  @@index([isArchived])
+  @@index([updatedAt])
+}
+
+model NoteCollaborator {
+  id        String   @id @default(cuid())
+  noteId    String
+  userId    String
+  role      NoteRole @default(VIEWER) // VIEWER, EDITOR
+  addedAt   DateTime @default(now())
+  addedById String   // Who added this collaborator
+  
+  // Relations
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user      User     @relation("NoteCollaborator", fields: [userId], references: [id])
+  addedBy   User     @relation("NoteCollaboratorAddedBy", fields: [addedById], references: [id])
+  
+  @@unique([noteId, userId])
+  @@index([noteId])
+  @@index([userId])
+}
+
+enum NoteRole {
+  VIEWER
+  EDITOR
 }

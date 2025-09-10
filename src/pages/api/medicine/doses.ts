@@ -58,8 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let takenAtDate
       if (takenAt.includes('T') && !takenAt.includes('Z') && !takenAt.includes('+')) {
         // This is a datetime-local format, treat as local time
-        takenAtDate = new Date(takenAt + ':00.000Z') // Add seconds and treat as UTC to preserve the exact time
-        // Actually, we need to create the date in local timezone
+        // Parse the local time and create a Date object that represents the local time
         const [datePart, timePart] = takenAt.split('T')
         const [year, month, day] = datePart.split('-')
         const [hour, minute] = timePart.split(':')
