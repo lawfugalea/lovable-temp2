@@ -87,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Prevent deleting household owned by admin
-      if (household.owner.email === 'lawfinuu@gmail.com') {
+      if (household.owner && household.owner.email === 'lawfinuu@gmail.com') {
         return res.status(400).json({ error: 'Cannot delete admin household' });
       }
 
