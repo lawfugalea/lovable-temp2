@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       valid: true,
       householdName: invite.household.name,
-      inviterName: invite.household.owner.name
+      inviterName: invite.household.owner?.name || 'Household Member'
     });
   } catch (error) {
     console.error("Invite validation error:", error);

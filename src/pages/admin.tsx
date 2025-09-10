@@ -450,7 +450,7 @@ export default function AdminPage() {
                       <div>
                         <p className="font-medium">{household.name}</p>
                         <p className="text-sm text-cozy-text-muted">
-                          Owner: {household.owner.name || household.owner.email}
+                          Owner: {household.owner?.name || household.owner?.email || 'No Owner'}
                         </p>
                       </div>
                       <div className="text-right">
@@ -565,7 +565,7 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{household.name}</p>
                         <p className="text-sm text-cozy-text-muted truncate">
-                          Owner: {household.owner.name || household.owner.email}
+                          Owner: {household.owner?.name || household.owner?.email || 'No Owner'}
                         </p>
                         <p className="text-xs text-cozy-text-muted">
                           Created: {formatDate(household.createdAt)}
@@ -601,7 +601,7 @@ export default function AdminPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => deleteHousehold(household.id)}
-                        disabled={deleting === household.id || household.owner.email === 'lawfinuu@gmail.com'}
+                        disabled={deleting === household.id || household.owner?.email === 'lawfinuu@gmail.com'}
                         className="text-red-600 hover:text-red-700"
                       >
                         {deleting === household.id ? (
