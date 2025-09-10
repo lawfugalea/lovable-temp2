@@ -15,6 +15,7 @@ export default function InvitePanel() {
   const { data: session, status } = useSession();
   const [householdId, setHouseholdId] = useState('');
   const [email, setEmail] = useState('');
+  const [role, setRole] = useState<'MEMBER' | 'OWNER'>('MEMBER');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CreateInviteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +51,7 @@ async function onInviteClick() {
     const r = await fetch('/api/household/invites', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ householdId, email: email.trim().toLowerCase(), role: 'MEMBER' }),
+      body: JSON.stringify({ householdId, email: email.trim().toLowerCase(), role }),
     });
 
     // Be robust if the server ever returns plain text (e.g., "Unauthorized")
@@ -87,7 +88,7 @@ async function onInviteClick() {
         Household:&nbsp;<span className="font-mono">{householdId || '—'}</span>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2">
+      <div className="space-y-3">
         <input
           type="email"
           value={email}
@@ -95,17 +96,46 @@ async function onInviteClick() {
           placeholder="partner@example.com"
           className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/60"
         />
+        
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-600">Role:</span>
+          <div className="flex gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="role"
+                value="MEMBER"
+                checked={role === 'MEMBER'}
+                onChange={(e) => setRole(e.target.value as 'MEMBER' | 'OWNER')}
+                className="text-fuchsia-600 focus:ring-fuchsia-500"
+              />
+              <span className="text-sm text-gray-700">Member</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="role"
+                value="OWNER"
+                checked={role === 'OWNER'}
+                onChange={(e) => setRole(e.target.value as 'MEMBER' | 'OWNER')}
+                className="text-fuchsia-600 focus:ring-fuchsia-500"
+              />
+              <span className="text-sm text-gray-700">Owner</span>
+            </label>
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={onInviteClick}
           disabled={disabled}
-          className={`rounded-xl px-4 py-2 text-sm font-medium transition ${
+          className={`w-full rounded-xl px-4 py-2 text-sm font-medium transition ${
             disabled
               ? 'cursor-not-allowed bg-gray-200 text-gray-500'
               : 'bg-fuchsia-600 text-white hover:bg-fuchsia-700 shadow-sm'
           }`}
         >
-          {submitting ? 'Sending…' : 'Invite'}
+          {submitting ? 'Sending…' : `Invite as ${role}`}
         </button>
       </div>
 

@@ -40,10 +40,10 @@ model User {
 model Household {
   id             String         @id @default(cuid())
   name           String
-  ownerId        String
+  ownerId        String?        // Made nullable to support multiple owners
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-  owner          User           @relation("OwnerHouseholds", fields: [ownerId], references: [id])
+  owner          User?          @relation("OwnerHouseholds", fields: [ownerId], references: [id])
   invites        Invite[]
   members        Membership[]
   shoppingLists  ShoppingList[]

@@ -64,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const household = await prisma.$transaction(async (tx) => {
       const h = await tx.household.create({
-        data: { name: defaultName, ownerId: user!.id },
+        data: { name: defaultName, ownerId: user!.id }, // Keep ownerId for backward compatibility
         select: { id: true },
       });
 
