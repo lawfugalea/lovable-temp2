@@ -118,7 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           name: template.name,
           dosage: template.dosage,
           frequency: template.frequency,
-          notes: template.notes
+          notes: template.notes || undefined
         }
       }
 

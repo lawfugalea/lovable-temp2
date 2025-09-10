@@ -473,7 +473,7 @@ export default function GiftWishlistPage() {
             </div>
             <h2 className="text-xl font-semibold text-cozy-text mb-2">Authentication Required</h2>
             <p className="text-cozy-text-muted mb-4">
-              You need to be logged in to access your family's gift wishlist.
+              You need to be logged in to access your family&apos;s gift wishlist.
             </p>
             <Button 
               onClick={() => window.location.href = '/api/auth/signin'}
@@ -497,7 +497,7 @@ export default function GiftWishlistPage() {
             </div>
             <h2 className="text-xl font-semibold text-cozy-text mb-2">Setting Up Your Wishlist</h2>
             <p className="text-cozy-text-muted mb-4">
-              We're setting up your family's gift wishlist. This may take a moment.
+              We&apos;re setting up your family&apos;s gift wishlist. This may take a moment.
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-cozy-text-muted">
               <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -588,7 +588,7 @@ export default function GiftWishlistPage() {
                 Add New Note
               </button>
               <span className="text-sm text-gray-500">
-                Or click "Take a note..." below to start typing
+                Or click &quot;Take a note...&quot; below to start typing
               </span>
             </div>
           </div>

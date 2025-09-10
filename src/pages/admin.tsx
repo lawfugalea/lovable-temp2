@@ -456,7 +456,7 @@ export default function AdminPage() {
                       <div className="text-right">
                         <p className="text-sm font-medium">{household._count.shoppingLists} lists</p>
                         <p className="text-xs text-cozy-text-muted">
-                          {household._count.members} members
+                          {(household._count as any).activeForUsers || (household._count as any).members} members
                         </p>
                       </div>
                     </div>
@@ -576,7 +576,7 @@ export default function AdminPage() {
                     {/* Badges */}
                     <div className="flex flex-wrap gap-2">
                       <Badge variant="outline" className="text-xs">
-                        {household._count.members} members
+                        {(household._count as any).activeForUsers || (household._count as any).members} members
                       </Badge>
                       <Badge variant="outline" className="text-xs">
                         {household._count.shoppingLists} lists

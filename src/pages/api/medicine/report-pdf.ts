@@ -246,7 +246,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           pdf.setFontSize(9)
           pdf.setFont('helvetica', 'normal')
           pdf.setTextColor(0, 0, 0)
-          yPosition = addText(`  Child: ${medicine.child.name}`, 30, yPosition, pageWidth - 50, 9)
+          yPosition = addText(`  Child: ${medicine.child?.name || 'Template'}`, 30, yPosition, pageWidth - 50, 9)
           yPosition = addText(`  Dosage: ${medicine.dosage}`, 30, yPosition, pageWidth - 50, 9)
           yPosition = addText(`  Frequency: ${medicine.frequency}`, 30, yPosition, pageWidth - 50, 9)
           

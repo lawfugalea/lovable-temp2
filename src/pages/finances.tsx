@@ -752,7 +752,7 @@ export default function FinancesPage() {
             </div>
             <h2 className="text-xl font-semibold text-cozy-text mb-2">Setting Up Your Household</h2>
             <p className="text-cozy-text-muted mb-4">
-              We're creating or locating your household workspace. This may take a moment while we set up your financial planning environment.
+              We&apos;re creating or locating your household workspace. This may take a moment while we set up your financial planning environment.
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-cozy-text-muted">
               <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -1249,7 +1249,7 @@ export default function FinancesPage() {
                   ) : (
                     <div className="space-y-3">
                       <div className="text-sm text-orange-700 mb-3">
-                        You're over-allocated by {formatCurrency(Math.abs(unallocatedAmount))}. Choose how to reduce:
+                        You&apos;re over-allocated by {formatCurrency(Math.abs(unallocatedAmount))}. Choose how to reduce:
                       </div>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1760,7 +1760,7 @@ export default function FinancesPage() {
                   <div className="p-4 bg-gradient-to-r from-cozy-primary/10 to-cozy-accent/10 rounded-lg">
                     <h5 className="font-semibold text-cozy-text mb-2">Growth Insights</h5>
                     <div className="space-y-1 text-sm text-cozy-text-muted">
-                      <div>• You'll save €{(autoSavingsTarget * 12).toLocaleString()} per year</div>
+                      <div>• You&apos;ll save €{(autoSavingsTarget * 12).toLocaleString()} per year</div>
                       <div>• Total growth over 5 years: €{(autoSavingsTarget * 12 * 5).toLocaleString()}</div>
                       <div>• Your savings will {currentSavings > 0 ? 'grow by' : 'reach'} {((autoSavingsTarget * 12 * 5) / currentSavings * 100).toFixed(0)}%</div>
                     </div>
