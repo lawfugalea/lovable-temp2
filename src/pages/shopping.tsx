@@ -59,6 +59,16 @@ export default function ShoppingPage() {
   const [showPopularItems, setShowPopularItems] = useState(false)
   const [showAllResults, setShowAllResults] = useState(false)
   const [allSearchResults, setAllSearchResults] = useState<any[]>([])
+  
+  // Enhanced search functionality
+  const [searchHistory, setSearchHistory] = useState<string[]>([])
+  const [searchCache, setSearchCache] = useState<Record<string, any[]>>({})
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
+  
+  // Popular search terms
+  const popularSearches = ['milk', 'bread', 'eggs', 'chicken', 'pasta', 'rice', 'cheese', 'yogurt', 'apples', 'bananas']
   // Search modal removed for simplified UX
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showItemModal, setShowItemModal] = useState(false)
@@ -74,6 +84,23 @@ export default function ShoppingPage() {
 
   // Lists are now managed by ListPicker component via useSWR
   // This eliminates duplicate API calls and improves performance
+
+  // Keyboard shortcuts for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'k') {
+        e.preventDefault()
+        // Focus search input
+        const searchInput = document.querySelector('input[placeholder*="Search products"]') as HTMLInputElement
+        if (searchInput) {
+          searchInput.focus()
+        }
+      }
+    }
+    
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   // Load templates
   useEffect(() => {
@@ -171,7 +198,7 @@ export default function ShoppingPage() {
     setItemLoading(false) // No need to load since we already have the data
   }
 
-  // Search suggestions with debouncing
+  // Enhanced search suggestions with caching and better debouncing
   const searchSuggestions = (query: string) => {
     // Clear existing timeout
     if (searchTimeout) {
@@ -182,12 +209,26 @@ export default function ShoppingPage() {
       setSuggestions([])
       setShowSuggestions(false)
       setSearchLoading(false)
+      setSelectedIndex(-1)
+      return
+    }
+
+    // Check cache first
+    const cacheKey = query.trim().toLowerCase()
+    if (searchCache[cacheKey]) {
+      setSuggestions(searchCache[cacheKey])
+      setShowSuggestions(true)
+      setSearchLoading(false)
+      setSelectedIndex(-1)
       return
     }
 
     setSearchLoading(true)
+    setShowSuggestions(false)
+    setShowPopularItems(false)
+    setSelectedIndex(-1)
 
-    // Debounce the search
+    // Increased debounce time for better performance
     const timeout = setTimeout(async () => {
       try {
         // Clean the query for better results
@@ -290,11 +331,17 @@ export default function ShoppingPage() {
           return score
         }
         
+        // Cache the results for future use
+        setSearchCache(prev => ({ ...prev, [cacheKey]: sortedItems }))
+        
         // Store all results and show initial batch
         setAllSearchResults(sortedItems)
-        setSuggestions(sortedItems.slice(0, 30)) // Show first 30 results in modal
+        setSuggestions(sortedItems.slice(0, 30)) // Show first 30 results
         setShowAllResults(false) // Reset show all state
         setShowSuggestions(true)
+        
+        // Add to search history
+        addToSearchHistory(cleanQuery)
         
         // Show suggestions inline instead of opening modal
         if (sortedItems.length > 0) {
@@ -306,12 +353,47 @@ export default function ShoppingPage() {
       } finally {
         setSearchLoading(false)
       }
-    }, 300) // 300ms debounce
+    }, 500) // 500ms debounce for better performance
 
     setSearchTimeout(timeout)
   }
 
   // List creation is now handled by ListPicker component
+
+  // Helper functions for enhanced search
+  const addToSearchHistory = (query: string) => {
+    if (query.trim() && !searchHistory.includes(query)) {
+      setSearchHistory(prev => [query, ...prev.slice(0, 4)]) // Keep last 5 searches
+    }
+  }
+
+  const showSearchSuggestions = () => {
+    setSearchSuggestions(popularSearches)
+    setShowSearchSuggestions(true)
+  }
+
+  const handleSearchSuggestionClick = (suggestion: string) => {
+    setNewItemTitle(suggestion)
+    setShowSearchSuggestions(false)
+    searchSuggestions(suggestion)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedIndex(prev => Math.min(prev + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedIndex(prev => Math.max(prev - 1, -1))
+    } else if (e.key === 'Enter' && selectedIndex >= 0) {
+      e.preventDefault()
+      handleItemClick(suggestions[selectedIndex])
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+      setShowSearchSuggestions(false)
+      setSelectedIndex(-1)
+    }
+  }
 
   const handleAddToCart = async (item: any) => {
     console.log('handleAddToCart called with:', { selectedListId, listsLength: lists.length, item })
@@ -584,30 +666,79 @@ export default function ShoppingPage() {
                     <div className="flex gap-2">
                       <div className="flex-1 relative" style={{ position: 'relative', zIndex: 1 }}>
                         <Input
-                          placeholder="🛒 Search products (e.g., 'coca', 'milk', 'bread')..."
+                          placeholder="🛒 Search products (e.g., 'coca', 'milk', 'bread')... (Ctrl+K to focus)"
                           value={newItemTitle}
                           onChange={(e) => {
                             setNewItemTitle(e.target.value)
                             searchSuggestions(e.target.value)
+                            setSelectedIndex(-1) // Reset selection when typing
                           }}
-                          onKeyPress={(e) => e.key === 'Enter' && addItem()}
+                          onKeyDown={handleKeyDown}
+                          onKeyPress={(e) => e.key === 'Enter' && selectedIndex === -1 && addItem()}
                           onFocus={() => {
                             if (suggestions.length > 0) {
                               setShowSuggestions(true)
                             } else if (newItemTitle.length === 0) {
-                              loadPopularItems()
+                              showSearchSuggestions()
                             }
-                            // Search experience simplified - no modal needed
                           }}
                           onBlur={() => {
                             // Delay hiding suggestions to allow clicking
                             setTimeout(() => {
                               setShowSuggestions(false)
                               setShowPopularItems(false)
+                              setShowSearchSuggestions(false)
+                              setSelectedIndex(-1)
                             }, 200)
                           }}
                           className="w-full border-2 border-cozy-gray-200 focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20"
                         />
+                      {/* Search suggestions dropdown */}
+                      {showSearchSuggestions && searchSuggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-cozy-lg max-h-60 overflow-y-auto" style={{ position: 'absolute', zIndex: 40, top: '100%', left: 0, right: 0 }}>
+                          <div className="p-2 border-b border-cozy-gray-100">
+                            <div className="text-xs font-medium text-cozy-text-muted uppercase tracking-wide">
+                              🔍 Popular Searches
+                            </div>
+                          </div>
+                          {searchSuggestions.map((suggestion, index) => (
+                            <div
+                              key={suggestion}
+                              className="p-3 hover:bg-cozy-cream cursor-pointer border-b border-cozy-gray-50 last:border-b-0 transition-colors"
+                              onClick={() => handleSearchSuggestionClick(suggestion)}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="text-cozy-text-muted">🔍</span>
+                                <span className="text-sm text-cozy-text">{suggestion}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Search history dropdown */}
+                      {showSearchSuggestions && searchHistory.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-cozy-lg max-h-60 overflow-y-auto" style={{ position: 'absolute', zIndex: 40, top: '100%', left: 0, right: 0 }}>
+                          <div className="p-2 border-b border-cozy-gray-100">
+                            <div className="text-xs font-medium text-cozy-text-muted uppercase tracking-wide">
+                              🕒 Recent Searches
+                            </div>
+                          </div>
+                          {searchHistory.map((historyItem, index) => (
+                            <div
+                              key={historyItem}
+                              className="p-3 hover:bg-cozy-cream cursor-pointer border-b border-cozy-gray-50 last:border-b-0 transition-colors"
+                              onClick={() => handleSearchSuggestionClick(historyItem)}
+                            >
+                              <div className="flex items-center space-x-2">
+                                <span className="text-cozy-text-muted">🕒</span>
+                                <span className="text-sm text-cozy-text">{historyItem}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Search loading indicator */}
                       {searchLoading && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-cozy-lg p-4" style={{ position: 'absolute', zIndex: 40, top: '100%', left: 0, right: 0 }}>
@@ -627,8 +758,11 @@ export default function ShoppingPage() {
                                 {showPopularItems ? (
                                   <>⭐ Popular Products ({suggestions.length})</>
                                 ) : (
-                                  <>🛒 Smart Supermarket Products ({suggestions.length}{allSearchResults.length > 10 && !showAllResults ? ` of ${allSearchResults.length}` : ''})</>
+                                  <>🛒 Smart Supermarket Products ({suggestions.length}{allSearchResults.length > 30 && !showAllResults ? ` of ${allSearchResults.length}` : ''})</>
                                 )}
+                              </div>
+                              <div className="text-xs text-cozy-text-muted">
+                                {allSearchResults.length > 0 ? `Found ${allSearchResults.length} products` : 'No results found'}
                               </div>
                               {!showPopularItems && allSearchResults.length > 10 && (
                                 <div className="flex space-x-2">
@@ -654,7 +788,11 @@ export default function ShoppingPage() {
                           {suggestions.map((suggestion, index) => (
                             <div
                               key={suggestion.id || index}
-                              className="p-3 hover:bg-cozy-cream cursor-pointer border-b border-cozy-gray-50 last:border-b-0 transition-colors"
+                              className={`p-3 cursor-pointer border-b border-cozy-gray-50 last:border-b-0 transition-colors ${
+                                selectedIndex === index 
+                                  ? 'bg-cozy-primary/10 border-cozy-primary/20' 
+                                  : 'hover:bg-cozy-cream'
+                              }`}
                               onClick={() => handleItemClick(suggestion)}
                             >
                               <div className="flex items-start space-x-3">
@@ -665,6 +803,7 @@ export default function ShoppingPage() {
                                       src={suggestion.imageUrl}
                                       alt={suggestion.title}
                                       className="w-12 h-12 object-cover rounded-lg border border-cozy-gray-200"
+                                      loading="lazy"
                                       onError={(e) => {
                                         e.currentTarget.style.display = 'none'
                                       }}
