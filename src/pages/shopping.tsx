@@ -64,11 +64,107 @@ export default function ShoppingPage() {
   const [searchHistory, setSearchHistory] = useState<string[]>([])
   const [searchCache, setSearchCache] = useState<Record<string, any[]>>({})
   const [selectedIndex, setSelectedIndex] = useState(-1)
-  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([])
+  const [popularSearchTerms, setPopularSearchTerms] = useState<string[]>([])
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false)
   
   // Popular search terms
   const popularSearches = ['milk', 'bread', 'eggs', 'chicken', 'pasta', 'rice', 'cheese', 'yogurt', 'apples', 'bananas']
+
+  // Smart icon system for products without images
+  const getProductIcon = (title: string) => {
+    const titleLower = title.toLowerCase()
+    
+    // Dairy products
+    if (titleLower.includes('milk') || titleLower.includes('cheese') || titleLower.includes('yogurt') || 
+        titleLower.includes('butter') || titleLower.includes('cream') || titleLower.includes('dairy')) {
+      return '🥛'
+    }
+    
+    // Meat & Protein
+    if (titleLower.includes('chicken') || titleLower.includes('beef') || titleLower.includes('pork') || 
+        titleLower.includes('fish') || titleLower.includes('meat') || titleLower.includes('sausage') ||
+        titleLower.includes('ham') || titleLower.includes('bacon')) {
+      return '🥩'
+    }
+    
+    // Fruits
+    if (titleLower.includes('apple') || titleLower.includes('banana') || titleLower.includes('orange') || 
+        titleLower.includes('grape') || titleLower.includes('berry') || titleLower.includes('fruit') ||
+        titleLower.includes('lemon') || titleLower.includes('lime') || titleLower.includes('peach') ||
+        titleLower.includes('pear') || titleLower.includes('strawberry')) {
+      return '🍎'
+    }
+    
+    // Vegetables
+    if (titleLower.includes('tomato') || titleLower.includes('onion') || titleLower.includes('carrot') || 
+        titleLower.includes('lettuce') || titleLower.includes('cucumber') || titleLower.includes('pepper') ||
+        titleLower.includes('potato') || titleLower.includes('vegetable') || titleLower.includes('spinach') ||
+        titleLower.includes('broccoli') || titleLower.includes('cabbage')) {
+      return '🥕'
+    }
+    
+    // Bread & Bakery
+    if (titleLower.includes('bread') || titleLower.includes('roll') || titleLower.includes('bagel') || 
+        titleLower.includes('croissant') || titleLower.includes('muffin') || titleLower.includes('cake') ||
+        titleLower.includes('cookie') || titleLower.includes('pastry') || titleLower.includes('biscuit')) {
+      return '🍞'
+    }
+    
+    // Beverages
+    if (titleLower.includes('water') || titleLower.includes('juice') || titleLower.includes('soda') || 
+        titleLower.includes('coffee') || titleLower.includes('tea') || titleLower.includes('beer') ||
+        titleLower.includes('wine') || titleLower.includes('drink') || titleLower.includes('coca') ||
+        titleLower.includes('pepsi') || titleLower.includes('fanta')) {
+      return '🥤'
+    }
+    
+    // Snacks & Sweets
+    if (titleLower.includes('chocolate') || titleLower.includes('candy') || titleLower.includes('chip') || 
+        titleLower.includes('cracker') || titleLower.includes('nut') || titleLower.includes('popcorn') ||
+        titleLower.includes('sweet') || titleLower.includes('snack') || titleLower.includes('gum')) {
+      return '🍫'
+    }
+    
+    // Grains & Pasta
+    if (titleLower.includes('rice') || titleLower.includes('pasta') || titleLower.includes('noodle') || 
+        titleLower.includes('cereal') || titleLower.includes('oat') || titleLower.includes('quinoa') ||
+        titleLower.includes('barley') || titleLower.includes('wheat')) {
+      return '🌾'
+    }
+    
+    // Eggs
+    if (titleLower.includes('egg')) {
+      return '🥚'
+    }
+    
+    // Frozen foods
+    if (titleLower.includes('frozen') || titleLower.includes('ice cream') || titleLower.includes('pizza')) {
+      return '🧊'
+    }
+    
+    // Cleaning & Household
+    if (titleLower.includes('soap') || titleLower.includes('detergent') || titleLower.includes('cleaner') || 
+        titleLower.includes('tissue') || titleLower.includes('paper') || titleLower.includes('toilet') ||
+        titleLower.includes('shampoo') || titleLower.includes('toothpaste')) {
+      return '🧽'
+    }
+    
+    // Baby products
+    if (titleLower.includes('baby') || titleLower.includes('diaper') || titleLower.includes('pampers') || 
+        titleLower.includes('formula') || titleLower.includes('wipes')) {
+      return '👶'
+    }
+    
+    // Pet products
+    if (titleLower.includes('dog') || titleLower.includes('cat') || titleLower.includes('pet') || 
+        titleLower.includes('food') && (titleLower.includes('dog') || titleLower.includes('cat'))) {
+      return '🐕'
+    }
+    
+    // Default generic icon
+    return '🛒'
+  }
+
   // Search modal removed for simplified UX
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showItemModal, setShowItemModal] = useState(false)
@@ -367,8 +463,8 @@ export default function ShoppingPage() {
     }
   }
 
-  const showSearchSuggestions = () => {
-    setSearchSuggestions(popularSearches)
+  const showPopularSearchSuggestions = () => {
+    setPopularSearchTerms(popularSearches)
     setShowSearchSuggestions(true)
   }
 
@@ -679,7 +775,7 @@ export default function ShoppingPage() {
                             if (suggestions.length > 0) {
                               setShowSuggestions(true)
                             } else if (newItemTitle.length === 0) {
-                              showSearchSuggestions()
+                              showPopularSearchSuggestions()
                             }
                           }}
                           onBlur={() => {
@@ -694,14 +790,14 @@ export default function ShoppingPage() {
                           className="w-full border-2 border-cozy-gray-200 focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20"
                         />
                       {/* Search suggestions dropdown */}
-                      {showSearchSuggestions && searchSuggestions.length > 0 && (
+                      {showSearchSuggestions && popularSearchTerms.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-cozy-lg max-h-60 overflow-y-auto" style={{ position: 'absolute', zIndex: 40, top: '100%', left: 0, right: 0 }}>
                           <div className="p-2 border-b border-cozy-gray-100">
                             <div className="text-xs font-medium text-cozy-text-muted uppercase tracking-wide">
                               🔍 Popular Searches
                             </div>
                           </div>
-                          {searchSuggestions.map((suggestion, index) => (
+                          {popularSearchTerms.map((suggestion, index) => (
                             <div
                               key={suggestion}
                               className="p-3 hover:bg-cozy-cream cursor-pointer border-b border-cozy-gray-50 last:border-b-0 transition-colors"
@@ -805,14 +901,23 @@ export default function ShoppingPage() {
                                       className="w-12 h-12 object-cover rounded-lg border border-cozy-gray-200"
                                       loading="lazy"
                                       onError={(e) => {
+                                        // Hide the image and show the smart icon instead
                                         e.currentTarget.style.display = 'none'
+                                        const iconContainer = e.currentTarget.nextElementSibling as HTMLElement
+                                        if (iconContainer) {
+                                          iconContainer.style.display = 'flex'
+                                        }
                                       }}
                                     />
-                                  ) : (
-                                    <div className="w-12 h-12 bg-cozy-cream rounded-lg border border-cozy-gray-200 flex items-center justify-center">
-                                      <span className="text-cozy-text-muted text-lg">🛒</span>
-                                    </div>
-                                  )}
+                                  ) : null}
+                                  
+                                  {/* Smart icon fallback - always present but hidden when image loads */}
+                                  <div 
+                                    className={`w-12 h-12 bg-gradient-to-br from-cozy-cream to-cozy-gray-100 rounded-lg border border-cozy-gray-200 flex items-center justify-center ${suggestion.imageUrl ? 'hidden' : 'flex'}`}
+                                    style={{ display: suggestion.imageUrl ? 'none' : 'flex' }}
+                                  >
+                                    <span className="text-2xl">{getProductIcon(suggestion.title)}</span>
+                                  </div>
                                 </div>
                                 
                                 {/* Product details */}
