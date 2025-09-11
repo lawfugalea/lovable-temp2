@@ -80,7 +80,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const membership = await prisma.membership.findFirst({
           where: {
             userId: user.id,
-            householdId: sharedNote.householdId
+            householdId: sharedNote.householdId || undefined
           }
         })
         
@@ -210,7 +210,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error) {
     console.error('=== UNEXPECTED ERROR IN NOTES API ===', error)
-    return res.status(500).json({ error: 'Internal server error', details: error.message })
+    return res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' })
   }
 }
 
