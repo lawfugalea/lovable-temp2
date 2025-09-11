@@ -59,34 +59,21 @@ export default function ShoppingPage() {
   const [showPopularItems, setShowPopularItems] = useState(false)
   const [showAllResults, setShowAllResults] = useState(false)
   const [allSearchResults, setAllSearchResults] = useState<any[]>([])
-  const [showSearchModal, setShowSearchModal] = useState(false)
+  // Search modal removed for simplified UX
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showItemModal, setShowItemModal] = useState(false)
   const [itemLoading, setItemLoading] = useState(false)
-  const [modalSearchQuery, setModalSearchQuery] = useState('')
+  // Modal search query removed with search modal
   const [templates, setTemplates] = useState<ShoppingTemplate[]>([])
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<ShoppingTemplate | null>(null)
   const [selectedTemplateItems, setSelectedTemplateItems] = useState<string[]>([])
   const [newTemplateName, setNewTemplateName] = useState('')
+  // List creation is now handled by ListPicker component
 
-  // Load shopping lists
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetch('/api/shopping/lists')
-        .then(res => res.json())
-        .then(data => {
-          if (data.lists) {
-            setLists(data.lists)
-            if (data.lists.length > 0 && !selectedListId) {
-              setSelectedListId(data.lists[0].id)
-            }
-          }
-        })
-        .catch(console.error)
-    }
-  }, [status, selectedListId])
+  // Lists are now managed by ListPicker component via useSWR
+  // This eliminates duplicate API calls and improves performance
 
   // Load templates
   useEffect(() => {
@@ -309,9 +296,9 @@ export default function ShoppingPage() {
         setShowAllResults(false) // Reset show all state
         setShowSuggestions(true)
         
-        // Auto-open modal if we have many results or if we have any results
-        if (sortedItems.length > 15 || sortedItems.length > 0) {
-          setShowSearchModal(true)
+        // Show suggestions inline instead of opening modal
+        if (sortedItems.length > 0) {
+          setShowSuggestions(true)
         }
       } catch (error) {
         console.error('Failed to fetch suggestions:', error)
@@ -324,35 +311,52 @@ export default function ShoppingPage() {
     setSearchTimeout(timeout)
   }
 
+  // List creation is now handled by ListPicker component
+
   const handleAddToCart = async (item: any) => {
-    if (!selectedListId) return
+    console.log('handleAddToCart called with:', { selectedListId, listsLength: lists.length, item })
+    
+    if (!selectedListId) {
+      if (lists.length === 0) {
+        alert('No shopping lists available. Please create a shopping list first.')
+      } else {
+        alert('Please select a shopping list from the dropdown on the left side of the page.')
+      }
+      return
+    }
     
     setItemLoading(true)
     try {
+      const requestBody = {
+        listId: selectedListId,
+        title: item.title,
+        qty: 1,
+        price: item.nowCents,
+        imageUrl: item.imageUrl,
+        productUrl: item.url,
+        store: item.store,
+      }
+      
       const response = await fetch('/api/shopping/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listId: selectedListId,
-          title: item.title,
-          qty: 1,
-          // Note: The shopping items API doesn't support these fields yet,
-          // but we're sending them for future compatibility
-          price: item.nowCents,
-          imageUrl: item.imageUrl,
-          productUrl: item.url,
-          store: item.store,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       if (response.ok) {
         const data = await response.json()
         setItems(prev => [data.item, ...prev])
-        setShowSearchModal(false)
-        setModalSearchQuery('')
+        // Modal functionality removed
+        setShowItemModal(false)
+        setSelectedItem(null)
+      } else {
+        const errorData = await response.text()
+        console.error('Failed to add item:', response.status, errorData)
+        alert(`Failed to add item: ${response.status} ${errorData}`)
       }
     } catch (error) {
       console.error('Failed to add item to cart:', error)
+      alert('Failed to add item to cart. Please try again.')
     } finally {
       setItemLoading(false)
     }
@@ -360,19 +364,19 @@ export default function ShoppingPage() {
 
   const selectSuggestion = (suggestion: any) => {
     setNewItemTitle(suggestion.title)
-    setModalSearchQuery('')
+    // Modal search query removed
     setSuggestions([])
     setShowSuggestions(false)
     setSearchLoading(false)
     setShowPopularItems(false)
     setShowAllResults(false)
-    setShowSearchModal(false)
+    // Modal functionality removed
   }
 
   const showAllSearchResults = () => {
     setSuggestions(allSearchResults)
     setShowAllResults(true)
-    setShowSearchModal(true) // Open modal to show all results
+    // Modal functionality removed - show all results inline
   }
 
   const showLessResults = () => {
@@ -380,16 +384,7 @@ export default function ShoppingPage() {
     setShowAllResults(false)
   }
 
-  const openSearchModal = () => {
-    setModalSearchQuery('')
-    setShowSearchModal(true)
-  }
-
-  const closeSearchModal = () => {
-    setShowSearchModal(false)
-    setShowSuggestions(false)
-    setModalSearchQuery('')
-  }
+  // Search modal functions removed for simplified UX
 
   // Template functions
   const createTemplate = async () => {
@@ -494,23 +489,7 @@ export default function ShoppingPage() {
     }
   }, [searchTimeout])
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + K to open search modal
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault()
-        openSearchModal()
-      }
-      // Escape to close modal
-      if (e.key === 'Escape' && showSearchModal) {
-        closeSearchModal()
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [showSearchModal])
+  // Keyboard shortcuts simplified - removed search modal shortcuts
 
   const filteredItems = items.filter(item => 
     item.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -553,67 +532,84 @@ export default function ShoppingPage() {
             <span className="animate-cozy-wiggle">🛒</span>Shopping Lists
         </h1>
           <p className="text-cozy-text-muted">Your shared family lists, organized with love</p>
+          
+          {/* Active List Indicator */}
+          {selectedListId && lists.length > 0 && (
+            <div className="mt-4 bg-cozy-primary/10 border border-cozy-primary rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-cozy-primary rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-cozy-text">
+                  Active List: {lists.find(l => l.id === selectedListId)?.name || 'Unknown'}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Top Section - List Picker and Add Item */}
         <div className="grid gap-6 lg:grid-cols-3 w-full items-start">
           {/* List Picker */}
           <div className="lg:col-span-1 order-2 lg:order-1">
-            {lists.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Select List</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ListPicker
-                    selectedId={selectedListId}
-                    onChange={setSelectedListId}
-                  />
-                </CardContent>
-              </Card>
-            )}
-      </div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Shopping List</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ListPicker
+                  selectedId={selectedListId}
+                  onChange={setSelectedListId}
+                  onListsChange={setLists}
+                  onAutoSelect={setSelectedListId}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Add Item */}
           <div className="lg:col-span-2 order-1 lg:order-2">
             <Card>
               <CardHeader>
                 <CardTitle>Add New Item</CardTitle>
+                {!selectedListId && (
+                  <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+                    ⚠️ Please select a shopping list first to add items
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
-                <div className="relative" style={{ position: 'relative', zIndex: 1 }}>
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1 relative">
-                      <Input
-                        placeholder="🛒 Search products (e.g., 'coca', 'milk', 'bread')..."
-                        value={newItemTitle}
-                        onChange={(e) => {
-                          setNewItemTitle(e.target.value)
-                          searchSuggestions(e.target.value)
-                        }}
-            onKeyPress={(e) => e.key === 'Enter' && addItem()}
-                        onFocus={() => {
-                          if (suggestions.length > 0) {
-                            setShowSuggestions(true)
-                          } else if (newItemTitle.length === 0) {
-                            loadPopularItems()
-                          }
-                          // Open modal for better search experience
-                          if (newItemTitle.length > 0) {
-                            setShowSearchModal(true)
-                          }
-                        }}
-                        onBlur={() => {
-                          // Delay hiding suggestions to allow clicking
-                          setTimeout(() => {
-                            setShowSuggestions(false)
-                            setShowPopularItems(false)
-                          }, 200)
-                        }}
-                        className="w-full"
-                      />
+                <div className="space-y-4">
+                  {/* Search Field and Search Button */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-cozy-text">Search Products</label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 relative" style={{ position: 'relative', zIndex: 1 }}>
+                        <Input
+                          placeholder="🛒 Search products (e.g., 'coca', 'milk', 'bread')..."
+                          value={newItemTitle}
+                          onChange={(e) => {
+                            setNewItemTitle(e.target.value)
+                            searchSuggestions(e.target.value)
+                          }}
+                          onKeyPress={(e) => e.key === 'Enter' && addItem()}
+                          onFocus={() => {
+                            if (suggestions.length > 0) {
+                              setShowSuggestions(true)
+                            } else if (newItemTitle.length === 0) {
+                              loadPopularItems()
+                            }
+                            // Search experience simplified - no modal needed
+                          }}
+                          onBlur={() => {
+                            // Delay hiding suggestions to allow clicking
+                            setTimeout(() => {
+                              setShowSuggestions(false)
+                              setShowPopularItems(false)
+                            }, 200)
+                          }}
+                          className="w-full border-2 border-cozy-gray-200 focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20"
+                        />
                       {/* Search loading indicator */}
-                      {searchLoading && !showSearchModal && (
+                      {searchLoading && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-cozy-lg p-4" style={{ position: 'absolute', zIndex: 40, top: '100%', left: 0, right: 0 }}>
                           <div className="flex items-center justify-center space-x-2">
                             <div className="w-4 h-4 border-2 border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
@@ -623,7 +619,7 @@ export default function ShoppingPage() {
                       )}
 
                       {/* Enhanced suggestions dropdown */}
-                      {showSuggestions && suggestions.length > 0 && !searchLoading && !showSearchModal && (
+                      {showSuggestions && suggestions.length > 0 && !searchLoading && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-cozy-lg max-h-80 overflow-y-auto" style={{ position: 'absolute', zIndex: 40, top: '100%', left: 0, right: 0 }}>
                           <div className="p-2 border-b border-cozy-gray-100">
                             <div className="flex items-center justify-between">
@@ -743,194 +739,74 @@ export default function ShoppingPage() {
                         </div>
                       )}
                     </div>
-                    
-                    
-                    {/* Item Details Modal */}
-                    {showItemModal && selectedItem && (
-                      <div className="fixed inset-0 flex items-center justify-center p-2 sm:p-4 bg-black/50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }}>
-                        <div className="bg-white rounded-lg shadow-cozy-lg w-full max-w-2xl max-h-[90vh] flex flex-col mx-auto">
-                          {/* Modal Header */}
-                          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-cozy-gray-200">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-semibold text-cozy-text">Product Details</h3>
-                              <p className="text-sm text-cozy-text-muted">
-                                {selectedItem.store}
-                              </p>
-                            </div>
-                            <Button
-                              onClick={() => {
-                                setShowItemModal(false)
-                                setSelectedItem(null)
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="border-cozy-gray-300 hover:bg-cozy-cream flex-shrink-0"
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                          
-                          {/* Modal Content */}
-                          <div className="flex-1 overflow-y-auto">
-                            {itemLoading ? (
-                              <div className="flex items-center justify-center py-12">
-                                <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
-                              </div>
-                            ) : (
-                              <div className="p-4 sm:p-6">
-                                <div className="flex flex-col sm:flex-row gap-6">
-                                  {/* Product Image */}
-                                  <div className="flex-shrink-0">
-                                    {selectedItem.imageUrl ? (
-                                      <img
-                                        src={selectedItem.imageUrl}
-                                        alt={selectedItem.title}
-                                        className="w-full sm:w-48 h-48 object-cover rounded-lg border border-cozy-gray-200"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = 'none'
-                                        }}
-                                      />
-                                    ) : (
-                                      <div className="w-full sm:w-48 h-48 bg-cozy-cream rounded-lg border border-cozy-gray-200 flex items-center justify-center">
-                                        <ShoppingCart className="w-12 h-12 text-cozy-gray-400" />
-                                      </div>
-                                    )}
-                                  </div>
-                                  
-                                  {/* Product Info */}
-                                  <div className="flex-1 space-y-4">
-                                    <div>
-                                      <h4 className="text-xl font-semibold text-cozy-text mb-2">{selectedItem.title}</h4>
-                                      <div className="flex flex-wrap gap-2 mb-4">
-                                        {selectedItem.store && (
-                                          <span className="px-2 py-1 bg-cozy-cream text-cozy-text text-xs rounded">
-                                            {selectedItem.store}
-                                          </span>
-                                        )}
-                                        {selectedItem.wasCents && (
-                                          <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
-                                            On Sale
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="space-y-2">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-cozy-text-muted">Price:</span>
-                                        <span className="text-2xl font-bold text-cozy-primary">
-                                          ${(selectedItem.nowCents / 100).toFixed(2)}
-                                        </span>
-                                      </div>
-                                      
-                                      {selectedItem.wasCents && (
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-cozy-text-muted">Was:</span>
-                                          <span className="text-sm text-cozy-text-muted line-through">
-                                            ${(selectedItem.wasCents / 100).toFixed(2)}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                    
-                                    {selectedItem.url && (
-                                      <div className="pt-4">
-                                        <a
-                                          href={selectedItem.url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="text-cozy-primary hover:text-cozy-primary-deep text-sm underline"
-                                        >
-                                          View on {selectedItem.store} →
-                                        </a>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Modal Footer */}
-                          <div className="border-t border-cozy-gray-200 p-4 sm:p-6">
-                            <div className="flex flex-col sm:flex-row gap-3">
-                              <Button
-                                onClick={() => {
-                                  setShowItemModal(false)
-                                  setSelectedItem(null)
-                                }}
-                                variant="outline"
-                                className="border-cozy-gray-300 hover:bg-cozy-cream flex-1 sm:flex-none"
-                              >
-                                Cancel
-                              </Button>
-                              <Button
-                                onClick={() => handleAddToCart(selectedItem)}
-                                disabled={itemLoading || !selectedListId}
-                                className="bg-cozy-primary hover:bg-cozy-primary-deep flex-1"
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add to List
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
+                    <Button
+                      onClick={() => {
+                        // Focus on search input instead of opening modal
+                        const searchInput = document.querySelector('input[placeholder*="Search products"]') as HTMLInputElement
+                        searchInput?.focus()
+                      }}
+                      className="bg-cozy-primary hover:bg-cozy-primary-deep text-white px-4 py-3 border-0 shadow-sm hover:shadow-md transition-all"
+                      title="Focus search input"
+                    >
+                      <Search className="w-4 h-4 mr-2" />
+                      Search
+                    </Button>
+                  </div>
+                  
+                  {/* Quantity and Add Button */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-cozy-text">Add to List</label>
                     <div className="flex gap-2 sm:gap-3">
-                      <Input
-                        placeholder="Qty"
-                        value={newItemQty}
-                        onChange={(e) => setNewItemQty(e.target.value)}
-                        className="w-20 sm:w-24"
-                      />
-                      <Button
-                        onClick={openSearchModal}
-                        variant="outline"
-                        className="border-cozy-gray-300 hover:bg-cozy-cream flex-1 sm:flex-none"
-                        title="Open search modal (Ctrl+K)"
-                      >
-                        <Search className="w-4 h-4 mr-2" />
-                        <span className="hidden sm:inline">Search</span>
-                      </Button>
-                      <Button
-                        onClick={addItem}
-                        disabled={loading || !newItemTitle.trim()}
-                        className="bg-cozy-primary hover:bg-cozy-primary-deep flex-1 sm:flex-none"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        <span className="hidden sm:inline">Add</span>
-                      </Button>
+                      <div className="flex flex-col">
+                        <label className="text-xs text-cozy-text-muted mb-1">Quantity</label>
+                        <Input
+                          placeholder="1"
+                          value={newItemQty}
+                          onChange={(e) => setNewItemQty(e.target.value)}
+                          className="w-20 sm:w-24 border-2 border-cozy-gray-200 focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20"
+                        />
+                      </div>
+                      <div className="flex-1 flex flex-col justify-end">
+                        <Button
+                          onClick={addItem}
+                          disabled={loading || !newItemTitle.trim() || !selectedListId}
+                          className="bg-cozy-primary hover:bg-cozy-primary-deep text-white px-6 py-3 border-0 shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add to List
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
+              </div>
+                
               </CardContent>
             </Card>
           </div>
         </div>
 
-      {/* Stats */}
+        {/* Stats */}
         <div className="grid grid-cols-2 gap-4">
           <Card>
             <CardContent className="p-4 text-center">
-          <div className="text-2xl font-bold text-cozy-primary">{activeItems.length}</div>
-          <div className="text-sm text-cozy-text-muted flex items-center justify-center gap-1">
+              <div className="text-2xl font-bold text-cozy-primary">{activeItems.length}</div>
+              <div className="text-sm text-cozy-text-muted flex items-center justify-center gap-1">
                 <ShoppingCart className="w-4 h-4" />
                 To buy
-          </div>
+              </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <div className="text-2xl font-bold text-cozy-sage">{doneItems.length}</div>
-          <div className="text-sm text-cozy-text-muted flex items-center justify-center gap-1">
+              <div className="text-sm text-cozy-text-muted flex items-center justify-center gap-1">
                 <Check className="w-4 h-4" />
                 Done
-          </div>
+              </div>
             </CardContent>
           </Card>
-      </div>
+        </div>
 
         {/* Templates */}
         <Card>
@@ -1109,206 +985,7 @@ export default function ShoppingPage() {
         </Card>
       </div>
       
-      {/* Search Modal - Outside main content to avoid positioning conflicts */}
-      {showSearchModal && (
-        <div 
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/50"
-          style={{ 
-            position: 'fixed', 
-            top: 0, 
-            left: 0, 
-            right: 0, 
-            bottom: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeSearchModal()
-            }
-          }}
-        >
-          <div 
-            className="bg-white rounded-xl shadow-cozy-lg w-full max-w-4xl max-h-[90vh] flex flex-col"
-            style={{ 
-              maxWidth: '56rem',
-              maxHeight: '90vh',
-              width: '100%',
-              position: 'relative',
-              zIndex: '10000'
-            }}
-          >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-cozy-gray-200">
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-cozy-text">🛒 Product Search</h3>
-                <p className="text-sm text-cozy-text-muted">
-                  {allSearchResults.length > 0 
-                    ? `Found ${allSearchResults.length} products` 
-                    : 'Search for products from Smart Supermarket'
-                  }
-                  <span className="hidden sm:inline ml-2 text-xs bg-cozy-cream px-2 py-1 rounded">
-                    Press Esc to close
-                  </span>
-                </p>
-              </div>
-              <Button
-                onClick={closeSearchModal}
-                variant="outline"
-                size="sm"
-                className="border-cozy-gray-300 hover:bg-cozy-cream flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            
-            {/* Search Input */}
-            <div className="p-4 sm:p-6 border-b border-cozy-gray-200">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Input
-                  placeholder="Search products (e.g., 'coca', 'milk', 'bread')..."
-                  value={modalSearchQuery}
-                  onChange={(e) => {
-                    setModalSearchQuery(e.target.value)
-                    searchSuggestions(e.target.value)
-                  }}
-                  className="flex-1"
-                  autoFocus
-                />
-                <Button
-                  onClick={closeSearchModal}
-                  variant="outline"
-                  className="border-cozy-gray-300 hover:bg-cozy-cream w-full sm:w-auto"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-            
-            {/* Search Results */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-              {searchLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
-                    <span className="text-cozy-text-muted">Searching products...</span>
-                  </div>
-                </div>
-              ) : suggestions.length > 0 ? (
-                <div className="grid gap-3 sm:gap-4">
-                  {suggestions.map((suggestion, index) => (
-                    <div
-                      key={suggestion.id || index}
-                      className="flex flex-col sm:flex-row sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 p-3 sm:p-4 border border-cozy-gray-200 rounded-lg hover:bg-cozy-cream cursor-pointer transition-colors"
-                      onClick={() => handleItemClick(suggestion)}
-                    >
-                      {/* Product Image */}
-                      <div className="flex-shrink-0 self-center sm:self-start">
-                        {suggestion.imageUrl ? (
-                          <img
-                            src={suggestion.imageUrl}
-                            alt={suggestion.title}
-                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border border-cozy-gray-200"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none'
-                            }}
-                          />
-                        ) : (
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-cozy-cream rounded-lg border border-cozy-gray-200 flex items-center justify-center">
-                            <ShoppingCart className="w-6 h-6 sm:w-8 sm:h-8 text-cozy-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Product Details */}
-                      <div className="flex-1 min-w-0 text-center sm:text-left">
-                        <h4 className="font-medium text-cozy-text text-sm sm:text-base leading-tight mb-1">
-                          {suggestion.title}
-                        </h4>
-                        <p className="text-xs sm:text-sm text-cozy-text-muted mb-2">
-                          {suggestion.store}
-                        </p>
-                        
-                        {/* Price Section */}
-                        <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-3">
-                          <div className="font-semibold text-cozy-primary text-base sm:text-lg">
-                            {suggestion.price}
-                          </div>
-                          {suggestion.wasCents && suggestion.wasCents > suggestion.nowCents && (
-                            <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-2">
-                              <div className="text-xs sm:text-sm text-cozy-text-muted line-through">
-                                {(suggestion.wasCents / 100).toFixed(2)} EUR
-                              </div>
-                              <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded self-center sm:self-start">
-                                Save {((suggestion.wasCents - suggestion.nowCents) / 100).toFixed(2)}€
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Action buttons */}
-                      <div className="flex-shrink-0 self-center sm:self-start">
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleAddToCart(suggestion)
-                          }}
-                          className="bg-cozy-primary hover:bg-cozy-primary-deep"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add to List
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Show More/Less Controls */}
-                  {allSearchResults.length > 20 && (
-                    <div className="flex justify-center pt-4 border-t border-cozy-gray-200">
-                      {!showAllResults ? (
-                        <Button
-                          onClick={showAllSearchResults}
-                          variant="outline"
-                          className="border-cozy-gray-300 hover:bg-cozy-cream"
-                        >
-                          Show All {allSearchResults.length} Products
-                        </Button>
-                      ) : (
-                        <Button
-                          onClick={showLessResults}
-                          variant="outline"
-                          className="border-cozy-gray-300 hover:bg-cozy-cream"
-                        >
-                          Show Less
-                        </Button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : modalSearchQuery.length > 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-4">🔍</div>
-                  <h3 className="text-lg font-medium text-cozy-text mb-2">No products found</h3>
-                  <p className="text-cozy-text-muted">
-                    Try a different search term or add the item manually
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="text-4xl mb-4">🛒</div>
-                  <h3 className="text-lg font-medium text-cozy-text mb-2">Start searching</h3>
-                  <p className="text-cozy-text-muted">
-                    Type at least 2 characters to search for products
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Search functionality is now simplified with inline suggestions */}
 
       {/* Template Creation Modal */}
       {showTemplateModal && (
@@ -1443,6 +1120,146 @@ export default function ShoppingPage() {
           </div>
         </div>
       )}
+
+      {/* Item Details Modal */}
+      {showItemModal && selectedItem && (
+        <div className="fixed inset-0 flex items-center justify-center p-2 sm:p-4 bg-black/50" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100 }}>
+          <div className="bg-white rounded-lg shadow-cozy-lg w-full max-w-2xl max-h-[90vh] flex flex-col mx-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b border-cozy-gray-200">
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-cozy-text">Product Details</h3>
+                <p className="text-sm text-cozy-text-muted">
+                  {selectedItem.store}
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  setShowItemModal(false)
+                  setSelectedItem(null)
+                }}
+                variant="outline"
+                size="sm"
+                className="border-cozy-gray-300 hover:bg-cozy-cream flex-shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto">
+              {itemLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row gap-6">
+                    {/* Product Image */}
+                    <div className="flex-shrink-0">
+                      {selectedItem.imageUrl ? (
+                        <img
+                          src={selectedItem.imageUrl}
+                          alt={selectedItem.title}
+                          className="w-full sm:w-48 h-48 object-cover rounded-lg border border-cozy-gray-200"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full sm:w-48 h-48 bg-cozy-cream rounded-lg border border-cozy-gray-200 flex items-center justify-center">
+                          <ShoppingCart className="w-12 h-12 text-cozy-gray-400" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Product Info */}
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h4 className="text-xl font-semibold text-cozy-text mb-2">{selectedItem.title}</h4>
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {selectedItem.store && (
+                            <span className="px-2 py-1 bg-cozy-cream text-cozy-text text-xs rounded">
+                              {selectedItem.store}
+                            </span>
+                          )}
+                          {selectedItem.wasCents && (
+                            <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+                              On Sale
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-cozy-text-muted">Price:</span>
+                          <span className="text-2xl font-bold text-cozy-primary">
+                            ${(selectedItem.nowCents / 100).toFixed(2)}
+                          </span>
+                        </div>
+                        
+                        {selectedItem.wasCents && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-cozy-text-muted">Was:</span>
+                            <span className="text-sm text-cozy-text-muted line-through">
+                              ${(selectedItem.wasCents / 100).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {selectedItem.url && (
+                        <div className="pt-4">
+                          <a
+                            href={selectedItem.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-cozy-primary hover:text-cozy-primary-deep text-sm underline"
+                          >
+                            View on {selectedItem.store} →
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="border-t border-cozy-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={() => {
+                    setShowItemModal(false)
+                    setSelectedItem(null)
+                  }}
+                  variant="outline"
+                  className="border-cozy-gray-300 hover:bg-cozy-cream flex-1 sm:flex-none"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    console.log('Add to List button clicked', selectedItem)
+                    handleAddToCart(selectedItem)
+                  }}
+                  disabled={itemLoading || !selectedListId}
+                  className="bg-cozy-primary hover:bg-cozy-primary-deep flex-1"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add to List
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* List creation is now handled by ListPicker component */}
     </ModernAppShell>
   )
 }

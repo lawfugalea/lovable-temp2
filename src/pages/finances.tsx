@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import ModernAppShell from '../components/ModernAppShell'
 import { usePageState } from '../hooks/usePageState'
@@ -156,6 +156,22 @@ export default function FinancesPage() {
       setFinancialGoals(financeState.financialGoals || [])
     }
   }, [financeState, psLoading])
+
+  // Sync local state changes to usePageState (debounced)
+  useEffect(() => {
+    if (hasUnsavedChanges && !psLoading) {
+      const state: FinanceState = {
+        earners,
+        bankAccounts,
+        splitMethod,
+        savingsPct,
+        selectedTemplateKey,
+        currentSavings,
+        financialGoals,
+      }
+      setFinanceState(state)
+    }
+  }, [earners, bankAccounts, splitMethod, savingsPct, selectedTemplateKey, currentSavings, financialGoals, hasUnsavedChanges, psLoading, setFinanceState])
 
   // Save financial data using usePageState
   const saveFinancialData = (newState: Partial<FinanceState>) => {
@@ -618,10 +634,16 @@ export default function FinancesPage() {
     const [showSuggestionDropdown, setShowSuggestionDropdown] = useState(false)
     const [isValid, setIsValid] = useState(true)
     const [validationMessage, setValidationMessage] = useState('')
+    const [isFocused, setIsFocused] = useState(false)
+    const inputRef = useRef<HTMLInputElement>(null)
+    const [pendingValue, setPendingValue] = useState<number | null>(null)
 
+    // Only update displayValue from external value when not focused
     useEffect(() => {
-      setDisplayValue(formatCurrencyInput(value))
-    }, [value])
+      if (!isFocused) {
+        setDisplayValue(formatCurrencyInput(value))
+      }
+    }, [value, isFocused])
 
     const validateValue = (val: number) => {
       if (max !== undefined && val > max) {
@@ -643,17 +665,28 @@ export default function FinancesPage() {
       const inputValue = e.target.value
       const numericValue = parseCurrency(inputValue)
       
+      // Update display value immediately for responsive UI
       setDisplayValue(inputValue)
       validateValue(numericValue)
-      onChange(numericValue)
+      
+      // Store the pending value but don't call onChange yet
+      setPendingValue(numericValue)
     }
 
     const handleBlur = () => {
+      setIsFocused(false)
       setDisplayValue(formatCurrencyInput(value))
       setShowSuggestionDropdown(false)
+      
+      // Call onChange with the pending value if it exists
+      if (pendingValue !== null) {
+        onChange(pendingValue)
+        setPendingValue(null)
+      }
     }
 
     const handleFocus = () => {
+      setIsFocused(true)
       if (showSuggestions && suggestions.length > 0) {
         setShowSuggestionDropdown(true)
       }
@@ -661,13 +694,17 @@ export default function FinancesPage() {
 
     const handleSuggestionClick = (suggestion: number) => {
       setDisplayValue(formatCurrencyInput(suggestion))
-      onChange(suggestion)
+      setPendingValue(suggestion)
       setShowSuggestionDropdown(false)
+      // Call onChange immediately for suggestions since user explicitly selected it
+      onChange(suggestion)
     }
+
 
     return (
       <div className="relative">
         <Input
+          ref={inputRef}
           type="text"
           value={displayValue}
           onChange={handleChange}
@@ -1419,6 +1456,7 @@ export default function FinancesPage() {
                           newEarners[index].name = e.target.value
                           setEarners(newEarners)
                           markAsChanged()
+                          // Debounced save will be handled by usePageState
                         }}
                         className="font-medium w-full"
                         placeholder="Earner name"
@@ -1437,6 +1475,7 @@ export default function FinancesPage() {
                           newEarners[index].salary = value
                           setEarners(newEarners)
                           markAsChanged()
+                          // Debounced save will be handled by usePageState
                         }}
                         placeholder="Salary"
                         className="w-full"
@@ -1458,6 +1497,7 @@ export default function FinancesPage() {
                           newEarners[index].keep = value
                           setEarners(newEarners)
                           markAsChanged()
+                          // Debounced save will be handled by usePageState
                         }}
                         placeholder="Keep"
                         className={(() => {
@@ -1949,6 +1989,7 @@ export default function FinancesPage() {
                           newAccounts[index].name = e.target.value
                           setBankAccounts(newAccounts)
                           markAsChanged()
+                          // Debounced save will be handled by usePageState
                         }}
                         className="font-medium w-full"
                         placeholder="Account name"
@@ -1979,6 +2020,7 @@ export default function FinancesPage() {
                           newAccounts[index].target = value
                           setBankAccounts(newAccounts)
                           markAsChanged()
+                          // Debounced save will be handled by usePageState
                         }}
                         placeholder="Target"
                         className={(() => {

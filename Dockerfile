@@ -1,5 +1,5 @@
 # ---- Builder ----
-FROM node:20.11.1-alpine AS builder
+FROM node:20.19.0-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
@@ -14,7 +14,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # ---- Runner (non-standalone; includes node_modules) ----
-FROM node:20.11.1-alpine AS runner
+FROM node:20.19.0-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

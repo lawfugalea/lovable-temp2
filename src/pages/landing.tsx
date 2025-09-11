@@ -344,7 +344,8 @@ export default function LandingPage() {
               Ready to Transform Your Family Life?
             </h2>
             <p className="text-xl text-cozy-surface/90 mb-8">
-              Join those families who have found their perfect home management solution.
+              Join th
+              ose families who have found their perfect home management solution.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button

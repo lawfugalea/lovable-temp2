@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import useSWR from 'swr';
 
 const fetcher = (u: string) => fetch(u, { credentials: 'include' }).then(r => r.json());
@@ -6,12 +6,14 @@ const fetcher = (u: string) => fetch(u, { credentials: 'include' }).then(r => r.
 type Props = {
   selectedId: string | null;
   onChange: (id: string) => void;
+  onListsChange?: (lists: any[]) => void;
+  onAutoSelect?: (listId: string) => void;
 };
 
-export default function ListPicker({ selectedId, onChange }: Props) {
+export default function ListPicker({ selectedId, onChange, onListsChange, onAutoSelect }: Props) {
   const { data, mutate, isLoading } = useSWR('/api/shopping/lists', fetcher, {
-    refreshInterval: 10000,
-    revalidateOnFocus: true,
+    refreshInterval: 30000, // Increased to 30 seconds to reduce API calls
+    revalidateOnFocus: false, // Disabled to reduce unnecessary calls
     keepPreviousData: true,
   });
 
@@ -19,6 +21,18 @@ export default function ListPicker({ selectedId, onChange }: Props) {
   const lists = (data?.lists ?? []) as Array<any>;
   const activeLists = lists.filter((l) => !l.archivedAt);
   const archivedLists = lists.filter((l) => l.archivedAt);
+
+  // Notify parent component when lists change
+  React.useEffect(() => {
+    if (lists.length > 0) {
+      onListsChange?.(lists);
+      
+      // Auto-select first list if no list is selected
+      if (!selectedId && activeLists.length > 0) {
+        onAutoSelect?.(activeLists[0].id);
+      }
+    }
+  }, [lists, selectedId, activeLists, onListsChange, onAutoSelect]);
 
   async function createList() {
     const name = newName.trim();
@@ -63,33 +77,33 @@ export default function ListPicker({ selectedId, onChange }: Props) {
   const selected = lists.find((l) => l.id === selectedId);
 
   return (
-    <div className="rounded-3xl p-4 bg-white/5 backdrop-blur shadow-sm">
-      {/* Row 1: Select (full width on mobile) */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="flex-1">
-          <label className="block text-xs text-gray-600 mb-1">Current list</label>
-          <select
-            className="w-full rounded-xl px-3 py-2 bg-white/10 min-h-[40px]"
-            disabled={isLoading || lists.length === 0}
-            value={selectedId ?? ''}
-            onChange={(e) => onChange(e.target.value)}
-          >
-            <optgroup label="Active">
-              {activeLists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+    <div className="space-y-4">
+      {/* Current List Selection */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-cozy-text">Current List</label>
+        <select
+          className="w-full rounded-lg border-2 border-cozy-gray-200 bg-white px-4 py-3 text-cozy-text focus:border-cozy-primary focus:outline-none focus:ring-2 focus:ring-cozy-primary/20 transition-colors"
+          disabled={isLoading || lists.length === 0}
+          value={selectedId ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">Select a list...</option>
+          <optgroup label="Active Lists">
+            {activeLists.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </optgroup>
+          {archivedLists.length > 0 && (
+            <optgroup label="Archived Lists">
+              {archivedLists.map(l => <option key={l.id} value={l.id}>{l.name} (archived)</option>)}
             </optgroup>
-            {archivedLists.length > 0 && (
-              <optgroup label="Archived">
-                {archivedLists.map(l => <option key={l.id} value={l.id}>{l.name} (archived)</option>)}
-              </optgroup>
-            )}
-          </select>
-        </div>
+          )}
+        </select>
+      </div>
 
-        {/* Row 1 right: Actions (wrap on mobile) */}
-        <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-none sm:gap-2 sm:ml-2">
+      {/* Action Buttons */}
+      {selectedId && (
+        <div className="grid grid-cols-3 gap-2">
           <button
-            className="col-span-1 rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm min-h-[40px]"
-            disabled={!selectedId}
+            className="rounded-lg border-2 border-cozy-gray-200 bg-white hover:bg-cozy-cream hover:border-cozy-primary px-3 py-2 text-sm font-medium text-cozy-text transition-colors"
             onClick={async () => {
               const name = prompt('Rename list', selected?.name ?? '');
               if (name && name.trim()) await renameList(selectedId!, name.trim());
@@ -98,37 +112,39 @@ export default function ListPicker({ selectedId, onChange }: Props) {
             Rename
           </button>
           <button
-            className="col-span-1 rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm min-h-[40px]"
-            disabled={!selectedId}
+            className="rounded-lg border-2 border-cozy-gray-200 bg-white hover:bg-cozy-cream hover:border-cozy-primary px-3 py-2 text-sm font-medium text-cozy-text transition-colors"
             onClick={() => setArchive(selectedId!, !selected?.archivedAt)}
           >
             {selected?.archivedAt ? 'Unarchive' : 'Archive'}
           </button>
           <button
-            className="col-span-1 rounded-xl bg-white/10 hover:bg-white/20 px-3 py-2 text-sm min-h-[40px] text-red-600"
-            disabled={!selectedId}
+            className="rounded-lg border-2 border-red-200 bg-white hover:bg-red-50 hover:border-red-400 px-3 py-2 text-sm font-medium text-red-600 transition-colors"
             onClick={() => deleteList(selectedId!)}
           >
             Delete
           </button>
         </div>
-      </div>
+      )}
 
-      {/* Row 2: Create new list (stacks on mobile) */}
-      <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-        <input
-          className="rounded-xl px-3 py-2 bg-white/10 min-h-[40px]"
-          placeholder="New list name"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && createList()}
-        />
-        <button
-          className="rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 text-sm min-h-[40px]"
-          onClick={createList}
-        >
-          Add
-        </button>
+      {/* Create New List */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-cozy-text">Create New List</label>
+        <div className="flex gap-2">
+          <input
+            className="flex-1 rounded-lg border-2 border-cozy-gray-200 bg-white px-4 py-3 text-cozy-text placeholder-cozy-text-muted focus:border-cozy-primary focus:outline-none focus:ring-2 focus:ring-cozy-primary/20 transition-colors"
+            placeholder="Enter list name..."
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && createList()}
+          />
+          <button
+            className="rounded-lg bg-cozy-primary hover:bg-cozy-primary-deep text-white px-6 py-3 font-medium transition-colors shadow-sm hover:shadow-md"
+            onClick={createList}
+            disabled={!newName.trim()}
+          >
+            Add
+          </button>
+        </div>
       </div>
     </div>
   );
