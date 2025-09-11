@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useReducer, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import ModernAppShell from '../components/ModernAppShell'
+import RichTextEditor from '../components/RichTextEditor'
+import ClientOnly from '../components/ClientOnly'
 import { Button } from '../components/ui/Button'
 import { 
   Plus, 
@@ -20,13 +22,34 @@ import {
   X,
   Save,
   Lock,
-  Unlock
+  Unlock,
+  ChevronLeft,
+  ChevronRight,
+  CheckSquare,
+  Square,
+  List,
+  Bold,
+  Italic,
+  Underline,
+  Type,
+  Grid3X3,
+  Paperclip,
+  PenTool,
+  Settings,
+  Undo,
+  Redo,
+  Mic,
+  StopCircle,
+  Image as ImageIcon,
+  Link as LinkIcon
 } from 'lucide-react'
 
 interface Note {
   id: string
   title: string
   content: string
+  contentJson?: any
+  contentText?: string
   isShared: boolean
   color: string
   isPinned: boolean
@@ -100,590 +123,597 @@ const notesReducer = (state: NotesState, action: NotesAction): NotesState => {
   }
 }
 
+const initialState: NotesState = {
+  notes: [],
+  loading: true,
+  error: null
+}
+
 export default function NotesPage() {
-  const { data: session, status } = useSession()
-  const [householdId, setHouseholdId] = useState<string>('')
-  const [notesState, dispatch] = useReducer(notesReducer, {
-    notes: [],
-    loading: true,
-    error: null
-  })
-  const [activeTab, setActiveTab] = useState<'all' | 'personal' | 'shared'>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  const { data: session } = useSession()
+  const [notesState, dispatch] = useReducer(notesReducer, initialState)
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
-  const [isCreating, setIsCreating] = useState(false)
-  const [editingNote, setEditingNote] = useState<Note | null>(null)
-  const [showColorPicker, setShowColorPicker] = useState(false)
-  const [showCollaborators, setShowCollaborators] = useState(false)
-  const [householdMembers, setHouseholdMembers] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeTab, setActiveTab] = useState<'all' | 'personal' | 'shared'>('all')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  
+  // Auto-save functionality
+  const [autoSaveTimeout, setAutoSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'error'>('saved')
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; noteId: string | null; noteTitle: string }>({
+    show: false,
+    noteId: null,
+    noteTitle: ''
+  })
+  const titleRef = useRef<HTMLTextAreaElement>(null)
   const loadingRef = useRef(false)
 
-  // Get household ID and members
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetch('/api/household/active')
-        .then(res => res.json())
-        .then(data => {
-          if (data.householdId) {
-            setHouseholdId(data.householdId)
-            // Load household members for sharing
-            fetch(`/api/household/members?householdId=${data.householdId}`)
-              .then(res => res.json())
-              .then(membersData => {
-                if (membersData.members) {
-                  setHouseholdMembers(membersData.members)
-                }
-              })
-              .catch(console.error)
-          }
-        })
-        .catch(console.error)
-    }
-  }, [status])
-
   // Load notes
-  useEffect(() => {
-    if (status === 'authenticated') {
-      loadNotes()
-    }
-  }, [status, householdId])
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case 'n':
-            e.preventDefault()
-            setIsCreating(true)
-            break
-          case 'k':
-            e.preventDefault()
-            // Focus search
-            const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement
-            searchInput?.focus()
-            break
-          case 's':
-            if (editingNote) {
-              e.preventDefault()
-              // Save current note
-              console.log('Save shortcut triggered')
-            }
-            break
-        }
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [editingNote])
-
   const loadNotes = useCallback(async () => {
-    // Prevent multiple simultaneous calls
-    if (loadingRef.current) {
-      console.log('Already loading notes, skipping...')
+    if (loadingRef.current || !session?.user?.id) {
+      console.log('Skipping loadNotes:', { loading: loadingRef.current, hasSession: !!session?.user?.id })
       return
     }
 
+    console.log('Loading notes for user:', session.user.id)
+    loadingRef.current = true
+    dispatch({ type: 'SET_LOADING', payload: true })
+
     try {
-      loadingRef.current = true
-      console.log('Loading notes...', { householdId, activeTab })
-      dispatch({ type: 'SET_LOADING', payload: true })
+      const response = await fetch('/api/notes')
+      console.log('Notes API response status:', response.status)
       
-      // Always load all notes (no type filter) and filter locally
-      const params = new URLSearchParams()
-      if (householdId) params.append('householdId', householdId)
-      
-      const url = `/api/notes?${params}`
-      console.log('Fetching from:', url)
-      
-      const response = await fetch(url)
-      const data = await response.json()
-      
-      console.log('API response:', { ok: response.ok, data })
-      
-      if (response.ok) {
-        // Ensure we have the right data structure
-        const notesArray = Array.isArray(data.notes) ? data.notes : []
-        dispatch({ type: 'SET_NOTES', payload: notesArray })
-      } else {
-        console.log('API error:', data.error)
-        dispatch({ type: 'SET_ERROR', payload: data.error })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to fetch notes')
       }
+      
+      const data = await response.json()
+      console.log('Notes loaded:', data.notes?.length || 0, 'notes')
+      
+      // Ensure all notes have proper contentText and color
+      const processedNotes = (data.notes || []).map((note: any) => {
+        if (!note.contentText && note.contentJson) {
+          // Extract text from JSON if contentText is missing
+          const extractedText = extractTextFromJson(note.contentJson)
+          note.contentText = extractedText || note.content?.replace(/<[^>]*>/g, '') || ''
+        } else if (!note.contentText) {
+          // Fallback to content field
+          note.contentText = note.content?.replace(/<[^>]*>/g, '') || ''
+        }
+        
+        // Ensure color field exists (default to yellow if missing)
+        if (!note.color) {
+          note.color = 'yellow'
+        }
+        
+        return note
+      })
+      
+      dispatch({ type: 'SET_NOTES', payload: processedNotes })
     } catch (error) {
       console.error('Error loading notes:', error)
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to load notes' })
+      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to load notes' })
     } finally {
       loadingRef.current = false
     }
-  }, [householdId, activeTab])
+  }, [session?.user?.id])
 
-  const createNote = async (noteData: Partial<Note>) => {
+  // Auto-save function with debounce
+  const autoSave = useCallback(async (note: Note) => {
+    if (autoSaveTimeout) {
+      clearTimeout(autoSaveTimeout)
+    }
+
+    setSaveState('saving')
+
+    const timeout = setTimeout(async () => {
+      try {
+        const saveData = {
+          title: note.title,
+          content: note.content,
+          contentJson: note.contentJson,
+          contentText: note.contentText,
+          isShared: note.isShared,
+          color: note.color,
+          isPinned: note.isPinned,
+          isArchived: note.isArchived
+        }
+        
+        const response = await fetch(`/api/notes/${note.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(saveData)
+        })
+
+        if (!response.ok) throw new Error('Failed to save note')
+        
+        const data = await response.json()
+        dispatch({ type: 'UPDATE_NOTE', payload: data.note })
+        setSaveState('saved')
+        setLastSaved(new Date())
+      } catch (error) {
+        console.error('Error auto-saving note:', error)
+        setSaveState('error')
+      }
+    }, 800) // 800ms debounce
+
+    setAutoSaveTimeout(timeout)
+  }, [autoSaveTimeout])
+
+  // Handle note updates (for selected note in editor)
+  const handleNoteUpdate = useCallback((field: 'title' | 'content' | 'contentJson' | 'contentText' | 'isShared' | 'isPinned' | 'isArchived' | 'color', value: string | any | boolean) => {
+    if (!selectedNote) return
+
+    const updatedNote = { ...selectedNote, [field]: value, updatedAt: new Date().toISOString() }
+    setSelectedNote(updatedNote)
+    dispatch({ type: 'UPDATE_NOTE', payload: updatedNote })
+    autoSave(updatedNote)
+  }, [selectedNote, autoSave])
+
+  // Handle note updates from list view
+  const handleNoteUpdateFromList = useCallback(async (noteId: string, field: 'title' | 'content' | 'contentJson' | 'contentText' | 'isShared' | 'isPinned' | 'isArchived' | 'color', value: string | any | boolean) => {
+    // Find the note in the current list
+    const note = notesState.notes.find(n => n.id === noteId)
+    if (!note) return
+
+    const updatedNote = { ...note, [field]: value, updatedAt: new Date().toISOString() }
+    
+    // Update the note in the list immediately
+    dispatch({ type: 'UPDATE_NOTE', payload: updatedNote })
+    
+    // Save to database
+    try {
+      const response = await fetch(`/api/notes/${noteId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: updatedNote.title,
+          content: updatedNote.content,
+          contentJson: updatedNote.contentJson,
+          contentText: updatedNote.contentText,
+          isShared: updatedNote.isShared,
+          color: updatedNote.color,
+          isPinned: updatedNote.isPinned,
+          isArchived: updatedNote.isArchived
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save note')
+      }
+      
+    } catch (error) {
+      console.error('Error updating note from list:', error)
+    }
+  }, [notesState.notes])
+
+  // Show delete confirmation
+  const showDeleteConfirm = useCallback((noteId: string, noteTitle: string) => {
+    setDeleteConfirm({
+      show: true,
+      noteId,
+      noteTitle
+    })
+  }, [])
+
+  // Handle note deletion
+  const handleDeleteNote = useCallback(async (noteId: string) => {
+    try {
+      const response = await fetch(`/api/notes/${noteId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete note')
+      }
+
+      // Remove note from state
+      dispatch({ type: 'DELETE_NOTE', payload: noteId })
+      
+      // If the deleted note was selected, clear selection
+      if (selectedNote?.id === noteId) {
+        setSelectedNote(null)
+      }
+
+      // Close confirmation dialog
+      setDeleteConfirm({ show: false, noteId: null, noteTitle: '' })
+
+      console.log('Note deleted successfully')
+    } catch (error) {
+      console.error('Error deleting note:', error)
+      alert('Failed to delete note. Please try again.')
+    }
+  }, [selectedNote])
+
+  // Cancel delete
+  const cancelDelete = useCallback(() => {
+    setDeleteConfirm({ show: false, noteId: null, noteTitle: '' })
+  }, [])
+
+  // Get color classes for note cards
+  const getColorClasses = useCallback((color: string) => {
+    switch (color) {
+      case 'yellow':
+        return 'bg-yellow-50 border-yellow-200'
+      case 'green':
+        return 'bg-green-50 border-green-200'
+      case 'blue':
+        return 'bg-blue-50 border-blue-200'
+      case 'purple':
+        return 'bg-purple-50 border-purple-200'
+      case 'pink':
+        return 'bg-pink-50 border-pink-200'
+      case 'gray':
+        return 'bg-gray-50 border-gray-200'
+      default:
+        return 'bg-white border-gray-200'
+    }
+  }, [])
+
+  // Get content type indicator for note cards
+  const getContentTypeIndicator = useCallback((note: Note): React.ReactNode | null => {
+    const content = note.contentText || note.content?.replace(/<[^>]*>/g, '') || ''
+    
+    if (content.includes('☑') || content.includes('☐')) {
+      const checkedCount = (content.match(/☑/g) || []).length
+      const totalCount = (content.match(/[☑☐]/g) || []).length
+      return (
+        <div className="flex items-center gap-1 text-xs text-cozy-primary">
+          <CheckSquare className="w-3 h-3" />
+          <span>Checklist ({checkedCount}/{totalCount})</span>
+        </div>
+      )
+    }
+    
+    if (content.includes('•') || /^\d+\./.test(content)) {
+      const listCount = content.split('\n').filter(line => 
+        line.trim().startsWith('•') || /^\d+\./.test(line.trim())
+      ).length
+      return (
+        <div className="flex items-center gap-1 text-xs text-cozy-primary">
+          <List className="w-3 h-3" />
+          <span>List ({listCount} items)</span>
+        </div>
+      )
+    }
+    
+    if (content.includes('#')) {
+      const headingCount = (content.match(/^#+\s/gm) || []).length
+      return (
+        <div className="flex items-center gap-1 text-xs text-cozy-primary">
+          <Type className="w-3 h-3" />
+          <span>Document ({headingCount} headings)</span>
+        </div>
+      )
+    }
+    
+    // Check for rich content in JSON
+    if (note.contentJson) {
+      const hasImages = JSON.stringify(note.contentJson).includes('"type":"image"')
+      const hasLinks = JSON.stringify(note.contentJson).includes('"type":"link"')
+      
+      if (hasImages) {
+        return (
+          <div className="flex items-center gap-1 text-xs text-cozy-primary">
+            <ImageIcon className="w-3 h-3" />
+            <span>With images</span>
+          </div>
+        )
+      }
+      
+      if (hasLinks) {
+        return (
+          <div className="flex items-center gap-1 text-xs text-cozy-primary">
+            <LinkIcon className="w-3 h-3" />
+            <span>With links</span>
+          </div>
+        )
+      }
+    }
+    
+    return null
+  }, [])
+
+  // Generate smart preview for note cards
+  const getSmartPreview = useCallback((note: Note): string => {
+    const content = note.contentText || note.content?.replace(/<[^>]*>/g, '') || ''
+    
+    if (!content.trim()) {
+      return 'Empty note'
+    }
+
+    // Check if it's a checklist
+    if (content.includes('☑') || content.includes('☐')) {
+      const checklistItems = content.split('\n').filter(line => 
+        line.includes('☑') || line.includes('☐')
+      ).slice(0, 3) // Show max 3 checklist items
+      
+      if (checklistItems.length > 0) {
+        const preview = checklistItems.join(' • ')
+        return preview.length > 80 ? preview.substring(0, 80) + '...' : preview
+      }
+    }
+
+    // Check if it's a list (bullet or numbered)
+    if (content.includes('•') || /^\d+\./.test(content)) {
+      const listItems = content.split('\n').filter(line => 
+        line.trim().startsWith('•') || /^\d+\./.test(line.trim())
+      ).slice(0, 2) // Show max 2 list items
+      
+      if (listItems.length > 0) {
+        const preview = listItems.join(' • ')
+        return preview.length > 80 ? preview.substring(0, 80) + '...' : preview
+      }
+    }
+
+    // Check if it has headings
+    const lines = content.split('\n').filter(line => line.trim())
+    const firstHeading = lines.find(line => 
+      line.startsWith('#') || 
+      (line.length < 50 && line.length > 3 && !line.includes('.'))
+    )
+    
+    if (firstHeading) {
+      const headingText = firstHeading.replace(/^#+\s*/, '')
+      const remainingText = content.replace(firstHeading, '').trim()
+      const preview = remainingText.length > 0 
+        ? `${headingText}: ${remainingText.substring(0, 60)}`
+        : headingText
+      return preview.length > 80 ? preview.substring(0, 80) + '...' : preview
+    }
+
+    // Regular text preview
+    const cleanText = content.replace(/\n+/g, ' ').trim()
+    if (cleanText.length <= 100) {
+      return cleanText
+    }
+
+    // Find a good break point (end of sentence or word)
+    let preview = cleanText.substring(0, 100)
+    const lastPeriod = preview.lastIndexOf('.')
+    const lastSpace = preview.lastIndexOf(' ')
+    
+    if (lastPeriod > 60) {
+      preview = cleanText.substring(0, lastPeriod + 1)
+    } else if (lastSpace > 60) {
+      preview = cleanText.substring(0, lastSpace)
+    }
+    
+    return preview + '...'
+  }, [])
+
+  // Extract text from TipTap JSON content (including checklist items)
+  const extractTextFromJson = useCallback((contentJson: any): string => {
+    if (!contentJson || !contentJson.content) return ''
+    
+    const extractText = (node: any): string => {
+      if (!node) return ''
+      
+      if (node.type === 'text') {
+        return node.text || ''
+      }
+      
+      if (node.type === 'taskItem') {
+        const checkbox = node.attrs?.checked ? '☑' : '☐'
+        const text = node.content ? node.content.map(extractText).join('') : ''
+        return `${checkbox} ${text}`
+      }
+      
+      if (node.type === 'taskList') {
+        return node.content ? node.content.map(extractText).join('\n') : ''
+      }
+      
+      if (node.type === 'bulletList' || node.type === 'orderedList') {
+        return node.content ? node.content.map(extractText).join('\n') : ''
+      }
+      
+      if (node.type === 'listItem') {
+        return node.content ? node.content.map(extractText).join('') : ''
+      }
+      
+      if (node.type === 'paragraph') {
+        const text = node.content ? node.content.map(extractText).join('') : ''
+        return text ? `${text}\n` : '\n'
+      }
+      
+      if (node.type === 'heading') {
+        const text = node.content ? node.content.map(extractText).join('') : ''
+        return text ? `${text}\n` : '\n'
+      }
+      
+      if (node.type === 'blockquote') {
+        const text = node.content ? node.content.map(extractText).join('') : ''
+        return text ? `> ${text}\n` : '\n'
+      }
+      
+      if (node.content && Array.isArray(node.content)) {
+        return node.content.map(extractText).join('')
+      }
+      
+      return ''
+    }
+    
+    return contentJson.content.map(extractText).join('').trim()
+  }, [])
+
+  // Handle rich text editor updates
+  const handleContentUpdate = useCallback((contentJson: any, contentText: string) => {
+    if (!selectedNote) return
+
+    // Extract proper text content including checklist items
+    const extractedText = extractTextFromJson(contentJson) || contentText
+
+    const updatedNote = { 
+      ...selectedNote, 
+      contentJson, 
+      contentText: extractedText,
+      content: extractedText, // Keep legacy content field for backward compatibility
+      updatedAt: new Date().toISOString() 
+    }
+    setSelectedNote(updatedNote)
+    dispatch({ type: 'UPDATE_NOTE', payload: updatedNote })
+    autoSave(updatedNote)
+  }, [selectedNote, autoSave, extractTextFromJson])
+
+  // Auto-resize textarea
+  const autoResize = useCallback((textarea: HTMLTextAreaElement) => {
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }, [])
+
+
+  // Create new note
+  const createNewNote = useCallback(async () => {
+    if (!session?.user?.id) return
+
     try {
       const response = await fetch('/api/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: noteData.title || 'Untitled Note',
-          content: noteData.content || 'No content',
-          isShared: noteData.isShared || false,
-          color: noteData.color || 'yellow',
-          householdId: noteData.isShared ? householdId : null
+          title: 'New Note',
+          content: '',
+          contentJson: null,
+          contentText: '',
+          isShared: false,
+          color: 'yellow'
         })
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        dispatch({ type: 'ADD_NOTE', payload: data.note })
-        setIsCreating(false)
-      } else {
+      if (!response.ok) {
         const errorData = await response.json()
-        console.error('Error creating note:', errorData.error)
-        dispatch({ type: 'SET_ERROR', payload: errorData.error || 'Failed to create note' })
+        throw new Error(errorData.error || 'Failed to create note')
       }
+      
+      const data = await response.json()
+      dispatch({ type: 'ADD_NOTE', payload: data.note })
+      setSelectedNote(data.note)
     } catch (error) {
       console.error('Error creating note:', error)
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to create note' })
+      dispatch({ type: 'SET_ERROR', payload: error instanceof Error ? error.message : 'Failed to create note' })
     }
-  }
+  }, [session?.user?.id])
 
-  const updateNote = async (noteId: string, updates: Partial<Note>) => {
-    try {
-      const response = await fetch(`/api/notes/${noteId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      })
+  // Delete note
+  const deleteNote = useCallback(async (noteId: string) => {
+    if (!confirm('Are you sure you want to delete this note?')) return
 
-      if (response.ok) {
-        const data = await response.json()
-        
-        dispatch({ type: 'UPDATE_NOTE', payload: data.note })
-        // Don't set editingNote - let the form close after saving
-      }
-    } catch (error) {
-      console.error('Error updating note:', error)
-    }
-  }
-
-  const deleteNote = async (noteId: string) => {
     try {
       const response = await fetch(`/api/notes/${noteId}`, {
         method: 'DELETE'
       })
 
-      if (response.ok) {
-        dispatch({ type: 'DELETE_NOTE', payload: noteId })
-        if (editingNote?.id === noteId) {
-          setEditingNote(null)
-        }
-        if (selectedNote?.id === noteId) {
-          setSelectedNote(null)
-        }
+      if (!response.ok) throw new Error('Failed to delete note')
+      
+      dispatch({ type: 'DELETE_NOTE', payload: noteId })
+      if (selectedNote?.id === noteId) {
+        setSelectedNote(null)
       }
     } catch (error) {
       console.error('Error deleting note:', error)
     }
-  }
+  }, [selectedNote?.id])
 
-  const addCollaborator = async (noteId: string, userId: string, role: 'VIEWER' | 'EDITOR') => {
-    try {
-      const response = await fetch(`/api/notes/${noteId}/collaborators`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role })
-      })
-
-      if (response.ok) {
-        // Reload the note to get updated collaborators
-        const noteResponse = await fetch(`/api/notes/${noteId}`)
-        if (noteResponse.ok) {
-          const noteData = await noteResponse.json()
-          dispatch({ type: 'UPDATE_NOTE', payload: noteData.note })
-          // Update editingNote if it's the same note being edited
-          if (editingNote?.id === noteId) {
-            setEditingNote(noteData.note)
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error adding collaborator:', error)
-    }
-  }
-
-  const removeCollaborator = async (noteId: string, userId: string) => {
-    try {
-      const response = await fetch(`/api/notes/${noteId}/collaborators`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId })
-      })
-
-      if (response.ok) {
-        // Reload the note to get updated collaborators
-        const noteResponse = await fetch(`/api/notes/${noteId}`)
-        if (noteResponse.ok) {
-          const noteData = await noteResponse.json()
-          dispatch({ type: 'UPDATE_NOTE', payload: noteData.note })
-          // Update editingNote if it's the same note being edited
-          if (editingNote?.id === noteId) {
-            setEditingNote(noteData.note)
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error removing collaborator:', error)
-    }
-  }
-
+  // Filtered notes
   const filteredNotes = useMemo(() => {
-    return notesState.notes.filter(note => {
-      // Filter by tab first
-      if (activeTab === 'personal' && note.isShared) return false
-      if (activeTab === 'shared' && !note.isShared) return false
-      
-      // Then filter by search query
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase()
-        return note.title.toLowerCase().includes(query) || 
-               note.content.toLowerCase().includes(query)
-      }
-      return true
-    })
+    let filtered = notesState.notes
+
+    // Filter by tab
+    if (activeTab === 'personal') {
+      filtered = filtered.filter(note => !note.isShared)
+    } else if (activeTab === 'shared') {
+      filtered = filtered.filter(note => note.isShared)
+    }
+
+    // Filter by search
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(note => 
+        note.title.toLowerCase().includes(query) ||
+        (note.contentText || note.content).toLowerCase().includes(query)
+      )
+    }
+
+    // Sort by updated date
+    return filtered.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
   }, [notesState.notes, activeTab, searchQuery])
 
-  // Performance monitoring
-  const performanceMetrics = useMemo(() => ({
-    totalNotes: notesState.notes.length,
-    filteredNotes: filteredNotes.length,
-    personalNotes: notesState.notes.filter(n => !n.isShared).length,
-    sharedNotes: notesState.notes.filter(n => n.isShared).length,
-    loading: notesState.loading,
-    hasError: !!notesState.error
-  }), [notesState, filteredNotes])
+  // Format date
+  const formatDate = useCallback((dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60)
 
-  // Debug logging
-  console.log('Notes loaded:', notesState.notes.length, 'Filtered:', filteredNotes.length)
-
-  const getNoteColorClasses = (color: string) => {
-    const colorMap: Record<string, string> = {
-      yellow: '!bg-yellow-100 !border-yellow-200',
-      pink: '!bg-pink-100 !border-pink-200',
-      blue: '!bg-blue-100 !border-blue-200',
-      green: '!bg-green-100 !border-green-200',
-      purple: '!bg-purple-100 !border-purple-200',
-      orange: '!bg-orange-100 !border-orange-200',
-      red: '!bg-red-100 !border-red-200',
-      indigo: '!bg-indigo-100 !border-indigo-200'
-    }
-    return colorMap[color] || colorMap.yellow
-  }
-
-
-  const NoteCard = ({ note }: { note: Note }) => (
-    <div 
-      className={`cozy-card p-4 cursor-pointer transition-all duration-200 hover:shadow-cozy-md hover:scale-105 ${getNoteColorClasses(note.color)} ${
-        note.isPinned ? 'ring-2 ring-cozy-primary ring-opacity-50' : ''
-      }`}
-      onClick={() => setEditingNote(note)}
-    >
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="font-medium text-cozy-text truncate flex-1">
-          {note.title}
-        </h3>
-        <div className="flex items-center gap-1 ml-2">
-          {note.isPinned && <Pin className="w-4 h-4 text-cozy-primary" />}
-          {note.isShared && <Share2 className="w-4 h-4 text-cozy-primary" />}
-          {note.isArchived && <Archive className="w-4 h-4 text-cozy-text-muted" />}
-        </div>
-      </div>
-      
-      <div className="text-sm text-cozy-text-muted mb-3 line-clamp-3">
-        {note.content.replace(/<[^>]*>/g, '').substring(0, 100)}
-        {note.content.length > 100 && '...'}
-      </div>
-      
-      <div className="flex items-center justify-between text-xs text-cozy-text-soft">
-        <span>by {note.createdBy.name}</span>
-        <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
-      </div>
-    </div>
-  )
-
-
-
-  const NoteEditor = ({ note, onSave, onCancel }: {
-    note?: Note
-    onSave: (data: Partial<Note>) => void
-    onCancel: () => void
-  }) => {
-    const [title, setTitle] = useState(note?.title || '')
-    const [content, setContent] = useState(note?.content || '')
-    const [color, setColor] = useState(note?.color || 'yellow')
-    const [isShared, setIsShared] = useState(note?.isShared || false)
-    const [isPinned, setIsPinned] = useState(note?.isPinned || false)
-    const [showCollaboratorModal, setShowCollaboratorModal] = useState(false)
-    const contentRef = useRef<HTMLTextAreaElement>(null)
-
-    useEffect(() => {
-      if (contentRef.current) {
-        contentRef.current.focus()
-      }
-    }, [])
-
-    // Simple keyboard shortcuts
-    useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.ctrlKey || e.metaKey) {
-          switch (e.key) {
-            case 's':
-              e.preventDefault()
-              handleSave()
-              break
-          }
-        }
-      }
-
-      document.addEventListener('keydown', handleKeyDown)
-      return () => document.removeEventListener('keydown', handleKeyDown)
-    }, [])
-
-    // Reset form when note changes (for new notes)
-    useEffect(() => {
-      if (!note) {
-        setTitle('')
-        setContent('')
-        setColor('yellow')
-        setIsShared(false)
-        setIsPinned(false)
-      }
-    }, [note])
-
-    const handleSave = () => {
-      const trimmedTitle = title.trim() || 'Untitled Note'
-      const trimmedContent = content.trim() || 'No content'
-      
-      onSave({
-        title: trimmedTitle,
-        content: trimmedContent,
-        color,
-        isShared,
-        isPinned
+    if (diffInHours < 1) {
+      return 'Just now'
+    } else if (diffInHours < 24) {
+      return `${Math.floor(diffInHours)}h ago`
+    } else if (diffInHours < 48) {
+      return 'Yesterday'
+    } else if (diffInHours < 168) {
+      return `${Math.floor(diffInHours / 24)}d ago`
+    } else {
+      return date.toLocaleDateString(undefined, { 
+        month: 'short', 
+        day: 'numeric',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
       })
     }
+  }, [])
 
-    const colors = ['yellow', 'pink', 'blue', 'green', 'purple', 'orange', 'red', 'indigo']
 
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-cozy-surface rounded-cozy-lg shadow-cozy-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
-          <div className="p-6 border-b border-cozy-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-cozy-text">
-                {note ? 'Edit Note' : 'New Note'}
-              </h2>
-              <button
-                onClick={onCancel}
-                className="text-cozy-text-muted hover:text-cozy-text"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Note title..."
-              className="w-full p-3 border border-cozy-gray-200 rounded-cozy bg-cozy-surface text-cozy-text placeholder-cozy-text-muted focus:outline-none focus:ring-2 focus:ring-cozy-primary"
-            />
-          </div>
+  // Load notes on mount
+  useEffect(() => {
+    loadNotes()
+  }, [loadNotes])
 
-          <div className="p-6 flex-1 overflow-y-auto">
-            <textarea
-              ref={contentRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="Start writing your note..."
-              className="w-full h-64 p-3 border border-cozy-gray-200 rounded-cozy bg-cozy-surface text-cozy-text placeholder-cozy-text-muted focus:outline-none focus:ring-2 focus:ring-cozy-primary resize-none"
-              style={{ minHeight: '200px' }}
-            />
-          </div>
-
-          <div className="p-6 border-t border-cozy-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setIsPinned(!isPinned)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-cozy text-sm transition-colors ${
-                    isPinned 
-                      ? 'bg-cozy-primary text-cozy-surface' 
-                      : 'bg-cozy-gray-100 text-cozy-text hover:bg-cozy-gray-200'
-                  }`}
-                >
-                  {isPinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
-                  {isPinned ? 'Pinned' : 'Pin'}
-                </button>
-
-                <button
-                  onClick={() => setIsShared(!isShared)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-cozy text-sm transition-colors ${
-                    isShared 
-                      ? 'bg-cozy-primary text-cozy-surface' 
-                      : 'bg-cozy-gray-100 text-cozy-text hover:bg-cozy-gray-200'
-                  }`}
-                >
-                  {isShared ? <Share2 className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                  {isShared ? 'Shared' : 'Personal'}
-                </button>
-
-                {note && note.isShared && (
-                  <button
-                    onClick={() => setShowCollaboratorModal(true)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-cozy text-sm bg-cozy-gray-100 text-cozy-text hover:bg-cozy-gray-200 transition-colors"
-                  >
-                    <Users className="w-4 h-4" />
-                    Manage ({note.collaborators.length})
-                  </button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                {colors.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setColor(c)}
-                    className={`w-6 h-6 rounded-full border-2 ${
-                      color === c ? 'border-cozy-text' : 'border-cozy-gray-300'
-                    } ${getNoteColorClasses(c).split(' ')[0]}`}
-                    title={`Set color to ${c}`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <Button
-                onClick={onCancel}
-                variant="outline"
-                className="bg-cozy-surface border-cozy-gray-200 text-cozy-text hover:bg-cozy-gray-100"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                className="bg-cozy-primary hover:bg-cozy-primary-deep text-cozy-surface"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                Save Note
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Collaborator Management Modal */}
-        {showCollaboratorModal && note && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-60">
-            <div className="bg-cozy-surface rounded-cozy-lg shadow-cozy-lg w-full max-w-md">
-              <div className="p-6 border-b border-cozy-gray-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-cozy-text">Manage Collaborators</h3>
-                  <button
-                    onClick={() => setShowCollaboratorModal(false)}
-                    className="text-cozy-text-muted hover:text-cozy-text"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <div className="space-y-4">
-                  <h4 className="font-medium text-cozy-text">Current Collaborators</h4>
-                  {note.collaborators.map((collab) => (
-                    <div key={collab.id} className="flex items-center justify-between p-3 bg-cozy-gray-100 rounded-cozy">
-                      <div>
-                        <div className="font-medium text-cozy-text">{collab.user.name}</div>
-                        <div className="text-sm text-cozy-text-muted">{collab.role}</div>
-                      </div>
-                      <button
-                        onClick={() => removeCollaborator(note.id, collab.user.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-
-                  <div className="border-t border-cozy-gray-200 pt-4">
-                    <h4 className="font-medium text-cozy-text mb-3">Add Collaborator</h4>
-                    <div className="space-y-2">
-                      {householdMembers
-                        .filter(member => 
-                          member.user.id !== note.createdBy.id && 
-                          !note.collaborators.some(c => c.user.id === member.user.id)
-                        )
-                        .map((member) => (
-                          <div key={member.user.id} className="flex items-center justify-between p-2 border border-cozy-gray-200 rounded-cozy">
-                            <span className="text-cozy-text">{member.user.name}</span>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => addCollaborator(note.id, member.user.id, 'VIEWER')}
-                                className="px-2 py-1 text-xs bg-cozy-gray-100 text-cozy-text rounded hover:bg-cozy-gray-200"
-                              >
-                                Viewer
-                              </button>
-                              <button
-                                onClick={() => addCollaborator(note.id, member.user.id, 'EDITOR')}
-                                className="px-2 py-1 text-xs bg-cozy-primary text-cozy-surface rounded hover:bg-cozy-primary-deep"
-                              >
-                                Editor
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  if (status === 'loading' || notesState.loading) {
+  if (!session) {
     return (
       <ModernAppShell title="Notes">
-        <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-cozy-text-muted">Loading your notes...</p>
+            <h2 className="text-xl font-semibold text-cozy-text mb-2">Please sign in</h2>
+            <p className="text-cozy-text-muted">You need to be signed in to view your notes.</p>
           </div>
         </div>
       </ModernAppShell>
     )
   }
 
-  if (status === 'unauthenticated') {
+  // Show loading state
+  if (notesState.loading) {
     return (
       <ModernAppShell title="Notes">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-red-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-cozy-text mb-2">Authentication Required</h2>
-            <p className="text-cozy-text-muted mb-4">
-              You need to be logged in to access your notes.
-            </p>
-            <Button 
-              onClick={() => window.location.href = '/api/auth/signin'}
-              className="bg-cozy-primary hover:bg-cozy-primary/90 text-white"
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cozy-primary mx-auto mb-4"></div>
+            <p className="text-cozy-text-muted">Loading notes...</p>
+          </div>
+        </div>
+      </ModernAppShell>
+    )
+  }
+
+  // Show error if there's one
+  if (notesState.error) {
+    return (
+      <ModernAppShell title="Notes">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-red-600 mb-2">Error</h2>
+            <p className="text-cozy-text-muted mb-4">{notesState.error}</p>
+            <button 
+              onClick={() => {
+                dispatch({ type: 'SET_ERROR', payload: null })
+                loadNotes()
+              }}
+              className="px-4 py-2 bg-cozy-primary text-white rounded-lg hover:bg-cozy-primary-deep transition-colors"
             >
-              Sign In to Continue
-            </Button>
+              Try Again
+            </button>
           </div>
         </div>
       </ModernAppShell>
@@ -692,207 +722,505 @@ export default function NotesPage() {
 
   return (
     <ModernAppShell title="Notes">
-      <div className="min-h-screen bg-cozy-bg">
-        <div className="max-w-7xl mx-auto px-4 py-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-cozy-primary rounded-full flex items-center justify-center">
-                <FileText className="w-5 h-5 text-white" />
-              </div>
-              <h1 className="text-2xl font-normal text-cozy-text">Notes</h1>
+      <div className="h-screen flex bg-white">
+        {/* Sidebar */}
+        <div className={`${isSidebarCollapsed ? 'w-0' : 'w-80'} bg-gray-50 border-r border-gray-200 transition-all duration-300 overflow-hidden hidden md:block`}>
+          <div className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-xl font-semibold text-cozy-text">Notes</h1>
+              <button
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                className="p-1 hover:bg-gray-200 rounded transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
             </div>
-            <Button
-              onClick={() => setIsCreating(true)}
-              className="bg-cozy-primary hover:bg-cozy-primary-deep text-cozy-surface"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Note
-            </Button>
-          </div>
 
-          {/* Search and Tabs */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-cozy-text-muted" />
-              </div>
+            {/* Search */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search notes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-3 border border-cozy-gray-200 rounded-cozy bg-cozy-surface text-sm placeholder-cozy-text-muted focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:border-transparent"
               />
             </div>
-            
-            <div className="flex bg-cozy-gray-100 rounded-cozy p-1">
-              {[
-                { key: 'all', label: 'All Notes' },
-                { key: 'personal', label: 'Personal' },
-                { key: 'shared', label: 'Shared' }
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
-                  className={`px-4 py-2 rounded-cozy text-sm font-medium transition-colors ${
-                    activeTab === tab.key
-                      ? 'bg-cozy-primary text-cozy-surface'
-                      : 'text-cozy-text-muted hover:text-cozy-text'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+
+            {/* Tabs */}
+            <div className="flex mb-4">
+              <button
+                onClick={() => setActiveTab('all')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
+                  activeTab === 'all' 
+                    ? 'bg-cozy-primary text-white' 
+                    : 'text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                All Notes
+              </button>
+              <button
+                onClick={() => setActiveTab('personal')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ml-2 ${
+                  activeTab === 'personal' 
+                    ? 'bg-cozy-primary text-white' 
+                    : 'text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Personal
+              </button>
+              <button
+                onClick={() => setActiveTab('shared')}
+                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ml-2 ${
+                  activeTab === 'shared' 
+                    ? 'bg-cozy-primary text-white' 
+                    : 'text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Shared
+              </button>
             </div>
+
+            {/* New Note Button */}
+            <Button
+              onClick={createNewNote}
+              className="w-full bg-cozy-primary hover:bg-cozy-primary-deep text-white mb-4 hidden sm:flex"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Note
+            </Button>
             
           </div>
+        </div>
 
-          {/* Error Display */}
-          {notesState.error && (
-            <div className="mb-6 p-4 bg-red-100 border border-red-200 rounded-cozy">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-red-700 font-medium">Error loading notes</p>
-                  <p className="text-red-600 text-sm mt-1">{notesState.error}</p>
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          {/* Mobile Header */}
+          <div className="md:hidden p-4 border-b border-gray-200 bg-white">
+            <div className="flex items-center justify-between">
+              <h1 className="text-lg font-semibold text-cozy-text">Notes</h1>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActiveTab(activeTab === 'all' ? 'personal' : activeTab === 'personal' ? 'shared' : 'all')}
+                  className="px-3 py-1 text-sm bg-cozy-gray text-cozy-text rounded-lg hover:bg-cozy-gray-hover transition-colors"
+                >
+                  {activeTab === 'all' ? 'All' : activeTab === 'personal' ? 'Personal' : 'Shared'}
+                </button>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search notes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:border-transparent"
+                />
+              </div>
+            </div>
+          </div>
+
+          {!selectedNote ? (
+            /* Notes List View */
+            <div className="flex-1 p-3 md:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+                {filteredNotes.length === 0 ? (
+                  <div className="col-span-full text-center py-12">
+                    <div className="text-6xl mb-4">📝</div>
+                    <h3 className="text-xl font-normal text-cozy-text mb-2">
+                      {searchQuery ? 'No notes found' : 'No notes yet'}
+                    </h3>
+                    <p className="text-cozy-text-muted mb-4">
+                      {searchQuery 
+                        ? 'Try adjusting your search terms'
+                        : 'Start by creating your first note!'
+                      }
+                    </p>
+                    {!searchQuery && (
+                      <Button
+                        onClick={createNewNote}
+                        className="bg-cozy-primary hover:bg-cozy-primary-deep text-cozy-surface"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Note
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  filteredNotes.map((note) => (
+                    <div
+                      key={note.id}
+                      onClick={() => setSelectedNote(note)}
+                      className={`cozy-card p-4 cursor-pointer hover:shadow-cozy-md transition-all duration-200 group ${getColorClasses(note.color)}`}
+                      style={{ 
+                        backgroundColor: note.color === 'yellow' ? '#fefce8' : 
+                                       note.color === 'green' ? '#f0fdf4' : 
+                                       note.color === 'blue' ? '#eff6ff' : 
+                                       note.color === 'purple' ? '#faf5ff' : 
+                                       note.color === 'pink' ? '#fdf2f8' : 
+                                       note.color === 'gray' ? '#f9fafb' : '#ffffff',
+                        borderColor: note.color === 'yellow' ? '#fde047' : 
+                                    note.color === 'green' ? '#86efac' : 
+                                    note.color === 'blue' ? '#93c5fd' : 
+                                    note.color === 'purple' ? '#c4b5fd' : 
+                                    note.color === 'pink' ? '#f9a8d4' : 
+                                    note.color === 'gray' ? '#d1d5db' : '#e5e7eb'
+                      }}
+                    >
+                      <div className="flex items-start justify-between mb-2 gap-2">
+                        <h3 className="font-medium text-cozy-text truncate flex-1 min-w-0">
+                          {note.title || 'Untitled'}
+                        </h3>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {note.isPinned && (
+                            <Pin className="w-3 h-3 text-yellow-500" />
+                          )}
+                          <div className="flex items-center gap-1">
+                            {/* Quick Color Picker */}
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity duration-200">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleNoteUpdateFromList(note.id, 'color', 'yellow')
+                                }}
+                                className={`w-4 h-4 sm:w-3 sm:h-3 rounded-full border-2 ${
+                                  note.color === 'yellow' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                                } bg-yellow-200 hover:bg-yellow-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                                title="Yellow"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleNoteUpdateFromList(note.id, 'color', 'green')
+                                }}
+                                className={`w-4 h-4 sm:w-3 sm:h-3 rounded-full border-2 ${
+                                  note.color === 'green' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                                } bg-green-200 hover:bg-green-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                                title="Green"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleNoteUpdateFromList(note.id, 'color', 'blue')
+                                }}
+                                className={`w-4 h-4 sm:w-3 sm:h-3 rounded-full border-2 ${
+                                  note.color === 'blue' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                                } bg-blue-200 hover:bg-blue-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                                title="Blue"
+                              />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleNoteUpdateFromList(note.id, 'color', 'purple')
+                                }}
+                                className={`w-4 h-4 sm:w-3 sm:h-3 rounded-full border-2 ${
+                                  note.color === 'purple' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                                } bg-purple-200 hover:bg-purple-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                                title="Purple"
+                              />
+                            </div>
+                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleNoteUpdateFromList(note.id, 'isShared', !note.isShared)
+                              }}
+                              className={`p-1.5 sm:p-1 rounded-lg transition-colors touch-manipulation ${
+                                note.isShared
+                                  ? 'text-cozy-primary hover:bg-cozy-primary/10 active:bg-cozy-primary/20'
+                                  : 'text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-gray active:bg-cozy-gray-hover'
+                              }`}
+                              title={note.isShared ? 'Make private' : 'Share with household'}
+                            >
+                              {note.isShared ? (
+                                <Share2 className="w-3 h-3" />
+                              ) : (
+                                <Lock className="w-3 h-3" />
+                              )}
+                            </button>
+                            
+                            {/* Delete Button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                showDeleteConfirm(note.id, note.title || 'Untitled')
+                              }}
+                              className="p-1.5 sm:p-1 rounded-lg transition-colors touch-manipulation text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-gray active:bg-cozy-gray-hover"
+                              title="Delete note"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="mb-3">
+                        {getContentTypeIndicator(note) && (
+                          <div className="flex items-center gap-1 mb-1">
+                            {getContentTypeIndicator(note)}
+                          </div>
+                        )}
+                        <div className="text-sm text-cozy-text-muted line-clamp-3">
+                          {getSmartPreview(note)}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between text-xs text-cozy-text-soft">
+                        <div className="flex items-center gap-2">
+                          <span>by {note.createdBy.name}</span>
+                          {note.isShared && (
+                            <div className="flex items-center gap-1 text-cozy-primary">
+                              <Share2 className="w-3 h-3" />
+                              <span>Shared</span>
+                            </div>
+                          )}
+                        </div>
+                        <span>{formatDate(note.updatedAt)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Note Editor View */
+            <div className="flex-1 flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-3 md:p-4 border-b border-gray-200">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <button
+                    onClick={() => setSelectedNote(null)}
+                    className="flex items-center gap-1 md:gap-2 text-cozy-primary hover:text-cozy-primary-deep transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span className="text-sm font-medium hidden sm:inline">All Notes</span>
+                    <span className="text-sm font-medium sm:hidden">Back</span>
+                  </button>
+                  
                 </div>
+                
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => loadNotes()}
-                    className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                    onClick={() => handleNoteUpdate('isShared', !selectedNote.isShared)}
+                    className={`p-2 rounded transition-colors ${
+                      selectedNote.isShared
+                        ? 'text-cozy-primary bg-cozy-primary/10 hover:bg-cozy-primary/20'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                    title={selectedNote.isShared ? 'Make private' : 'Share with household'}
                   >
-                    Retry
+                    {selectedNote.isShared ? (
+                      <Share2 className="w-4 h-4" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                  </button>
+                  <button className="p-2 hover:bg-gray-100 rounded transition-colors text-gray-600">
+                    <MoreVertical className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => dispatch({ type: 'SET_ERROR', payload: null })}
-                    className="text-red-500 hover:text-red-700"
+                    onClick={() => setSelectedNote(null)}
+                    className="px-4 py-2 text-cozy-primary font-medium hover:text-cozy-primary-deep transition-colors"
                   >
-                    <X className="w-4 h-4" />
+                    Done
                   </button>
                 </div>
+              </div>
+
+              {/* Title */}
+              <div className="p-3 md:p-4 border-b border-gray-200">
+                <textarea
+                  ref={titleRef}
+                  value={selectedNote.title}
+                  onChange={(e) => {
+                    handleNoteUpdate('title', e.target.value)
+                    autoResize(e.target)
+                  }}
+                  placeholder="Title"
+                  className="w-full text-2xl md:text-3xl font-bold text-cozy-text placeholder-gray-400 border-0 resize-none focus:outline-none bg-transparent"
+                  style={{ minHeight: '40px' }}
+                />
+              </div>
+
+              {/* Save State Indicator & Share Controls */}
+              <div className="px-3 md:px-4 py-2 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    {saveState === 'saving' && (
+                      <>
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-cozy-primary"></div>
+                        <span>Saving...</span>
+                      </>
+                    )}
+                    {saveState === 'saved' && lastSaved && (
+                      <>
+                        <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                        <span>Saved • {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </>
+                    )}
+                    {saveState === 'error' && (
+                      <>
+                        <div className="h-2 w-2 bg-red-500 rounded-full"></div>
+                        <span>Save failed</span>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Share Toggle & Color Picker */}
+                  <div className="flex items-center gap-2 md:gap-3">
+                    {/* Color Picker */}
+                    <div className="flex items-center gap-1 md:gap-2">
+                      <button
+                        onClick={() => handleNoteUpdate('color', 'yellow')}
+                        className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
+                          selectedNote.color === 'yellow' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                        } bg-yellow-200 hover:bg-yellow-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                        title="Yellow"
+                      />
+                      <button
+                        onClick={() => handleNoteUpdate('color', 'green')}
+                        className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
+                          selectedNote.color === 'green' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                        } bg-green-200 hover:bg-green-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                        title="Green"
+                      />
+                      <button
+                        onClick={() => handleNoteUpdate('color', 'blue')}
+                        className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
+                          selectedNote.color === 'blue' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                        } bg-blue-200 hover:bg-blue-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                        title="Blue"
+                      />
+                      <button
+                        onClick={() => handleNoteUpdate('color', 'purple')}
+                        className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
+                          selectedNote.color === 'purple' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                        } bg-purple-200 hover:bg-purple-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                        title="Purple"
+                      />
+                      <button
+                        onClick={() => handleNoteUpdate('color', 'pink')}
+                        className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
+                          selectedNote.color === 'pink' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                        } bg-pink-200 hover:bg-pink-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                        title="Pink"
+                      />
+                      <button
+                        onClick={() => handleNoteUpdate('color', 'gray')}
+                        className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
+                          selectedNote.color === 'gray' ? 'border-gray-600 scale-110' : 'border-gray-300'
+                        } bg-gray-200 hover:bg-gray-300 active:scale-95 transition-all duration-150 touch-manipulation`}
+                        title="Gray"
+                      />
+                    </div>
+                    
+                    <button
+                      onClick={() => handleNoteUpdate('isShared', !selectedNote.isShared)}
+                      className={`flex items-center gap-1 px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-xs font-medium transition-colors touch-manipulation ${
+                        selectedNote.isShared
+                          ? 'bg-cozy-primary text-white active:bg-cozy-primary-deep'
+                          : 'bg-cozy-gray text-cozy-text hover:bg-cozy-gray-hover active:bg-cozy-gray-active'
+                      }`}
+                    >
+                      {selectedNote.isShared ? (
+                        <>
+                          <Share2 className="w-3 h-3" />
+                          <span>Shared</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-3 h-3" />
+                          <span>Private</span>
+                        </>
+                      )}
+                    </button>
+                    
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => showDeleteConfirm(selectedNote.id, selectedNote.title || 'Untitled')}
+                      className="flex items-center gap-1 px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-xs font-medium transition-colors touch-manipulation bg-cozy-gray text-cozy-text hover:bg-cozy-gray-hover active:bg-cozy-gray-active"
+                      title="Delete note"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content Editor */}
+              <div className="flex-1 p-3 md:p-4">
+                <ClientOnly fallback={
+                  <div className="min-h-[300px] p-4 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
+                    <div className="text-gray-500">Loading editor...</div>
+                  </div>
+                }>
+                  <RichTextEditor
+                    content={selectedNote.contentJson || selectedNote.content}
+                    onUpdate={handleContentUpdate}
+                    placeholder="Start writing your note..."
+                    editable={true}
+                    className="h-full"
+                  />
+                </ClientOnly>
               </div>
             </div>
           )}
-
-          {/* Notes Grid */}
-          <div className="min-h-[400px]">
-            {filteredNotes.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">📝</div>
-                <h3 className="text-xl font-normal text-cozy-text mb-2">
-                  {searchQuery ? 'No notes found' : 'No notes yet'}
-                </h3>
-                <p className="text-cozy-text-muted mb-4">
-                  {searchQuery 
-                    ? 'Try adjusting your search terms'
-                    : 'Start by creating your first note!'
-                  }
-                </p>
-                {!searchQuery && (
-                  <div className="flex items-center gap-4">
-                    <Button
-                      onClick={() => setIsCreating(true)}
-                      className="bg-cozy-primary hover:bg-cozy-primary-deep text-cozy-surface"
-                      title="Create new note (Ctrl+N)"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Create Note
-                    </Button>
-                    
-                    
-                    {/* Keyboard shortcuts help */}
-                    <div className="text-xs text-cozy-text-muted">
-                      <span className="hidden sm:inline">Shortcuts: </span>
-                      <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs">Ctrl+N</kbd> New
-                      <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs ml-1">Ctrl+K</kbd> Search
-                      <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs ml-1">Ctrl+S</kbd> Save
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredNotes.map((note) => (
-                  <NoteCard key={`${note.id}-${note.color}-${note.updatedAt}`} note={note} />
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Note Editor Modal */}
-      {isCreating && (
-        <NoteEditor
-          onSave={createNote}
-          onCancel={() => setIsCreating(false)}
-        />
-      )}
-
-      {editingNote && (
-        <NoteEditor
-          note={editingNote}
-          onSave={(data) => {
-            updateNote(editingNote.id, data)
-            setEditingNote(null)
-          }}
-          onCancel={() => setEditingNote(null)}
-        />
-      )}
-
-
-      {/* Note Detail Modal */}
-      {selectedNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-cozy-surface rounded-cozy-lg shadow-cozy-lg w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            <div className="p-6 border-b border-cozy-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`w-4 h-4 rounded-full ${getNoteColorClasses(selectedNote.color).split(' ')[0]}`} />
-                  <h2 className="text-xl font-semibold text-cozy-text">{selectedNote.title}</h2>
-                  {selectedNote.isPinned && <Pin className="w-5 h-5 text-cozy-primary" />}
-                  {selectedNote.isShared && <Share2 className="w-5 h-5 text-cozy-primary" />}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setSelectedNote(null)}
-                    className="text-cozy-text-muted hover:text-cozy-text"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-cozy-lg max-w-md w-full p-6 border border-cozy-border">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-cozy-gray/20 rounded-full flex items-center justify-center border-2 border-cozy-border">
+                <Trash2 className="w-6 h-6 text-cozy-text-muted" />
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-cozy-text">Delete Note</h3>
+                <p className="text-sm text-cozy-text-muted">This action cannot be undone</p>
               </div>
             </div>
-
-            <div className="p-6 flex-1 overflow-y-auto">
-              <div 
-                className="prose prose-cozy max-w-none"
-                dangerouslySetInnerHTML={{ __html: selectedNote.content }}
-              />
+            
+            <div className="bg-cozy-gray/30 rounded-lg p-4 mb-6">
+              <p className="text-cozy-text">
+                Are you sure you want to delete <strong className="text-cozy-text">"{deleteConfirm.noteTitle}"</strong>? 
+              </p>
+              <p className="text-sm text-cozy-text-muted mt-2">
+                This will permanently remove the note and all its content from your account.
+              </p>
             </div>
-
-            <div className="p-6 border-t border-cozy-gray-200">
-              <div className="flex items-center justify-between text-sm text-cozy-text-muted">
-                <div className="flex items-center gap-4">
-                  <span>Created by {selectedNote.createdBy.name}</span>
-                  <span>Updated {new Date(selectedNote.updatedAt).toLocaleDateString()}</span>
-                  {selectedNote.household && (
-                    <span>Shared in {selectedNote.household.name}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {selectedNote.collaborators.length > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Users className="w-4 h-4" />
-                      <span>{selectedNote.collaborators.length} collaborator{selectedNote.collaborators.length !== 1 ? 's' : ''}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
+            
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={cancelDelete}
+                className="px-6 py-3 text-sm font-medium text-cozy-text bg-cozy-gray hover:bg-cozy-gray-hover active:bg-cozy-gray-active rounded-lg transition-all duration-200 touch-manipulation"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteConfirm.noteId && handleDeleteNote(deleteConfirm.noteId)}
+                className="px-6 py-3 text-sm font-medium text-white bg-cozy-primary hover:bg-cozy-primary-deep active:bg-cozy-primary-dark rounded-lg transition-all duration-200 touch-manipulation shadow-sm"
+              >
+                Delete Note
+              </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Floating Mobile Button */}
+      <button
+        onClick={createNewNote}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-cozy-primary hover:bg-cozy-primary-deep text-white rounded-full shadow-cozy-lg flex items-center justify-center z-40 sm:hidden transition-all duration-200 hover:scale-105 active:scale-95"
+        title="Create new note"
+      >
+        <Plus className="w-6 h-6" />
+      </button>
     </ModernAppShell>
   )
 }

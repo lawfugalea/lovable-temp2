@@ -2,6 +2,35 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fix for contentEditable text direction */
+[contenteditable] {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+  writing-mode: horizontal-tb !important;
+}
+
+/* More specific targeting for notes editor */
+[contenteditable] * {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+  writing-mode: horizontal-tb !important;
+}
+
+/* Force direction on all elements inside contentEditable */
+[contenteditable] p,
+[contenteditable] div,
+[contenteditable] span,
+[contenteditable] li,
+[contenteditable] td,
+[contenteditable] th {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: normal !important;
+  writing-mode: horizontal-tb !important;
+}
+
 /* Warm, cozy design system */
 :root {
   /* Main background - warm ivory */

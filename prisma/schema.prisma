@@ -319,7 +319,9 @@ model FeverReading {
 model Note {
   id          String   @id @default(cuid())
   title       String
-  content     String   // Rich text content (HTML or Markdown)
+  content     String   // Legacy rich text content (HTML or Markdown) - kept for backward compatibility
+  contentJson Json?    // TipTap JSON content
+  contentText String?  // Plain text content for search
   isShared    Boolean  @default(false) // true = shared with household, false = personal
   color       String   @default("yellow") // Note color theme
   isPinned    Boolean  @default(false) // Pin important notes

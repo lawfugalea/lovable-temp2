@@ -113,7 +113,8 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
     })
 
     console.log('API: Found notes:', notes.length)
-    console.log('API: Notes data:', notes.map(n => ({ id: n.id, title: n.title, isShared: n.isShared, householdId: n.householdId })))
+    console.log('API: Notes data:', notes.map(n => ({ id: n.id, title: n.title, isShared: n.isShared, householdId: n.householdId, color: n.color })))
+    console.log('API: First note full data:', notes[0])
 
     return res.status(200).json({ notes })
   } catch (error) {
@@ -124,10 +125,10 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
 
 async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user: any) {
   try {
-    const { title, content, isShared, color, householdId } = req.body
+    const { title, content, contentJson, contentText, isShared, color, householdId } = req.body
 
-    if (!title || !content) {
-      return res.status(400).json({ error: 'Title and content are required' })
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' })
     }
 
     // Validate household access for shared notes
@@ -149,7 +150,9 @@ async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user:
     const note = await prisma.note.create({
       data: {
         title,
-        content,
+        content: content || '',
+        contentJson: contentJson || null,
+        contentText: contentText || '',
         isShared: isShared || false,
         color: color || 'yellow',
         createdById: user.id,

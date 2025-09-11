@@ -93,7 +93,7 @@ async function handleGetNote(req: NextApiRequest, res: NextApiResponse, user: an
 
 async function handleUpdateNote(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
   try {
-    const { title, content, color, isPinned, isArchived, isShared, householdId } = req.body
+    const { title, content, contentJson, contentText, color, isPinned, isArchived, isShared, householdId } = req.body
 
     // Check if user has permission to edit this note
     const existingNote = await prisma.note.findFirst({
@@ -136,6 +136,8 @@ async function handleUpdateNote(req: NextApiRequest, res: NextApiResponse, user:
     const updateData: any = {}
     if (title !== undefined) updateData.title = title
     if (content !== undefined) updateData.content = content
+    if (contentJson !== undefined) updateData.contentJson = contentJson
+    if (contentText !== undefined) updateData.contentText = contentText
     if (color !== undefined) updateData.color = color
     if (isPinned !== undefined) updateData.isPinned = isPinned
     if (isArchived !== undefined) updateData.isArchived = isArchived
