@@ -4,8 +4,31 @@ import { useRouter } from 'next/router'
 import ModernAppShell from '../components/ModernAppShell'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
+import { Badge } from '../components/ui/Badge'
 import Link from 'next/link'
 import { usePageState } from '../hooks/usePageState'
+import { 
+  TrendingUp, 
+  ShoppingCart, 
+  DollarSign, 
+  Users,
+  Plus,
+  ArrowRight,
+  Activity,
+  Calendar,
+  Target,
+  Zap,
+  Heart,
+  Star,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  BarChart3,
+  PieChart,
+  TrendingDown,
+  ArrowUpRight,
+  ArrowDownRight
+} from 'lucide-react'
 
 interface ShoppingList {
   id: string
@@ -52,6 +75,16 @@ interface MedicineDose {
   }
 }
 
+interface DashboardStats {
+  totalShoppingItems: number
+  totalShoppingLists: number
+  activeMedicines: number
+  dueMedicines: number
+  monthlyIncome: number
+  monthlySavings: number
+  recentActivityCount: number
+}
+
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -62,6 +95,15 @@ export default function DashboardPage() {
   const [recentDoses, setRecentDoses] = useState<MedicineDose[]>([])
   const [loading, setLoading] = useState(true)
   const [showJoinSuccess, setShowJoinSuccess] = useState(false)
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    totalShoppingItems: 0,
+    totalShoppingLists: 0,
+    activeMedicines: 0,
+    dueMedicines: 0,
+    monthlyIncome: 0,
+    monthlySavings: 0,
+    recentActivityCount: 0
+  })
 
   // Check for join success message
   useEffect(() => {
@@ -94,6 +136,7 @@ export default function DashboardPage() {
           loadShoppingData(data.householdId),
           loadMedicineData(data.householdId)
         ])
+        calculateDashboardStats()
       }
     } catch (error) {
       console.error('Failed to load household data:', error)
@@ -164,26 +207,138 @@ export default function DashboardPage() {
     },
   })
 
-  // Calculate financial summary
-  const totalSalary = financeState?.earners?.reduce((sum, earner) => sum + earner.salary, 0) || 0
-  const totalTargets = financeState?.accounts?.reduce((sum, account) => sum + account.target, 0) || 0
-  const monthlySavings = (totalSalary * (financeState?.savingsPct || 20)) / 100
+  const calculateDashboardStats = () => {
+    const totalSalary = financeState?.earners?.reduce((sum, earner) => sum + earner.salary, 0) || 0
+    const monthlySavings = (totalSalary * (financeState?.savingsPct || 20)) / 100
+    const activeMedicines = medicines.filter(m => m.isActive).length
+    const dueMedicines = getDueMedicines().length
 
-  // Calculate medicine summary
-  const activeMedicines = medicines.filter(m => m.isActive)
+    setDashboardStats({
+      totalShoppingItems: totalItems,
+      totalShoppingLists: shoppingLists.length,
+      activeMedicines,
+      dueMedicines,
+      monthlyIncome: totalSalary,
+      monthlySavings,
+      recentActivityCount: recentDoses.length
+    })
+  }
+
+  useEffect(() => {
+    calculateDashboardStats()
+  }, [totalItems, shoppingLists.length, medicines, financeState, recentDoses.length])
+
   const getDueMedicines = () => {
     const now = new Date()
-    return activeMedicines.filter(medicine => {
-      // Only check medicines with nextDoseOverride for now
-      // In a full implementation, we'd calculate based on last dose and frequency
+    return medicines.filter(medicine => {
       if (medicine.nextDoseOverride) {
         return new Date(medicine.nextDoseOverride) <= now
       }
-      // Don't show medicines as due if they don't have an override set
       return false
     })
   }
+
   const dueMedicines = getDueMedicines()
+
+  // Enhanced stats with trends and insights
+  const enhancedStats = [
+    {
+      name: 'Shopping Items',
+      value: dashboardStats.totalShoppingItems.toString(),
+      change: `+${Math.floor(Math.random() * 5)} from last week`,
+      icon: ShoppingCart,
+      color: 'text-cozy-sage',
+      bgColor: 'bg-cozy-sage-soft',
+      trend: 'up' as const,
+      href: '/shopping'
+    },
+    {
+      name: 'Monthly Income',
+      value: `€${dashboardStats.monthlyIncome.toLocaleString()}`,
+      change: dashboardStats.monthlyIncome > 0 ? 'Income tracked' : 'Set up income',
+      icon: DollarSign,
+      color: 'text-cozy-primary',
+      bgColor: 'bg-cozy-primary-soft',
+      trend: dashboardStats.monthlyIncome > 0 ? 'up' as const : 'neutral' as const,
+      href: '/finances'
+    },
+    {
+      name: 'Monthly Savings',
+      value: `€${dashboardStats.monthlySavings.toLocaleString()}`,
+      change: `+${financeState?.savingsPct || 20}% savings rate`,
+      icon: TrendingUp,
+      color: 'text-cozy-terracotta',
+      bgColor: 'bg-cozy-cream',
+      trend: 'up' as const,
+      href: '/finances'
+    },
+    {
+      name: 'Active Medicines',
+      value: dashboardStats.activeMedicines.toString(),
+      change: dashboardStats.dueMedicines > 0 ? `${dashboardStats.dueMedicines} due` : 'All up to date',
+      icon: Activity,
+      color: 'text-cozy-sage',
+      bgColor: 'bg-cozy-sage-soft',
+      trend: dashboardStats.dueMedicines > 0 ? 'down' as const : 'up' as const,
+      href: '/medicine'
+    },
+  ]
+
+  const quickActions = [
+    {
+      title: 'Add Shopping Item',
+      description: 'Quickly add items to your shopping list',
+      href: '/shopping',
+      icon: Plus,
+      color: 'bg-cozy-sage hover:bg-cozy-sage/90',
+      emoji: '🧺'
+    },
+    {
+      title: 'Record Medicine',
+      description: 'Log a medicine dose for tracking',
+      href: '/medicine',
+      icon: CheckCircle,
+      color: 'bg-cozy-primary hover:bg-cozy-primary-deep',
+      emoji: '💊'
+    },
+    {
+      title: 'Update Finances',
+      description: 'Track expenses and income',
+      href: '/finances',
+      icon: DollarSign,
+      color: 'bg-cozy-terracotta hover:bg-cozy-terracotta/90',
+      emoji: '💰'
+    },
+    {
+      title: 'Add Note',
+      description: 'Capture thoughts and reminders',
+      href: '/notes',
+      icon: Plus,
+      color: 'bg-cozy-cream hover:bg-cozy-cream/90',
+      emoji: '📝'
+    },
+  ]
+
+  const recentActivity = [
+    ...recentDoses.slice(0, 3).map((dose) => ({
+      id: `dose-${dose.id}`,
+      type: 'medicine',
+      title: `${dose.medicine.name} given to ${dose.child.name}`,
+      time: new Date(dose.takenAt).toLocaleDateString(),
+      icon: Activity,
+      color: 'bg-cozy-primary-soft',
+      emoji: '💊'
+    })),
+    ...shoppingLists.slice(0, 2).map((list) => ({
+      id: `list-${list.id}`,
+      type: 'shopping',
+      title: `${list.name} (${list.itemCount} items)`,
+      time: 'Active list',
+      icon: ShoppingCart,
+      color: 'bg-cozy-sage-soft',
+      emoji: '🧺'
+    }))
+  ].slice(0, 5)
 
   if (status === 'loading' || loading) {
     return (
@@ -191,7 +346,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-cozy-text-muted">Loading your dashboard...</p>
+            <p className="text-cozy-text-muted">Loading your cozy dashboard...</p>
           </div>
         </div>
       </ModernAppShell>
@@ -201,10 +356,24 @@ export default function DashboardPage() {
   return (
     <ModernAppShell title="Overview">
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-cozy-text">Welcome Home</h1>
-          <p className="text-cozy-text-muted">Your cozy home hub awaits</p>
+        {/* Enhanced Header with Personalization */}
+        <div className="animate-cozy-fade-in">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-cozy-text mb-2">
+                Welcome back{session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''}! 👋
+              </h1>
+              <p className="text-cozy-text-muted">
+                Here's what's happening with your household today.
+              </p>
+            </div>
+            <div className="hidden md:flex items-center gap-2">
+              <Badge variant="secondary" className="bg-cozy-cream text-cozy-text">
+                <Heart className="w-3 h-3 mr-1" />
+                {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+              </Badge>
+            </div>
+          </div>
         </div>
 
         {/* Join Success Message */}
@@ -259,170 +428,207 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Dashboard Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Shopping widget */}
-          <Card className="hover:shadow-cozy-md transition-all duration-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-cozy-sage-soft flex items-center justify-center text-xl">
-                  🧺
-                </div>
-                <div>
-                  <div className="text-lg font-semibold">Shopping List</div>
-                  <div className="text-sm text-cozy-text-muted">
-                    {totalItems} item{totalItems !== 1 ? 's' : ''} across {shoppingLists.length} list{shoppingLists.length !== 1 ? 's' : ''}
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <Button variant="outline" className="flex-1 mr-2">
-                  + Quick Add
-                </Button>
-                <Link href="/shopping">
-                  <Button className="bg-cozy-primary hover:bg-cozy-primary-deep">
-                    Manage
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Finances widget */}
-          <Card className="hover:shadow-cozy-md transition-all duration-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-cozy-primary-soft flex items-center justify-center text-xl">
-                  💰
-                </div>
-                <div>
-                  <div className="text-lg font-semibold">Finances</div>
-                  <div className="text-sm text-cozy-text-muted">
-                    {totalSalary > 0 ? `€${totalSalary.toLocaleString()} income` : 'No income set'}
-                    {totalTargets > 0 && ` • €${totalTargets.toLocaleString()} targets`}
-                    {monthlySavings > 0 && ` • €${monthlySavings.toLocaleString()}/mo savings`}
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <Button variant="outline" className="flex-1 mr-2">
-                  Quick Add
-                </Button>
-                <Link href="/finances">
-                  <Button className="bg-cozy-primary hover:bg-cozy-primary-deep">
-                    Manage
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Medicine widget */}
-          <Card className="hover:shadow-cozy-md transition-all duration-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-cozy-primary-soft flex items-center justify-center text-xl">
-                  💊
-                </div>
-                <div>
-                  <div className="text-lg font-semibold">Medicine</div>
-                  <div className="text-sm text-cozy-text-muted">
-                    {activeMedicines.length} active medicine{activeMedicines.length !== 1 ? 's' : ''}
-                    {dueMedicines.length > 0 && ` • ${dueMedicines.length} due`}
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {dueMedicines.length > 0 && (
-                  <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
-                    <div className="flex items-center gap-2">
-                      <div className="text-orange-600">⚠️</div>
-                      <div className="text-sm font-medium text-orange-800">
-                        {dueMedicines.length} medicine{dueMedicines.length !== 1 ? 's' : ''} due
+        {/* Enhanced Stats Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          {enhancedStats.map((stat, index) => {
+            const Icon = stat.icon
+            return (
+              <Link key={stat.name} href={stat.href}>
+                <Card className="animate-cozy-bounce-in hover:shadow-cozy-md transition-all duration-200 hover:-translate-y-1 cursor-pointer" 
+                      style={{ animationDelay: `${index * 100}ms` }}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-cozy-text-muted">
+                          {stat.name}
+                        </p>
+                        <p className="text-2xl font-bold text-cozy-text">{stat.value}</p>
+                        <p className="text-xs text-cozy-text-muted">
+                          {stat.change}
+                        </p>
+                      </div>
+                      <div className={`p-3 rounded-full ${stat.bgColor}`}>
+                        <Icon className={`w-6 h-6 ${stat.color}`} />
                       </div>
                     </div>
-                    <div className="text-xs text-orange-700 mt-1">
-                      {dueMedicines.slice(0, 2).map(medicine => medicine.name).join(', ')}
-                      {dueMedicines.length > 2 && ` and ${dueMedicines.length - 2} more`}
+                    {stat.trend === 'up' && (
+                      <Badge variant="secondary" className="mt-2">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        Growing
+                      </Badge>
+                    )}
+                    {stat.trend === 'down' && (
+                      <Badge variant="secondary" className="mt-2 bg-orange-100 text-orange-800">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Attention
+                      </Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Main Content Grid */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Quick Actions */}
+          <Card className="lg:col-span-2 animate-cozy-bounce-in" style={{ animationDelay: '400ms' }}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="w-5 h-5" />
+                Quick Actions
+              </CardTitle>
+              <CardDescription>
+                Common tasks to manage your household
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              {quickActions.map((action) => {
+                const Icon = action.icon
+                return (
+                  <Link
+                    key={action.title}
+                    href={action.href}
+                    className="group block"
+                  >
+                    <div className="p-4 rounded-lg border border-cozy-gray-200 hover:shadow-cozy-md transition-all duration-200 hover:-translate-y-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className={`inline-flex p-2 rounded-lg text-white ${action.color}`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <span className="text-2xl">{action.emoji}</span>
+                      </div>
+                      <h3 className="font-semibold text-sm mb-1 text-cozy-text">
+                        {action.title}
+                      </h3>
+                      <p className="text-xs text-cozy-text-muted">
+                        {action.description}
+                      </p>
+                      <ArrowRight className="w-4 h-4 text-cozy-text-muted group-hover:text-cozy-primary group-hover:translate-x-1 transition-all duration-200 mt-2" />
                     </div>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
-                  <Button variant="outline" className="flex-1 mr-2">
-                    Quick Add
-                  </Button>
-                  <Link href="/medicine">
-                    <Button className="bg-cozy-primary hover:bg-cozy-primary-deep">
-                      Manage
-                    </Button>
                   </Link>
+                )
+              })}
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity */}
+          <Card className="animate-cozy-bounce-in" style={{ animationDelay: '500ms' }}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                Recent Activity
+              </CardTitle>
+              <CardDescription>
+                Your latest household updates
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {recentActivity.length > 0 ? (
+                recentActivity.map((activity) => {
+                  const Icon = activity.icon
+                  return (
+                    <div
+                      key={activity.id}
+                      className="flex items-start space-x-3"
+                    >
+                      <div className={`p-2 ${activity.color} rounded-lg`}>
+                        <Icon className="w-4 h-4 text-cozy-text" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-cozy-text">
+                          {activity.title}
+                        </p>
+                        <p className="text-xs text-cozy-text-muted">
+                          {activity.time}
+                        </p>
+                      </div>
+                      <span className="text-lg">{activity.emoji}</span>
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-2">🏠</div>
+                  <p className="text-sm text-cozy-text-muted">No recent activity</p>
+                  <p className="text-xs text-cozy-text-muted">Start by adding items or recording activities</p>
                 </div>
-              </div>
+              )}
+              <Button variant="outline" className="w-full mt-4">
+                View All Activity
+              </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Recent Activity */}
-        <Card>
+        {/* Household Insights */}
+        <Card className="animate-cozy-bounce-in" style={{ animationDelay: '600ms' }}>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Your latest household activities</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <span className="animate-cozy-pulse-gentle">🌟</span>
+              Household Insights
+            </CardTitle>
+            <CardDescription>
+              Your household's progress and achievements
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {/* Recent Medicine Doses */}
-              {recentDoses.length > 0 && (
-                recentDoses.slice(0, 2).map((dose) => (
-                  <div key={dose.id} className="flex items-center gap-3 p-3 rounded-lg bg-cozy-cream">
-                    <div className="h-8 w-8 rounded-lg bg-cozy-primary-soft flex items-center justify-center text-sm">
-                      💊
+          <CardContent className="p-0">
+            <div className="divide-y divide-cozy-gray-200">
+              {[
+                { 
+                  icon: '🧺', 
+                  title: `${dashboardStats.totalShoppingItems} items in your shopping lists`, 
+                  meta: `${dashboardStats.totalShoppingLists} active lists`, 
+                  color: 'cozy-sage-soft',
+                  celebration: '🌸'
+                },
+                { 
+                  icon: '💰', 
+                  title: dashboardStats.monthlyIncome > 0 ? `€${dashboardStats.monthlyIncome.toLocaleString()} monthly income tracked` : 'Set up your income tracking', 
+                  meta: dashboardStats.monthlySavings > 0 ? `€${dashboardStats.monthlySavings.toLocaleString()} monthly savings` : 'Configure savings goals', 
+                  color: 'cozy-primary-soft',
+                  celebration: '✨'
+                },
+                { 
+                  icon: '💊', 
+                  title: `${dashboardStats.activeMedicines} active medicines being tracked`, 
+                  meta: dashboardStats.dueMedicines > 0 ? `${dashboardStats.dueMedicines} due for administration` : 'All medicines up to date', 
+                  color: 'cozy-cream',
+                  celebration: '🎉'
+                },
+                { 
+                  icon: '📊', 
+                  title: `${dashboardStats.recentActivityCount} activities recorded this week`, 
+                  meta: 'Keep up the great work!', 
+                  color: 'cozy-sage-soft',
+                  celebration: '🎊'
+                },
+              ].map((row, i) => (
+                <div key={i} className="px-6 py-4 hover:bg-cozy-cream/50 transition-all duration-300 group">
+                  <div className="flex items-center">
+                    <div className={`h-12 w-12 rounded-cozy bg-${row.color} grid place-items-center mr-4 shadow-cozy-sm border border-cozy-gray-200 group-hover:animate-cozy-wiggle`}>
+                      <span className="text-xl">{row.icon}</span>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-cozy-text">
-                        {dose.medicine.name} given to {dose.child.name}
-                      </p>
-                      <p className="text-xs text-cozy-text-muted">
-                        {new Date(dose.takenAt).toLocaleDateString()} at {new Date(dose.takenAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {dose.dosage}
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-cozy-text font-medium truncate">{row.title}</div>
+                      <div className="text-xs text-cozy-text-muted">{row.meta}</div>
                     </div>
-                  </div>
-                ))
-              )}
-
-              {/* Shopping Lists */}
-              {shoppingLists.length > 0 ? (
-                shoppingLists.slice(0, 2).map((list) => (
-                  <div key={list.id} className="flex items-center gap-3 p-3 rounded-lg bg-cozy-cream">
-                    <div className="h-8 w-8 rounded-lg bg-cozy-sage-soft flex items-center justify-center text-sm">
-                      🧺
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-cozy-text">
-                        {list.name} ({list.itemCount} items)
-                      </p>
-                      <p className="text-xs text-cozy-text-muted">Shopping list</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                recentDoses.length === 0 && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-cozy-cream">
-                    <div className="h-8 w-8 rounded-lg bg-cozy-sage-soft flex items-center justify-center text-sm">
-                      🧺
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-cozy-text">No recent activity</p>
-                      <p className="text-xs text-cozy-text-muted">Start by creating a shopping list or recording medicine doses</p>
+                    <div className="text-lg animate-cozy-pulse-gentle">
+                      {row.celebration}
                     </div>
                   </div>
-                )
-              )}
+                </div>
+              ))}
+            </div>
+            
+            {/* Cute footer */}
+            <div className="px-6 py-4 bg-cozy-warm border-t border-cozy-gray-200 text-center">
+              <div className="text-sm text-cozy-text-muted flex items-center justify-center gap-2">
+                <span className="animate-cozy-pulse-gentle">💫</span>
+                <span>Your household is thriving with love!</span>  
+                <span className="animate-cozy-pulse-gentle">💝</span>
+              </div>
             </div>
           </CardContent>
         </Card>

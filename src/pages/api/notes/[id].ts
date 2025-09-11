@@ -4,181 +4,213 @@ import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session?.user?.email) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email }
-  })
-
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' })
-  }
-
-  const { id } = req.query
-
-  if (!id || typeof id !== 'string') {
-    return res.status(400).json({ error: 'Note ID is required' })
-  }
-
-  switch (req.method) {
-    case 'GET':
-      return handleGetNote(req, res, user, id)
-    case 'PUT':
-      return handleUpdateNote(req, res, user, id)
-    case 'DELETE':
-      return handleDeleteNote(req, res, user, id)
-    default:
-      return res.status(405).json({ error: 'Method not allowed' })
-  }
-}
-
-async function handleGetNote(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
   try {
-    const note = await prisma.note.findFirst({
-      where: {
-        id: noteId,
-        OR: [
-          { createdById: user.id },
-          { 
-            collaborators: {
-              some: {
-                userId: user.id
-              }
-            }
-          }
-        ]
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        collaborators: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          }
-        },
-        household: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
+    console.log('=== NOTES API HANDLER START ===')
+    console.log('Method:', req.method)
+    console.log('Query:', req.query)
+    console.log('Body:', req.body)
+    
+    if (req.method === 'PUT') {
+      console.log('PUT request - updating note in database')
+      
+      const session = await getServerSession(req, res, authOptions)
+      console.log('Session:', { 
+        hasSession: !!session, 
+        hasUser: !!session?.user, 
+        hasEmail: !!session?.user?.email,
+        email: session?.user?.email 
+      })
+      
+      if (!session?.user?.email) {
+        console.log('No session or email, returning 401')
+        return res.status(401).json({ error: 'Unauthorized' })
       }
-    })
 
-    if (!note) {
-      return res.status(404).json({ error: 'Note not found' })
-    }
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email }
+      })
+      
+      console.log('User lookup:', { 
+        found: !!user, 
+        userId: user?.id, 
+        email: user?.email 
+      })
 
-    return res.status(200).json({ note })
-  } catch (error) {
-    console.error('Error fetching note:', error)
-    return res.status(500).json({ error: 'Failed to fetch note' })
-  }
-}
-
-async function handleUpdateNote(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
-  try {
-    const { title, content, contentJson, contentText, color, isPinned, isArchived, isShared, householdId } = req.body
-
-    // Check if user has permission to edit this note
-    const existingNote = await prisma.note.findFirst({
-      where: {
-        id: noteId,
-        OR: [
-          { createdById: user.id }, // Owner can always edit
-          { 
-            collaborators: {
-              some: {
-                userId: user.id,
-                role: 'EDITOR'
-              }
-            }
-          }
-        ]
+      if (!user) {
+        console.log('User not found, returning 404')
+        return res.status(404).json({ error: 'User not found' })
       }
-    })
 
-    if (!existingNote) {
-      return res.status(404).json({ error: 'Note not found or no permission to edit' })
-    }
+      const noteId = req.query.id as string
+      console.log('Updating note:', noteId)
 
-    // Validate household access for shared notes
-    if (isShared && householdId) {
-      const membership = await prisma.membership.findUnique({
+      // Check note permissions - owner or shared note with household access
+      console.log('Checking note permissions for:', { noteId, userId: user.id })
+      
+      // First check if user is owner
+      const ownerNote = await prisma.note.findFirst({
         where: {
-          userId_householdId: {
+          id: noteId,
+          createdById: user.id
+        }
+      })
+      
+      if (ownerNote) {
+        console.log('User is owner of note')
+        var existingNote = ownerNote
+      } else {
+        console.log('User is not owner, checking shared note permissions...')
+        
+        // Check if it's a shared note and user is household member
+        const sharedNote = await prisma.note.findFirst({
+          where: {
+            id: noteId,
+            isShared: true
+          }
+        })
+        
+        if (!sharedNote) {
+          console.log('Note is not shared')
+          return res.status(404).json({ error: 'Note not found or no permission' })
+        }
+        
+        console.log('Note is shared, checking household membership...')
+        
+        // Check if user is member of the household
+        const membership = await prisma.membership.findFirst({
+          where: {
             userId: user.id,
-            householdId: householdId
+            householdId: sharedNote.householdId
+          }
+        })
+        
+        if (!membership) {
+          console.log('User is not a member of the household')
+          return res.status(404).json({ error: 'Note not found or no permission' })
+        }
+        
+        console.log('User is household member, can edit shared note')
+        var existingNote = sharedNote
+      }
+
+      console.log('Found existing note:', {
+        id: existingNote.id,
+        isShared: existingNote.isShared,
+        householdId: existingNote.householdId,
+        createdById: existingNote.createdById
+      })
+
+      // Prepare update data
+      const updateData: any = {}
+      const { title, content, contentJson, contentText, color, isPinned, isArchived, isShared, householdId } = req.body
+      
+      if (title !== undefined) updateData.title = title
+      if (content !== undefined) updateData.content = content
+      if (contentJson !== undefined) updateData.contentJson = contentJson
+      if (contentText !== undefined) updateData.contentText = contentText
+      if (color !== undefined) updateData.color = color
+      if (isPinned !== undefined) updateData.isPinned = isPinned
+      if (isArchived !== undefined) updateData.isArchived = isArchived
+      if (isShared !== undefined) updateData.isShared = isShared
+      
+      // Handle householdId based on the final isShared status
+      const finalIsShared = isShared !== undefined ? isShared : existingNote.isShared
+      if (finalIsShared) {
+        updateData.householdId = householdId || existingNote.householdId
+      } else {
+        updateData.householdId = null
+      }
+
+      console.log('Updating note with data:', updateData)
+
+      // Update the note with minimal includes
+      console.log('About to update database...')
+      const updatedNote = await prisma.note.update({
+        where: { id: noteId },
+        data: updateData,
+        select: {
+          id: true,
+          title: true,
+          content: true,
+          contentJson: true,
+          contentText: true,
+          isShared: true,
+          color: true,
+          isPinned: true,
+          isArchived: true,
+          householdId: true,
+          createdAt: true,
+          updatedAt: true,
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          household: {
+            select: {
+              id: true,
+              name: true
+            }
           }
         }
       })
 
-      if (!membership) {
-        return res.status(403).json({ error: 'Not a member of this household' })
+      // Add collaborators array to match expected structure
+      const responseNote = {
+        ...updatedNote,
+        collaborators: []
       }
+
+      console.log('Database update successful:', { noteId: responseNote.id, title: responseNote.title })
+      return res.status(200).json({ note: responseNote })
     }
 
-    const updateData: any = {}
-    if (title !== undefined) updateData.title = title
-    if (content !== undefined) updateData.content = content
-    if (contentJson !== undefined) updateData.contentJson = contentJson
-    if (contentText !== undefined) updateData.contentText = contentText
-    if (color !== undefined) updateData.color = color
-    if (isPinned !== undefined) updateData.isPinned = isPinned
-    if (isArchived !== undefined) updateData.isArchived = isArchived
-    if (isShared !== undefined) updateData.isShared = isShared
-    if (householdId !== undefined) updateData.householdId = isShared ? householdId : null
-
-    const note = await prisma.note.update({
-      where: { id: noteId },
-      data: updateData,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        collaborators: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          }
-        },
-        household: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
+    if (req.method === 'DELETE') {
+      console.log('DELETE request - deleting note')
+      
+      const session = await getServerSession(req, res, authOptions)
+      console.log('Session:', { 
+        hasSession: !!session, 
+        hasUser: !!session?.user, 
+        hasEmail: !!session?.user?.email,
+        email: session?.user?.email 
+      })
+      
+      if (!session?.user?.email) {
+        console.log('No session or email, returning 401')
+        return res.status(401).json({ error: 'Unauthorized' })
       }
-    })
 
-    return res.status(200).json({ note })
+      const user = await prisma.user.findUnique({
+        where: { email: session.user.email }
+      })
+      
+      console.log('User lookup:', { 
+        found: !!user, 
+        userId: user?.id, 
+        email: user?.email 
+      })
+
+      if (!user) {
+        console.log('User not found, returning 404')
+        return res.status(404).json({ error: 'User not found' })
+      }
+
+      const noteId = req.query.id as string
+      console.log('Deleting note:', noteId)
+      
+      return await handleDeleteNote(req, res, user, noteId)
+    }
+    
+    // Method not allowed
+    console.log('Method not allowed:', req.method)
+    return res.status(405).json({ error: 'Method not allowed' })
+
   } catch (error) {
-    console.error('Error updating note:', error)
-    return res.status(500).json({ error: 'Failed to update note' })
+    console.error('=== UNEXPECTED ERROR IN NOTES API ===', error)
+    return res.status(500).json({ error: 'Internal server error', details: error.message })
   }
 }
 

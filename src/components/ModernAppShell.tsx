@@ -65,8 +65,13 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
+          onTouchStart={(e) => {
+            // Prevent touch events from bubbling up on mobile
+            e.preventDefault()
+            setSidebarOpen(false)
+          }}
         />
       )}
 

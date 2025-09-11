@@ -75,19 +75,21 @@ export default function FinancesPage() {
   const [householdId, setHouseholdId] = useState<string>('')
   const [loading, setLoading] = useState(true)
   
-  // Financial planning state
-  const [earners, setEarners] = useState<Earner[]>([
-    { id: '1', name: 'You', salary: 0, keep: 0 },
-    { id: '2', name: 'Partner', salary: 0, keep: 0 },
-  ])
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    { id: '1', name: 'Main Checking', type: 'checking', target: 0, knownExpenses: [] },
-    { id: '2', name: 'Emergency Fund', type: 'savings', target: 0, knownExpenses: [] },
-  ])
-  const [splitMethod, setSplitMethod] = useState<SplitMethod>('equal')
-  const [savingsPct, setSavingsPct] = useState(20)
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState('fifty-thirty-twenty')
-  const [currentSavings, setCurrentSavings] = useState(0)
+  // Financial planning state - using usePageState as single source of truth
+  const initialFinanceState: FinanceState = {
+    earners: [
+      { id: '1', name: 'You', salary: 0, keep: 0 },
+      { id: '2', name: 'Partner', salary: 0, keep: 0 },
+    ],
+    bankAccounts: [
+      { id: '1', name: 'Main Checking', type: 'checking', target: 0, knownExpenses: [] },
+      { id: '2', name: 'Emergency Fund', type: 'savings', target: 0, knownExpenses: [] },
+    ],
+    splitMethod: 'equal',
+    savingsPct: 20,
+    selectedTemplateKey: 'fifty-thirty-twenty',
+    currentSavings: 0,
+  }
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | 'unsaved'>('saved')
@@ -95,15 +97,6 @@ export default function FinancesPage() {
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
   const [showExportModal, setShowExportModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
-  const [financialGoals, setFinancialGoals] = useState<Array<{
-    id: string
-    name: string
-    targetAmount: number
-    currentAmount: number
-    targetDate: string
-    category: 'emergency' | 'vacation' | 'home' | 'car' | 'education' | 'retirement' | 'other'
-    priority: 'low' | 'medium' | 'high'
-  }>>([])
   const [showGoalModal, setShowGoalModal] = useState(false)
 
   // Get household ID
@@ -133,45 +126,23 @@ export default function FinancesPage() {
   } = usePageState<FinanceState>({
     householdId,
     page: 'finances',
-    initial: {
-      earners,
-      bankAccounts,
-      splitMethod,
-      savingsPct,
-      selectedTemplateKey,
-      currentSavings,
-    },
+    initial: initialFinanceState,
     saveDelayMs: 700,
   })
 
-  // Update local state when page state loads
-  useEffect(() => {
-    if (financeState && !psLoading) {
-      setEarners(financeState.earners || earners)
-      setBankAccounts(financeState.bankAccounts || bankAccounts)
-      setSplitMethod(financeState.splitMethod || 'equal')
-      setSavingsPct(financeState.savingsPct || 20)
-      setSelectedTemplateKey(financeState.selectedTemplateKey || 'fifty-thirty-twenty')
-      setCurrentSavings(financeState.currentSavings || 0)
-      setFinancialGoals(financeState.financialGoals || [])
-    }
-  }, [financeState, psLoading])
+  // Extract values from financeState for easier access
+  const earners = financeState?.earners || initialFinanceState.earners
+  const bankAccounts = financeState?.bankAccounts || initialFinanceState.bankAccounts
+  const splitMethod = financeState?.splitMethod || initialFinanceState.splitMethod
+  const savingsPct = financeState?.savingsPct || initialFinanceState.savingsPct
+  const selectedTemplateKey = financeState?.selectedTemplateKey || initialFinanceState.selectedTemplateKey
+  const currentSavings = financeState?.currentSavings || initialFinanceState.currentSavings
+  const financialGoals = financeState?.financialGoals || []
 
-  // Sync local state changes to usePageState (debounced)
-  useEffect(() => {
-    if (hasUnsavedChanges && !psLoading) {
-      const state: FinanceState = {
-        earners,
-        bankAccounts,
-        splitMethod,
-        savingsPct,
-        selectedTemplateKey,
-        currentSavings,
-        financialGoals,
-      }
-      setFinanceState(state)
-    }
-  }, [earners, bankAccounts, splitMethod, savingsPct, selectedTemplateKey, currentSavings, financialGoals, hasUnsavedChanges, psLoading, setFinanceState])
+  // Refs for input management
+  const inputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
+  const nameInputRefs = useRef<{ [key: string]: string }>({})
+
 
   // Save financial data using usePageState
   const saveFinancialData = (newState: Partial<FinanceState>) => {
@@ -191,10 +162,10 @@ export default function FinancesPage() {
   }
 
   // Track when user makes changes
-  const markAsChanged = () => {
+  const markAsChanged = useCallback(() => {
     setHasUnsavedChanges(true)
     setSaveStatus('unsaved')
-  }
+  }, [])
 
   // Export financial plan
   const exportFinancialPlan = () => {
@@ -238,16 +209,8 @@ export default function FinancesPage() {
           
           // Validate imported data
           if (Array.isArray(importedEarners) && Array.isArray(importedAccounts)) {
-            setEarners(importedEarners)
-            setBankAccounts(importedAccounts)
-            setSplitMethod(importedSplitMethod || 'equal')
-            setSavingsPct(importedSavingsPct || 20)
-            setSelectedTemplateKey(importedTemplateKey || 'fifty-thirty-twenty')
-            setCurrentSavings(importedCurrentSavings || 0)
-            setFinancialGoals(importedGoals || [])
-            
-            markAsChanged()
-            saveFinancialData({
+            setFinanceState(prev => ({
+              ...prev,
               earners: importedEarners,
               bankAccounts: importedAccounts,
               splitMethod: importedSplitMethod || 'equal',
@@ -255,7 +218,9 @@ export default function FinancesPage() {
               selectedTemplateKey: importedTemplateKey || 'fifty-thirty-twenty',
               currentSavings: importedCurrentSavings || 0,
               financialGoals: importedGoals || []
-            })
+            }))
+            
+            markAsChanged()
             
             alert('Financial plan imported successfully!')
           } else {
@@ -279,25 +244,22 @@ export default function FinancesPage() {
       id: Date.now().toString()
     }
     const newGoals = [...financialGoals, newGoal]
-    setFinancialGoals(newGoals)
+    setFinanceState(prev => ({ ...prev, financialGoals: newGoals }))
     markAsChanged()
-    saveFinancialData({ financialGoals: newGoals })
   }
 
   const updateGoal = (id: string, updates: Partial<typeof financialGoals[0]>) => {
     const newGoals = financialGoals.map(goal => 
       goal.id === id ? { ...goal, ...updates } : goal
     )
-    setFinancialGoals(newGoals)
+    setFinanceState(prev => ({ ...prev, financialGoals: newGoals }))
     markAsChanged()
-    saveFinancialData({ financialGoals: newGoals })
   }
 
   const deleteGoal = (id: string) => {
     const newGoals = financialGoals.filter(goal => goal.id !== id)
-    setFinancialGoals(newGoals)
+    setFinanceState(prev => ({ ...prev, financialGoals: newGoals }))
     markAsChanged()
-    saveFinancialData({ financialGoals: newGoals })
   }
 
   // Calculate goal progress
@@ -536,7 +498,7 @@ export default function FinancesPage() {
     if (isCtrlOrCmd && key === 'a') {
       event.preventDefault()
       // Trigger auto balance
-      setSelectedTemplateKey('auto-balance')
+      setFinanceState(prev => ({ ...prev, selectedTemplateKey: 'auto-balance' }))
     }
 
     // Escape - Close shortcuts help
@@ -553,9 +515,9 @@ export default function FinancesPage() {
     }
   }, [handleKeyboardShortcuts])
 
-  // Calculate totals
+  // Calculate totals - use consistent data sources
   const totalSalary = earners.reduce((sum, earner) => sum + earner.salary, 0)
-  const totalTargets = bankAccounts.reduce((sum, account) => sum + account.target, 0)
+  const totalTargets = bankAccounts.reduce((sum, account) => sum + (account.target || 0), 0)
   const autoSavingsTarget = (totalSalary * savingsPct) / 100
   const totalPersonalKeep = earners.reduce((sum, earner) => sum + earner.keep, 0)
   
@@ -1053,7 +1015,7 @@ export default function FinancesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-cozy-text-muted">Savings Rate</p>
-                  <p className="text-2xl font-bold text-cozy-primary">{savingsPct}%</p>
+                  <p className="text-2xl font-bold text-cozy-primary">{savingsPct.toFixed(2)}%</p>
                 </div>
                 <PiggyBank className="h-8 w-8 text-cozy-primary" />
               </div>
@@ -1107,7 +1069,7 @@ export default function FinancesPage() {
                     <span className="font-semibold">{formatCurrency(totalSalary)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-cozy-text-muted">Auto Savings ({savingsPct}%):</span>
+                    <span className="text-cozy-text-muted">Auto Savings ({savingsPct.toFixed(2)}%):</span>
                     <span className="font-semibold text-green-600">{formatCurrency(autoSavingsTarget)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
@@ -1139,13 +1101,13 @@ export default function FinancesPage() {
                       <div className="space-y-1 text-xs text-blue-700">
                         {unallocatedAmount > 0 ? (
                           <>
-                            <div>• Max savings rate: {Math.min(50, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(1)}%</div>
+                            <div>• Max savings rate: {Math.min(50, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(2)}%</div>
                             <div>• Max per account: {formatCurrency((totalTargets + unallocatedAmount) / bankAccounts.length)}</div>
                             <div>• Max per earner: {formatCurrency((totalPersonalKeep + unallocatedAmount) / earners.length)}</div>
                           </>
                         ) : (
                           <>
-                            <div>• Min savings rate: {Math.max(5, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(1)}%</div>
+                            <div>• Min savings rate: {Math.max(5, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(2)}%</div>
                             <div>• Max per account: {formatCurrency(Math.max(0, (totalTargets + unallocatedAmount) / bankAccounts.length))}</div>
                             <div>• Max per earner: {formatCurrency(Math.max(0, (totalPersonalKeep + unallocatedAmount) / earners.length))}</div>
                           </>
@@ -1190,19 +1152,19 @@ export default function FinancesPage() {
                         <Button
                           onClick={() => {
                             const newSavingsPct = Math.min(50, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100)
-                            setSavingsPct(newSavingsPct)
-                            setSelectedTemplateKey('custom')
-                            saveFinancialData({ 
+                            setFinanceState(prev => ({ 
+                              ...prev, 
                               savingsPct: newSavingsPct,
                               selectedTemplateKey: 'custom'
-                            })
+                            }))
+                            markAsChanged()
                           }}
                           variant="outline"
                           className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
                         >
                           <div>
                             <div className="font-semibold text-orange-800">Add to Savings</div>
-                            <div className="text-xs text-orange-600">Increase savings rate to {Math.min(50, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(1)}%</div>
+                            <div className="text-xs text-orange-600">Increase savings rate to {Math.min(50, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(2)}%</div>
                           </div>
                         </Button>
 
@@ -1213,8 +1175,8 @@ export default function FinancesPage() {
                               ...account,
                               target: account.target + (unallocatedAmount / bankAccounts.length)
                             }))
-                            setBankAccounts(newAccounts)
-                            saveFinancialData({ bankAccounts: newAccounts })
+                            setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                            markAsChanged()
                           }}
                           variant="outline"
                           className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
@@ -1232,8 +1194,8 @@ export default function FinancesPage() {
                               ...earner,
                               keep: earner.keep + (unallocatedAmount / earners.length)
                             }))
-                            setEarners(newEarners)
-                            saveFinancialData({ earners: newEarners })
+                            setFinanceState(prev => ({ ...prev, earners: newEarners }))
+                            markAsChanged()
                           }}
                           variant="outline"
                           className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
@@ -1262,16 +1224,14 @@ export default function FinancesPage() {
                               keep: earner.keep + (unallocatedAmount * personalRatio / earners.length)
                             }))
 
-                            setSavingsPct(newSavingsPct)
-                            setSelectedTemplateKey('custom')
-                            setBankAccounts(newAccounts)
-                            setEarners(newEarners)
-                            saveFinancialData({ 
+                            setFinanceState(prev => ({ 
+                              ...prev,
                               savingsPct: newSavingsPct,
                               selectedTemplateKey: 'custom',
                               bankAccounts: newAccounts,
                               earners: newEarners
-                            })
+                            }))
+                            markAsChanged()
                           }}
                           variant="outline"
                           className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
@@ -1294,19 +1254,19 @@ export default function FinancesPage() {
                         <Button
                           onClick={() => {
                             const newSavingsPct = Math.max(5, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100)
-                            setSavingsPct(newSavingsPct)
-                            setSelectedTemplateKey('custom')
-                            saveFinancialData({ 
+                            setFinanceState(prev => ({ 
+                              ...prev, 
                               savingsPct: newSavingsPct,
                               selectedTemplateKey: 'custom'
-                            })
+                            }))
+                            markAsChanged()
                           }}
                           variant="outline"
                           className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
                         >
                           <div>
                             <div className="font-semibold text-orange-800">Reduce Savings</div>
-                            <div className="text-xs text-orange-600">Lower savings rate to {Math.max(5, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(1)}%</div>
+                            <div className="text-xs text-orange-600">Lower savings rate to {Math.max(5, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(2)}%</div>
                           </div>
                         </Button>
 
@@ -1318,8 +1278,8 @@ export default function FinancesPage() {
                               ...account,
                               target: Math.max(0, account.target - reductionPerAccount)
                             }))
-                            setBankAccounts(newAccounts)
-                            saveFinancialData({ bankAccounts: newAccounts })
+                            setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                            markAsChanged()
                           }}
                           variant="outline"
                           className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
@@ -1338,8 +1298,8 @@ export default function FinancesPage() {
                               ...earner,
                               keep: Math.max(0, earner.keep - reductionPerEarner)
                             }))
-                            setEarners(newEarners)
-                            saveFinancialData({ earners: newEarners })
+                            setFinanceState(prev => ({ ...prev, earners: newEarners }))
+                            markAsChanged()
                           }}
                           variant="outline"
                           className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
@@ -1368,16 +1328,14 @@ export default function FinancesPage() {
                               keep: Math.max(0, earner.keep + (unallocatedAmount * personalRatio / earners.length))
                             }))
 
-                            setSavingsPct(newSavingsPct)
-                            setSelectedTemplateKey('custom')
-                            setBankAccounts(newAccounts)
-                            setEarners(newEarners)
-                            saveFinancialData({ 
+                            setFinanceState(prev => ({ 
+                              ...prev,
                               savingsPct: newSavingsPct,
                               selectedTemplateKey: 'custom',
                               bankAccounts: newAccounts,
                               earners: newEarners
-                            })
+                            }))
+                            markAsChanged()
                           }}
                           variant="outline"
                           className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
@@ -1427,9 +1385,7 @@ export default function FinancesPage() {
                     keep: 0
                   }
                   const newEarners = [...earners, newEarner]
-                  setEarners(newEarners)
-                  markAsChanged()
-                  saveFinancialData({ earners: newEarners })
+                  setFinanceState(prev => ({ ...prev, earners: newEarners }))
                 }}
                 variant="outline"
                 size="sm"
@@ -1441,7 +1397,7 @@ export default function FinancesPage() {
             </div>
             <div className="space-y-4">
               {earners.map((earner, index) => (
-                <div key={earner.id} className="p-4 border rounded-lg">
+                <div key={`earner-${earner.id}-${index}`} className="p-4 border rounded-lg">
                   {/* Mobile-first responsive layout */}
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
                     {/* Name field - full width on mobile, 1 column on desktop */}
@@ -1450,13 +1406,20 @@ export default function FinancesPage() {
                         Name
                       </label>
                       <Input
-                        value={earner.name}
+                        ref={(el) => {
+                          inputRefs.current[`earner-name-${index}`] = el
+                        }}
+                        defaultValue={earners[index]?.name || ''}
                         onChange={(e) => {
-                          const newEarners = [...earners]
-                          newEarners[index].name = e.target.value
-                          setEarners(newEarners)
-                          markAsChanged()
-                          // Debounced save will be handled by usePageState
+                          // Store the value in ref without causing re-renders
+                          nameInputRefs.current[`earner-name-${index}`] = e.target.value
+                        }}
+                        onBlur={(e) => {
+                          // Only update state when user finishes editing
+                          const newEarners = earners.map((ear, i) => 
+                            i === index ? { ...ear, name: e.target.value } : ear
+                          )
+                          setFinanceState(prev => ({ ...prev, earners: newEarners }))
                         }}
                         className="font-medium w-full"
                         placeholder="Earner name"
@@ -1469,19 +1432,18 @@ export default function FinancesPage() {
                         Salary (€)
                       </label>
                       <CurrencyInput
-                        value={earner.salary || 0}
+                        value={earners[index]?.salary || 0}
                         onChange={(value) => {
-                          const newEarners = [...earners]
-                          newEarners[index].salary = value
-                          setEarners(newEarners)
-                          markAsChanged()
-                          // Debounced save will be handled by usePageState
+                          const newEarners = earners.map((ear, i) => 
+                            i === index ? { ...ear, salary: value } : ear
+                          )
+                          setFinanceState(prev => ({ ...prev, earners: newEarners }))
                         }}
                         placeholder="Salary"
                         className="w-full"
                         showSuggestions={true}
-                        suggestions={[2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000]}
-                        max={50000}
+                        suggestions={[2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000, 15000, 20000, 25000, 50000, 75000, 100000, 150000, 200000]}
+                        max={200000}
                       />
                     </div>
                     
@@ -1491,13 +1453,12 @@ export default function FinancesPage() {
                         Personal Keep (€)
                       </label>
                       <CurrencyInput
-                        value={earner.keep || 0}
+                        value={earners[index]?.keep || 0}
                         onChange={(value) => {
-                          const newEarners = [...earners]
-                          newEarners[index].keep = value
-                          setEarners(newEarners)
-                          markAsChanged()
-                          // Debounced save will be handled by usePageState
+                          const newEarners = earners.map((ear, i) => 
+                            i === index ? { ...ear, keep: value } : ear
+                          )
+                          setFinanceState(prev => ({ ...prev, earners: newEarners }))
                         }}
                         placeholder="Keep"
                         className={(() => {
@@ -1526,8 +1487,7 @@ export default function FinancesPage() {
                         <Button
                           onClick={() => {
                             const newEarners = earners.filter((_, i) => i !== index)
-                            setEarners(newEarners)
-                            saveFinancialData({ earners: newEarners })
+                            setFinanceState(prev => ({ ...prev, earners: newEarners }))
                           }}
                           variant="outline"
                           size="sm"
@@ -1611,7 +1571,7 @@ export default function FinancesPage() {
                       : 'border-cozy-gray-200 hover:border-cozy-primary/50'
                   }`}
                   onClick={() => {
-                    setSelectedTemplateKey(template.key)
+                    setFinanceState(prev => ({ ...prev, selectedTemplateKey: template.key }))
                     
                     if (template.key === 'auto-balance') {
                       // Auto-balance logic
@@ -1632,15 +1592,14 @@ export default function FinancesPage() {
                           keep: earner.keep + (unallocatedAmount * personalRatio / earners.length)
                         }))
 
-                        setSavingsPct(newSavingsPct)
-                        setBankAccounts(newAccounts)
-                        setEarners(newEarners)
-                        saveFinancialData({ 
+                        setFinanceState(prev => ({ 
+                          ...prev,
                           selectedTemplateKey: template.key,
                           savingsPct: newSavingsPct,
                           bankAccounts: newAccounts,
                           earners: newEarners
-                        })
+                        }))
+                        markAsChanged()
                       } else if (unallocatedAmount < 0) {
                         // Reduce over-allocation proportionally
                         const currentAllocation = autoSavingsTarget + totalTargets + totalPersonalKeep
@@ -1658,30 +1617,30 @@ export default function FinancesPage() {
                           keep: Math.max(0, earner.keep + (unallocatedAmount * personalRatio / earners.length))
                         }))
 
-                        setSavingsPct(newSavingsPct)
-                        setBankAccounts(newAccounts)
-                        setEarners(newEarners)
-                        saveFinancialData({ 
+                        setFinanceState(prev => ({ 
+                          ...prev,
                           selectedTemplateKey: template.key,
                           savingsPct: newSavingsPct,
                           bankAccounts: newAccounts,
                           earners: newEarners
-                        })
+                        }))
+                        markAsChanged()
                       } else {
                         // Already balanced, just set the template
-                        setSavingsPct(savingsPct)
-                        saveFinancialData({ 
-                          selectedTemplateKey: template.key,
-                          savingsPct: savingsPct
-                        })
+                        setFinanceState(prev => ({ 
+                          ...prev,
+                          selectedTemplateKey: template.key
+                        }))
+                        markAsChanged()
                       }
                     } else {
                       // Regular template logic
-                      setSavingsPct(template.savingsPct as number)
-                      saveFinancialData({ 
+                      setFinanceState(prev => ({ 
+                        ...prev,
                         selectedTemplateKey: template.key,
                         savingsPct: template.savingsPct as number
-                      })
+                      }))
+                      markAsChanged()
                     }
                   }}
                 >
@@ -1726,7 +1685,7 @@ export default function FinancesPage() {
                   <CurrencyInput
                     value={currentSavings || 0}
                     onChange={(value) => {
-                      setCurrentSavings(value)
+                      setFinanceState(prev => ({ ...prev, currentSavings: value }))
                       markAsChanged()
                     }}
                     placeholder="Enter your current savings"
@@ -1964,9 +1923,8 @@ export default function FinancesPage() {
                     knownExpenses: []
                   }
                   const newAccounts = [...bankAccounts, newAccount]
-                  setBankAccounts(newAccounts)
+                  setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                   markAsChanged()
-                  saveFinancialData({ bankAccounts: newAccounts })
                 }}
                 variant="outline"
                 size="sm"
@@ -1983,13 +1941,20 @@ export default function FinancesPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                     <div className="flex-1 min-w-0">
                       <Input
-                        value={account.name}
+                        ref={(el) => {
+                          inputRefs.current[`account-name-${index}`] = el
+                        }}
+                        defaultValue={account.name}
                         onChange={(e) => {
-                          const newAccounts = [...bankAccounts]
-                          newAccounts[index].name = e.target.value
-                          setBankAccounts(newAccounts)
-                          markAsChanged()
-                          // Debounced save will be handled by usePageState
+                          // Store the value in ref without causing re-renders
+                          nameInputRefs.current[`account-name-${index}`] = e.target.value
+                        }}
+                        onBlur={(e) => {
+                          // Only update state when user finishes editing
+                          const newAccounts = bankAccounts.map((acc, i) => 
+                            i === index ? { ...acc, name: e.target.value } : acc
+                          )
+                          setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                         }}
                         className="font-medium w-full"
                         placeholder="Account name"
@@ -1999,9 +1964,10 @@ export default function FinancesPage() {
                       <select
                         value={account.type}
                         onChange={(e) => {
-                          const newAccounts = [...bankAccounts]
-                          newAccounts[index].type = e.target.value as BankAccount['type']
-                          setBankAccounts(newAccounts)
+                          const newAccounts = bankAccounts.map((acc, i) => 
+                            i === index ? { ...acc, type: e.target.value as BankAccount['type'] } : acc
+                          )
+                          setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                           markAsChanged()
                         }}
                         className="w-full px-3 py-2 border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
@@ -2016,11 +1982,10 @@ export default function FinancesPage() {
                       <CurrencyInput
                         value={account.target || 0}
                         onChange={(value) => {
-                          const newAccounts = [...bankAccounts]
-                          newAccounts[index].target = value
-                          setBankAccounts(newAccounts)
-                          markAsChanged()
-                          // Debounced save will be handled by usePageState
+                          const newAccounts = bankAccounts.map((acc, i) => 
+                            i === index ? { ...acc, target: value } : acc
+                          )
+                          setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                         }}
                         placeholder="Target"
                         className={(() => {
@@ -2046,8 +2011,8 @@ export default function FinancesPage() {
                       <Button
                         onClick={() => {
                           const newAccounts = bankAccounts.filter((_, i) => i !== index)
-                          setBankAccounts(newAccounts)
-                          saveFinancialData({ bankAccounts: newAccounts })
+                          setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                          markAsChanged()
                         }}
                         variant="outline"
                         size="sm"
@@ -2071,10 +2036,13 @@ export default function FinancesPage() {
                             frequency: 'monthly',
                             category: 'Other'
                           }
-                          const newAccounts = [...bankAccounts]
-                          newAccounts[index].knownExpenses.push(newExpense)
-                          setBankAccounts(newAccounts)
-                          saveFinancialData({ bankAccounts: newAccounts })
+                          const newAccounts = bankAccounts.map((acc, i) => 
+                            i === index 
+                              ? { ...acc, knownExpenses: [...acc.knownExpenses, newExpense] }
+                              : acc
+                          )
+                          setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                          markAsChanged()
                         }}
                         variant="outline"
                         size="sm"
@@ -2089,12 +2057,27 @@ export default function FinancesPage() {
                       <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 bg-cozy-cream rounded-lg">
                         <div className="flex-1 min-w-0">
                           <Input
-                            value={expense.name}
+                            ref={(el) => {
+                              inputRefs.current[`expense-name-${index}-${expenseIndex}`] = el
+                            }}
+                            defaultValue={expense.name}
                             onChange={(e) => {
-                              const newAccounts = [...bankAccounts]
-                              newAccounts[index].knownExpenses[expenseIndex].name = e.target.value
-                              setBankAccounts(newAccounts)
-                              markAsChanged()
+                              // Store the value in ref without causing re-renders
+                              nameInputRefs.current[`expense-name-${index}-${expenseIndex}`] = e.target.value
+                            }}
+                            onBlur={(e) => {
+                              // Only update state when user finishes editing
+                              const newAccounts = bankAccounts.map((acc, i) => 
+                                i === index 
+                                  ? { 
+                                      ...acc, 
+                                      knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
+                                        expIdx === expenseIndex ? { ...exp, name: e.target.value } : exp
+                                      )
+                                    } 
+                                  : acc
+                              )
+                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                             }}
                             placeholder="Expense name"
                             className="text-sm w-full"
@@ -2104,9 +2087,17 @@ export default function FinancesPage() {
                           <CurrencyInput
                             value={expense.amount || 0}
                             onChange={(value) => {
-                              const newAccounts = [...bankAccounts]
-                              newAccounts[index].knownExpenses[expenseIndex].amount = value
-                              setBankAccounts(newAccounts)
+                              const newAccounts = bankAccounts.map((acc, i) => 
+                                i === index 
+                                  ? { 
+                                      ...acc, 
+                                      knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
+                                        expIdx === expenseIndex ? { ...exp, amount: value } : exp
+                                      )
+                                    } 
+                                  : acc
+                              )
+                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                               markAsChanged()
                             }}
                             placeholder="Amount"
@@ -2117,9 +2108,17 @@ export default function FinancesPage() {
                           <select
                             value={expense.frequency}
                             onChange={(e) => {
-                              const newAccounts = [...bankAccounts]
-                              newAccounts[index].knownExpenses[expenseIndex].frequency = e.target.value as KnownExpense['frequency']
-                              setBankAccounts(newAccounts)
+                              const newAccounts = bankAccounts.map((acc, i) => 
+                                i === index 
+                                  ? { 
+                                      ...acc, 
+                                      knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
+                                        expIdx === expenseIndex ? { ...exp, frequency: e.target.value as KnownExpense['frequency'] } : exp
+                                      )
+                                    } 
+                                  : acc
+                              )
+                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                               markAsChanged()
                             }}
                             className="w-full px-2 py-1 text-sm border border-cozy-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-cozy-primary"
@@ -2132,9 +2131,12 @@ export default function FinancesPage() {
                         </div>
                         <Button
                           onClick={() => {
-                            const newAccounts = [...bankAccounts]
-                            newAccounts[index].knownExpenses = newAccounts[index].knownExpenses.filter((_, i) => i !== expenseIndex)
-                            setBankAccounts(newAccounts)
+                            const newAccounts = bankAccounts.map((acc, i) => 
+                              i === index 
+                                ? { ...acc, knownExpenses: acc.knownExpenses.filter((_, expIdx) => expIdx !== expenseIndex) }
+                                : acc
+                            )
+                            setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                             markAsChanged()
                           }}
                           variant="outline"
@@ -2172,8 +2174,8 @@ export default function FinancesPage() {
                   key={method.key}
                   variant={splitMethod === method.key ? 'default' : 'outline'}
                   onClick={() => {
-                    setSplitMethod(method.key as SplitMethod)
-                    saveFinancialData({ splitMethod: method.key as SplitMethod })
+                    setFinanceState(prev => ({ ...prev, splitMethod: method.key as SplitMethod }))
+                    markAsChanged()
                   }}
                 >
                   {method.label}

@@ -200,8 +200,35 @@ export default function NotesPage() {
     }
   }, [session?.user?.id])
 
+  // Check if current user can edit a note
+  const canEditNote = useCallback((note: Note): boolean => {
+    if (!session?.user?.id) return false
+    
+    // Owner can always edit
+    if (note.createdBy.id === session.user.id) return true
+    
+    // If note is shared, all household members can edit it
+    if (note.isShared && note.household) {
+      return true // All household members can edit shared notes
+    }
+    
+    // Check if user is a collaborator with EDITOR role (for private notes with specific collaborators)
+    const userCollaboration = note.collaborators.find(
+      collab => collab.user.id === session.user.id && collab.role === 'EDITOR'
+    )
+    
+    return !!userCollaboration
+  }, [session?.user?.id])
+
   // Auto-save function with debounce
   const autoSave = useCallback(async (note: Note) => {
+    // Check if user has edit permissions before attempting to save
+    if (!canEditNote(note)) {
+      console.log('User does not have edit permissions for this note')
+      setSaveState('error')
+      return
+    }
+
     if (autoSaveTimeout) {
       clearTimeout(autoSaveTimeout)
     }
@@ -210,6 +237,23 @@ export default function NotesPage() {
 
     const timeout = setTimeout(async () => {
       try {
+        // Get household ID - try multiple sources
+        let householdId = note.household?.id || null
+        
+        // If note is shared but no household ID, try to get it from the active household
+        if (note.isShared && !householdId) {
+          try {
+            const householdRes = await fetch('/api/household/active')
+            const householdData = await householdRes.json()
+            if (householdData.householdId) {
+              householdId = householdData.householdId
+              console.log('Got household ID from active household API:', householdId)
+            }
+          } catch (error) {
+            console.error('Failed to get household ID:', error)
+          }
+        }
+
         const saveData = {
           title: note.title,
           content: note.content,
@@ -218,8 +262,24 @@ export default function NotesPage() {
           isShared: note.isShared,
           color: note.color,
           isPinned: note.isPinned,
-          isArchived: note.isArchived
+          isArchived: note.isArchived,
+          householdId: householdId
         }
+        
+        console.log('Saving note:', {
+          noteId: note.id,
+          isShared: note.isShared,
+          householdId: note.household?.id,
+          hasHousehold: !!note.household,
+          noteHouseholdId: note.household?.id, // Check the household object
+          createdById: note.createdBy?.id,
+          userSessionId: session?.user?.id,
+          isOwner: note.createdBy?.id === session?.user?.id,
+          fullNote: note // Log the full note to see all fields
+        })
+        
+        console.log('Making API request to:', `/api/notes/${note.id}`)
+        console.log('Request body:', saveData)
         
         const response = await fetch(`/api/notes/${note.id}`, {
           method: 'PUT',
@@ -227,7 +287,35 @@ export default function NotesPage() {
           body: JSON.stringify(saveData)
         })
 
-        if (!response.ok) throw new Error('Failed to save note')
+        console.log('API Response received:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          url: response.url
+        })
+
+        if (!response.ok) {
+          let errorData
+          try {
+            errorData = await response.json()
+          } catch (e) {
+            errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+          }
+          
+          console.error('Save failed - DETAILED DEBUG:', {
+            status: response.status,
+            statusText: response.statusText,
+            responseHeaders: Object.fromEntries(response.headers.entries()),
+            errorData: errorData,
+            noteId: note.id,
+            isShared: note.isShared,
+            householdId: note.household?.id,
+            requestUrl: `/api/notes/${note.id}`,
+            requestBody: saveData
+          })
+          
+          throw new Error(errorData.error || `Failed to save note (${response.status})`)
+        }
         
         const data = await response.json()
         dispatch({ type: 'UPDATE_NOTE', payload: data.note })
@@ -240,17 +328,42 @@ export default function NotesPage() {
     }, 800) // 800ms debounce
 
     setAutoSaveTimeout(timeout)
-  }, [autoSaveTimeout])
+  }, [autoSaveTimeout, canEditNote])
 
   // Handle note updates (for selected note in editor)
-  const handleNoteUpdate = useCallback((field: 'title' | 'content' | 'contentJson' | 'contentText' | 'isShared' | 'isPinned' | 'isArchived' | 'color', value: string | any | boolean) => {
+  const handleNoteUpdate = useCallback(async (field: 'title' | 'content' | 'contentJson' | 'contentText' | 'isShared' | 'isPinned' | 'isArchived' | 'color', value: string | any | boolean) => {
     if (!selectedNote) return
 
-    const updatedNote = { ...selectedNote, [field]: value, updatedAt: new Date().toISOString() }
+    // Check if user has edit permissions before allowing updates
+    if (!canEditNote(selectedNote)) {
+      console.log('User does not have edit permissions for this note')
+      return
+    }
+
+    let updatedNote = { ...selectedNote, [field]: value, updatedAt: new Date().toISOString() }
+    let householdIdForApi = selectedNote.household?.id
+    
+    // If making note shared, ensure householdId is set
+    if (field === 'isShared' && value === true) {
+      // If no household ID, get it from active household
+      if (!householdIdForApi) {
+        try {
+          const householdRes = await fetch('/api/household/active')
+          const householdData = await householdRes.json()
+          if (householdData.householdId) {
+            householdIdForApi = householdData.householdId
+            console.log('Got household ID for sharing:', householdIdForApi)
+          }
+        } catch (error) {
+          console.error('Failed to get household ID for sharing:', error)
+        }
+      }
+    }
+
     setSelectedNote(updatedNote)
     dispatch({ type: 'UPDATE_NOTE', payload: updatedNote })
     autoSave(updatedNote)
-  }, [selectedNote, autoSave])
+  }, [selectedNote, autoSave, canEditNote])
 
   // Handle note updates from list view
   const handleNoteUpdateFromList = useCallback(async (noteId: string, field: 'title' | 'content' | 'contentJson' | 'contentText' | 'isShared' | 'isPinned' | 'isArchived' | 'color', value: string | any | boolean) => {
@@ -258,7 +371,31 @@ export default function NotesPage() {
     const note = notesState.notes.find(n => n.id === noteId)
     if (!note) return
 
-    const updatedNote = { ...note, [field]: value, updatedAt: new Date().toISOString() }
+    // Check if user has edit permissions before allowing updates
+    if (!canEditNote(note)) {
+      console.log('User does not have edit permissions for this note')
+      return
+    }
+
+    let updatedNote = { ...note, [field]: value, updatedAt: new Date().toISOString() }
+    let householdIdForApi = note.household?.id
+    
+    // If making note shared, ensure householdId is set
+    if (field === 'isShared' && value === true) {
+      // If no household ID, get it from active household
+      if (!householdIdForApi) {
+        try {
+          const householdRes = await fetch('/api/household/active')
+          const householdData = await householdRes.json()
+          if (householdData.householdId) {
+            householdIdForApi = householdData.householdId
+            console.log('Got household ID for sharing from list:', householdIdForApi)
+          }
+        } catch (error) {
+          console.error('Failed to get household ID for sharing:', error)
+        }
+      }
+    }
     
     // Update the note in the list immediately
     dispatch({ type: 'UPDATE_NOTE', payload: updatedNote })
@@ -276,18 +413,20 @@ export default function NotesPage() {
           isShared: updatedNote.isShared,
           color: updatedNote.color,
           isPinned: updatedNote.isPinned,
-          isArchived: updatedNote.isArchived
+          isArchived: updatedNote.isArchived,
+          householdId: householdIdForApi || null
         })
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save note')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save note')
       }
       
     } catch (error) {
       console.error('Error updating note from list:', error)
     }
-  }, [notesState.notes])
+  }, [notesState.notes, canEditNote])
 
   // Show delete confirmation
   const showDeleteConfirm = useCallback((noteId: string, noteTitle: string) => {
@@ -332,6 +471,34 @@ export default function NotesPage() {
   const cancelDelete = useCallback(() => {
     setDeleteConfirm({ show: false, noteId: null, noteTitle: '' })
   }, [])
+
+  // Handle escape key and outside click for delete confirmation
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && deleteConfirm.show) {
+        cancelDelete()
+      }
+    }
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (deleteConfirm.show && e.target === e.currentTarget) {
+        cancelDelete()
+      }
+    }
+
+    if (deleteConfirm.show) {
+      document.addEventListener('keydown', handleEscape)
+      document.addEventListener('click', handleOutsideClick)
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden'
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener('click', handleOutsideClick)
+      document.body.style.overflow = 'unset'
+    }
+  }, [deleteConfirm.show, cancelDelete])
 
   // Get color classes for note cards
   const getColorClasses = useCallback((color: string) => {
@@ -570,6 +737,18 @@ export default function NotesPage() {
     if (!session?.user?.id) return
 
     try {
+      // Get household ID for potential sharing
+      let householdId = null
+      try {
+        const householdRes = await fetch('/api/household/active')
+        const householdData = await householdRes.json()
+        if (householdData.householdId) {
+          householdId = householdData.householdId
+        }
+      } catch (error) {
+        console.error('Failed to get household ID for new note:', error)
+      }
+
       const response = await fetch('/api/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -579,7 +758,8 @@ export default function NotesPage() {
           contentJson: null,
           contentText: '',
           isShared: false,
-          color: 'yellow'
+          color: 'yellow',
+          householdId: householdId
         })
       })
 
@@ -722,7 +902,7 @@ export default function NotesPage() {
 
   return (
     <ModernAppShell title="Notes">
-      <div className="h-screen flex bg-white">
+      <div className="h-screen flex bg-white overflow-hidden">
         {/* Sidebar */}
         <div className={`${isSidebarCollapsed ? 'w-0' : 'w-80'} bg-gray-50 border-r border-gray-200 transition-all duration-300 overflow-hidden hidden md:block`}>
           <div className="p-4">
@@ -796,32 +976,34 @@ export default function NotesPage() {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Mobile Header */}
-          <div className="md:hidden p-4 border-b border-gray-200 bg-white">
-            <div className="flex items-center justify-between">
-              <h1 className="text-lg font-semibold text-cozy-text">Notes</h1>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setActiveTab(activeTab === 'all' ? 'personal' : activeTab === 'personal' ? 'shared' : 'all')}
-                  className="px-3 py-1 text-sm bg-cozy-gray text-cozy-text rounded-lg hover:bg-cozy-gray-hover transition-colors"
-                >
-                  {activeTab === 'all' ? 'All' : activeTab === 'personal' ? 'Personal' : 'Shared'}
-                </button>
+          {/* Mobile Header - Only show when no note is selected */}
+          {!selectedNote && (
+            <div className="md:hidden p-4 border-b border-gray-200 bg-white">
+              <div className="flex items-center justify-between">
+                <h1 className="text-lg font-semibold text-cozy-text">Notes</h1>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setActiveTab(activeTab === 'all' ? 'personal' : activeTab === 'personal' ? 'shared' : 'all')}
+                    className="px-3 py-1 text-sm bg-cozy-gray text-cozy-text rounded-lg hover:bg-cozy-gray-hover transition-colors"
+                  >
+                    {activeTab === 'all' ? 'All' : activeTab === 'personal' ? 'Personal' : 'Shared'}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search notes..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:border-transparent"
+                  />
+                </div>
               </div>
             </div>
-            <div className="mt-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search notes..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:border-transparent"
-                />
-              </div>
-            </div>
-          </div>
+          )}
 
           {!selectedNote ? (
             /* Notes List View */
@@ -1036,11 +1218,28 @@ export default function NotesPage() {
                   ref={titleRef}
                   value={selectedNote.title}
                   onChange={(e) => {
-                    handleNoteUpdate('title', e.target.value)
-                    autoResize(e.target)
+                    if (canEditNote(selectedNote)) {
+                      handleNoteUpdate('title', e.target.value)
+                      autoResize(e.target)
+                    }
                   }}
-                  placeholder="Title"
-                  className="w-full text-2xl md:text-3xl font-bold text-cozy-text placeholder-gray-400 border-0 resize-none focus:outline-none bg-transparent"
+                  onFocus={(e) => {
+                    // Clear placeholder text when focused
+                    if (e.target.value === '' && e.target.placeholder === 'Title') {
+                      e.target.placeholder = ''
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Restore placeholder if empty
+                    if (e.target.value === '' && canEditNote(selectedNote)) {
+                      e.target.placeholder = 'Title'
+                    }
+                  }}
+                  placeholder={canEditNote(selectedNote) ? (selectedNote.title === '' ? 'Title' : '') : "Read-only title"}
+                  disabled={!canEditNote(selectedNote)}
+                  className={`w-full text-2xl md:text-3xl font-bold text-cozy-text placeholder-gray-400 border-0 resize-none focus:outline-none bg-transparent ${
+                    !canEditNote(selectedNote) ? 'opacity-75 cursor-not-allowed' : ''
+                  }`}
                   style={{ minHeight: '40px' }}
                 />
               </div>
@@ -1074,46 +1273,64 @@ export default function NotesPage() {
                     {/* Color Picker */}
                     <div className="flex items-center gap-1 md:gap-2">
                       <button
-                        onClick={() => handleNoteUpdate('color', 'yellow')}
+                        onClick={() => canEditNote(selectedNote) && handleNoteUpdate('color', 'yellow')}
+                        disabled={!canEditNote(selectedNote)}
                         className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
                           selectedNote.color === 'yellow' ? 'border-gray-600 scale-110' : 'border-gray-300'
-                        } bg-yellow-200 hover:bg-yellow-300 active:scale-95 transition-all duration-150 touch-manipulation`}
-                        title="Yellow"
+                        } bg-yellow-200 hover:bg-yellow-300 active:scale-95 transition-all duration-150 touch-manipulation ${
+                          !canEditNote(selectedNote) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title={canEditNote(selectedNote) ? "Yellow" : "Read-only"}
                       />
                       <button
-                        onClick={() => handleNoteUpdate('color', 'green')}
+                        onClick={() => canEditNote(selectedNote) && handleNoteUpdate('color', 'green')}
+                        disabled={!canEditNote(selectedNote)}
                         className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
                           selectedNote.color === 'green' ? 'border-gray-600 scale-110' : 'border-gray-300'
-                        } bg-green-200 hover:bg-green-300 active:scale-95 transition-all duration-150 touch-manipulation`}
-                        title="Green"
+                        } bg-green-200 hover:bg-green-300 active:scale-95 transition-all duration-150 touch-manipulation ${
+                          !canEditNote(selectedNote) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title={canEditNote(selectedNote) ? "Green" : "Read-only"}
                       />
                       <button
-                        onClick={() => handleNoteUpdate('color', 'blue')}
+                        onClick={() => canEditNote(selectedNote) && handleNoteUpdate('color', 'blue')}
+                        disabled={!canEditNote(selectedNote)}
                         className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
                           selectedNote.color === 'blue' ? 'border-gray-600 scale-110' : 'border-gray-300'
-                        } bg-blue-200 hover:bg-blue-300 active:scale-95 transition-all duration-150 touch-manipulation`}
-                        title="Blue"
+                        } bg-blue-200 hover:bg-blue-300 active:scale-95 transition-all duration-150 touch-manipulation ${
+                          !canEditNote(selectedNote) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title={canEditNote(selectedNote) ? "Blue" : "Read-only"}
                       />
                       <button
-                        onClick={() => handleNoteUpdate('color', 'purple')}
+                        onClick={() => canEditNote(selectedNote) && handleNoteUpdate('color', 'purple')}
+                        disabled={!canEditNote(selectedNote)}
                         className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
                           selectedNote.color === 'purple' ? 'border-gray-600 scale-110' : 'border-gray-300'
-                        } bg-purple-200 hover:bg-purple-300 active:scale-95 transition-all duration-150 touch-manipulation`}
-                        title="Purple"
+                        } bg-purple-200 hover:bg-purple-300 active:scale-95 transition-all duration-150 touch-manipulation ${
+                          !canEditNote(selectedNote) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title={canEditNote(selectedNote) ? "Purple" : "Read-only"}
                       />
                       <button
-                        onClick={() => handleNoteUpdate('color', 'pink')}
+                        onClick={() => canEditNote(selectedNote) && handleNoteUpdate('color', 'pink')}
+                        disabled={!canEditNote(selectedNote)}
                         className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
                           selectedNote.color === 'pink' ? 'border-gray-600 scale-110' : 'border-gray-300'
-                        } bg-pink-200 hover:bg-pink-300 active:scale-95 transition-all duration-150 touch-manipulation`}
-                        title="Pink"
+                        } bg-pink-200 hover:bg-pink-300 active:scale-95 transition-all duration-150 touch-manipulation ${
+                          !canEditNote(selectedNote) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title={canEditNote(selectedNote) ? "Pink" : "Read-only"}
                       />
                       <button
-                        onClick={() => handleNoteUpdate('color', 'gray')}
+                        onClick={() => canEditNote(selectedNote) && handleNoteUpdate('color', 'gray')}
+                        disabled={!canEditNote(selectedNote)}
                         className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
                           selectedNote.color === 'gray' ? 'border-gray-600 scale-110' : 'border-gray-300'
-                        } bg-gray-200 hover:bg-gray-300 active:scale-95 transition-all duration-150 touch-manipulation`}
-                        title="Gray"
+                        } bg-gray-200 hover:bg-gray-300 active:scale-95 transition-all duration-150 touch-manipulation ${
+                          !canEditNote(selectedNote) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                        title={canEditNote(selectedNote) ? "Gray" : "Read-only"}
                       />
                     </div>
                     
@@ -1153,6 +1370,17 @@ export default function NotesPage() {
 
               {/* Content Editor */}
               <div className="flex-1 p-3 md:p-4">
+                {!canEditNote(selectedNote) && (
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-yellow-800">
+                      <Eye className="w-4 h-4" />
+                      <span className="text-sm font-medium">Read-only mode</span>
+                    </div>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      You can view this note but cannot edit it. Only the owner, collaborators with edit access, or household members (for shared notes) can make changes.
+                    </p>
+                  </div>
+                )}
                 <ClientOnly fallback={
                   <div className="min-h-[300px] p-4 border border-gray-200 rounded-lg bg-gray-50 flex items-center justify-center">
                     <div className="text-gray-500">Loading editor...</div>
@@ -1161,8 +1389,8 @@ export default function NotesPage() {
                   <RichTextEditor
                     content={selectedNote.contentJson || selectedNote.content}
                     onUpdate={handleContentUpdate}
-                    placeholder="Start writing your note..."
-                    editable={true}
+                    placeholder={canEditNote(selectedNote) ? "Start writing your note..." : "This note is read-only"}
+                    editable={canEditNote(selectedNote)}
                     className="h-full"
                   />
                 </ClientOnly>
@@ -1174,8 +1402,22 @@ export default function NotesPage() {
 
       {/* Delete Confirmation Dialog */}
       {deleteConfirm.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-cozy-lg max-w-md w-full p-6 border border-cozy-border">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm"
+          onClick={cancelDelete}
+          onTouchStart={(e) => {
+            // Prevent touch events from bubbling up on mobile
+            if (e.target === e.currentTarget) {
+              e.preventDefault()
+              cancelDelete()
+            }
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-cozy-lg max-w-md w-full p-6 border border-cozy-border"
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-4 mb-6">
               <div className="w-12 h-12 bg-cozy-gray/20 rounded-full flex items-center justify-center border-2 border-cozy-border">
                 <Trash2 className="w-6 h-6 text-cozy-text-muted" />
@@ -1214,13 +1456,15 @@ export default function NotesPage() {
       )}
 
       {/* Floating Mobile Button */}
-      <button
-        onClick={createNewNote}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-cozy-primary hover:bg-cozy-primary-deep text-white rounded-full shadow-cozy-lg flex items-center justify-center z-40 sm:hidden transition-all duration-200 hover:scale-105 active:scale-95"
-        title="Create new note"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+      {!deleteConfirm.show && (
+        <button
+          onClick={createNewNote}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-cozy-primary hover:bg-cozy-primary-deep text-white rounded-full shadow-cozy-lg flex items-center justify-center z-40 sm:hidden transition-all duration-200 hover:scale-105 active:scale-95"
+          title="Create new note"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
     </ModernAppShell>
   )
 }
