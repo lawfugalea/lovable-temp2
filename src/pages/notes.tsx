@@ -287,7 +287,7 @@ export default function NotesPage() {
     } catch (error) {
       console.error('Error updating note from list:', error)
     }
-  }, [notesState.notes, extractTextFromJson])
+  }, [notesState.notes])
 
   // Show delete confirmation
   const showDeleteConfirm = useCallback((noteId: string, noteTitle: string) => {

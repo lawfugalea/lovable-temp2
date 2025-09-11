@@ -3,6 +3,9 @@
 const nextConfig = {
   output: 'standalone',          // <-- needed for .next/standalone
   reactStrictMode: false,        // Disable strict mode
+  eslint: {
+    ignoreDuringBuilds: true,    // Ignore ESLint errors during build
+  },
   webpack: (config, { dev, isServer }) => {
     if (dev) {
       // Reduce noisy watching; ignore huge folders

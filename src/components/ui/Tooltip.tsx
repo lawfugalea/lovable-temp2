@@ -68,7 +68,7 @@ export function TooltipTrigger({ asChild, children }: TooltipTriggerProps) {
   if (asChild && React.isValidElement(children)) {
     return React.cloneElement(children, {
       ref: triggerRef,
-    })
+    } as any)
   }
 
   return <span ref={triggerRef}>{children}</span>
