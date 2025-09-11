@@ -1419,7 +1419,6 @@ export default function FinancesPage() {
                           newEarners[index].name = e.target.value
                           setEarners(newEarners)
                           markAsChanged()
-                          saveFinancialData({ earners: newEarners })
                         }}
                         className="font-medium w-full"
                         placeholder="Earner name"
@@ -1438,7 +1437,6 @@ export default function FinancesPage() {
                           newEarners[index].salary = value
                           setEarners(newEarners)
                           markAsChanged()
-                          saveFinancialData({ earners: newEarners })
                         }}
                         placeholder="Salary"
                         className="w-full"
@@ -1460,7 +1458,6 @@ export default function FinancesPage() {
                           newEarners[index].keep = value
                           setEarners(newEarners)
                           markAsChanged()
-                          saveFinancialData({ earners: newEarners })
                         }}
                         placeholder="Keep"
                         className={(() => {
@@ -1691,7 +1688,6 @@ export default function FinancesPage() {
                     onChange={(value) => {
                       setCurrentSavings(value)
                       markAsChanged()
-                      saveFinancialData({ currentSavings: value })
                     }}
                     placeholder="Enter your current savings"
                     className="text-lg font-semibold"
@@ -1944,28 +1940,28 @@ export default function FinancesPage() {
               {bankAccounts.map((account, index) => (
                 <div key={account.id} className="p-4 border rounded-lg space-y-4">
                   {/* Account Header */}
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex-1 min-w-0">
                       <Input
                         value={account.name}
                         onChange={(e) => {
                           const newAccounts = [...bankAccounts]
                           newAccounts[index].name = e.target.value
                           setBankAccounts(newAccounts)
-                          saveFinancialData({ bankAccounts: newAccounts })
+                          markAsChanged()
                         }}
-                        className="font-medium"
+                        className="font-medium w-full"
                         placeholder="Account name"
                       />
                     </div>
-                    <div className="w-32">
+                    <div className="w-full sm:w-32">
                       <select
                         value={account.type}
                         onChange={(e) => {
                           const newAccounts = [...bankAccounts]
                           newAccounts[index].type = e.target.value as BankAccount['type']
                           setBankAccounts(newAccounts)
-                          saveFinancialData({ bankAccounts: newAccounts })
+                          markAsChanged()
                         }}
                         className="w-full px-3 py-2 border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
                       >
@@ -1975,7 +1971,7 @@ export default function FinancesPage() {
                         <option value="investment">Investment</option>
                       </select>
                     </div>
-                    <div className="w-32">
+                    <div className="w-full sm:w-32">
                       <CurrencyInput
                         value={account.target || 0}
                         onChange={(value) => {
@@ -1983,7 +1979,6 @@ export default function FinancesPage() {
                           newAccounts[index].target = value
                           setBankAccounts(newAccounts)
                           markAsChanged()
-                          saveFinancialData({ bankAccounts: newAccounts })
                         }}
                         placeholder="Target"
                         className={(() => {
@@ -2049,21 +2044,21 @@ export default function FinancesPage() {
                     </div>
                     
                     {account.knownExpenses.map((expense, expenseIndex) => (
-                      <div key={expense.id} className="flex items-center gap-2 p-3 bg-cozy-cream rounded-lg">
-                        <div className="flex-1">
+                      <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 bg-cozy-cream rounded-lg">
+                        <div className="flex-1 min-w-0">
                           <Input
                             value={expense.name}
                             onChange={(e) => {
                               const newAccounts = [...bankAccounts]
                               newAccounts[index].knownExpenses[expenseIndex].name = e.target.value
                               setBankAccounts(newAccounts)
-                              saveFinancialData({ bankAccounts: newAccounts })
+                              markAsChanged()
                             }}
                             placeholder="Expense name"
-                            className="text-sm"
+                            className="text-sm w-full"
                           />
                         </div>
-                        <div className="w-24">
+                        <div className="w-full sm:w-24">
                           <CurrencyInput
                             value={expense.amount || 0}
                             onChange={(value) => {
@@ -2071,20 +2066,19 @@ export default function FinancesPage() {
                               newAccounts[index].knownExpenses[expenseIndex].amount = value
                               setBankAccounts(newAccounts)
                               markAsChanged()
-                              saveFinancialData({ bankAccounts: newAccounts })
                             }}
                             placeholder="Amount"
-                            className="text-sm"
+                            className="text-sm w-full"
                           />
                         </div>
-                        <div className="w-28">
+                        <div className="w-full sm:w-28">
                           <select
                             value={expense.frequency}
                             onChange={(e) => {
                               const newAccounts = [...bankAccounts]
                               newAccounts[index].knownExpenses[expenseIndex].frequency = e.target.value as KnownExpense['frequency']
                               setBankAccounts(newAccounts)
-                              saveFinancialData({ bankAccounts: newAccounts })
+                              markAsChanged()
                             }}
                             className="w-full px-2 py-1 text-sm border border-cozy-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-cozy-primary"
                           >
@@ -2099,11 +2093,11 @@ export default function FinancesPage() {
                             const newAccounts = [...bankAccounts]
                             newAccounts[index].knownExpenses = newAccounts[index].knownExpenses.filter((_, i) => i !== expenseIndex)
                             setBankAccounts(newAccounts)
-                            saveFinancialData({ bankAccounts: newAccounts })
+                            markAsChanged()
                           }}
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full sm:w-auto"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
