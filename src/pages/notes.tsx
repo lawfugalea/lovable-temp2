@@ -287,7 +287,7 @@ export default function NotesPage() {
     } catch (error) {
       console.error('Error updating note from list:', error)
     }
-  }, [notesState.notes])
+  }, [notesState.notes, extractTextFromJson])
 
   // Show delete confirmation
   const showDeleteConfirm = useCallback((noteId: string, noteTitle: string) => {
@@ -1188,7 +1188,7 @@ export default function NotesPage() {
             
             <div className="bg-cozy-gray/30 rounded-lg p-4 mb-6">
               <p className="text-cozy-text">
-                Are you sure you want to delete <strong className="text-cozy-text">"{deleteConfirm.noteTitle}"</strong>? 
+                Are you sure you want to delete <strong className="text-cozy-text">&ldquo;{deleteConfirm.noteTitle}&rdquo;</strong>? 
               </p>
               <p className="text-sm text-cozy-text-muted mt-2">
                 This will permanently remove the note and all its content from your account.

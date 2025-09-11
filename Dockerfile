@@ -6,7 +6,7 @@ RUN apk add --no-cache libc6-compat
 # Copy deps manifests + PRISMA SCHEMA before npm ci (important!)
 COPY package*.json ./
 COPY prisma ./prisma
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy rest and build Next.js (standalone output)
 COPY . .
