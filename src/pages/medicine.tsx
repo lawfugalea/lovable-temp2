@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import Tabs, { TabPanel } from '../components/ui/Tabs'
 import MedicineSetupWizard from '@/components/MedicineSetupWizard'
-import MedicineAnalytics from '@/components/MedicineAnalytics'
+import ModernMedicineAnalytics from '@/components/ModernMedicineAnalytics'
 import { 
   Plus, 
   Calendar, 
@@ -1441,7 +1441,7 @@ export default function MedicinePage() {
           
             {/* Analytics Tab */}
             <TabPanel isActive={activeTab === 'analytics'}>
-              <MedicineAnalytics 
+              <ModernMedicineAnalytics 
                 doses={doses}
                 children={children}
                 medicines={medicines}
