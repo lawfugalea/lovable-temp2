@@ -52,7 +52,7 @@ export default function Tabs({
   return (
     <div className={cn('w-full', className)}>
       <div className={cn(
-        'flex',
+        'flex overflow-x-auto scrollbar-hide',
         variant === 'underline' ? 'border-b border-cozy-gray-200' : 'rounded-xl border border-cozy-gray-300 overflow-hidden'
       )}>
         {tabs.map((tab, index) => {
@@ -65,20 +65,25 @@ export default function Tabs({
               onClick={() => !tab.disabled && onTabChange(tab.id)}
               disabled={tab.disabled}
               className={cn(
-                'flex items-center gap-2 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:ring-offset-2',
+                'flex items-center gap-1.5 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:ring-offset-2 flex-shrink-0 min-w-0',
                 sizeClasses[size],
                 getVariantClasses(isActive),
                 tab.disabled && 'opacity-50 cursor-not-allowed',
                 variant === 'default' && index !== tabs.length - 1 && 'border-r border-cozy-gray-300',
-                variant === 'pills' && 'rounded-lg mx-1 my-1'
+                variant === 'pills' && 'rounded-lg mx-0.5 my-1',
+                // Mobile optimizations
+                'touch-manipulation', // Better touch response
+                'min-h-[44px]', // Minimum touch target size
+                'px-2 sm:px-3', // Responsive padding
+                'text-xs sm:text-sm' // Responsive text size
               )}
               aria-pressed={isActive}
             >
-              {Icon && <Icon className="w-4 h-4" />}
-              <span>{tab.label}</span>
+              {Icon && <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />}
+              <span className="truncate">{tab.label}</span>
               {tab.badge && (
                 <span className={cn(
-                  'px-1.5 py-0.5 text-xs rounded-full',
+                  'px-1 py-0.5 text-xs rounded-full flex-shrink-0',
                   isActive ? 'bg-white/20 text-white' : 'bg-cozy-primary text-white'
                 )}>
                   {tab.badge}

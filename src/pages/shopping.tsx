@@ -739,17 +739,18 @@ export default function ShoppingPage() {
     <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-cozy-text mb-2 flex items-center gap-3">
-            <span className="animate-cozy-wiggle">🛒</span>Shopping Lists
-        </h1>
-          <p className="text-cozy-text-muted">Your shared family lists, organized with love</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-cozy-text mb-2 flex items-center gap-2 sm:gap-3">
+            <span className="animate-cozy-wiggle text-xl sm:text-2xl">🛒</span>
+            <span className="truncate">Shopping Lists</span>
+          </h1>
+          <p className="text-sm sm:text-base text-cozy-text-muted">Your shared family lists, organized with love</p>
           
           {/* Active List Indicator */}
           {selectedListId && lists.length > 0 && (
-            <div className="mt-4 bg-cozy-primary/10 border border-cozy-primary rounded-lg p-3">
+            <div className="mt-3 sm:mt-4 bg-cozy-primary/10 border border-cozy-primary rounded-lg p-2 sm:p-3">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-cozy-primary rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-cozy-text">
+                <div className="w-2 h-2 bg-cozy-primary rounded-full animate-pulse flex-shrink-0"></div>
+                <span className="text-xs sm:text-sm font-medium text-cozy-text truncate">
                   Active List: {lists.find(l => l.id === selectedListId)?.name || 'Unknown'}
                 </span>
               </div>
@@ -770,11 +771,11 @@ export default function ShoppingPage() {
         {activeTab === 'lists' && (
           <TabPanel>
             {/* List Picker */}
-            <div className="grid gap-6 lg:grid-cols-3 w-full items-start">
-              <div className="lg:col-span-1">
+            <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3 w-full items-start">
+              <div className="lg:col-span-1 order-2 lg:order-1">
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Shopping List</CardTitle>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Shopping List</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <ListPicker
@@ -788,25 +789,25 @@ export default function ShoppingPage() {
               </div>
 
               {/* Add Item */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 order-1 lg:order-2">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Add New Item</CardTitle>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base sm:text-lg">Add New Item</CardTitle>
                     {!selectedListId && (
-                      <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+                      <div className="text-xs sm:text-sm text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
                         ⚠️ Please select a shopping list first to add items
                       </div>
                     )}
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       {/* Search Field and Search Button */}
-                      <div className="space-y-3">
-                        <label className="block text-sm font-medium text-cozy-text">Search Products</label>
+                      <div className="space-y-2 sm:space-y-3">
+                        <label className="block text-xs sm:text-sm font-medium text-cozy-text">Search Products</label>
                         <div className="flex gap-2">
                           <div className="flex-1 relative" style={{ position: 'relative', zIndex: 1 }}>
                             <Input
-                              placeholder="🛒 Search products (e.g., 'coca', 'milk', 'bread')... (Ctrl+K to focus)"
+                              placeholder="🛒 Search products..."
                               value={newItemTitle}
                               onChange={(e) => {
                                 setNewItemTitle(e.target.value)
@@ -819,22 +820,22 @@ export default function ShoppingPage() {
                               }}
                               onKeyDown={handleKeyDown}
                               onFocus={() => setShowSuggestions(true)}
-                              className="w-full"
+                              className="w-full text-sm sm:text-base"
                             />
                             {showSuggestions && suggestions.length > 0 && (
-                              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-lg z-50 max-h-48 sm:max-h-60 overflow-y-auto">
                                 {suggestions.slice(0, 5).map((suggestion, index) => (
                                   <button
                                     key={index}
-                                    className={`w-full px-4 py-2 text-left hover:bg-cozy-cream transition-colors ${
+                                    className={`w-full px-3 py-2 sm:px-4 text-left hover:bg-cozy-cream transition-colors touch-manipulation ${
                                       selectedIndex === index ? 'bg-cozy-cream' : ''
                                     }`}
                                     onClick={() => selectSuggestion(suggestion)}
                                   >
                                     <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium">{suggestion.title}</span>
+                                      <span className="text-xs sm:text-sm font-medium truncate">{suggestion.title}</span>
                                       {suggestion.nowCents && (
-                                        <span className="text-xs text-cozy-text-muted">
+                                        <span className="text-xs text-cozy-text-muted flex-shrink-0">
                                           €{(suggestion.nowCents / 100).toFixed(2)}
                                         </span>
                                       )}
@@ -847,7 +848,7 @@ export default function ShoppingPage() {
                           <Button
                             onClick={() => searchSuggestions(newItemTitle)}
                             disabled={!newItemTitle.trim() || searchLoading}
-                            className="px-4"
+                            className="px-3 sm:px-4 flex-shrink-0"
                           >
                             {searchLoading ? (
                               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -860,7 +861,7 @@ export default function ShoppingPage() {
 
                       {/* Quantity Input */}
                       <div>
-                        <label className="block text-sm font-medium text-cozy-text mb-1">Quantity (optional)</label>
+                        <label className="block text-xs sm:text-sm font-medium text-cozy-text mb-1">Quantity (optional)</label>
                         <Input
                           placeholder="e.g., 2, 1kg, 500ml"
                           value={newItemQty}
@@ -870,6 +871,7 @@ export default function ShoppingPage() {
                               addItem()
                             }
                           }}
+                          className="text-sm sm:text-base"
                         />
                       </div>
 
@@ -877,7 +879,7 @@ export default function ShoppingPage() {
                       <Button
                         onClick={addItem}
                         disabled={!newItemTitle.trim() || !selectedListId || loading}
-                        className="w-full"
+                        className="w-full h-10 sm:h-11 text-sm sm:text-base touch-manipulation"
                       >
                         {loading ? (
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
@@ -897,9 +899,9 @@ export default function ShoppingPage() {
         {activeTab === 'items' && (
           <TabPanel>
             <Card>
-              <CardHeader>
-                <CardTitle>Shopping Items</CardTitle>
-                <CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Shopping Items</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   {selectedListId ? `Items in ${lists.find(l => l.id === selectedListId)?.name}` : 'Select a list to view items'}
                 </CardDescription>
                 {(() => {
@@ -920,10 +922,10 @@ export default function ShoppingPage() {
                   
                   if (totalPrice > 0) {
                     return (
-                      <div className="mt-2 p-3 bg-cozy-cream rounded-lg">
+                      <div className="mt-2 p-2 sm:p-3 bg-cozy-cream rounded-lg">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium text-cozy-text">Estimated Total:</span>
-                          <span className="text-lg font-bold text-cozy-primary">
+                          <span className="text-xs sm:text-sm font-medium text-cozy-text">Estimated Total:</span>
+                          <span className="text-base sm:text-lg font-bold text-cozy-primary">
                             {(totalPrice / 100).toFixed(2)}€
                           </span>
                         </div>
@@ -938,30 +940,32 @@ export default function ShoppingPage() {
               </CardHeader>
               <CardContent>
                 {filteredItems.length === 0 ? (
-                  <div className="text-center py-8 text-cozy-text-muted">
-                    {searchQuery ? 'No items match your search' : 'No items in this list yet'}
+                  <div className="text-center py-6 sm:py-8 text-cozy-text-muted">
+                    <p className="text-sm sm:text-base">
+                      {searchQuery ? 'No items match your search' : 'No items in this list yet'}
+                    </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1 sm:space-y-2">
                     {filteredItems.map((item) => (
-                      <div key={item.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-cozy-cream transition-colors group">
+                      <div key={item.id} className="flex items-center gap-2 sm:gap-4 p-2 sm:p-3 rounded-lg hover:bg-cozy-cream transition-colors group touch-manipulation">
                         <button
                           onClick={() => toggleItemStatus(item.id)}
-                          className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                          className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 flex items-center justify-center transition-colors touch-manipulation ${
                             item.status === 'DONE' 
                               ? 'bg-green-500 border-green-500 text-white' 
                               : 'border-cozy-gray-300 hover:border-cozy-primary'
                           }`}
                         >
-                          {item.status === 'DONE' && <Check className="w-4 h-4" />}
+                          {item.status === 'DONE' && <Check className="w-3 h-3 sm:w-4 sm:h-4" />}
                         </button>
                         
                         <div className="flex-1 min-w-0">
-                          <div className={`font-medium ${item.status === 'DONE' ? 'line-through text-cozy-text-muted' : 'text-cozy-text'}`}>
+                          <div className={`text-sm sm:text-base font-medium truncate ${item.status === 'DONE' ? 'line-through text-cozy-text-muted' : 'text-cozy-text'}`}>
                             {item.title}
                           </div>
                           {item.qty && (
-                            <div className="text-sm text-cozy-text-muted">Qty: {item.qty}</div>
+                            <div className="text-xs sm:text-sm text-cozy-text-muted">Qty: {item.qty}</div>
                           )}
                           {item.notes && (() => {
                             try {
@@ -980,15 +984,15 @@ export default function ShoppingPage() {
                           })()}
                         </div>
                         
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-cozy-text-muted">
+                        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+                          <span className="text-xs text-cozy-text-muted hidden sm:block">
                             {new Date(item.createdAt).toLocaleDateString()}
                           </span>
                           <button
                             onClick={() => deleteItem(item.id)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 transition-opacity"
+                            className="p-1 sm:p-1.5 text-red-500 hover:text-red-700 transition-opacity touch-manipulation"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                           </button>
                         </div>
                       </div>
