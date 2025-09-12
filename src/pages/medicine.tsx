@@ -80,6 +80,15 @@ interface MedicineDose {
   dosage: string
   notes?: string
   takenBy?: string
+  child: {
+    id: string
+    name: string
+  }
+  medicine: {
+    id: string
+    name: string
+    medicineType?: string
+  }
 }
 
 interface MedicineReminder {
@@ -1432,28 +1441,11 @@ export default function MedicinePage() {
           
             {/* Analytics Tab */}
             <TabPanel isActive={activeTab === 'analytics'}>
-              <div className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5 text-blue-600" />
-                      Medicine Analytics
-                    </CardTitle>
-                    <p className="text-sm text-cozy-text-muted">
-                      Track medicine administration patterns and adherence
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-8">
-                      <BarChart3 className="h-12 w-12 mx-auto mb-3 text-cozy-text-muted opacity-50" />
-                      <h3 className="text-lg font-medium text-cozy-text mb-2">Analytics Coming Soon</h3>
-                      <p className="text-sm text-cozy-text-muted">
-                        Advanced analytics and visualizations are being prepared
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <MedicineAnalytics 
+                doses={doses}
+                children={children}
+                medicines={medicines}
+              />
             </TabPanel>
 
             {/* Children Tab */}
