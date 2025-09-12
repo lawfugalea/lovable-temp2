@@ -916,22 +916,34 @@ export default function FinancesPage() {
         {/* Tab Content */}
         {activeTab === 'budget' && (
           <TabPanel>
-            {/* Budget Planning Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Budget Planning content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'accounts' && (
           <TabPanel>
-            {/* Bank Accounts Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Bank Accounts content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'goals' && (
           <TabPanel>
-            {/* Financial Goals Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Financial Goals content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'reports' && (
           <TabPanel>
-            {/* Reports Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Reports content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {/* Keyboard Shortcuts Modal */}

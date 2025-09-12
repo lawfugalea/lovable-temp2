@@ -923,22 +923,34 @@ export default function MedicinePage() {
         {/* Tab Content */}
         {activeTab === 'medicines' && (
           <TabPanel>
-            {/* Active Medicines Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Active Medicines content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'children' && (
           <TabPanel>
-            {/* Children Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Children content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'history' && (
           <TabPanel>
-            {/* Dose History Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Dose History content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'reports' && (
           <TabPanel>
-            {/* Reports Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Reports content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {/* Quick Stats */}

@@ -766,22 +766,34 @@ export default function ShoppingPage() {
         {/* Tab Content */}
         {activeTab === 'lists' && (
           <TabPanel>
-            {/* Shopping Lists Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Shopping Lists content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'items' && (
           <TabPanel>
-            {/* All Items Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">All Items content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'templates' && (
           <TabPanel>
-            {/* Templates Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Templates content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {activeTab === 'search' && (
           <TabPanel>
-            {/* Search & Add Content */}
+            <div className="text-center py-8">
+              <p className="text-cozy-text-muted">Search & Add content will be organized here</p>
+            </div>
+          </TabPanel>
         )}
 
         {/* Top Section - List Picker and Add Item */}
