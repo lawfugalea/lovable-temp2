@@ -15,6 +15,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!householdId) {
     return res.status(400).json({ error: 'Household ID required' })
   }
+  
+  console.log('API request for household:', householdId)
 
   if (req.method === 'GET') {
     try {
@@ -63,6 +65,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
         orderBy: { createdAt: 'desc' }
       })
+      
+      console.log(`Found ${medicines.length} medicines for household ${householdId}`)
+      console.log('Medicines:', medicines.map(m => ({ id: m.id, name: m.name, isTemplate: m.isTemplate, isActive: m.isActive })))
+      
       return res.json(medicines)
     } catch (error) {
       console.error('Failed to fetch medicines:', error)
@@ -72,16 +78,40 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     try {
-      const { name, dosage, frequency, unit, instructions, childId, isTemplate, templateId } = req.body
+      console.log('POST request body:', req.body)
+      
+      const { 
+        name, 
+        dosage, 
+        medicineType,
+        frequency, 
+        unit, 
+        instructions, 
+        childId, 
+        isTemplate, 
+        templateId,
+        // Inventory fields
+        currentQuantity,
+        totalQuantity,
+        lowStockThreshold,
+        expiryDate,
+        // Prescription fields
+        prescriptionNumber,
+        doctorName,
+        pharmacyName,
+        prescriptionDate
+      } = req.body
+      
+      console.log('Extracted fields:', { name, dosage, medicineType, frequency, isTemplate })
 
       // For templates, childId is optional. For active courses, childId is required.
       if (isTemplate) {
-        if (!name || !dosage || !frequency) {
-          return res.status(400).json({ error: 'Missing required fields: name, dosage, frequency' })
+        if (!name || !dosage || !medicineType || !frequency) {
+          return res.status(400).json({ error: 'Missing required fields: name, dosage, medicineType, frequency' })
         }
       } else {
-        if (!name || !dosage || !frequency || !childId) {
-          return res.status(400).json({ error: 'Missing required fields: name, dosage, frequency, childId' })
+        if (!name || !dosage || !medicineType || !frequency || !childId) {
+          return res.status(400).json({ error: 'Missing required fields: name, dosage, medicineType, frequency, childId' })
         }
       }
 
@@ -122,21 +152,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
 
+      const medicineData = {
+        name: templateData.name || name,
+        dosage: templateData.dosage || (dosage.includes(unit || 'mg') ? dosage : `${dosage} ${unit || 'mg'}`),
+        medicineType: medicineType,
+        frequency: templateData.frequency || (frequency.toLowerCase().includes('every') ? frequency : `every ${frequency} hours`),
+        notes: templateData.notes || instructions || '',
+        childId: isTemplate ? null : childId,
+        startDate: new Date(),
+        isTemplate: isTemplate || false,
+          isActive: true, // All medicines start as active (templates and courses)
+        // Inventory fields
+        currentQuantity: currentQuantity || null,
+        totalQuantity: totalQuantity || null,
+        unit: unit || null,
+        lowStockThreshold: lowStockThreshold || null,
+        expiryDate: expiryDate ? new Date(expiryDate) : null,
+        // Prescription fields
+        prescriptionNumber: prescriptionNumber || null,
+        doctorName: doctorName || null,
+        pharmacyName: pharmacyName || null,
+        prescriptionDate: prescriptionDate ? new Date(prescriptionDate) : null
+      }
+      
+      console.log('Creating medicine with data:', medicineData)
+      
       const medicine = await prisma.medicine.create({
-        data: {
-          name: templateData.name || name,
-          dosage: templateData.dosage || (dosage.includes(unit || 'mg') ? dosage : `${dosage} ${unit || 'mg'}`),
-          frequency: templateData.frequency || (frequency.toLowerCase().includes('every') ? frequency : `every ${frequency} hours`),
-          notes: templateData.notes || instructions || '',
-          childId: isTemplate ? null : childId,
-          startDate: new Date(),
-          isTemplate: isTemplate || false,
-          isActive: isTemplate ? false : true // Templates should be inactive, active courses should be active
-        },
+        data: medicineData,
         include: {
           child: true
         }
       })
+      
+      console.log('Medicine created successfully:', medicine)
 
       return res.json(medicine)
     } catch (error) {
@@ -191,6 +239,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(500).json({ error: 'Failed to update medicine' })
     }
   }
+
 
   return res.status(405).json({ error: 'Method not allowed' })
 }

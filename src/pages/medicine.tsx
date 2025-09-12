@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
+import Tabs, { TabPanel } from '../components/ui/Tabs'
+import MedicineSetupWizard from '@/components/MedicineSetupWizard'
+import MedicineAnalytics from '@/components/MedicineAnalytics'
 import { 
   Plus, 
   Calendar, 
@@ -21,11 +24,13 @@ import {
   Trash2,
   Settings,
   X,
-  History,
+  Heart,
+  Activity,
   BarChart3,
-  Heart
+  Download,
+  Upload,
+  HelpCircle
 } from 'lucide-react'
-import Tabs, { TabPanel } from '../components/ui/Tabs'
 import { format, addDays, isToday, isTomorrow, parseISO } from 'date-fns'
 import FeverJournal from '../components/FeverJournal'
 
@@ -43,6 +48,7 @@ interface Medicine {
   name: string
   description?: string
   dosage: string
+  medicineType?: string
   frequency: string
   startDate: string
   endDate?: string
@@ -51,6 +57,19 @@ interface Medicine {
   notes?: string
   nextDoseOverride?: string
   overrideReason?: string
+  
+  // Inventory tracking
+  currentQuantity?: number
+  totalQuantity?: number
+  unit?: string
+  lowStockThreshold?: number
+  expiryDate?: string
+  
+  // Prescription information
+  prescriptionNumber?: string
+  doctorName?: string
+  pharmacyName?: string
+  prescriptionDate?: string
 }
 
 interface MedicineDose {
@@ -72,6 +91,20 @@ interface MedicineReminder {
   isActive: boolean
 }
 
+interface MedicineReaction {
+  id: string
+  childId: string
+  medicineId: string
+  reactionType: 'side_effect' | 'allergy' | 'adverse_reaction'
+  severity: 'mild' | 'moderate' | 'severe'
+  description: string
+  symptoms?: string
+  occurredAt: string
+  duration?: string
+  actionTaken?: string
+  notes?: string
+}
+
 export default function MedicinePage() {
   const { data: session } = useSession()
   const { householdId, loading: householdLoading } = useHouseholdId()
@@ -81,6 +114,7 @@ export default function MedicinePage() {
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [doses, setDoses] = useState<MedicineDose[]>([])
   const [reminders, setReminders] = useState<MedicineReminder[]>([])
+  const [reactions, setReactions] = useState<MedicineReaction[]>([])
   const [loading, setLoading] = useState(false)
   const [dataLoading, setDataLoading] = useState(true)
   
@@ -90,11 +124,24 @@ export default function MedicinePage() {
   const [showDoseModal, setShowDoseModal] = useState(false)
   const [showReportModal, setShowReportModal] = useState(false)
   const [showNextDoseModal, setShowNextDoseModal] = useState(false)
+  const [showReactionModal, setShowReactionModal] = useState(false)
+  const [showInventoryModal, setShowInventoryModal] = useState(false)
+  const [showSetupWizard, setShowSetupWizard] = useState(false)
   const [showFAB, setShowFAB] = useState(false)
   const [showFABMenu, setShowFABMenu] = useState(false)
   const [triggerFeverAddModal, setTriggerFeverAddModal] = useState(false)
   const [selectedChild, setSelectedChild] = useState<Child | null>(null)
   const [selectedMedicine, setSelectedMedicine] = useState<Medicine | null>(null)
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('medicines')
+  
+  // Onboarding state
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+  const [showOnboardingTour, setShowOnboardingTour] = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState(0)
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false)
+  const [highlightedElement, setHighlightedElement] = useState<string | null>(null)
   
   // Edit states
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null)
@@ -102,18 +149,16 @@ export default function MedicinePage() {
   
   // Form states
   const [newChild, setNewChild] = useState({ name: '', dateOfBirth: '', notes: '' })
-  
-  // Tab state
-  const [activeTab, setActiveTab] = useState('medicines')
   const [newMedicine, setNewMedicine] = useState({ 
-    childId: '', 
     name: '', 
     description: '', 
     dosage: '', 
+    medicineType: '',
     frequency: '', 
-    startDate: '', 
-    endDate: '', 
-    notes: '' 
+    notes: '',
+    // Prescription fields
+    doctorName: '',
+    pharmacyName: ''
   })
   const [newDose, setNewDose] = useState({ 
     childId: '',
@@ -131,6 +176,18 @@ export default function MedicinePage() {
     startDate: '', 
     endDate: '' 
   })
+  const [newReaction, setNewReaction] = useState({
+    childId: '',
+    medicineId: '',
+    reactionType: 'side_effect' as 'side_effect' | 'allergy' | 'adverse_reaction',
+    severity: 'mild' as 'mild' | 'moderate' | 'severe',
+    description: '',
+    symptoms: '',
+    occurredAt: new Date().toISOString().slice(0, 16),
+    duration: '',
+    actionTaken: '',
+    notes: ''
+  })
 
   // Load data
   useEffect(() => {
@@ -140,12 +197,21 @@ export default function MedicinePage() {
         loadChildren(),
         loadMedicines(),
         loadDoses(),
-        loadReminders()
+        loadReminders(),
+        loadReactions()
       ]).finally(() => {
         setDataLoading(false)
       })
     }
   }, [householdId, householdLoading])
+
+  // Check if user is new and show welcome modal
+  useEffect(() => {
+    if (children.length === 0 && medicines.length === 0 && !dataLoading && !hasSeenOnboarding) {
+      setShowWelcomeModal(true)
+      setHasSeenOnboarding(true)
+    }
+  }, [children.length, medicines.length, dataLoading, hasSeenOnboarding])
 
   // Show/hide FAB based on screen size
   useEffect(() => {
@@ -164,6 +230,13 @@ export default function MedicinePage() {
     
     return () => {
       window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
     }
   }, [])
 
@@ -196,7 +269,11 @@ export default function MedicinePage() {
       const response = await fetch(`/api/medicine/medicines?householdId=${householdId}`)
       if (response.ok) {
         const data = await response.json()
-        setMedicines(data)
+        console.log('Loaded medicines:', data)
+        // Filter out inactive medicines (soft deleted)
+        const activeMedicines = data.filter((medicine: any) => medicine.isActive !== false)
+        console.log('Active medicines after filtering:', activeMedicines)
+        setMedicines(activeMedicines)
       }
     } catch (error) {
       console.error('Failed to load medicines:', error)
@@ -224,6 +301,18 @@ export default function MedicinePage() {
       }
     } catch (error) {
       console.error('Failed to load reminders:', error)
+    }
+  }
+
+  const loadReactions = async () => {
+    try {
+      const response = await fetch(`/api/medicine/reactions?householdId=${householdId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setReactions(data)
+      }
+    } catch (error) {
+      console.error('Failed to load reactions:', error)
     }
   }
 
@@ -256,9 +345,16 @@ export default function MedicinePage() {
     if (dueMedicines.length > 0) {
       // Show notification
       if ('Notification' in window && Notification.permission === 'granted') {
+        const medicineNames = dueMedicines.map(m => {
+          const child = children.find(c => c.id === m.childId)
+          return `${m.name} (${child?.name || 'Unknown'})`
+        }).join(', ')
+        
         new Notification('Medicine Reminder', {
-          body: `${dueMedicines.length} medicine(s) are due`,
-          icon: '/logo.png'
+          body: `${dueMedicines.length} medicine(s) are due: ${medicineNames}`,
+          icon: '/logo.png',
+          tag: 'medicine-reminder',
+          requireInteraction: true
         })
       }
     }
@@ -404,7 +500,13 @@ export default function MedicinePage() {
   }
 
   const addMedicine = async () => {
-    if (!newMedicine.name || !newMedicine.dosage || !newMedicine.frequency) return
+    if (!newMedicine.name || !newMedicine.dosage || !newMedicine.medicineType || !newMedicine.frequency) {
+      alert('Please fill in all required fields: medicine name, dosage, type, and frequency.')
+      return
+    }
+    
+    console.log('Adding medicine:', newMedicine)
+    console.log('Household ID:', householdId)
     
     setLoading(true)
     try {
@@ -414,30 +516,42 @@ export default function MedicinePage() {
         body: JSON.stringify({
           name: newMedicine.name,
           dosage: newMedicine.dosage,
+          medicineType: newMedicine.medicineType,
           frequency: newMedicine.frequency,
-          unit: 'mg', // Default unit
+          unit: 'mg',
           instructions: newMedicine.description || newMedicine.notes || '',
-          childId: null, // Templates don't need a child
-          isTemplate: true // Always create as template from this form
+          childId: null, // Templates don't have a specific child
+          isTemplate: true, // Always create templates
+          startDate: null, // Templates don't have start dates
+          endDate: null, // Templates don't have end dates
+          // Prescription fields
+          doctorName: newMedicine.doctorName || null,
+          pharmacyName: newMedicine.pharmacyName || null
         })
       })
       
       if (response.ok) {
+        console.log('Medicine added successfully')
         setNewMedicine({ 
-          childId: '', 
           name: '', 
           description: '', 
           dosage: '', 
+          medicineType: '',
           frequency: '', 
-          startDate: '', 
-          endDate: '', 
-          notes: '' 
+          notes: '',
+          doctorName: '',
+          pharmacyName: ''
         })
         setShowAddMedicine(false)
         loadMedicines()
+      } else {
+        const errorData = await response.json()
+        console.error('Failed to add medicine:', errorData)
+        alert(`Failed to add medicine: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Failed to add medicine:', error)
+      alert('Failed to add medicine')
     } finally {
       setLoading(false)
     }
@@ -454,23 +568,26 @@ export default function MedicinePage() {
         body: JSON.stringify({
           name: newMedicine.name,
           dosage: newMedicine.dosage,
+          medicineType: newMedicine.medicineType,
           frequency: newMedicine.frequency,
           unit: 'mg', // Default unit
           instructions: newMedicine.description || newMedicine.notes || '',
-          isActive: true
+          isActive: true,
+          doctorName: newMedicine.doctorName,
+          pharmacyName: newMedicine.pharmacyName
         })
       })
       
       if (response.ok) {
         setNewMedicine({ 
-          childId: '', 
           name: '', 
           description: '', 
           dosage: '', 
+          medicineType: '',
           frequency: '', 
-          startDate: '', 
-          endDate: '', 
-          notes: '' 
+          notes: '',
+          doctorName: '',
+          pharmacyName: ''
         })
         setEditingMedicine(null)
         setShowAddMedicine(false)
@@ -486,17 +603,44 @@ export default function MedicinePage() {
   const deleteMedicine = async (medicineId: string) => {
     if (!confirm('Are you sure you want to delete this medicine template? This will also deactivate it if it has associated doses.')) return
     
+    console.log(`Frontend: Attempting to delete medicine ${medicineId}`)
+    console.log(`Frontend: Household ID: ${householdId}`)
+    
     setLoading(true)
     try {
-      const response = await fetch(`/api/medicine/medicines/${medicineId}?householdId=${householdId}`, {
+      const url = `/api/medicine/medicines/${medicineId}?householdId=${householdId}`
+      console.log(`Frontend: DELETE request to: ${url}`)
+      
+      const response = await fetch(url, {
         method: 'DELETE'
       })
       
+      console.log(`Frontend: Response status: ${response.status}`)
+      console.log(`Frontend: Response ok: ${response.ok}`)
+      
       if (response.ok) {
-        loadMedicines()
+        const result = await response.json()
+        console.log('Frontend: Delete result:', result)
+        console.log('Frontend: Medicine deleted successfully')
+        
+        // Check if it was soft deleted or hard deleted
+        if (result.message && result.message.includes('deactivated')) {
+          console.log('Frontend: Medicine was soft deleted (deactivated)')
+        } else {
+          console.log('Frontend: Medicine was hard deleted')
+        }
+        
+        console.log('Frontend: Refreshing medicine list...')
+        await loadMedicines()
+        console.log('Frontend: Medicine list refreshed')
+      } else {
+        const errorData = await response.json()
+        console.error('Frontend: Failed to delete medicine:', errorData)
+        alert(`Failed to delete medicine: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
-      console.error('Failed to delete medicine:', error)
+      console.error('Frontend: Failed to delete medicine:', error)
+      alert('Failed to delete medicine')
     } finally {
       setLoading(false)
     }
@@ -818,27 +962,18 @@ export default function MedicinePage() {
   }
 
   const isMedicineDue = (medicine: Medicine) => {
+    // Templates are never "due" - they're just reusable blueprints
+    if (medicine.isTemplate) return false
+    
     const now = new Date()
     
-    // For active courses, use the existing logic
+    // Only active courses can be due
     if (medicine.isActive) {
       const lastDose = doses
         .filter(dose => dose.medicineId === medicine.id)
         .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
       
-      if (!lastDose) return true
-      
-      const nextDoseTime = calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
-      return now >= nextDoseTime
-    }
-    
-    // For templates, check if there are any doses and if the next dose is due
-    if (medicine.isTemplate) {
-      const lastDose = doses
-        .filter(dose => dose.medicineId === medicine.id)
-        .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
-      
-      if (!lastDose) return false // Templates with no doses are not due
+      if (!lastDose) return true // No doses taken yet, so it's due
       
       const nextDoseTime = calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
       return now >= nextDoseTime
@@ -851,9 +986,157 @@ export default function MedicinePage() {
     return medicines.filter(medicine => isMedicineDue(medicine))
   }
 
+
+  const handleWizardComplete = async (data: { children: any[], medicines: any[] }) => {
+    // Add children from wizard
+    for (const child of data.children) {
+      try {
+        await fetch('/api/medicine/children', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            householdId,
+            name: child.name,
+            dateOfBirth: child.dateOfBirth,
+            notes: child.notes
+          })
+        })
+      } catch (error) {
+        console.error('Failed to add child from wizard:', error)
+      }
+    }
+
+    // Add medicines from wizard
+    for (const medicine of data.medicines) {
+      try {
+        await fetch(`/api/medicine/medicines?householdId=${householdId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: medicine.name,
+            dosage: medicine.dosage,
+            frequency: medicine.frequency,
+            unit: medicine.unit || 'mg',
+            instructions: medicine.description || '',
+            childId: null, // Will be assigned to first child or can be edited later
+            isTemplate: true,
+            currentQuantity: medicine.currentQuantity || null,
+            totalQuantity: medicine.totalQuantity || null,
+            lowStockThreshold: medicine.lowStockThreshold || null,
+            expiryDate: medicine.expiryDate || null,
+            prescriptionNumber: medicine.prescriptionNumber || null,
+            doctorName: medicine.doctorName || null,
+            pharmacyName: medicine.pharmacyName || null,
+            prescriptionDate: medicine.prescriptionDate || null
+          })
+        })
+      } catch (error) {
+        console.error('Failed to add medicine from wizard:', error)
+      }
+    }
+
+    // Reload data
+    await Promise.all([
+      loadChildren(),
+      loadMedicines(),
+      loadDoses(),
+      loadReminders(),
+      loadReactions()
+    ])
+  }
+
   const getTodaysDoses = () => {
     const today = new Date().toISOString().split('T')[0]
     return doses.filter(dose => dose.takenAt.startsWith(today))
+  }
+
+  // Onboarding tour steps
+  const onboardingSteps = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Medicine Tracking! 💊',
+      content: 'Let\'s take a quick tour to help you get started with tracking your children\'s medications and health.',
+      target: null,
+      action: () => setActiveTab('overview')
+    },
+    {
+      id: 'children-setup',
+      title: 'Step 1: Add Your Children',
+      content: 'Start by adding your children to the system. This helps us track which medicines are for which child.',
+      target: 'children-section',
+      action: () => setActiveTab('children')
+    },
+    {
+      id: 'medicine-templates',
+      title: 'Step 2: Create Medicine Templates',
+      content: 'Create reusable medicine templates with standard dosages and frequencies. These can be used for any child.',
+      target: 'templates-section',
+      action: () => setActiveTab('medicines')
+    },
+    {
+      id: 'record-doses',
+      title: 'Step 3: Record Medicine Doses',
+      content: 'When you give medicine to a child, record it here. The system will track timing and calculate next doses.',
+      target: 'doses-section',
+      action: () => setActiveTab('medicines')
+    },
+    {
+      id: 'fever-journal',
+      title: 'Step 4: Track Temperature',
+      content: 'Use the fever journal to track your child\'s temperature readings and monitor their health.',
+      target: 'fever-section',
+      action: () => setActiveTab('health')
+    },
+    {
+      id: 'reports',
+      title: 'Step 5: Generate Reports',
+      content: 'Create PDF reports for doctors or keep records of all medicine doses and health data.',
+      target: 'reports-section',
+      action: () => setActiveTab('reports')
+    }
+  ]
+
+  // Onboarding tour functions
+  const startOnboardingTour = () => {
+    setShowWelcomeModal(false)
+    setShowOnboardingTour(true)
+    setOnboardingStep(0)
+    setHighlightedElement(onboardingSteps[0].target)
+  }
+
+  const nextOnboardingStep = () => {
+    if (onboardingStep < onboardingSteps.length - 1) {
+      const nextStep = onboardingStep + 1
+      setOnboardingStep(nextStep)
+      setHighlightedElement(onboardingSteps[nextStep].target)
+      onboardingSteps[nextStep].action()
+    } else {
+      finishOnboardingTour()
+    }
+  }
+
+  const previousOnboardingStep = () => {
+    if (onboardingStep > 0) {
+      const prevStep = onboardingStep - 1
+      setOnboardingStep(prevStep)
+      setHighlightedElement(onboardingSteps[prevStep].target)
+      onboardingSteps[prevStep].action()
+    }
+  }
+
+  const finishOnboardingTour = () => {
+    setShowOnboardingTour(false)
+    setOnboardingStep(0)
+    setHighlightedElement(null)
+    localStorage.setItem('medicine-onboarding-completed', 'true')
+  }
+
+  const skipOnboardingTour = () => {
+    setShowWelcomeModal(false)
+    setShowOnboardingTour(false)
+    setOnboardingStep(0)
+    setHighlightedElement(null)
+    localStorage.setItem('medicine-onboarding-completed', 'true')
   }
 
   if (!session) {
@@ -877,11 +1160,9 @@ export default function MedicinePage() {
   const tabs = [
     { 
       id: 'medicines', 
-      label: 'Active Medicines', 
+      label: 'Medicines', 
       icon: Pill,
-      badge: medicines.filter(m => m.isActive && !m.isTemplate).length > 0 
-        ? medicines.filter(m => m.isActive && !m.isTemplate).length 
-        : undefined
+      badge: getAllDueMedicines().length > 0 ? getAllDueMedicines().length : undefined
     },
     { 
       id: 'children', 
@@ -890,206 +1171,329 @@ export default function MedicinePage() {
       badge: children.length > 0 ? children.length : undefined
     },
     { 
-      id: 'history', 
-      label: 'Dose History', 
-      icon: History,
-      badge: doses.length > 0 ? doses.length : undefined
+      id: 'analytics', 
+      label: 'Analytics', 
+      icon: BarChart3
+    },
+    { 
+      id: 'health', 
+      label: 'Health Tracking', 
+      icon: Heart
+    },
+    { 
+      id: 'emergency', 
+      label: 'Emergency', 
+      icon: AlertTriangle
     },
     { 
       id: 'reports', 
       label: 'Reports', 
-      icon: BarChart3
+      icon: FileText
     }
   ]
 
   return (
     <ModernAppShell title="Medicine">
-      <div className="space-y-6">
-        {/* Header */}
+      <div className="min-h-screen bg-cozy-bg">
+        {/* Hero Header Section */}
+        <div className="relative overflow-hidden bg-cozy-warm border-b border-cozy-gray-200/60">
+          <div className="absolute inset-0 bg-gradient-to-br from-cozy-primary/5 via-transparent to-cozy-sage/5"></div>
+          <div className="relative px-4 sm:px-6 py-8 sm:py-12">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                {/* Header Content */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 sm:p-4 bg-gradient-to-br from-cozy-primary/20 to-cozy-primary/10 rounded-2xl border border-cozy-primary/30 shadow-cozy-sm">
+                      <Pill className="w-6 h-6 sm:w-8 sm:h-8 text-cozy-primary" />
+                    </div>
         <div>
-          <h1 className="text-3xl font-bold text-cozy-text mb-2">Kids Medicine Control</h1>
-          <p className="text-cozy-text-muted">Track and manage your children&apos;s medications</p>
+                      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-cozy-text mb-2">
+                        Medicine Tracking
+                      </h1>
+                      <p className="text-sm sm:text-base text-cozy-text-muted">
+                        Track and manage your children's medications with care
+                      </p>
+                    </div>
         </div>
-
-        {/* Tab Navigation */}
-        <Tabs
-          tabs={tabs}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          variant="pills"
-          className="mb-6"
-        />
-
-        {/* Tab Content */}
-        {activeTab === 'medicines' && (
-          <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Active Medicines content will be organized here</p>
-            </div>
-          </TabPanel>
-        )}
-
-        {activeTab === 'children' && (
-          <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Children content will be organized here</p>
-            </div>
-          </TabPanel>
-        )}
-
-        {activeTab === 'history' && (
-          <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Dose History content will be organized here</p>
-            </div>
-          </TabPanel>
-        )}
-
-        {activeTab === 'reports' && (
-          <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Reports content will be organized here</p>
-            </div>
-          </TabPanel>
-        )}
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <Baby className="h-6 w-6 text-blue-500 mr-2" />
-                <div>
-                  <p className="text-xs font-medium text-cozy-text-muted">Children</p>
-                  <p className="text-xl font-bold text-cozy-text">{children.length}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-cozy-gray-200/50">
+                      <div className="text-xs sm:text-sm text-cozy-text-muted mb-1">Children</div>
+                      <div className="text-lg sm:text-xl font-bold text-blue-600">{children.length}</div>
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-cozy-gray-200/50">
+                      <div className="text-xs sm:text-sm text-cozy-text-muted mb-1">Templates</div>
+                      <div className="text-lg sm:text-xl font-bold text-green-600">{medicines.filter(m => m.isTemplate).length}</div>
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-cozy-gray-200/50">
+                      <div className="text-xs sm:text-sm text-cozy-text-muted mb-1">Active Courses</div>
+                      <div className="text-lg sm:text-xl font-bold text-cozy-primary">{medicines.filter(m => !m.isTemplate && m.isActive).length}</div>
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-cozy-gray-200/50">
+                      <div className="text-xs sm:text-sm text-cozy-text-muted mb-1">Due Now</div>
+                      <div className={`text-lg sm:text-xl font-bold ${getAllDueMedicines().length > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                        {getAllDueMedicines().length}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action Panel */}
+                <div className="lg:w-80">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-cozy-gray-200/50 shadow-cozy-sm">
+                    {/* Action Buttons */}
+                    <div className="space-y-2">
+                      <Button
+                        onClick={() => setShowAddChild(true)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Child
+                      </Button>
+                      <Button
+                        onClick={() => setShowAddMedicine(true)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                      >
+                        <Pill className="w-4 h-4 mr-2" />
+                        Add Medicine
+                      </Button>
+                      <Button
+                        onClick={() => setShowDoseModal(true)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Give Medicine
+                      </Button>
+                      <Button
+                        onClick={() => setShowReportModal(true)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Generate Report
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowOnboardingTour(true)
+                          setOnboardingStep(0)
+                          setHighlightedElement(onboardingSteps[0].target)
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                      >
+                        <span className="mr-2">🎯</span>
+                        Take Guided Tour
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <Pill className="h-6 w-6 text-green-500 mr-2" />
-                <div>
-                  <p className="text-xs font-medium text-cozy-text-muted">Templates</p>
-                  <p className="text-xl font-bold text-cozy-text">{medicines.filter(m => m.isTemplate).length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <CheckCircle className="h-6 w-6 text-blue-500 mr-2" />
-                <div>
-                  <p className="text-xs font-medium text-cozy-text-muted">Active Courses</p>
-                  <p className="text-xl font-bold text-cozy-text">{medicines.filter(m => !m.isTemplate && m.isActive).length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <AlertTriangle className="h-6 w-6 text-orange-500 mr-2" />
-                <div>
-                  <p className="text-xs font-medium text-cozy-text-muted">Due Now</p>
-                  <p className="text-xl font-bold text-cozy-text">{getAllDueMedicines().length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center">
-                <CheckCircle className="h-6 w-6 text-emerald-500 mr-2" />
-                <div>
-                  <p className="text-xs font-medium text-cozy-text-muted">Today&apos;s Doses</p>
-                  <p className="text-xl font-bold text-cozy-text">{getTodaysDoses().length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4">
-          <Button onClick={() => setShowAddChild(true)} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Add Child
-          </Button>
-          <Button onClick={() => setShowAddMedicine(true)} variant="outline" className="flex items-center gap-2">
-            <Pill className="h-4 w-4" />
-            Add Medicine Template
-          </Button>
-          <Button onClick={() => setShowDoseModal(true)} variant="outline" className="flex items-center gap-2">
-            <CheckCircle className="h-4 w-4" />
-            Give Medicine
-          </Button>
-          <Button onClick={() => setShowReportModal(true)} variant="outline" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            Generate PDF Report
-          </Button>
-        </div>
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
+          <div className="space-y-4 sm:space-y-6">
 
-        {/* Due Medicines Alert */}
-        {getAllDueMedicines().length > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-6 w-6 text-orange-500" />
+            {/* Tab Navigation */}
+            <div className="bg-white rounded-2xl border border-cozy-gray-200/50 shadow-cozy-sm overflow-hidden">
+              <Tabs
+                tabs={tabs}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                variant="pills"
+                className="p-2"
+              />
+            </div>
+
+            {/* Tab Content */}
+            <TabPanel isActive={activeTab === 'overview'}>
+              <div className="space-y-4">
+                {/* Due Medicines Alert */}
+                {getAllDueMedicines().length > 0 && (
+                  <Card className="border-orange-200 bg-orange-50">
+            <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="h-5 w-5 text-orange-500" />
                 <div>
-                  <h3 className="font-semibold text-orange-800">Medicines Due</h3>
-                  <p className="text-orange-700">
-                    {getAllDueMedicines().length} medicine(s) are due for administration
-                  </p>
+                          <h3 className="font-semibold text-orange-800 text-sm">Medicines Due</h3>
+                          <p className="text-orange-700 text-sm">
+                            {getAllDueMedicines().length} medicine(s) are due for administration
+                          </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-        )}
-
-        {/* Children and Medicines */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {/* Children */}
+                )}
+          
+                {/* Today's Summary */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Recent Doses */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Baby className="h-5 w-5" />
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Clock className="h-4 w-4" />
+                        Recent Doses
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      {doses.length === 0 ? (
+                        <div className="text-center py-6 text-cozy-text-muted">
+                          <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No doses recorded yet</p>
+                </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {doses
+                            .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())
+                            .slice(0, 4)
+                            .map(dose => {
+                              const medicine = medicines.find(m => m.id === dose.medicineId)
+                              const child = children.find(c => c.id === dose.childId)
+                              
+                              return (
+                                <div key={dose.id} className="flex items-center justify-between p-2 border border-cozy-gray-200 rounded-lg">
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-semibold text-cozy-text text-sm truncate">{medicine?.name}</h3>
+                                    <p className="text-xs text-cozy-text-muted">
+                                      {child?.name} • {dose.dosage} • {format(new Date(dose.takenAt), 'MMM dd, HH:mm')}
+                                    </p>
+              </div>
+                                  <Badge variant="outline" className="text-xs">
+                                    {isToday(new Date(dose.takenAt)) ? 'Today' : 
+                                     isTomorrow(new Date(dose.takenAt)) ? 'Tomorrow' : 
+                                     format(new Date(dose.takenAt), 'MMM dd')}
+                                  </Badge>
+                                </div>
+                              )
+                            })}
+                        </div>
+                      )}
+            </CardContent>
+          </Card>
+          
+                  {/* Active Courses */}
+          <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <CheckCircle className="h-4 w-4" />
+                        Active Courses
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      {medicines.filter(m => !m.isTemplate && m.isActive).length === 0 ? (
+                        <div className="text-center py-6 text-cozy-text-muted">
+                          <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No active courses</p>
+                          <p className="text-xs mt-1">Start from a template</p>
+                </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {medicines.filter(m => !m.isTemplate && m.isActive).slice(0, 4).map(medicine => {
+                            const child = children.find(c => c.id === medicine.childId)
+                            const isDue = isMedicineDue(medicine)
+                            
+                            return (
+                              <div key={medicine.id} className={`p-2 border rounded-lg ${isDue ? 'border-orange-200 bg-orange-50' : 'border-cozy-gray-200'}`}>
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-semibold text-cozy-text text-sm truncate">{medicine.name}</h3>
+                                    <p className="text-xs text-cozy-text-muted">
+                                      {child?.name} • {medicine.dosage}
+                                    </p>
+              </div>
+                                  {isDue && (
+                                    <Badge variant="destructive" className="text-xs">
+                                      Due
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+            </CardContent>
+          </Card>
+                </div>
+              </div>
+            </TabPanel>
+          
+            {/* Analytics Tab */}
+            <TabPanel isActive={activeTab === 'analytics'}>
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 text-blue-600" />
+                      Medicine Analytics
+                    </CardTitle>
+                    <p className="text-sm text-cozy-text-muted">
+                      Track medicine administration patterns and adherence
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-8">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-3 text-cozy-text-muted opacity-50" />
+                      <h3 className="text-lg font-medium text-cozy-text mb-2">Analytics Coming Soon</h3>
+                      <p className="text-sm text-cozy-text-muted">
+                        Advanced analytics and visualizations are being prepared
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabPanel>
+
+            {/* Children Tab */}
+            <TabPanel isActive={activeTab === 'children'}>
+              <div className="space-y-4">
+                <Card id="children-section" className={`transition-all duration-300 ${highlightedElement === 'children-section' ? 'ring-4 ring-cozy-primary ring-opacity-50 shadow-lg scale-[1.02]' : ''}`}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Baby className="h-4 w-4" />
                 Children
               </CardTitle>
             </CardHeader>
-            <CardContent>
+                  <CardContent className="pt-0">
               {children.length === 0 ? (
-                <div className="text-center py-8 text-cozy-text-muted">
-                  <Baby className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No children added yet</p>
+                      <div className="text-center py-6 text-cozy-text-muted">
+                        <Baby className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No children added yet</p>
                   <Button 
                     onClick={() => setShowAddChild(true)} 
                     variant="outline" 
-                    className="mt-4"
+                          size="sm"
+                          className="mt-3"
                   >
                     Add First Child
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
+                      <div className="space-y-2">
                   {children.map(child => (
-                    <div key={child.id} className="flex items-center justify-between p-4 border border-cozy-gray-200 rounded-lg">
-                      <div>
-                        <h3 className="font-semibold text-cozy-text">{child.name}</h3>
-                        <p className="text-sm text-cozy-text-muted">
+                          <div key={child.id} className="flex items-center justify-between p-3 border border-cozy-gray-200 rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-cozy-text text-sm">{child.name}</h3>
+                              <p className="text-xs text-cozy-text-muted">
                           {getChildAge(child.dateOfBirth)} • Born {format(new Date(child.dateOfBirth), 'MMM dd, yyyy')}
                         </p>
                         {child.notes && (
-                          <p className="text-sm text-cozy-text-muted mt-1">{child.notes}</p>
+                                <p className="text-xs text-cozy-text-muted mt-1 truncate">{child.notes}</p>
                         )}
                       </div>
-                      <Badge variant={child.isActive ? "default" : "secondary"}>
+                            <Badge variant={child.isActive ? "default" : "secondary"} className="text-xs">
                         {child.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </div>
@@ -1098,146 +1502,281 @@ export default function MedicinePage() {
               )}
             </CardContent>
           </Card>
+              </div>
+            </TabPanel>
 
-          {/* Medicine Templates */}
+            {/* Medicines Tab - Simplified Flow */}
+            <TabPanel isActive={activeTab === 'medicines'}>
+              <div className="space-y-4">
+                {/* Alerts Section */}
+                <div className="space-y-3">
+                  {/* Due Medicines Alert */}
+                  {getAllDueMedicines().length > 0 && (
+                    <Card className="border-orange-200 bg-orange-50">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-3">
+                          <AlertTriangle className="h-5 w-5 text-orange-600" />
+                          <div className="flex-1">
+                            <h3 className="font-medium text-orange-800">
+                              {getAllDueMedicines().length} Medicine{getAllDueMedicines().length > 1 ? 's' : ''} Due Now
+                            </h3>
+                            <p className="text-sm text-orange-700">
+                              Click "Give Now" to record administration
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                </div>
+
+                {/* Quick Actions */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Pill className="h-5 w-5" />
-                Medicine Templates
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Pill className="h-4 w-4" />
+                      Quick Actions
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {medicines.filter(m => m.isTemplate).length === 0 ? (
-                <div className="text-center py-8 text-cozy-text-muted">
-                  <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No medicine templates yet</p>
+                  <CardContent className="pt-0">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <Button 
                     onClick={() => setShowAddMedicine(true)} 
+                        className="h-12 justify-start bg-cozy-primary hover:bg-cozy-primary/90"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Medicine Template
+                      </Button>
+                      <Button
+                        onClick={() => setShowDoseModal(true)}
                     variant="outline" 
-                    className="mt-4"
-                  >
-                    Create First Template
+                        className="h-12 justify-start"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                        Record Dose
+                      </Button>
+                      <Button
+                        onClick={() => setShowSetupWizard(true)}
+                        variant="outline"
+                        className="h-12 justify-start border-purple-200 text-purple-700 hover:bg-purple-50"
+                      >
+                        <Heart className="h-4 w-4 mr-2" />
+                        Setup Wizard
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* All Medicines - Simplified View */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Pill className="h-4 w-4" />
+                      All Medicines
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {medicines.length === 0 ? (
+                      <div className="text-center py-8 text-cozy-text-muted">
+                        <Pill className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                        <h3 className="text-lg font-medium text-cozy-text mb-2">No medicines yet</h3>
+                        <p className="text-sm mb-4">Start by adding your first medicine for your child</p>
+                        <Button 
+                          onClick={() => setShowAddMedicine(true)} 
+                          className="bg-cozy-primary hover:bg-cozy-primary/90"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add First Medicine
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {medicines.filter(m => m.isTemplate).map(medicine => {
+                      <div className="space-y-3">
+                        {medicines.map(medicine => {
+                          const child = children.find(c => c.id === medicine.childId)
                     const lastDose = doses
                       .filter(dose => dose.medicineId === medicine.id)
                       .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())[0]
                     
                     const isDue = isMedicineDue(medicine)
                     const nextDoseInfo = getNextDoseInfo(medicine)
+                          const isActive = medicine.isActive
                     
                     return (
-                      <div key={medicine.id} className="p-4 border border-cozy-gray-200 rounded-lg bg-white">
-                        <div className="space-y-3">
-                          {/* Header with medicine name */}
+                            <div key={medicine.id} className={`p-4 border rounded-lg transition-all ${
+                              isDue ? 'border-orange-200 bg-orange-50 shadow-md' : 
+                              isActive ? 'border-green-200 bg-green-50' : 
+                              'border-cozy-gray-200 bg-white'
+                            }`}>
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-cozy-text text-lg truncate">{medicine.name}</h3>
-                              <p className="text-sm text-cozy-text-muted">
-                                {medicine.dosage} • {medicine.frequency}
-                              </p>
-                            </div>
-                            <Badge variant="secondary" className="ml-2 flex-shrink-0">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <h4 className="font-medium text-cozy-text">{medicine.name}</h4>
+                                    {isDue && (
+                                      <Badge className="bg-orange-500 text-white text-xs animate-pulse">
+                                        DUE NOW
+                                      </Badge>
+                                    )}
+                                    {!isActive && (
+                                      <Badge variant="outline" className="text-xs">
+                                        Inactive
+                                      </Badge>
+                                    )}
+                                    {medicine.isTemplate && (
+                                      <Badge variant="outline" className="text-xs">
                               Template
                             </Badge>
+                                    )}
                           </div>
                           
-                          {/* Description */}
-                          {medicine.description && (
-                            <p className="text-sm text-cozy-text-muted">{medicine.description}</p>
-                          )}
-                          
-                          {/* Last dose info */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-cozy-text-muted mb-2">
+                                    <div>
+                                      <span className="font-medium">Child:</span> {child?.name || 'Template'}
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">Dosage:</span> {medicine.dosage}
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">Type:</span> 
+                                      <span className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                                        medicine.medicineType === 'one-time' ? 'bg-green-100 text-green-800' :
+                                        medicine.medicineType === 'course' ? 'bg-blue-100 text-blue-800' :
+                                        medicine.medicineType === 'as-needed' ? 'bg-yellow-100 text-yellow-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {medicine.medicineType === 'one-time' ? 'One-time' :
+                                         medicine.medicineType === 'course' ? 'Course' :
+                                         medicine.medicineType === 'as-needed' ? 'As-needed' :
+                                         'Unknown'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">Frequency:</span> {medicine.frequency}
+                                    </div>
+                                    <div>
+                                      <span className="font-medium">Status:</span> {isActive ? 'Active' : 'Inactive'}
+                                    </div>
+                                    {medicine.doctorName && (
+                                      <div>
+                                        <span className="font-medium">Doctor:</span> {medicine.doctorName}
+                                      </div>
+                                    )}
+                                  </div>
+                                
                           {lastDose && (
-                            <p className="text-xs text-cozy-text-muted">
-                              Last dose: {format(new Date(lastDose.takenAt), 'MMM dd, HH:mm')}
-                            </p>
-                          )}
-                          
-                          {/* Next dose info */}
-                          {lastDose && nextDoseInfo.timeUntilNext !== null && (
-                            <div className="text-xs">
-                              {nextDoseInfo.timeUntilNext > 0 ? (
-                                <div>
-                                  <p className={`font-medium ${nextDoseInfo.isOverdue ? 'text-red-600' : 'text-blue-600'}`}>
-                                    {nextDoseInfo.isOverdue ? 'Overdue' : 'Next dose in'} {formatTimeUntilNext(nextDoseInfo.timeUntilNext)}
-                                  </p>
-                                  <p className="text-cozy-text-muted mt-1">
-                                    Due at: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
-                                  </p>
+                                    <div className="text-xs text-cozy-text-muted mb-1">
+                                      Last dose: {format(new Date(lastDose.takenAt), 'MMM d, h:mm a')}
+                                    </div>
+                                  )}
+                                  
+                                  {nextDoseInfo.timeUntilNext && isActive && (
+                                    <div className="text-xs text-cozy-text-muted">
+                                      Next dose: {format(nextDoseInfo.nextDoseTime, 'MMM d, h:mm a')}
                                 </div>
-                              ) : (
-                                <p className="text-cozy-text-muted">
-                                  Next dose: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
-                                </p>
                               )}
                             </div>
-                          )}
                           
-                          {/* Action buttons - responsive layout */}
-                          <div className="flex flex-col sm:flex-row gap-2 pt-2">
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => {
-                                setNewDose({
-                                  ...newDose,
-                                  childId: '', // User will select child in modal
-                                  medicineId: medicine.id,
-                                  dosage: medicine.dosage,
-                                  takenAt: getCurrentLocalTime()
-                                })
-                                setShowDoseModal(true)
-                              }}
-                              className="flex-1 sm:flex-none"
-                            >
-                              Record Dose
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => startCourseFromTemplate(medicine)}
-                              className="flex-1 sm:flex-none"
-                            >
-                              Start Course
-                            </Button>
-                            <div className="flex gap-1 sm:gap-2">
+                                <div className="flex items-center gap-1 ml-3">
+                                  {medicine.medicineType === 'one-time' && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedMedicine(medicine)
+                                        setNewDose({
+                                          childId: '', // Will be selected in modal
+                                          medicineId: medicine.id,
+                                          dosage: medicine.dosage,
+                                          notes: '',
+                                          takenAt: new Date().toISOString().slice(0, 16)
+                                        })
+                                        setShowDoseModal(true)
+                                      }}
+                                      className="text-xs px-3 bg-green-500 hover:bg-green-600"
+                                    >
+                                      Give Now
+                                    </Button>
+                                  )}
+                                  
+                                  {medicine.medicineType === 'course' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        // TODO: Implement start course functionality
+                                        alert('Start Course functionality coming soon!')
+                                      }}
+                                      className="text-xs px-3"
+                                    >
+                                      Start Course
+                                    </Button>
+                                  )}
+                                  
+                                  {medicine.medicineType === 'as-needed' && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedMedicine(medicine)
+                                        setNewDose({
+                                          childId: '', // Will be selected in modal
+                                          medicineId: medicine.id,
+                                          dosage: medicine.dosage,
+                                          notes: '',
+                                          takenAt: new Date().toISOString().slice(0, 16)
+                                        })
+                                        setShowDoseModal(true)
+                                      }}
+                                      className="text-xs px-3"
+                                    >
+                                      Give As Needed
+                                    </Button>
+                                  )}
+                                  
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
                                   setEditingMedicine(medicine)
                                   setNewMedicine({
-                                    childId: medicine.childId || '',
                                     name: medicine.name,
                                     description: medicine.description || '',
                                     dosage: medicine.dosage,
+                                    medicineType: medicine.medicineType || '',
                                     frequency: medicine.frequency,
-                                    startDate: medicine.startDate ? new Date(medicine.startDate).toISOString().split('T')[0] : '',
-                                    endDate: medicine.endDate ? new Date(medicine.endDate).toISOString().split('T')[0] : '',
-                                    notes: medicine.notes || ''
+                                    notes: medicine.notes || '',
+                                    doctorName: medicine.doctorName || '',
+                                    pharmacyName: medicine.pharmacyName || ''
                                   })
                                   setShowAddMedicine(true)
                                 }}
                                 className="px-2"
-                                title="Edit template"
+                                    title="Edit medicine"
                               >
-                                <Edit className="w-4 h-4" />
+                                    <Edit className="w-3 h-3" />
                               </Button>
+                                  
+                                  {isActive && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => stopTreatment(medicine.id)}
+                                      className="px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      title="Stop treatment"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </Button>
+                                  )}
+                                  
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => deleteMedicine(medicine.id)}
-                                className="px-2 text-red-600 hover:text-red-700"
-                                title="Delete template"
+                                    className="px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    title="Delete medicine"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-3 h-3" />
                               </Button>
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -1249,22 +1788,22 @@ export default function MedicinePage() {
           </Card>
 
           {/* Active Medicine Courses */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5" />
-                Active Medicine Courses
+                <Card id="doses-section" className={`transition-all duration-300 ${highlightedElement === 'doses-section' ? 'ring-4 ring-cozy-primary ring-opacity-50 shadow-lg scale-[1.02]' : ''}`}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <CheckCircle className="h-4 w-4" />
+                      Active Courses
               </CardTitle>
             </CardHeader>
-            <CardContent>
+                  <CardContent className="pt-0">
               {medicines.filter(m => !m.isTemplate && m.isActive).length === 0 ? (
-                <div className="text-center py-8 text-cozy-text-muted">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No active medicine courses</p>
-                  <p className="text-sm mt-2">Start a course from a template above</p>
+                      <div className="text-center py-6 text-cozy-text-muted">
+                        <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No active courses</p>
+                        <p className="text-xs mt-1">Start from a template above</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                      <div className="space-y-3">
                   {medicines.filter(m => !m.isTemplate && m.isActive).map(medicine => {
                     const child = children.find(c => c.id === medicine.childId)
                     const lastDose = doses
@@ -1275,20 +1814,20 @@ export default function MedicinePage() {
                     const nextDoseInfo = getNextDoseInfo(medicine)
                     
                     return (
-                      <div key={medicine.id} className={`p-4 border rounded-lg ${isDue ? 'border-orange-200 bg-orange-50' : 'border-cozy-gray-200'}`}>
-                        <div className="space-y-3">
+                            <div key={medicine.id} className={`p-3 border rounded-lg ${isDue ? 'border-orange-200 bg-orange-50' : 'border-cozy-gray-200'}`}>
+                              <div className="space-y-2">
                           {/* Header */}
                           <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-cozy-text text-lg truncate">{medicine.name}</h3>
-                              <p className="text-sm text-cozy-text-muted">
+                                    <h3 className="font-semibold text-cozy-text text-sm truncate">{medicine.name}</h3>
+                                    <p className="text-xs text-cozy-text-muted">
                                 {child?.name} • {medicine.dosage} • {medicine.frequency}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2 ml-2">
+                                  <div className="flex items-center gap-1 ml-2">
                               {isDue && (
                                 <Badge variant="destructive" className="text-xs">
-                                  Due Now
+                                        Due
                                 </Badge>
                               )}
                               <Badge variant="default" className="text-xs">
@@ -1299,36 +1838,31 @@ export default function MedicinePage() {
                           
                           {/* Description */}
                           {medicine.description && (
-                            <p className="text-sm text-cozy-text-muted">{medicine.description}</p>
+                                  <p className="text-xs text-cozy-text-muted truncate">{medicine.description}</p>
                           )}
                           
                           {/* Last dose info */}
                           {lastDose && (
                             <p className="text-xs text-cozy-text-muted">
-                              Last dose: {format(new Date(lastDose.takenAt), 'MMM dd, HH:mm')}
+                                    Last: {format(new Date(lastDose.takenAt), 'MMM dd, HH:mm')}
                             </p>
                           )}
                           
                           {/* Next dose info */}
                           <div className="text-xs">
                             {nextDoseInfo.timeUntilNext !== null ? (
-                              <div>
                                 <p className={`font-medium ${nextDoseInfo.isOverdue ? 'text-red-600' : 'text-blue-600'}`}>
-                                  {nextDoseInfo.isOverdue ? 'Overdue' : 'Next dose in'} {nextDoseInfo.timeUntilNext > 0 ? formatTimeUntilNext(nextDoseInfo.timeUntilNext) : 'now'}
+                                      {nextDoseInfo.isOverdue ? 'Overdue' : 'Next in'} {nextDoseInfo.timeUntilNext > 0 ? formatTimeUntilNext(nextDoseInfo.timeUntilNext) : 'now'}
                                 </p>
-                                <p className="text-cozy-text-muted mt-1">
-                                  Due at: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
-                                </p>
-                              </div>
                             ) : (
                               <p className="text-cozy-text-muted">
-                                Next dose: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
+                                      Next: {format(nextDoseInfo.nextDoseTime, 'MMM dd, HH:mm')}
                               </p>
                             )}
                           </div>
                           
                           {/* Action buttons */}
-                          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                                <div className="flex gap-1 pt-1">
                             <Button
                               variant="default"
                               size="sm"
@@ -1342,40 +1876,39 @@ export default function MedicinePage() {
                                 })
                                 setShowDoseModal(true)
                               }}
-                              className="flex-1 sm:flex-none"
+                                    className="flex-1 text-xs px-2"
                             >
-                              Give Now
+                                    Give
                             </Button>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => stopTreatment(medicine.id)}
-                              className="flex-1 sm:flex-none text-orange-600 hover:text-orange-700"
+                                    className="flex-1 text-xs px-2 text-orange-600 hover:text-orange-700"
                             >
-                              Stop Course
+                                    Stop
                             </Button>
-                            <div className="flex gap-1 sm:gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => {
                                   setEditingMedicine(medicine)
                                   setNewMedicine({
-                                    childId: medicine.childId || '',
                                     name: medicine.name,
                                     description: medicine.description || '',
                                     dosage: medicine.dosage,
+                                    medicineType: medicine.medicineType || '',
                                     frequency: medicine.frequency,
-                                    startDate: medicine.startDate ? new Date(medicine.startDate).toISOString().split('T')[0] : '',
-                                    endDate: medicine.endDate ? new Date(medicine.endDate).toISOString().split('T')[0] : '',
-                                    notes: medicine.notes || ''
+                                    notes: medicine.notes || '',
+                                    doctorName: medicine.doctorName || '',
+                                    pharmacyName: medicine.pharmacyName || ''
                                   })
                                   setShowAddMedicine(true)
                                 }}
                                 className="px-2"
                                 title="Edit course"
                               >
-                                <Edit className="w-4 h-4" />
+                                    <Edit className="w-3 h-3" />
                               </Button>
                               {nextDoseInfo.isOverride ? (
                                 <Button
@@ -1383,9 +1916,9 @@ export default function MedicinePage() {
                                   size="sm"
                                   onClick={() => clearNextDoseOverride(medicine.id)}
                                   className="px-2 text-purple-600 hover:text-purple-700"
-                                  title="Clear next dose override"
+                                      title="Clear override"
                                 >
-                                  <X className="w-4 h-4" />
+                                      <X className="w-3 h-3" />
                                 </Button>
                               ) : (
                                 <Button
@@ -1400,12 +1933,11 @@ export default function MedicinePage() {
                                     setShowNextDoseModal(true)
                                   }}
                                   className="px-2"
-                                  title="Set next dose timing"
+                                      title="Set timing"
                                 >
-                                  <Settings className="w-4 h-4" />
+                                      <Settings className="w-3 h-3" />
                                 </Button>
                               )}
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -1415,83 +1947,238 @@ export default function MedicinePage() {
               )}
             </CardContent>
           </Card>
-
         </div>
+            </TabPanel>
 
-        {/* Recent Doses */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Recent Doses
+            {/* Health Tracking Tab */}
+            <TabPanel isActive={activeTab === 'health'}>
+              <div className="space-y-4">
+                <Card id="fever-section" className={`transition-all duration-300 ${highlightedElement === 'fever-section' ? 'ring-4 ring-cozy-primary ring-opacity-50 shadow-lg scale-[1.02]' : ''}`}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <span className="h-6 w-6 rounded-lg bg-red-100 flex items-center justify-center text-sm">
+                        🌡️
+                      </span>
+                      Fever Journal
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {doses.length === 0 ? (
+                    {householdId ? (
+                      <FeverJournal 
+                        householdId={householdId} 
+                        kids={children} 
+                        triggerAddModal={triggerFeverAddModal}
+                        onAddModalTriggered={() => setTriggerFeverAddModal(false)}
+                      />
+                    ) : (
               <div className="text-center py-8 text-cozy-text-muted">
-                <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No doses recorded yet</p>
+                        <div className="text-6xl mb-4">🌡️</div>
+                        <p className="text-gray-600 mb-4">Track your child's temperature readings</p>
+                        <p className="text-sm text-gray-500">Please set up your household first to access the fever journal.</p>
               </div>
-            ) : (
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </TabPanel>
+
+            {/* Emergency Tab */}
+            <TabPanel isActive={activeTab === 'emergency'}>
               <div className="space-y-4">
-                {doses
-                  .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())
-                  .slice(0, 10)
-                  .map(dose => {
-                    const medicine = medicines.find(m => m.id === dose.medicineId)
-                    const child = children.find(c => c.id === dose.childId)
-                    
+                {/* Emergency Medicine List */}
+                <Card className="border-red-200 bg-red-50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base text-red-800">
+                      <AlertTriangle className="h-4 w-4" />
+                      Emergency Medicine Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="bg-white border border-red-200 rounded-lg p-4">
+                      <h3 className="font-medium text-red-800 mb-3">All Medicines for Emergency Reference</h3>
+                      <div className="space-y-3">
+                        {children.map(child => {
+                          const childMedicines = medicines.filter(m => m.childId === child.id)
                     return (
-                      <div key={dose.id} className="flex items-center justify-between p-4 border border-cozy-gray-200 rounded-lg">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-cozy-text">{medicine?.name}</h3>
+                            <div key={child.id} className="border border-gray-200 rounded-lg p-3">
+                              <h4 className="font-medium text-cozy-text mb-2">{child.name}</h4>
+                              {childMedicines.length === 0 ? (
+                                <p className="text-sm text-cozy-text-muted">No medicines recorded</p>
+                              ) : (
+                                <div className="space-y-2">
+                                  {childMedicines.map(medicine => (
+                                    <div key={medicine.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                      <div>
+                                        <p className="font-medium text-cozy-text">{medicine.name}</p>
                           <p className="text-sm text-cozy-text-muted">
-                            {child?.name} • {dose.dosage} • {format(new Date(dose.takenAt), 'MMM dd, yyyy HH:mm')}
-                          </p>
-                          {dose.notes && (
-                            <p className="text-sm text-cozy-text-muted mt-1">{dose.notes}</p>
+                                          {medicine.dosage} • {medicine.frequency}
+                                        </p>
+                                        {medicine.doctorName && (
+                                          <p className="text-xs text-cozy-text-muted">
+                                            Prescribed by: {medicine.doctorName}
+                                          </p>
                           )}
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">
-                            {isToday(new Date(dose.takenAt)) ? 'Today' : 
-                             isTomorrow(new Date(dose.takenAt)) ? 'Tomorrow' : 
-                             format(new Date(dose.takenAt), 'MMM dd')}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Allergy Information */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <AlertTriangle className="h-4 w-4" />
+                      Allergy & Reaction Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {reactions.filter(r => r.reactionType === 'allergy').length === 0 ? (
+                      <div className="text-center py-6 text-cozy-text-muted">
+                        <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No allergies recorded</p>
+                        <p className="text-xs mt-1">Record any known allergies for emergency reference</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {reactions.filter(r => r.reactionType === 'allergy').map(reaction => {
+                          const child = children.find(c => c.id === reaction.childId)
+                          const medicine = medicines.find(m => m.id === reaction.medicineId)
+                          return (
+                            <div key={reaction.id} className="border border-red-200 bg-red-50 rounded-lg p-3">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="font-medium text-red-800">{child?.name}</h4>
+                                  <p className="text-sm text-red-700">Allergic to: {medicine?.name}</p>
+                                  <p className="text-sm text-red-600 mt-1">{reaction.description}</p>
+                                  {reaction.symptoms && (
+                                    <p className="text-xs text-red-600 mt-1">
+                                      <strong>Symptoms:</strong> {reaction.symptoms}
+                                    </p>
+                                  )}
+                                  {reaction.actionTaken && (
+                                    <p className="text-xs text-red-600 mt-1">
+                                      <strong>Action taken:</strong> {reaction.actionTaken}
+                                    </p>
+                                  )}
+                                </div>
+                                <Badge className="bg-red-500 text-white text-xs">
+                                  {reaction.severity}
                           </Badge>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Emergency Contacts */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <User className="h-4 w-4" />
+                      Emergency Contacts
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="text-center py-6 text-cozy-text-muted">
+                      <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Emergency contacts will be integrated with household settings</p>
+                      <p className="text-xs mt-1">Add emergency contacts in household management</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabPanel>
+
+            {/* Reports Tab */}
+            <TabPanel isActive={activeTab === 'reports'}>
+              <div className="space-y-4">
+                <Card id="reports-section" className={`transition-all duration-300 ${highlightedElement === 'reports-section' ? 'ring-4 ring-cozy-primary ring-opacity-50 shadow-lg scale-[1.02]' : ''}`}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <FileText className="h-4 w-4" />
+                      Generate Reports
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="space-y-3">
+                      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 className="font-semibold text-blue-800 mb-1 text-sm">PDF Medicine Report</h3>
+                        <p className="text-blue-700 text-xs mb-3">
+                          Create a comprehensive PDF report with medicine doses, templates, and fever readings.
+                        </p>
                           <Button
-                            variant="outline"
+                          onClick={() => setShowReportModal(true)}
                             size="sm"
-                            onClick={() => {
-                              setEditingDose(dose)
-                              setNewDose({
-                                childId: dose.childId,
-                                medicineId: dose.medicineId,
-                                dosage: dose.dosage,
-                                notes: dose.notes || '',
-                                takenAt: new Date(dose.takenAt).toISOString().slice(0, 16)
-                              })
-                              setShowDoseModal(true)
-                            }}
-                            className="text-xs"
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteDose(dose.id)}
-                            className="text-xs text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-3 h-3" />
+                          className="bg-blue-600 hover:bg-blue-700 text-xs"
+                        >
+                          <FileText className="w-3 h-3 mr-1" />
+                          Generate PDF
                           </Button>
                         </div>
+                      
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div className="p-3 border border-cozy-gray-200 rounded-lg">
+                          <h4 className="font-semibold text-cozy-text mb-2 text-sm">Quick Stats</h4>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-cozy-text-muted">Children:</span>
+                              <span className="font-medium">{children.length}</span>
                       </div>
-                    )
-                  })}
+                            <div className="flex justify-between">
+                              <span className="text-cozy-text-muted">Templates:</span>
+                              <span className="font-medium">{medicines.filter(m => m.isTemplate).length}</span>
               </div>
-            )}
+                            <div className="flex justify-between">
+                              <span className="text-cozy-text-muted">Active Courses:</span>
+                              <span className="font-medium">{medicines.filter(m => !m.isTemplate && m.isActive).length}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-cozy-text-muted">Today's Doses:</span>
+                              <span className="font-medium">{getTodaysDoses().length}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="p-3 border border-cozy-gray-200 rounded-lg">
+                          <h4 className="font-semibold text-cozy-text mb-2 text-sm">Recent Activity</h4>
+                          <div className="space-y-1 text-xs">
+                            {doses.length > 0 ? (
+                              doses
+                                .sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())
+                                .slice(0, 3)
+                                .map(dose => {
+                                  const medicine = medicines.find(m => m.id === dose.medicineId)
+                                  const child = children.find(c => c.id === dose.childId)
+                                  return (
+                                    <div key={dose.id} className="text-cozy-text-muted truncate">
+                                      {medicine?.name} for {child?.name} - {format(new Date(dose.takenAt), 'MMM dd, HH:mm')}
+                                    </div>
+                                  )
+                                })
+                            ) : (
+                              <div className="text-cozy-text-muted">No recent doses</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
           </CardContent>
         </Card>
+              </div>
+            </TabPanel>
+          </div>
+        </div>
       </div>
 
       {/* Add Child Modal */}
@@ -1538,15 +2225,10 @@ export default function MedicinePage() {
             <CardHeader>
               <CardTitle>{editingMedicine ? 'Edit Medicine Template' : 'Add Medicine Template'}</CardTitle>
               <p className="text-sm text-cozy-text-muted mt-1">
-                {editingMedicine ? 'Update the medicine template details' : 'Create a reusable medicine template that can be used to record doses'}
+                {editingMedicine ? 'Update the medicine template' : 'Create a reusable medicine template'}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                <p className="text-sm text-blue-800">
-                  <strong>Template:</strong> This medicine template can be used for any child in your household when recording doses.
-                </p>
-              </div>
               <div>
                 <label className="block text-sm font-medium text-cozy-text mb-1">
                   Medicine Name *
@@ -1569,7 +2251,7 @@ export default function MedicinePage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-cozy-text mb-1">
-                  Standard Dosage *
+                  Dosage *
                 </label>
                 <Input
                   placeholder="e.g., 5ml, 1 tablet, 2 drops"
@@ -1579,7 +2261,23 @@ export default function MedicinePage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-cozy-text mb-1">
-                  Recommended Frequency *
+                  Medicine Type *
+                </label>
+                <select
+                  className="w-full p-2 border border-cozy-gray-300 rounded-md"
+                  value={newMedicine.medicineType}
+                  onChange={(e) => setNewMedicine({ ...newMedicine, medicineType: e.target.value })}
+                >
+                  <option value="">Select type</option>
+                  <option value="one-time">One-time dose (pain relief, fever reducer)</option>
+                  <option value="course">Treatment course (antibiotics, chronic meds)</option>
+                  <option value="as-needed">As needed (emergency, occasional use)</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-cozy-text mb-1">
+                  Frequency *
                 </label>
                 <select
                   className="w-full p-2 border border-cozy-gray-300 rounded-md"
@@ -1599,32 +2297,7 @@ export default function MedicinePage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-cozy-text mb-1">
-                  Template Valid From *
-                </label>
-                <Input
-                  type="date"
-                  value={newMedicine.startDate}
-                  onChange={(e) => setNewMedicine({ ...newMedicine, startDate: e.target.value })}
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-cozy-text mb-1">
-                  Template Valid Until (optional)
-                </label>
-                <Input
-                  type="date"
-                  value={newMedicine.endDate}
-                  onChange={(e) => setNewMedicine({ ...newMedicine, endDate: e.target.value })}
-                  className="w-full"
-                />
-                <p className="text-xs text-cozy-text-muted mt-1">
-                  Leave empty for ongoing template availability
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-cozy-text mb-1">
-                  Template Notes (optional)
+                  Notes (optional)
                 </label>
                 <Input
                   placeholder="e.g., Take with food, avoid dairy products"
@@ -1632,22 +2305,60 @@ export default function MedicinePage() {
                   onChange={(e) => setNewMedicine({ ...newMedicine, notes: e.target.value })}
                 />
               </div>
+              
+              {/* Prescription Information Section */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-cozy-text mb-3">Prescription Information (Optional)</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-cozy-text mb-1">
+                      Doctor Name
+                    </label>
+                    <Input
+                      placeholder="e.g., Dr. Smith"
+                      value={newMedicine.doctorName}
+                      onChange={(e) => setNewMedicine({ ...newMedicine, doctorName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-cozy-text mb-1">
+                      Pharmacy
+                    </label>
+                    <Input
+                      placeholder="e.g., CVS Pharmacy"
+                      value={newMedicine.pharmacyName}
+                      onChange={(e) => setNewMedicine({ ...newMedicine, pharmacyName: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Template Info */}
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <p className="text-sm text-blue-800">
+                    This will be saved as a reusable template. You can create treatment courses from it later.
+                  </p>
+                </div>
+              </div>
+              
               <div className="flex gap-2">
                 <Button onClick={editingMedicine ? editMedicine : addMedicine} disabled={loading} className="flex-1">
-                  {editingMedicine ? 'Update Template' : 'Create Template'}
+                  {editingMedicine ? 'Update Template' : 'Add Template'}
                 </Button>
                 <Button onClick={() => {
                   setShowAddMedicine(false)
                   setEditingMedicine(null)
                   setNewMedicine({ 
-                    childId: '', 
                     name: '', 
                     description: '', 
                     dosage: '', 
+                    medicineType: '',
                     frequency: '', 
-                    startDate: '', 
-                    endDate: '', 
-                    notes: '' 
+                    notes: '',
+                    doctorName: '',
+                    pharmacyName: ''
                   })
                 }} variant="outline">
                   Cancel
@@ -1834,31 +2545,6 @@ export default function MedicinePage() {
         </div>
       )}
 
-      {/* Fever Journal Section */}
-      <div className="mt-8" data-fever-journal>
-        <h2 className="text-2xl font-bold text-cozy-text mb-4 flex items-center gap-2">
-          <span className="h-8 w-8 rounded-lg bg-red-100 flex items-center justify-center">
-            🌡️
-          </span>
-          Fever Journal
-        </h2>
-        {householdId ? (
-          <FeverJournal 
-            householdId={householdId} 
-            kids={children} 
-            triggerAddModal={triggerFeverAddModal}
-            onAddModalTriggered={() => setTriggerFeverAddModal(false)}
-          />
-        ) : (
-          <Card>
-            <CardContent className="text-center py-8">
-              <div className="text-6xl mb-4">🌡️</div>
-              <p className="text-gray-600 mb-4">Track your child&apos;s temperature readings</p>
-              <p className="text-sm text-gray-500">Please set up your household first to access the fever journal.</p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
 
       {/* Report Modal */}
       {showReportModal && (
@@ -1951,6 +2637,89 @@ export default function MedicinePage() {
           </button>
         </div>
       )}
+
+      {/* Welcome Modal */}
+      {showWelcomeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle className="text-center">Welcome to Medicine Tracking! 💊</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <div className="text-6xl mb-4">💊</div>
+                <p className="text-cozy-text-muted">
+                  Let's help you get started with tracking your children's medications and health data.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={startOnboardingTour} className="flex-1">
+                  Take Guided Tour
+                </Button>
+                <Button onClick={skipOnboardingTour} variant="outline">
+                  Skip
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Onboarding Tour Modal */}
+      {showOnboardingTour && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-lg mx-4">
+            <CardHeader>
+              <CardTitle className="text-center">
+                {onboardingSteps[onboardingStep]?.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-center">
+                <p className="text-cozy-text-muted">
+                  {onboardingSteps[onboardingStep]?.content}
+                </p>
+              </div>
+              
+              {/* Progress indicator */}
+              <div className="flex justify-center space-x-2">
+                {onboardingSteps.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`w-2 h-2 rounded-full ${
+                      index === onboardingStep ? 'bg-cozy-primary' : 'bg-cozy-gray-300'
+                    }`}
+                  />
+                ))}
+              </div>
+              
+              <div className="flex gap-2">
+                {onboardingStep > 0 && (
+                  <Button onClick={previousOnboardingStep} variant="outline">
+                    Previous
+                  </Button>
+                )}
+                <Button 
+                  onClick={nextOnboardingStep} 
+                  className="flex-1"
+                >
+                  {onboardingStep === onboardingSteps.length - 1 ? 'Finish Tour' : 'Next'}
+                </Button>
+                <Button onClick={skipOnboardingTour} variant="outline">
+                  Skip
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Setup Wizard */}
+      <MedicineSetupWizard
+        isOpen={showSetupWizard}
+        onClose={() => setShowSetupWizard(false)}
+        onComplete={handleWizardComplete}
+      />
     </ModernAppShell>
   )
 }

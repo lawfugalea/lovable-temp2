@@ -113,6 +113,14 @@ export default function FinancesPage() {
   // Wizard state
   const [showWizard, setShowWizard] = useState(false)
 
+  // Onboarding state
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false)
+  const [showOnboardingTour, setShowOnboardingTour] = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState(0)
+  const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false)
+  const [highlightedElement, setHighlightedElement] = useState<string | null>(null)
+  const [dontShowAgain, setDontShowAgain] = useState(false)
+
   // Get household ID
   useEffect(() => {
     if (status === 'authenticated') {
@@ -143,6 +151,24 @@ export default function FinancesPage() {
     initial: initialFinanceState,
     saveDelayMs: 700,
   })
+
+  // Check if user is new and show welcome modal
+  useEffect(() => {
+    if (financeState && !psLoading && !hasSeenOnboarding) {
+      // Check if user has opted out of seeing the welcome modal
+      const hasOptedOut = localStorage.getItem('finance-welcome-opted-out') === 'true'
+      
+      if (!hasOptedOut) {
+        const isNewUser = !financeState.earners?.some(earner => earner.salary > 0) && 
+                         !financeState.bankAccounts?.some(account => account.target > 0)
+        
+        if (isNewUser) {
+          setShowWelcomeModal(true)
+          setHasSeenOnboarding(true)
+        }
+      }
+    }
+  }, [financeState, psLoading, hasSeenOnboarding])
 
   // Extract values from financeState for easier access
   const earners = financeState?.earners || initialFinanceState.earners
@@ -279,6 +305,119 @@ export default function FinancesPage() {
   // Calculate goal progress
   const getGoalProgress = (goal: typeof financialGoals[0]) => {
     return Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
+  }
+
+  // Onboarding tour steps
+  const onboardingSteps = [
+    {
+      id: 'welcome',
+      title: 'Welcome to Financial Planning! 🎉',
+      content: 'Let\'s take a quick tour to help you get started with your financial planning journey.',
+      target: null,
+      action: () => setActiveTab('budget')
+    },
+    {
+      id: 'income-earners',
+      title: 'Step 1: Set Up Your Income',
+      content: 'Start by adding your household income earners. Enter names and salaries for everyone who contributes to your household income.',
+      target: 'income-earners',
+      action: () => setActiveTab('budget')
+    },
+    {
+      id: 'allocation-status',
+      title: 'Step 2: Check Your Allocation',
+      content: 'This shows how your income is allocated. Green means everything is balanced, orange means you need to assign some money.',
+      target: 'allocation-status',
+      action: () => setActiveTab('budget')
+    },
+    {
+      id: 'savings-templates',
+      title: 'Step 3: Choose a Savings Strategy',
+      content: 'Pick from proven savings methods like the 50/30/20 rule or create your own custom approach.',
+      target: 'savings-methods',
+      action: () => setActiveTab('budget')
+    },
+    {
+      id: 'bank-accounts',
+      title: 'Step 4: Set Up Bank Accounts',
+      content: 'Define your bank accounts and how much you want to allocate to each one for different purposes.',
+      target: 'bank-accounts',
+      action: () => setActiveTab('accounts')
+    },
+    {
+      id: 'financial-goals',
+      title: 'Step 5: Create Financial Goals',
+      content: 'Set specific goals like emergency funds, vacations, or major purchases to track your progress.',
+      target: 'financial-goals',
+      action: () => setActiveTab('goals')
+    },
+    {
+      id: 'projections',
+      title: 'Step 6: View Your Projections',
+      content: 'See how your savings will grow over time with your current plan.',
+      target: 'projections',
+      action: () => setActiveTab('projections')
+    },
+    {
+      id: 'reports',
+      title: 'Step 7: Review Your Plan',
+      content: 'Check your contribution breakdown and make sure everything looks good.',
+      target: 'reports',
+      action: () => setActiveTab('reports')
+    }
+  ]
+
+  // Onboarding tour functions
+  const startOnboardingTour = () => {
+    setShowWelcomeModal(false)
+    setShowOnboardingTour(true)
+    setOnboardingStep(0)
+    setHighlightedElement(onboardingSteps[0].target)
+  }
+
+  const nextOnboardingStep = () => {
+    if (onboardingStep < onboardingSteps.length - 1) {
+      const nextStep = onboardingStep + 1
+      setOnboardingStep(nextStep)
+      setHighlightedElement(onboardingSteps[nextStep].target)
+      onboardingSteps[nextStep].action()
+    } else {
+      finishOnboardingTour()
+    }
+  }
+
+  const previousOnboardingStep = () => {
+    if (onboardingStep > 0) {
+      const prevStep = onboardingStep - 1
+      setOnboardingStep(prevStep)
+      setHighlightedElement(onboardingSteps[prevStep].target)
+      onboardingSteps[prevStep].action()
+    }
+  }
+
+  const finishOnboardingTour = () => {
+    setShowOnboardingTour(false)
+    setOnboardingStep(0)
+    setHighlightedElement(null)
+    localStorage.setItem('finance-onboarding-completed', 'true')
+    
+    // If user checked "do not show again", remember this preference
+    if (dontShowAgain) {
+      localStorage.setItem('finance-welcome-opted-out', 'true')
+    }
+  }
+
+  const skipOnboardingTour = () => {
+    setShowWelcomeModal(false)
+    setShowOnboardingTour(false)
+    setOnboardingStep(0)
+    setHighlightedElement(null)
+    localStorage.setItem('finance-onboarding-completed', 'true')
+    
+    // If user checked "do not show again", remember this preference
+    if (dontShowAgain) {
+      localStorage.setItem('finance-welcome-opted-out', 'true')
+    }
   }
 
   // Calculate monthly contribution needed for goal
@@ -429,6 +568,7 @@ export default function FinancesPage() {
     badge?: string | number
   }) => {
     const isCollapsed = isSectionCollapsed(id)
+    const isHighlighted = highlightedElement === id
     
     useEffect(() => {
       if (defaultCollapsed && !collapsedSections.has(id)) {
@@ -436,8 +576,15 @@ export default function FinancesPage() {
       }
     }, [id, defaultCollapsed])
 
+    // Auto-expand highlighted sections during onboarding
+    useEffect(() => {
+      if (isHighlighted && isCollapsed) {
+        toggleSection(id)
+      }
+    }, [isHighlighted, isCollapsed, id])
+
     return (
-      <Card>
+      <Card className={`transition-all duration-300 ${isHighlighted ? 'ring-4 ring-cozy-primary ring-opacity-50 shadow-lg scale-[1.02]' : ''}`}>
         <CardHeader 
           className="cursor-pointer hover:bg-cozy-gray-50 transition-colors"
           onClick={() => toggleSection(id)}
@@ -449,6 +596,11 @@ export default function FinancesPage() {
               {badge && (
                 <Badge variant="secondary" className="text-xs">
                   {badge}
+                </Badge>
+              )}
+              {isHighlighted && (
+                <Badge variant="default" className="text-xs bg-cozy-primary animate-pulse">
+                  👆 Click here
                 </Badge>
               )}
             </div>
@@ -833,6 +985,11 @@ export default function FinancesPage() {
       icon: Target
     },
     { 
+      id: 'projections', 
+      label: 'Projections', 
+      icon: TrendingUp
+    },
+    { 
       id: 'reports', 
       label: 'Reports', 
       icon: FileText
@@ -841,114 +998,160 @@ export default function FinancesPage() {
 
   return (
     <ModernAppShell title="Finances">
-      <div className="space-y-6">
-        {/* Enhanced Header */}
-        <div className="mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 sm:p-3 bg-gradient-to-br from-cozy-primary/10 to-cozy-primary/5 rounded-xl border border-cozy-primary/20">
-                <DollarSign className="w-5 h-5 sm:w-7 sm:h-7 text-cozy-primary" />
+      <div className="min-h-screen bg-cozy-bg">
+        {/* Hero Header Section */}
+        <div className="relative overflow-hidden bg-cozy-warm border-b border-cozy-gray-200/60">
+          <div className="absolute inset-0 bg-gradient-to-br from-cozy-primary/5 via-transparent to-cozy-sage/5"></div>
+          <div className="relative px-4 sm:px-6 py-8 sm:py-12">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                {/* Header Content */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="p-3 sm:p-4 bg-gradient-to-br from-cozy-primary/20 to-cozy-primary/10 rounded-2xl border border-cozy-primary/30 shadow-cozy-sm">
+                      <DollarSign className="w-6 h-6 sm:w-8 sm:h-8 text-cozy-primary" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-cozy-text">
+                      <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-cozy-text mb-2">
                   Financial Planning
                 </h1>
-                <p className="text-xs sm:text-sm text-cozy-text-muted mt-1">
+                      <p className="text-sm sm:text-base text-cozy-text-muted">
                   Plan your household finances with love and care
                 </p>
               </div>
             </div>
             
+                  {/* Quick Stats */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-cozy-gray-200/50">
+                      <div className="text-xs sm:text-sm text-cozy-text-muted mb-1">Total Income</div>
+                      <div className="text-lg sm:text-xl font-bold text-green-600">{formatCurrency(totalSalary)}</div>
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-cozy-gray-200/50">
+                      <div className="text-xs sm:text-sm text-cozy-text-muted mb-1">Monthly Budget</div>
+                      <div className="text-lg sm:text-xl font-bold text-blue-600">{formatCurrency(totalMonthly)}</div>
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-cozy-gray-200/50">
+                      <div className="text-xs sm:text-sm text-cozy-text-muted mb-1">Savings Rate</div>
+                      <div className="text-lg sm:text-xl font-bold text-cozy-primary">{savingsPct.toFixed(1)}%</div>
+                    </div>
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 sm:p-4 border border-cozy-gray-200/50">
+                      <div className="text-xs sm:text-sm text-cozy-text-muted mb-1">Allocation</div>
+                      <div className={`text-lg sm:text-xl font-bold ${isFullyAllocated ? 'text-green-600' : 'text-orange-600'}`}>
+                        {allocationPercentage.toFixed(0)}%
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action Panel */}
+                <div className="lg:w-80">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-cozy-gray-200/50 shadow-cozy-sm">
             {/* Save Status */}
-            <div className="flex items-center gap-2">
+                    <div className="mb-4">
               {saveStatus === 'saving' && (
                 <div className="flex items-center gap-2 text-cozy-text-muted bg-cozy-cream px-3 py-2 rounded-lg">
                   <div className="w-3 h-3 border border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-xs sm:text-sm">Saving...</span>
+                          <span className="text-sm">Saving...</span>
                 </div>
               )}
               {saveStatus === 'saved' && lastSaved && (
                 <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-2 rounded-lg">
-                  <CheckCircle className="w-3 h-3" />
-                  <span className="text-xs sm:text-sm">
-                    <span className="hidden sm:inline">Saved {lastSaved.toLocaleTimeString()}</span>
-                    <span className="sm:hidden">Saved</span>
-                  </span>
+                          <CheckCircle className="w-4 h-4" />
+                          <span className="text-sm">Saved {lastSaved.toLocaleTimeString()}</span>
                 </div>
               )}
               {saveStatus === 'error' && (
                 <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-2 rounded-lg">
-                  <AlertCircle className="w-3 h-3" />
-                  <span className="text-xs sm:text-sm">Save failed</span>
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="text-sm">Save failed</span>
                 </div>
               )}
               {saveStatus === 'unsaved' && (
                 <div className="flex items-center gap-2 text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
                   <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
-                  <span className="text-xs sm:text-sm">
-                    <span className="hidden sm:inline">Unsaved changes</span>
-                    <span className="sm:hidden">Unsaved</span>
-                  </span>
+                          <span className="text-sm">Unsaved changes</span>
                 </div>
               )}
-            </div>
           </div>
           
           {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
+                    <div className="space-y-2">
             <Button
               onClick={exportFinancialPlan}
               variant="outline"
               size="sm"
-              className="text-xs sm:text-sm bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
             >
-              <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              <span className="hidden sm:inline">Export Plan</span>
-              <span className="sm:hidden">Export</span>
+                        <Download className="w-4 h-4 mr-2" />
+                        Export Plan
             </Button>
             <Button
               onClick={() => setShowImportModal(true)}
               variant="outline"
               size="sm"
-              className="text-xs sm:text-sm bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
             >
-              <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              <span className="hidden sm:inline">Import Plan</span>
-              <span className="sm:hidden">Import</span>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Import Plan
             </Button>
             <Button
               onClick={() => setShowWizard(true)}
               variant="outline"
               size="sm"
-              className="text-xs sm:text-sm bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
             >
-              <HelpCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-              <span className="hidden sm:inline">How it works</span>
-              <span className="sm:hidden">Help</span>
+                        <HelpCircle className="w-4 h-4 mr-2" />
+                        How it works
             </Button>
             <Button
               onClick={() => setShowShortcuts(true)}
               variant="outline"
               size="sm"
-              className="text-xs sm:text-sm bg-white hover:bg-cozy-cream border-cozy-gray-300"
-            >
-              <span className="hidden sm:inline">Keyboard Shortcuts</span>
-              <span className="sm:hidden">⌨️</span>
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                      >
+                        <span className="mr-2">⌨️</span>
+                        Keyboard Shortcuts
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowOnboardingTour(true)
+                          setOnboardingStep(0)
+                          setHighlightedElement(onboardingSteps[0].target)
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start bg-white hover:bg-cozy-cream border-cozy-gray-300"
+                      >
+                        <span className="mr-2">🎯</span>
+                        Take Guided Tour
             </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="space-y-6 sm:space-y-8">
+
         {/* Tab Navigation */}
+            <div className="bg-white rounded-2xl border border-cozy-gray-200/50 shadow-cozy-sm overflow-hidden">
         <Tabs
           tabs={tabs}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           variant="pills"
-          className="mb-6"
+                className="p-2"
         />
+            </div>
 
         {/* Tab Content */}
         <TabPanel isActive={activeTab === 'budget'}>
+              <div className="space-y-6">
             {/* Earners Section */}
             <CollapsibleSection
               id="income-earners"
@@ -1080,639 +1283,9 @@ export default function FinancesPage() {
                 </div>
               </div>
             </CollapsibleSection>
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === 'accounts'}>
-            {/* Bank Accounts Section */}
-            <CollapsibleSection
-              id="bank-accounts"
-              title="Bank Accounts"
-              icon={<CreditCard className="h-5 w-5" />}
-              badge={bankAccounts.length}
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs sm:text-sm text-cozy-text-muted">
-                    Manage your bank accounts and known expenses
-                  </p>
-                  <Button
-                    onClick={() => {
-                      const newAccount: BankAccount = {
-                        id: Date.now().toString(),
-                        name: `Account ${bankAccounts.length + 1}`,
-                        type: 'checking',
-                        target: 0,
-                        knownExpenses: []
-                      }
-                      const newAccounts = [...bankAccounts, newAccount]
-                      setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                      markAsChanged()
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1 text-xs sm:text-sm"
-                  >
-                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Add Account</span>
-                    <span className="sm:hidden">Add</span>
-                  </Button>
-                </div>
-                <div className="space-y-4 sm:space-y-6">
-                  {bankAccounts.map((account, index) => (
-                    <div key={account.id} className="p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-4">
-                      {/* Account Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                        <div className="flex-1 min-w-0">
-                          <Input
-                            ref={(el) => {
-                              inputRefs.current[`account-name-${index}`] = el
-                            }}
-                            defaultValue={account.name}
-                            onChange={(e) => {
-                              // Store the value in ref without causing re-renders
-                              nameInputRefs.current[`account-name-${index}`] = e.target.value
-                            }}
-                            onBlur={(e) => {
-                              // Only update state when user finishes editing
-                              const newAccounts = bankAccounts.map((acc, i) => 
-                                i === index ? { ...acc, name: e.target.value } : acc
-                              )
-                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                            }}
-                            className="font-medium w-full text-sm sm:text-base"
-                            placeholder="Account name"
-                          />
-                        </div>
-                        <div className="w-full sm:w-32">
-                          <select
-                            value={account.type}
-                            onChange={(e) => {
-                              const newAccounts = bankAccounts.map((acc, i) => 
-                                i === index ? { ...acc, type: e.target.value as BankAccount['type'] } : acc
-                              )
-                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                              markAsChanged()
-                            }}
-                            className="w-full px-3 py-2 text-sm sm:text-base border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
-                          >
-                            <option value="checking">Checking</option>
-                            <option value="savings">Savings</option>
-                            <option value="credit">Credit</option>
-                            <option value="investment">Investment</option>
-                          </select>
-                        </div>
-                        <div className="w-full sm:w-32">
-                          <CurrencyInput
-                            value={account.target || 0}
-                            onChange={(value) => {
-                              const newAccounts = bankAccounts.map((acc, i) => 
-                                i === index ? { ...acc, target: value } : acc
-                              )
-                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                            }}
-                            placeholder="Target"
-                            className={`text-sm sm:text-base w-full ${(() => {
-                              const newTotalTargets = bankAccounts.reduce((sum, acc, i) => 
-                                sum + (i === index ? (acc.target || 0) : acc.target), 0
-                              )
-                              const newTotalAllocated = autoSavingsTarget + newTotalTargets + totalPersonalKeep
-                              const newUnallocated = totalSalary - newTotalAllocated
-                              return newUnallocated < 0 ? 'border-red-300 bg-red-50' : ''
-                            })()}`}
-                            showSuggestions={true}
-                            suggestions={[
-                              Math.round(totalSalary * 0.1), // 10% of total income
-                              Math.round(totalSalary * 0.15), // 15% of total income
-                              Math.round(totalSalary * 0.2), // 20% of total income
-                              Math.round(totalSalary * 0.25), // 25% of total income
-                              1000, 1500, 2000, 3000, 5000
-                            ].filter((val, index, arr) => val > 0 && arr.indexOf(val) === index)}
-                            max={totalSalary * 0.8} // Max 80% of total income
-                          />
-                        </div>
-                        {bankAccounts.length > 1 && (
-                          <Button
-                            onClick={() => {
-                              const newAccounts = bankAccounts.filter((_, i) => i !== index)
-                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                              markAsChanged()
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 p-1 sm:p-2"
-                          >
-                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Known Expenses */}
-                      <div className="space-y-2 sm:space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs sm:text-sm font-medium text-cozy-text">Known Expenses</h4>
-                          <Button
-                            onClick={() => {
-                              const newExpense: KnownExpense = {
-                                id: Date.now().toString(),
-                                name: '',
-                                amount: 0,
-                                frequency: 'monthly',
-                                category: 'Other'
-                              }
-                              const newAccounts = bankAccounts.map((acc, i) => 
-                                i === index 
-                                  ? { ...acc, knownExpenses: [...acc.knownExpenses, newExpense] }
-                                  : acc
-                              )
-                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                              markAsChanged()
-                            }}
-                            variant="outline"
-                            size="sm"
-                            className="text-xs"
-                          >
-                            <Plus className="w-3 h-3 mr-1" />
-                            <span className="hidden sm:inline">Add Expense</span>
-                            <span className="sm:hidden">Add</span>
-                          </Button>
-                        </div>
-                        
-                        {account.knownExpenses.map((expense, expenseIndex) => (
-                          <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 sm:p-3 bg-cozy-cream rounded-lg">
-                            <div className="flex-1 min-w-0">
-                              <Input
-                                ref={(el) => {
-                                  inputRefs.current[`expense-name-${index}-${expenseIndex}`] = el
-                                }}
-                                defaultValue={expense.name}
-                                onChange={(e) => {
-                                  // Store the value in ref without causing re-renders
-                                  nameInputRefs.current[`expense-name-${index}-${expenseIndex}`] = e.target.value
-                                }}
-                                onBlur={(e) => {
-                                  // Only update state when user finishes editing
-                                  const newAccounts = bankAccounts.map((acc, i) => 
-                                    i === index 
-                                      ? { 
-                                          ...acc, 
-                                          knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
-                                            expIdx === expenseIndex ? { ...exp, name: e.target.value } : exp
-                                          )
-                                        } 
-                                      : acc
-                                  )
-                                  setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                                }}
-                                placeholder="Expense name"
-                                className="text-xs sm:text-sm w-full"
-                              />
-                            </div>
-                            <div className="w-full sm:w-24">
-                              <CurrencyInput
-                                value={expense.amount || 0}
-                                onChange={(value) => {
-                                  const newAccounts = bankAccounts.map((acc, i) => 
-                                    i === index 
-                                      ? { 
-                                          ...acc, 
-                                          knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
-                                            expIdx === expenseIndex ? { ...exp, amount: value } : exp
-                                          )
-                                        } 
-                                      : acc
-                                  )
-                                  setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                                  markAsChanged()
-                                }}
-                                placeholder="Amount"
-                                className="text-xs sm:text-sm w-full"
-                              />
-                            </div>
-                            <div className="w-full sm:w-28">
-                              <select
-                                value={expense.frequency}
-                                onChange={(e) => {
-                                  const newAccounts = bankAccounts.map((acc, i) => 
-                                    i === index 
-                                      ? { 
-                                          ...acc, 
-                                          knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
-                                            expIdx === expenseIndex ? { ...exp, frequency: e.target.value as KnownExpense['frequency'] } : exp
-                                          )
-                                        } 
-                                      : acc
-                                  )
-                                  setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                                  markAsChanged()
-                                }}
-                                className="w-full px-2 py-1 text-xs sm:text-sm border border-cozy-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-cozy-primary"
-                              >
-                                <option value="monthly">Monthly</option>
-                                <option value="quarterly">Quarterly</option>
-                                <option value="yearly">Yearly</option>
-                                <option value="one-time">One-time</option>
-                              </select>
-                            </div>
-                            <Button
-                              onClick={() => {
-                                const newAccounts = bankAccounts.map((acc, i) => 
-                                  i === index 
-                                    ? { ...acc, knownExpenses: acc.knownExpenses.filter((_, expIdx) => expIdx !== expenseIndex) }
-                                    : acc
-                                )
-                                setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
-                                markAsChanged()
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full sm:w-auto p-1 sm:p-2"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CollapsibleSection>
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === 'goals'}>
-            {/* Financial Goals Section */}
-            <CollapsibleSection
-              id="financial-goals"
-              title="Financial Goals"
-              icon={<Target className="h-5 w-5" />}
-              badge={financialGoals.length}
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs sm:text-sm text-cozy-text-muted">
-                    Set and track your specific financial goals
-                  </p>
-                  <Button
-                    onClick={() => setShowGoalModal(true)}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1 text-xs sm:text-sm"
-                  >
-                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Add Goal</span>
-                    <span className="sm:hidden">Add</span>
-                  </Button>
-                </div>
-                
-                {financialGoals.length === 0 ? (
-                  <div className="text-center py-6 sm:py-8 text-cozy-text-muted">
-                    <Target className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-cozy-gray-400" />
-                    <p className="text-base sm:text-lg font-medium mb-2">No goals set yet</p>
-                    <p className="text-xs sm:text-sm">Create your first financial goal to start tracking your progress</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                    {financialGoals.map((goal) => {
-                      const progress = getGoalProgress(goal)
-                      const monthlyContribution = getMonthlyContribution(goal)
-                      const priorityColors = {
-                        low: 'border-green-200 bg-green-50',
-                        medium: 'border-yellow-200 bg-yellow-50',
-                        high: 'border-red-200 bg-red-50'
-                      }
-                      
-                      return (
-                        <Card key={goal.id} className={`border-l-4 ${priorityColors[goal.priority]}`}>
-                          <CardContent className="p-3 sm:p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h3 className="text-sm sm:text-base font-semibold text-cozy-text">{goal.name}</h3>
-                                <p className="text-xs sm:text-sm text-cozy-text-muted capitalize">{goal.category}</p>
-                              </div>
-                              <Button
-                                onClick={() => deleteGoal(goal.id)}
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700 p-1 sm:p-2"
-                              >
-                                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                              </Button>
-                            </div>
-                            
-                            <div className="space-y-3">
-                              <div>
-                                <div className="flex justify-between text-xs sm:text-sm mb-1">
-                                  <span>Progress</span>
-                                  <span>{progress.toFixed(1)}%</span>
-                                </div>
-                                <div className="w-full bg-cozy-gray-200 rounded-full h-2">
-                                  <div 
-                                    className="bg-cozy-primary h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${progress}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
-                                <div>
-                                  <p className="text-cozy-text-muted">Current</p>
-                                  <p className="font-semibold">{formatCurrency(goal.currentAmount)}</p>
-                                </div>
-                                <div>
-                                  <p className="text-cozy-text-muted">Target</p>
-                                  <p className="font-semibold">{formatCurrency(goal.targetAmount)}</p>
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
-                                <div>
-                                  <p className="text-cozy-text-muted">Target Date</p>
-                                  <p className="font-semibold">{new Date(goal.targetDate).toLocaleDateString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-cozy-text-muted">Monthly Need</p>
-                                  <p className="font-semibold text-green-600">{formatCurrency(monthlyContribution)}</p>
-                                </div>
-                              </div>
-                              
-                              <div className="flex gap-2">
-                                <Button
-                                  onClick={() => {
-                                    const newAmount = goal.currentAmount + 100
-                                    updateGoal(goal.id, { currentAmount: newAmount })
-                                  }}
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs flex-1"
-                                >
-                                  +€100
-                                </Button>
-                                <Button
-                                  onClick={() => {
-                                    const newAmount = goal.currentAmount + 500
-                                    updateGoal(goal.id, { currentAmount: newAmount })
-                                  }}
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs flex-1"
-                                >
-                                  +€500
-                                </Button>
-                                <Button
-                                  onClick={() => {
-                                    const newAmount = goal.currentAmount + 1000
-                                    updateGoal(goal.id, { currentAmount: newAmount })
-                                  }}
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-xs flex-1"
-                                >
-                                  +€1K
-                                </Button>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            </CollapsibleSection>
-        </TabPanel>
-
-        <TabPanel isActive={activeTab === 'reports'}>
-            {/* Split Method */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Split Method
-                </CardTitle>
-                <CardDescription className="text-xs sm:text-sm">How should expenses be divided between earners?</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {[
-                    { key: 'equal', label: 'Equal Split' },
-                    { key: 'proportional', label: 'Proportional' },
-                    { key: 'custom', label: 'Custom' }
-                  ].map((method) => (
-                    <Button
-                      key={method.key}
-                      variant={splitMethod === method.key ? 'default' : 'outline'}
-                      onClick={() => {
-                        setFinanceState(prev => ({ ...prev, splitMethod: method.key as SplitMethod }))
-                        markAsChanged()
-                      }}
-                      className="text-xs sm:text-sm"
-                    >
-                      {method.label}
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Contribution Table */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base sm:text-lg">Contribution Breakdown</CardTitle>
-                <CardDescription className="text-xs sm:text-sm">See how expenses are split between earners</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ContribTableDesktop
-                  accounts={bankAccounts}
-                  earners={earners}
-                  split={calculateSplit}
-                  autoSavingsTarget={autoSavingsTarget}
-                  savingsPct={savingsPct}
-                />
-                <ContribCardsMobile
-                  accounts={bankAccounts}
-                  earners={earners}
-                  split={calculateSplit}
-                  autoSavingsTarget={autoSavingsTarget}
-                  savingsPct={savingsPct}
-                />
-              </CardContent>
-            </Card>
-        </TabPanel>
-
-        {/* Keyboard Shortcuts Modal */}
-        {showShortcuts && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-cozy-text">Keyboard Shortcuts</h2>
-                <Button
-                  onClick={() => setShowShortcuts(false)}
-                  variant="outline"
-                  size="sm"
-                >
-                  ✕
-                </Button>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-cozy-text-muted">Show shortcuts help</span>
-                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + ?</kbd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-cozy-text-muted">Save changes</span>
-                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + S</kbd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-cozy-text-muted">Auto balance budget</span>
-                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + A</kbd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-cozy-text-muted">Close this dialog</span>
-                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Esc</kbd>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-cozy-gray-200">
-                <p className="text-xs text-cozy-text-muted">
-                  💡 Tip: Use <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs">Cmd</kbd> instead of <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs">Ctrl</kbd> on Mac
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Import Modal */}
-        {showImportModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-cozy-text">Import Financial Plan</h2>
-                <Button
-                  onClick={() => setShowImportModal(false)}
-                  variant="outline"
-                  size="sm"
-                >
-                  ✕
-                </Button>
-              </div>
-              <div className="space-y-4">
-                <p className="text-sm text-cozy-text-muted">
-                  Select a financial plan file (.json) to import. This will replace your current plan.
-                </p>
-                <div className="border-2 border-dashed border-cozy-gray-300 rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={importFinancialPlan}
-                    className="hidden"
-                    id="import-file"
-                  />
-                  <label
-                    htmlFor="import-file"
-                    className="cursor-pointer flex flex-col items-center gap-2"
-                  >
-                    <div className="w-12 h-12 bg-cozy-gray-100 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-cozy-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                    </div>
-                    <span className="text-sm font-medium text-cozy-text">Choose File</span>
-                    <span className="text-xs text-cozy-text-muted">or drag and drop</span>
-                  </label>
-                </div>
-                <div className="text-xs text-cozy-text-muted">
-                  <p className="font-medium mb-1">Supported formats:</p>
-                  <p>• JSON files exported from this app</p>
-                  <p>• Files must contain valid financial plan data</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Goal Creation Modal */}
-        {showGoalModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-cozy-text">Create Financial Goal</h2>
-                <Button
-                  onClick={() => setShowGoalModal(false)}
-                  variant="outline"
-                  size="sm"
-                >
-                  ✕
-                </Button>
-              </div>
-              <GoalForm
-                onSubmit={(goal) => {
-                  addGoal(goal)
-                  setShowGoalModal(false)
-                }}
-                onCancel={() => setShowGoalModal(false)}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Financial Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-l-4 border-l-green-500">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Total Income</p>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(totalSalary)}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-blue-500">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Monthly Budget</p>
-                  <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalMonthly)}</p>
-                </div>
-                <Target className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-l-4 border-l-cozy-primary">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Savings Rate</p>
-                  <p className="text-2xl font-bold text-cozy-primary">{savingsPct.toFixed(2)}%</p>
-                </div>
-                <PiggyBank className="h-8 w-8 text-cozy-primary" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`border-l-4 ${isFullyAllocated ? 'border-l-green-500' : 'border-l-orange-500'}`}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Allocation</p>
-                  <p className={`text-2xl font-bold ${isFullyAllocated ? 'text-green-600' : 'text-orange-600'}`}>
-                    {allocationPercentage.toFixed(0)}%
-                  </p>
-                </div>
-                {isFullyAllocated ? (
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                ) : (
-                  <AlertCircle className="h-8 w-8 text-orange-600" />
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Allocation Status */}
-        <Card className={isFullyAllocated ? 'border-green-200 bg-green-50/50' : 'border-orange-200 bg-orange-50/50'}>
+                <Card className={`transition-all duration-300 ${isFullyAllocated ? 'border-green-200 bg-green-50/50' : 'border-orange-200 bg-orange-50/50'} ${highlightedElement === 'allocation-status' ? 'ring-4 ring-cozy-primary ring-opacity-50 shadow-lg scale-[1.02]' : ''}`}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               {isFullyAllocated ? (
@@ -2021,7 +1594,6 @@ export default function FinancesPage() {
                 </div>
               )}
 
-
               {isFullyAllocated && (
                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                   <h5 className="font-semibold text-green-800 mb-2">Great job! 🎉</h5>
@@ -2033,147 +1605,6 @@ export default function FinancesPage() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Earners Section */}
-        <CollapsibleSection
-          id="income-earners"
-          title="Income Earners"
-          icon={<Users className="h-5 w-5" />}
-          badge={earners.length}
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-cozy-text-muted">
-                Define who contributes to the household income
-              </p>
-              <Button
-                onClick={() => {
-                  const newEarner = {
-                    id: Date.now().toString(),
-                    name: `Earner ${earners.length + 1}`,
-                    salary: 0,
-                    keep: 0
-                  }
-                  const newEarners = [...earners, newEarner]
-                  setFinanceState(prev => ({ ...prev, earners: newEarners }))
-                }}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add Earner
-              </Button>
-            </div>
-            <div className="space-y-4">
-              {earners.map((earner, index) => (
-                <div key={`earner-${earner.id}-${index}`} className="p-4 border rounded-lg">
-                  {/* Mobile-first responsive layout */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
-                    {/* Name field - full width on mobile, 1 column on desktop */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
-                        Name
-                      </label>
-                      <Input
-                        ref={(el) => {
-                          inputRefs.current[`earner-name-${index}`] = el
-                        }}
-                        defaultValue={earners[index]?.name || ''}
-                        onChange={(e) => {
-                          // Store the value in ref without causing re-renders
-                          nameInputRefs.current[`earner-name-${index}`] = e.target.value
-                        }}
-                        onBlur={(e) => {
-                          // Only update state when user finishes editing
-                          const newEarners = earners.map((ear, i) => 
-                            i === index ? { ...ear, name: e.target.value } : ear
-                          )
-                          setFinanceState(prev => ({ ...prev, earners: newEarners }))
-                        }}
-                        className="font-medium w-full"
-                        placeholder="Earner name"
-                      />
-                    </div>
-                    
-                    {/* Salary field */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
-                        Salary (€)
-                      </label>
-                      <CurrencyInput
-                        value={earners[index]?.salary || 0}
-                        onChange={(value) => {
-                          const newEarners = earners.map((ear, i) => 
-                            i === index ? { ...ear, salary: value } : ear
-                          )
-                          setFinanceState(prev => ({ ...prev, earners: newEarners }))
-                        }}
-                        placeholder="Salary"
-                        className="w-full"
-                        showSuggestions={true}
-                        suggestions={[2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000, 15000, 20000, 25000, 50000, 75000, 100000, 150000, 200000]}
-                        max={200000}
-                      />
-                    </div>
-                    
-                    {/* Keep field */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
-                        Personal Keep (€)
-                      </label>
-                      <CurrencyInput
-                        value={earners[index]?.keep || 0}
-                        onChange={(value) => {
-                          const newEarners = earners.map((ear, i) => 
-                            i === index ? { ...ear, keep: value } : ear
-                          )
-                          setFinanceState(prev => ({ ...prev, earners: newEarners }))
-                        }}
-                        placeholder="Keep"
-                        className={(() => {
-                          const newTotalPersonalKeep = earners.reduce((sum, ear, i) => 
-                            sum + (i === index ? (ear.keep || 0) : ear.keep), 0
-                          )
-                          const newTotalAllocated = autoSavingsTarget + totalTargets + newTotalPersonalKeep
-                          const newUnallocated = totalSalary - newTotalAllocated
-                          return newUnallocated < 0 ? 'border-red-300 bg-red-50' : ''
-                        })()}
-                        showSuggestions={true}
-                        suggestions={[
-                          Math.round(earner.salary * 0.1), // 10% of salary
-                          Math.round(earner.salary * 0.15), // 15% of salary
-                          Math.round(earner.salary * 0.2), // 20% of salary
-                          Math.round(earner.salary * 0.25), // 25% of salary
-                          500, 1000, 1500, 2000
-                        ].filter((val, index, arr) => val > 0 && arr.indexOf(val) === index)}
-                        max={earner.salary * 0.5} // Max 50% of salary
-                      />
-                    </div>
-                    
-                    {/* Remove button */}
-                    <div className="sm:col-span-1 flex justify-end">
-                      {earners.length > 1 && (
-                        <Button
-                          onClick={() => {
-                            const newEarners = earners.filter((_, i) => i !== index)
-                            setFinanceState(prev => ({ ...prev, earners: newEarners }))
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="hidden sm:inline ml-1">Remove</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CollapsibleSection>
 
         {/* Savings Templates */}
         <CollapsibleSection
@@ -2335,242 +1766,11 @@ export default function FinancesPage() {
           </div>
         </CollapsibleSection>
 
-        {/* Savings Projections */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Savings Projections
-            </CardTitle>
-            <CardDescription>See how your savings will grow over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Current Savings Input */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-cozy-text mb-2">
-                    Current Savings Balance
-                  </label>
-                  <CurrencyInput
-                    value={currentSavings || 0}
-                    onChange={(value) => {
-                      setFinanceState(prev => ({ ...prev, currentSavings: value }))
-                      markAsChanged()
-                    }}
-                    placeholder="Enter your current savings"
-                    className="text-lg font-semibold"
-                  />
                 </div>
-                <div className="text-sm text-cozy-text-muted">
-                  <div>Monthly Savings: €{autoSavingsTarget.toFixed(0)}</div>
-                  <div>Annual Savings: €{(autoSavingsTarget * 12).toFixed(0)}</div>
-                </div>
-              </div>
+            </TabPanel>
 
-              {/* Projections Chart */}
-              {currentSavings > 0 && autoSavingsTarget > 0 && (
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-cozy-text">5-Year Projection</h4>
-                  
-                  {/* Simple Bar Chart */}
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map((year) => {
-                      const projectedSavings = currentSavings + (autoSavingsTarget * 12 * year)
-                      const maxSavings = currentSavings + (autoSavingsTarget * 12 * 5)
-                      const percentage = (projectedSavings / maxSavings) * 100
-                      
-                      return (
-                        <div key={year} className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="font-medium">Year {year}</span>
-                            <span className="text-cozy-primary font-semibold">
-                              €{projectedSavings.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="w-full bg-cozy-gray-200 rounded-full h-3">
-                            <div
-                              className="bg-gradient-to-r from-cozy-primary to-cozy-accent h-3 rounded-full transition-all duration-500"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* Key Milestones */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                    <div className="p-4 bg-cozy-cream rounded-lg">
-                      <div className="text-2xl font-bold text-cozy-primary">
-                        €{(currentSavings + autoSavingsTarget * 12).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-cozy-text-muted">After 1 Year</div>
-                    </div>
-                    <div className="p-4 bg-cozy-cream rounded-lg">
-                      <div className="text-2xl font-bold text-cozy-primary">
-                        €{(currentSavings + autoSavingsTarget * 12 * 3).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-cozy-text-muted">After 3 Years</div>
-                    </div>
-                    <div className="p-4 bg-cozy-cream rounded-lg">
-                      <div className="text-2xl font-bold text-cozy-primary">
-                        €{(currentSavings + autoSavingsTarget * 12 * 5).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-cozy-text-muted">After 5 Years</div>
-                    </div>
-                  </div>
-
-                  {/* Growth Insights */}
-                  <div className="p-4 bg-gradient-to-r from-cozy-primary/10 to-cozy-accent/10 rounded-lg">
-                    <h5 className="font-semibold text-cozy-text mb-2">Growth Insights</h5>
-                    <div className="space-y-1 text-sm text-cozy-text-muted">
-                      <div>• You&apos;ll save €{(autoSavingsTarget * 12).toLocaleString()} per year</div>
-                      <div>• Total growth over 5 years: €{(autoSavingsTarget * 12 * 5).toLocaleString()}</div>
-                      <div>• Your savings will {currentSavings > 0 ? 'grow by' : 'reach'} {((autoSavingsTarget * 12 * 5) / currentSavings * 100).toFixed(0)}%</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(!currentSavings || !autoSavingsTarget) && (
-                <div className="text-center py-8 text-cozy-text-muted">
-                  <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Enter your current savings balance to see projections</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Financial Goals Section */}
-        <CollapsibleSection
-          id="financial-goals"
-          title="Financial Goals"
-          icon={<Target className="h-5 w-5" />}
-          badge={financialGoals.length}
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-cozy-text-muted">
-                Set and track your specific financial goals
-              </p>
-              <Button
-                onClick={() => setShowGoalModal(true)}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add Goal
-              </Button>
-            </div>
-            
-            {financialGoals.length === 0 ? (
-              <div className="text-center py-8 text-cozy-text-muted">
-                <Target className="w-12 h-12 mx-auto mb-4 text-cozy-gray-400" />
-                <p className="text-lg font-medium mb-2">No goals set yet</p>
-                <p className="text-sm">Create your first financial goal to start tracking your progress</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {financialGoals.map((goal) => {
-                  const progress = getGoalProgress(goal)
-                  const monthlyContribution = getMonthlyContribution(goal)
-                  const priorityColors = {
-                    low: 'border-green-200 bg-green-50',
-                    medium: 'border-yellow-200 bg-yellow-50',
-                    high: 'border-red-200 bg-red-50'
-                  }
-                  
-                  return (
-                    <Card key={goal.id} className={`border-l-4 ${priorityColors[goal.priority]}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="font-semibold text-cozy-text">{goal.name}</h3>
-                            <p className="text-sm text-cozy-text-muted capitalize">{goal.category}</p>
-                          </div>
-                          <Button
-                            onClick={() => deleteGoal(goal.id)}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span>Progress</span>
-                              <span>{progress.toFixed(1)}%</span>
-                            </div>
-                            <div className="w-full bg-cozy-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-cozy-primary h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${progress}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-cozy-text-muted">Current</p>
-                              <p className="font-semibold">{formatCurrency(goal.currentAmount)}</p>
-                            </div>
-                            <div>
-                              <p className="text-cozy-text-muted">Target</p>
-                              <p className="font-semibold">{formatCurrency(goal.targetAmount)}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-cozy-text-muted">Target Date</p>
-                              <p className="font-semibold">{new Date(goal.targetDate).toLocaleDateString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-cozy-text-muted">Monthly Need</p>
-                              <p className="font-semibold text-green-600">{formatCurrency(monthlyContribution)}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => {
-                                const newAmount = goal.currentAmount + 100
-                                updateGoal(goal.id, { currentAmount: newAmount })
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                            >
-                              +€100
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                const newAmount = Math.max(0, goal.currentAmount - 100)
-                                updateGoal(goal.id, { currentAmount: newAmount })
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                            >
-                              -€100
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </CollapsibleSection>
-
+            <TabPanel isActive={activeTab === 'accounts'}>
+              <div className="space-y-6">
         {/* Bank Accounts Section */}
         <CollapsibleSection
           id="bank-accounts"
@@ -2580,7 +1780,7 @@ export default function FinancesPage() {
         >
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm text-cozy-text-muted">
+                  <p className="text-xs sm:text-sm text-cozy-text-muted">
                 Manage your bank accounts and known expenses
               </p>
               <Button
@@ -2598,17 +1798,18 @@ export default function FinancesPage() {
                 }}
                 variant="outline"
                 size="sm"
-                className="flex items-center gap-1"
+                    className="flex items-center gap-1 text-xs sm:text-sm"
               >
-                <Plus className="w-4 h-4" />
-                Add Account
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Add Account</span>
+                    <span className="sm:hidden">Add</span>
               </Button>
             </div>
-            <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
               {bankAccounts.map((account, index) => (
-                <div key={account.id} className="p-4 border rounded-lg space-y-4">
+                    <div key={account.id} className="p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-4">
                   {/* Account Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
                     <div className="flex-1 min-w-0">
                       <Input
                         ref={(el) => {
@@ -2626,7 +1827,7 @@ export default function FinancesPage() {
                           )
                           setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                         }}
-                        className="font-medium w-full"
+                            className="font-medium w-full text-sm sm:text-base"
                         placeholder="Account name"
                       />
                     </div>
@@ -2640,7 +1841,7 @@ export default function FinancesPage() {
                           setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                           markAsChanged()
                         }}
-                        className="w-full px-3 py-2 border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
+                            className="w-full px-3 py-2 text-sm sm:text-base border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
                       >
                         <option value="checking">Checking</option>
                         <option value="savings">Savings</option>
@@ -2658,14 +1859,14 @@ export default function FinancesPage() {
                           setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                         }}
                         placeholder="Target"
-                        className={(() => {
+                            className={`text-sm sm:text-base w-full ${(() => {
                           const newTotalTargets = bankAccounts.reduce((sum, acc, i) => 
                             sum + (i === index ? (acc.target || 0) : acc.target), 0
                           )
                           const newTotalAllocated = autoSavingsTarget + newTotalTargets + totalPersonalKeep
                           const newUnallocated = totalSalary - newTotalAllocated
                           return newUnallocated < 0 ? 'border-red-300 bg-red-50' : ''
-                        })()}
+                            })()}`}
                         showSuggestions={true}
                         suggestions={[
                           Math.round(totalSalary * 0.1), // 10% of total income
@@ -2686,17 +1887,17 @@ export default function FinancesPage() {
                         }}
                         variant="outline"
                         size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 p-1 sm:p-2"
                       >
-                        <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                       </Button>
                     )}
                   </div>
 
                   {/* Known Expenses */}
-                  <div className="space-y-3">
+                      <div className="space-y-2 sm:space-y-3">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-cozy-text">Known Expenses</h4>
+                          <h4 className="text-xs sm:text-sm font-medium text-cozy-text">Known Expenses</h4>
                       <Button
                         onClick={() => {
                           const newExpense: KnownExpense = {
@@ -2719,12 +1920,13 @@ export default function FinancesPage() {
                         className="text-xs"
                       >
                         <Plus className="w-3 h-3 mr-1" />
-                        Add Expense
+                            <span className="hidden sm:inline">Add Expense</span>
+                            <span className="sm:hidden">Add</span>
                       </Button>
                     </div>
                     
                     {account.knownExpenses.map((expense, expenseIndex) => (
-                      <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 bg-cozy-cream rounded-lg">
+                          <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 sm:p-3 bg-cozy-cream rounded-lg">
                         <div className="flex-1 min-w-0">
                           <Input
                             ref={(el) => {
@@ -2750,7 +1952,7 @@ export default function FinancesPage() {
                               setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                             }}
                             placeholder="Expense name"
-                            className="text-sm w-full"
+                                className="text-xs sm:text-sm w-full"
                           />
                         </div>
                         <div className="w-full sm:w-24">
@@ -2771,7 +1973,7 @@ export default function FinancesPage() {
                               markAsChanged()
                             }}
                             placeholder="Amount"
-                            className="text-sm w-full"
+                                className="text-xs sm:text-sm w-full"
                           />
                         </div>
                         <div className="w-full sm:w-28">
@@ -2791,7 +1993,7 @@ export default function FinancesPage() {
                               setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
                               markAsChanged()
                             }}
-                            className="w-full px-2 py-1 text-sm border border-cozy-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-cozy-primary"
+                                className="w-full px-2 py-1 text-xs sm:text-sm border border-cozy-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-cozy-primary"
                           >
                             <option value="monthly">Monthly</option>
                             <option value="quarterly">Quarterly</option>
@@ -2811,7 +2013,7 @@ export default function FinancesPage() {
                           }}
                           variant="outline"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full sm:w-auto"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full sm:w-auto p-1 sm:p-2"
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -2823,18 +2025,279 @@ export default function FinancesPage() {
             </div>
           </div>
         </CollapsibleSection>
+              </div>
+            </TabPanel>
 
-        {/* Split Method */}
+            <TabPanel isActive={activeTab === 'goals'}>
+              <div className="space-y-6">
+                {/* Financial Goals Section */}
+                <CollapsibleSection
+                  id="financial-goals"
+                  title="Financial Goals"
+                  icon={<Target className="h-5 w-5" />}
+                  badge={financialGoals.length}
+                >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs sm:text-sm text-cozy-text-muted">
+                    Set and track your specific financial goals
+                  </p>
+                  <Button
+                    onClick={() => setShowGoalModal(true)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1 text-xs sm:text-sm"
+                  >
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Add Goal</span>
+                    <span className="sm:hidden">Add</span>
+                  </Button>
+                </div>
+                
+                {financialGoals.length === 0 ? (
+                  <div className="text-center py-6 sm:py-8 text-cozy-text-muted">
+                    <Target className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-cozy-gray-400" />
+                    <p className="text-base sm:text-lg font-medium mb-2">No goals set yet</p>
+                    <p className="text-xs sm:text-sm">Create your first financial goal to start tracking your progress</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                    {financialGoals.map((goal) => {
+                      const progress = getGoalProgress(goal)
+                      const monthlyContribution = getMonthlyContribution(goal)
+                      const priorityColors = {
+                        low: 'border-green-200 bg-green-50',
+                        medium: 'border-yellow-200 bg-yellow-50',
+                        high: 'border-red-200 bg-red-50'
+                      }
+                      
+                      return (
+                        <Card key={goal.id} className={`border-l-4 ${priorityColors[goal.priority]}`}>
+                          <CardContent className="p-3 sm:p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h3 className="text-sm sm:text-base font-semibold text-cozy-text">{goal.name}</h3>
+                                <p className="text-xs sm:text-sm text-cozy-text-muted capitalize">{goal.category}</p>
+                              </div>
+                              <Button
+                                onClick={() => deleteGoal(goal.id)}
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 p-1 sm:p-2"
+                              >
+                                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </Button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              <div>
+                                <div className="flex justify-between text-xs sm:text-sm mb-1">
+                                  <span>Progress</span>
+                                  <span>{progress.toFixed(1)}%</span>
+                                </div>
+                                <div className="w-full bg-cozy-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-cozy-primary h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+                                <div>
+                                  <p className="text-cozy-text-muted">Current</p>
+                                  <p className="font-semibold">{formatCurrency(goal.currentAmount)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-cozy-text-muted">Target</p>
+                                  <p className="font-semibold">{formatCurrency(goal.targetAmount)}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+                                <div>
+                                  <p className="text-cozy-text-muted">Target Date</p>
+                                  <p className="font-semibold">{new Date(goal.targetDate).toLocaleDateString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-cozy-text-muted">Monthly Need</p>
+                                  <p className="font-semibold text-green-600">{formatCurrency(monthlyContribution)}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => {
+                                    const newAmount = goal.currentAmount + 100
+                                    updateGoal(goal.id, { currentAmount: newAmount })
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs flex-1"
+                                >
+                                  +€100
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    const newAmount = goal.currentAmount + 500
+                                    updateGoal(goal.id, { currentAmount: newAmount })
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs flex-1"
+                                >
+                                  +€500
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    const newAmount = goal.currentAmount + 1000
+                                    updateGoal(goal.id, { currentAmount: newAmount })
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs flex-1"
+                                >
+                                  +€1K
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </CollapsibleSection>
+              </div>
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === 'projections'}>
+              <div className="space-y-6">
+                {/* Savings Projections */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calculator className="w-5 h-5" />
+                      <TrendingUp className="w-5 h-5" />
+                      Savings Projections
+                    </CardTitle>
+                    <CardDescription>See how your savings will grow over time</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      {/* Current Savings Input */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <label className="block text-sm font-medium text-cozy-text mb-2">
+                            Current Savings Balance
+                          </label>
+                          <CurrencyInput
+                            value={currentSavings || 0}
+                            onChange={(value) => {
+                              setFinanceState(prev => ({ ...prev, currentSavings: value }))
+                              markAsChanged()
+                            }}
+                            placeholder="Enter your current savings"
+                            className="text-lg font-semibold"
+                          />
+                        </div>
+                        <div className="text-sm text-cozy-text-muted">
+                          <div>Monthly Savings: €{autoSavingsTarget.toFixed(0)}</div>
+                          <div>Annual Savings: €{(autoSavingsTarget * 12).toFixed(0)}</div>
+                        </div>
+                      </div>
+
+                      {/* Projections Chart */}
+                      {currentSavings > 0 && autoSavingsTarget > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="font-semibold text-cozy-text">5-Year Projection</h4>
+                          
+                          {/* Simple Bar Chart */}
+                          <div className="space-y-3">
+                            {[1, 2, 3, 4, 5].map((year) => {
+                              const projectedSavings = currentSavings + (autoSavingsTarget * 12 * year)
+                              const maxSavings = currentSavings + (autoSavingsTarget * 12 * 5)
+                              const percentage = (projectedSavings / maxSavings) * 100
+                              
+                              return (
+                                <div key={year} className="space-y-1">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="font-medium">Year {year}</span>
+                                    <span className="text-cozy-primary font-semibold">
+                                      €{projectedSavings.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-cozy-gray-200 rounded-full h-3">
+                                    <div
+                                      className="bg-gradient-to-r from-cozy-primary to-cozy-accent h-3 rounded-full transition-all duration-500"
+                                      style={{ width: `${percentage}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          {/* Key Milestones */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                            <div className="p-4 bg-cozy-cream rounded-lg">
+                              <div className="text-2xl font-bold text-cozy-primary">
+                                €{(currentSavings + autoSavingsTarget * 12).toLocaleString()}
+                              </div>
+                              <div className="text-sm text-cozy-text-muted">After 1 Year</div>
+                            </div>
+                            <div className="p-4 bg-cozy-cream rounded-lg">
+                              <div className="text-2xl font-bold text-cozy-primary">
+                                €{(currentSavings + autoSavingsTarget * 12 * 3).toLocaleString()}
+                              </div>
+                              <div className="text-sm text-cozy-text-muted">After 3 Years</div>
+                            </div>
+                            <div className="p-4 bg-cozy-cream rounded-lg">
+                              <div className="text-2xl font-bold text-cozy-primary">
+                                €{(currentSavings + autoSavingsTarget * 12 * 5).toLocaleString()}
+                              </div>
+                              <div className="text-sm text-cozy-text-muted">After 5 Years</div>
+                            </div>
+                          </div>
+
+                          {/* Growth Insights */}
+                          <div className="p-4 bg-gradient-to-r from-cozy-primary/10 to-cozy-accent/10 rounded-lg">
+                            <h5 className="font-semibold text-cozy-text mb-2">Growth Insights</h5>
+                            <div className="space-y-1 text-sm text-cozy-text-muted">
+                              <div>• You&apos;ll save €{(autoSavingsTarget * 12).toLocaleString()} per year</div>
+                              <div>• Total growth over 5 years: €{(autoSavingsTarget * 12 * 5).toLocaleString()}</div>
+                              <div>• Your savings will {currentSavings > 0 ? 'grow by' : 'reach'} {((autoSavingsTarget * 12 * 5) / currentSavings * 100).toFixed(0)}%</div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {(!currentSavings || !autoSavingsTarget) && (
+                        <div className="text-center py-8 text-cozy-text-muted">
+                          <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                          <p>Enter your current savings balance to see projections</p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabPanel>
+
+            <TabPanel isActive={activeTab === 'reports'}>
+              <div className="space-y-6">
+
+                {/* Split Method */}
+                <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
               Split Method
             </CardTitle>
-            <CardDescription>How should expenses be divided between earners?</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">How should expenses be divided between earners?</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
               {[
                 { key: 'equal', label: 'Equal Split' },
                 { key: 'proportional', label: 'Proportional' },
@@ -2847,6 +2310,7 @@ export default function FinancesPage() {
                     setFinanceState(prev => ({ ...prev, splitMethod: method.key as SplitMethod }))
                     markAsChanged()
                   }}
+                      className="text-xs sm:text-sm"
                 >
                   {method.label}
                 </Button>
@@ -2857,9 +2321,9 @@ export default function FinancesPage() {
 
         {/* Contribution Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Contribution Breakdown</CardTitle>
-            <CardDescription>See how expenses are split between earners</CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Contribution Breakdown</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">See how expenses are split between earners</CardDescription>
           </CardHeader>
           <CardContent>
             <ContribTableDesktop
@@ -2878,7 +2342,254 @@ export default function FinancesPage() {
             />
           </CardContent>
         </Card>
+              </div>
+            </TabPanel>
 
+        {/* Keyboard Shortcuts Modal */}
+        {showShortcuts && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-cozy-text">Keyboard Shortcuts</h2>
+                <Button
+                  onClick={() => setShowShortcuts(false)}
+                  variant="outline"
+                  size="sm"
+                >
+                  ✕
+                </Button>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-cozy-text-muted">Show shortcuts help</span>
+                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + ?</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-cozy-text-muted">Save changes</span>
+                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + S</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-cozy-text-muted">Auto balance budget</span>
+                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + A</kbd>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-cozy-text-muted">Close this dialog</span>
+                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Esc</kbd>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-cozy-gray-200">
+                <p className="text-xs text-cozy-text-muted">
+                  💡 Tip: Use <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs">Cmd</kbd> instead of <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs">Ctrl</kbd> on Mac
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Import Modal */}
+        {showImportModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-cozy-text">Import Financial Plan</h2>
+                <Button
+                  onClick={() => setShowImportModal(false)}
+                  variant="outline"
+                  size="sm"
+                >
+                  ✕
+                </Button>
+              </div>
+              <div className="space-y-4">
+                <p className="text-sm text-cozy-text-muted">
+                  Select a financial plan file (.json) to import. This will replace your current plan.
+                </p>
+                <div className="border-2 border-dashed border-cozy-gray-300 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={importFinancialPlan}
+                    className="hidden"
+                    id="import-file"
+                  />
+                  <label
+                    htmlFor="import-file"
+                    className="cursor-pointer flex flex-col items-center gap-2"
+                  >
+                    <div className="w-12 h-12 bg-cozy-gray-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-cozy-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-cozy-text">Choose File</span>
+                    <span className="text-xs text-cozy-text-muted">or drag and drop</span>
+                  </label>
+                </div>
+                <div className="text-xs text-cozy-text-muted">
+                  <p className="font-medium mb-1">Supported formats:</p>
+                  <p>• JSON files exported from this app</p>
+                  <p>• Files must contain valid financial plan data</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Goal Creation Modal */}
+        {showGoalModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-cozy-text">Create Financial Goal</h2>
+                <Button
+                  onClick={() => setShowGoalModal(false)}
+                  variant="outline"
+                  size="sm"
+                >
+                  ✕
+                </Button>
+              </div>
+              <GoalForm
+                onSubmit={(goal) => {
+                  addGoal(goal)
+                  setShowGoalModal(false)
+                }}
+                onCancel={() => setShowGoalModal(false)}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Welcome Modal for New Users */}
+        {showWelcomeModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-8 text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-cozy-primary to-cozy-accent rounded-full flex items-center justify-center mx-auto mb-6">
+                <DollarSign className="w-10 h-10 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-cozy-text mb-4">Welcome to Financial Planning! 🎉</h2>
+              <p className="text-cozy-text-muted mb-6">
+                Let's help you create a comprehensive financial plan for your household. 
+                We'll guide you through each step to ensure you understand how everything works.
+              </p>
+              <div className="space-y-3">
+                <Button
+                  onClick={startOnboardingTour}
+                  className="w-full bg-cozy-primary hover:bg-cozy-primary/90 text-white"
+                >
+                  Take the Guided Tour
+                </Button>
+                <Button
+                  onClick={skipOnboardingTour}
+                  variant="outline"
+                  className="w-full"
+                >
+                  Skip Tour - I'll Explore on My Own
+                </Button>
+              </div>
+              
+              {/* Do not show again checkbox */}
+              <div className="flex items-center justify-center mt-4 pt-4 border-t border-gray-200">
+                <label className="flex items-center gap-2 text-sm text-cozy-text-muted cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={dontShowAgain}
+                    onChange={(e) => setDontShowAgain(e.target.checked)}
+                    className="w-4 h-4 text-cozy-primary bg-gray-100 border-gray-300 rounded focus:ring-cozy-primary focus:ring-2"
+                  />
+                  <span>Do not show me this again</span>
+                </label>
+              </div>
+              
+              <p className="text-xs text-cozy-text-muted mt-4">
+                💡 You can always access help and tutorials from the action panel
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Onboarding Tour Modal */}
+        {showOnboardingTour && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-lg w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-cozy-primary rounded-full flex items-center justify-center text-white text-sm font-bold">
+                    {onboardingStep + 1}
+                  </div>
+                  <h2 className="text-xl font-semibold text-cozy-text">
+                    {onboardingSteps[onboardingStep].title}
+                  </h2>
+                </div>
+                <Button
+                  onClick={skipOnboardingTour}
+                  variant="outline"
+                  size="sm"
+                >
+                  ✕
+                </Button>
+              </div>
+              
+              <p className="text-cozy-text-muted mb-6">
+                {onboardingSteps[onboardingStep].content}
+              </p>
+
+              {/* Progress indicator */}
+              <div className="mb-6">
+                <div className="flex justify-between text-xs text-cozy-text-muted mb-2">
+                  <span>Step {onboardingStep + 1} of {onboardingSteps.length}</span>
+                  <span>{Math.round(((onboardingStep + 1) / onboardingSteps.length) * 100)}%</span>
+                </div>
+                <div className="w-full bg-cozy-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-cozy-primary h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${((onboardingStep + 1) / onboardingSteps.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                {onboardingStep > 0 && (
+                  <Button
+                    onClick={previousOnboardingStep}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    ← Previous
+                  </Button>
+                )}
+                <Button
+                  onClick={nextOnboardingStep}
+                  className="flex-1 bg-cozy-primary hover:bg-cozy-primary/90 text-white"
+                >
+                  {onboardingStep === onboardingSteps.length - 1 ? 'Finish Tour' : 'Next →'}
+                </Button>
+              </div>
+
+              <div className="mt-4 text-center">
+                <Button
+                  onClick={skipOnboardingTour}
+                  variant="ghost"
+                  size="sm"
+                  className="text-cozy-text-muted hover:text-cozy-text"
+                >
+                  Skip Tour
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+
+
+
+
+
+
+
+          </div>
+        </div>
       </div>
 
       {/* Finance Wizard */}

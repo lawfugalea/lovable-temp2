@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 interface Tab {
@@ -26,11 +26,74 @@ export default function Tabs({
   variant = 'default',
   size = 'md'
 }: TabsProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [touchStart, setTouchStart] = useState<number | null>(null)
+  const [touchEnd, setTouchEnd] = useState<number | null>(null)
+  const [isScrolling, setIsScrolling] = useState(false)
+
   const sizeClasses = {
     sm: 'px-2 py-1 text-xs',
     md: 'px-3 py-1.5 text-sm',
     lg: 'px-4 py-2 text-base'
   }
+
+  // Minimum distance for a swipe gesture
+  const minSwipeDistance = 50
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null)
+    setTouchStart(e.targetTouches[0].clientX)
+    setIsScrolling(false)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX)
+    // Check if user is scrolling vertically (not swiping horizontally)
+    const touchY = e.targetTouches[0].clientY
+    const touchX = e.targetTouches[0].clientX
+    if (touchStart && Math.abs(touchY - touchStart) > Math.abs(touchX - touchStart)) {
+      setIsScrolling(true)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd || isScrolling) return
+    
+    const distance = touchStart - touchEnd
+    const isLeftSwipe = distance > minSwipeDistance
+    const isRightSwipe = distance < -minSwipeDistance
+
+    if (isLeftSwipe || isRightSwipe) {
+      const currentIndex = tabs.findIndex(tab => tab.id === activeTab)
+      let newIndex = currentIndex
+
+      if (isLeftSwipe && currentIndex < tabs.length - 1) {
+        // Swipe left - go to next tab
+        newIndex = currentIndex + 1
+      } else if (isRightSwipe && currentIndex > 0) {
+        // Swipe right - go to previous tab
+        newIndex = currentIndex - 1
+      }
+
+      if (newIndex !== currentIndex && !tabs[newIndex]?.disabled) {
+        onTabChange(tabs[newIndex].id)
+      }
+    }
+  }
+
+  // Auto-scroll to active tab
+  useEffect(() => {
+    if (containerRef.current) {
+      const activeTabElement = containerRef.current.querySelector(`[data-tab-id="${activeTab}"]`) as HTMLElement
+      if (activeTabElement) {
+        activeTabElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'center'
+        })
+      }
+    }
+  }, [activeTab])
 
   const getVariantClasses = (isActive: boolean) => {
     switch (variant) {
@@ -51,10 +114,16 @@ export default function Tabs({
 
   return (
     <div className={cn('w-full', className)}>
-      <div className={cn(
-        'flex overflow-x-auto scrollbar-hide',
-        variant === 'underline' ? 'border-b border-cozy-gray-200' : 'rounded-xl border border-cozy-gray-300 overflow-hidden'
-      )}>
+      <div 
+        ref={containerRef}
+        className={cn(
+          'flex overflow-x-auto scrollbar-hide',
+          variant === 'underline' ? 'border-b border-cozy-gray-200' : 'rounded-xl border border-cozy-gray-300 overflow-hidden'
+        )}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
         {tabs.map((tab, index) => {
           const isActive = activeTab === tab.id
           const Icon = tab.icon
@@ -62,6 +131,7 @@ export default function Tabs({
           return (
             <button
               key={tab.id}
+              data-tab-id={tab.id}
               onClick={() => !tab.disabled && onTabChange(tab.id)}
               disabled={tab.disabled}
               className={cn(

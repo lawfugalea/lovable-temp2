@@ -22,19 +22,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Verify the medicine belongs to the household
+  console.log(`Looking for medicine ${id} in household ${householdId}`)
+  
   const existingMedicine = await prisma.medicine.findFirst({
     where: {
       id,
-      child: {
-        householdId
-      }
+      OR: [
+        {
+          // For templates (childId is null)
+          isTemplate: true,
+          childId: null
+        },
+        {
+          // For active courses (childId is not null)
+          isTemplate: false,
+          child: {
+            householdId
+          }
+        }
+      ]
     },
     include: {
       child: true
     }
   })
 
+  console.log(`Medicine lookup result:`, existingMedicine)
+
   if (!existingMedicine) {
+    console.log(`Medicine ${id} not found or doesn't belong to household ${householdId}`)
     return res.status(404).json({ error: 'Medicine not found or does not belong to household' })
   }
 
@@ -84,13 +100,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'DELETE') {
     try {
-      // Check if there are any doses associated with this medicine
+      console.log(`Attempting to delete medicine: ${id}`)
+      console.log(`Household ID: ${householdId}`)
+      console.log(`Found medicine:`, existingMedicine)
+      
+      // For templates, always hard delete (they shouldn't have doses)
+      if (existingMedicine.isTemplate) {
+        console.log(`Hard deleting template ${id}`)
+        await prisma.medicine.delete({
+          where: { id }
+        })
+        return res.json({ message: 'Template deleted' })
+      }
+      
+      // For active courses, check if there are any doses
       const doseCount = await prisma.medicineDose.count({
         where: { medicineId: id }
       })
+      
+      console.log(`Dose count for medicine ${id}: ${doseCount}`)
 
       if (doseCount > 0) {
         // Soft delete - mark as inactive instead of hard delete
+        console.log(`Soft deleting medicine ${id} (has ${doseCount} doses)`)
         await prisma.medicine.update({
           where: { id },
           data: { isActive: false }
@@ -98,6 +130,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.json({ message: 'Medicine deactivated (has associated doses)' })
       } else {
         // Hard delete if no doses
+        console.log(`Hard deleting medicine ${id} (no doses)`)
         await prisma.medicine.delete({
           where: { id }
         })

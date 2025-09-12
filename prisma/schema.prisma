@@ -225,6 +225,7 @@ model Child {
   medicines     Medicine[]
   doses         MedicineDose[]
   reminders     MedicineReminder[]
+  reactions     MedicineReaction[]
   feverReadings FeverReading[]
   
   @@index([householdId])
@@ -236,6 +237,7 @@ model Medicine {
   name        String
   description String?
   dosage      String   // e.g., "5ml", "1 tablet", "2 drops"
+  medicineType String? // e.g., "one-time", "course", "as-needed"
   frequency   String   // e.g., "every 6 hours", "twice daily", "as needed"
   startDate   DateTime
   endDate     DateTime?
@@ -249,9 +251,23 @@ model Medicine {
   nextDoseOverride DateTime? // When parent manually sets next dose time
   overrideReason   String?   // Reason for override (e.g., "sleep schedule", "meal timing")
   
+  // Inventory tracking
+  currentQuantity    Int?     // Current amount in stock
+  totalQuantity      Int?     // Total amount when full
+  unit               String?  // Unit of measurement (ml, tablets, etc.)
+  lowStockThreshold  Int?     // Alert when quantity drops below this
+  expiryDate         DateTime? // Medicine expiry date
+  
+  // Prescription information
+  prescriptionNumber String?  // Prescription reference number
+  doctorName         String?  // Prescribing doctor
+  pharmacyName       String?  // Pharmacy where purchased
+  prescriptionDate   DateTime? // Date prescription was issued
+  
   child       Child?        @relation(fields: [childId], references: [id])
   doses       MedicineDose[]
   reminders   MedicineReminder[]
+  reactions   MedicineReaction[]
   
   @@index([childId])
   @@index([isActive])
@@ -292,6 +308,28 @@ model MedicineReminder {
   @@index([childId, scheduledAt])
   @@index([medicineId])
   @@index([scheduledAt, isActive])
+}
+
+model MedicineReaction {
+  id         String   @id @default(cuid())
+  childId    String
+  medicineId String
+  reactionType String // e.g., "side_effect", "allergy", "adverse_reaction"
+  severity   String   // e.g., "mild", "moderate", "severe"
+  description String
+  symptoms   String?  // Specific symptoms observed
+  occurredAt DateTime
+  duration   String?  // How long the reaction lasted
+  actionTaken String? // What was done in response
+  notes      String?
+  createdAt  DateTime @default(now())
+  
+  child      Child    @relation(fields: [childId], references: [id])
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+  
+  @@index([childId, occurredAt])
+  @@index([medicineId])
+  @@index([reactionType])
 }
 
 enum ReminderType {
