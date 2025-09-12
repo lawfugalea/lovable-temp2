@@ -5,6 +5,7 @@ import ModernAppShell from '../components/ModernAppShell'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
+import Tabs, { TabPanel } from '../components/ui/Tabs'
 import Link from 'next/link'
 import { usePageState } from '../hooks/usePageState'
 import { 
@@ -27,7 +28,10 @@ import {
   PieChart,
   TrendingDown,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Home,
+  History,
+  Settings
 } from 'lucide-react'
 
 interface ShoppingList {
@@ -104,6 +108,9 @@ export default function DashboardPage() {
     monthlySavings: 0,
     recentActivityCount: 0
   })
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('overview')
 
   // Check for join success message
   useEffect(() => {
@@ -240,6 +247,29 @@ export default function DashboardPage() {
 
   const dueMedicines = getDueMedicines()
 
+  // Tab configuration
+  const tabs = [
+    { 
+      id: 'overview', 
+      label: 'Overview', 
+      icon: Home,
+      badge: dashboardStats.totalShoppingItems + dashboardStats.dueMedicines > 0 
+        ? dashboardStats.totalShoppingItems + dashboardStats.dueMedicines 
+        : undefined
+    },
+    { 
+      id: 'activity', 
+      label: 'Recent Activity', 
+      icon: Activity,
+      badge: dashboardStats.recentActivityCount > 0 ? dashboardStats.recentActivityCount : undefined
+    },
+    { 
+      id: 'quick-actions', 
+      label: 'Quick Actions', 
+      icon: Zap
+    }
+  ]
+
   // Enhanced stats with trends and insights
   const enhancedStats = [
     {
@@ -356,8 +386,20 @@ export default function DashboardPage() {
   return (
     <ModernAppShell title="Overview">
       <div className="space-y-6">
-        {/* Enhanced Header with Personalization */}
-        <div className="animate-cozy-fade-in">
+        {/* Tab Navigation */}
+        <Tabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          variant="pills"
+          className="mb-6"
+        />
+
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <TabPanel>
+            {/* Enhanced Header with Personalization */}
+            <div className="animate-cozy-fade-in">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-cozy-text mb-2">
@@ -629,9 +671,147 @@ export default function DashboardPage() {
                 <span>Your household is thriving with love!</span>  
                 <span className="animate-cozy-pulse-gentle">💝</span>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+             </div>
+           </CardContent>
+         </Card>
+          </TabPanel>
+        )}
+
+        {activeTab === 'activity' && (
+          <TabPanel>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Activity className="h-5 w-5" />
+                  Recent Activity
+                </CardTitle>
+                <CardDescription>
+                  Latest updates from your household
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {/* Medicine Doses */}
+                {recentDoses.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <Heart className="h-4 w-4" />
+                      Recent Medicine Doses
+                    </h3>
+                    <div className="space-y-2">
+                      {recentDoses.slice(0, 5).map((dose) => (
+                        <div key={dose.id} className="flex items-center justify-between p-3 bg-cozy-cream rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 bg-cozy-terracotta/20 rounded-full flex items-center justify-center">
+                              <CheckCircle className="h-4 w-4 text-cozy-terracotta" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{dose.medicine.name}</p>
+                              <p className="text-sm text-cozy-text-muted">
+                                {dose.child.name} • {new Date(dose.takenAt).toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="secondary">{dose.dosage}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Shopping Activity */}
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    Shopping Updates
+                  </h3>
+                  <div className="text-center py-8">
+                    <ShoppingCart className="h-12 w-12 text-cozy-text-muted mx-auto mb-4" />
+                    <p className="text-cozy-text-muted">No recent shopping activity</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabPanel>
+        )}
+
+        {activeTab === 'quick-actions' && (
+          <TabPanel>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Quick Actions
+                </CardTitle>
+                <CardDescription>
+                  Common tasks to get things done quickly
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
+                    <Link href="/shopping">
+                      <ShoppingCart className="h-6 w-6 text-cozy-sage" />
+                      <div className="text-left">
+                        <div className="font-semibold">Add Shopping Item</div>
+                        <div className="text-sm text-cozy-text-muted">Quickly add items to your list</div>
+                      </div>
+                    </Link>
+                  </Button>
+
+                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
+                    <Link href="/medicine">
+                      <Heart className="h-6 w-6 text-cozy-terracotta" />
+                      <div className="text-left">
+                        <div className="font-semibold">Log Medicine Dose</div>
+                        <div className="text-sm text-cozy-text-muted">Record a medicine taken</div>
+                      </div>
+                    </Link>
+                  </Button>
+
+                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
+                    <Link href="/finances">
+                      <DollarSign className="h-6 w-6 text-cozy-primary" />
+                      <div className="text-left">
+                        <div className="font-semibold">View Finances</div>
+                        <div className="text-sm text-cozy-text-muted">Check budget and expenses</div>
+                      </div>
+                    </Link>
+                  </Button>
+
+                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
+                    <Link href="/settings">
+                      <Users className="h-6 w-6 text-cozy-warm" />
+                      <div className="text-left">
+                        <div className="font-semibold">Manage Household</div>
+                        <div className="text-sm text-cozy-text-muted">Invite members and settings</div>
+                      </div>
+                    </Link>
+                  </Button>
+
+                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
+                    <Link href="/notes">
+                      <Star className="h-6 w-6 text-cozy-sage" />
+                      <div className="text-left">
+                        <div className="font-semibold">Add Note</div>
+                        <div className="text-sm text-cozy-text-muted">Create a new household note</div>
+                      </div>
+                    </Link>
+                  </Button>
+
+                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
+                    <Link href="/household">
+                      <Settings className="h-6 w-6 text-cozy-primary" />
+                      <div className="text-left">
+                        <div className="font-semibold">Household Settings</div>
+                        <div className="text-sm text-cozy-text-muted">Manage your household</div>
+                      </div>
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabPanel>
+        )}
       </div>
     </ModernAppShell>
   )
