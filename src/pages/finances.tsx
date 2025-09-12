@@ -1326,17 +1326,205 @@ export default function FinancesPage() {
 
         {activeTab === 'goals' && (
           <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Financial Goals content will be organized here</p>
-            </div>
+            {/* Financial Goals Section */}
+            <CollapsibleSection
+              id="financial-goals"
+              title="Financial Goals"
+              icon={<Target className="h-5 w-5" />}
+              badge={financialGoals.length}
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs sm:text-sm text-cozy-text-muted">
+                    Set and track your specific financial goals
+                  </p>
+                  <Button
+                    onClick={() => setShowGoalModal(true)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1 text-xs sm:text-sm"
+                  >
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Add Goal</span>
+                    <span className="sm:hidden">Add</span>
+                  </Button>
+                </div>
+                
+                {financialGoals.length === 0 ? (
+                  <div className="text-center py-6 sm:py-8 text-cozy-text-muted">
+                    <Target className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-3 sm:mb-4 text-cozy-gray-400" />
+                    <p className="text-base sm:text-lg font-medium mb-2">No goals set yet</p>
+                    <p className="text-xs sm:text-sm">Create your first financial goal to start tracking your progress</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                    {financialGoals.map((goal) => {
+                      const progress = getGoalProgress(goal)
+                      const monthlyContribution = getMonthlyContribution(goal)
+                      const priorityColors = {
+                        low: 'border-green-200 bg-green-50',
+                        medium: 'border-yellow-200 bg-yellow-50',
+                        high: 'border-red-200 bg-red-50'
+                      }
+                      
+                      return (
+                        <Card key={goal.id} className={`border-l-4 ${priorityColors[goal.priority]}`}>
+                          <CardContent className="p-3 sm:p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h3 className="text-sm sm:text-base font-semibold text-cozy-text">{goal.name}</h3>
+                                <p className="text-xs sm:text-sm text-cozy-text-muted capitalize">{goal.category}</p>
+                              </div>
+                              <Button
+                                onClick={() => deleteGoal(goal.id)}
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 p-1 sm:p-2"
+                              >
+                                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                              </Button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                              <div>
+                                <div className="flex justify-between text-xs sm:text-sm mb-1">
+                                  <span>Progress</span>
+                                  <span>{progress.toFixed(1)}%</span>
+                                </div>
+                                <div className="w-full bg-cozy-gray-200 rounded-full h-2">
+                                  <div 
+                                    className="bg-cozy-primary h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+                                <div>
+                                  <p className="text-cozy-text-muted">Current</p>
+                                  <p className="font-semibold">{formatCurrency(goal.currentAmount)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-cozy-text-muted">Target</p>
+                                  <p className="font-semibold">{formatCurrency(goal.targetAmount)}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+                                <div>
+                                  <p className="text-cozy-text-muted">Target Date</p>
+                                  <p className="font-semibold">{new Date(goal.targetDate).toLocaleDateString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-cozy-text-muted">Monthly Need</p>
+                                  <p className="font-semibold text-green-600">{formatCurrency(monthlyContribution)}</p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={() => {
+                                    const newAmount = goal.currentAmount + 100
+                                    updateGoal(goal.id, { currentAmount: newAmount })
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs flex-1"
+                                >
+                                  +€100
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    const newAmount = goal.currentAmount + 500
+                                    updateGoal(goal.id, { currentAmount: newAmount })
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs flex-1"
+                                >
+                                  +€500
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    const newAmount = goal.currentAmount + 1000
+                                    updateGoal(goal.id, { currentAmount: newAmount })
+                                  }}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs flex-1"
+                                >
+                                  +€1K
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </CollapsibleSection>
           </TabPanel>
         )}
 
         {activeTab === 'reports' && (
           <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Reports content will be organized here</p>
-            </div>
+            {/* Split Method */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Calculator className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Split Method
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">How should expenses be divided between earners?</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {[
+                    { key: 'equal', label: 'Equal Split' },
+                    { key: 'proportional', label: 'Proportional' },
+                    { key: 'custom', label: 'Custom' }
+                  ].map((method) => (
+                    <Button
+                      key={method.key}
+                      variant={splitMethod === method.key ? 'default' : 'outline'}
+                      onClick={() => {
+                        setFinanceState(prev => ({ ...prev, splitMethod: method.key as SplitMethod }))
+                        markAsChanged()
+                      }}
+                      className="text-xs sm:text-sm"
+                    >
+                      {method.label}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Contribution Table */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">Contribution Breakdown</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">See how expenses are split between earners</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ContribTableDesktop
+                  accounts={bankAccounts}
+                  earners={earners}
+                  split={calculateSplit}
+                  autoSavingsTarget={autoSavingsTarget}
+                  savingsPct={savingsPct}
+                />
+                <ContribCardsMobile
+                  accounts={bankAccounts}
+                  earners={earners}
+                  split={calculateSplit}
+                  autoSavingsTarget={autoSavingsTarget}
+                  savingsPct={savingsPct}
+                />
+              </CardContent>
+            </Card>
           </TabPanel>
         )}
 
