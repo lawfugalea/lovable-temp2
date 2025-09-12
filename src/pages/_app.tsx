@@ -12,6 +12,17 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
+
+    // Register service worker for PWA functionality
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+      navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+          console.log('SW registered: ', registration);
+        })
+        .catch((registrationError) => {
+          console.log('SW registration failed: ', registrationError);
+        });
+    }
   }, [])
 
   // Minimal route to isolate Fast Refresh loops without auth/session context
