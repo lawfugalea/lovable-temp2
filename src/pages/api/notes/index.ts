@@ -34,6 +34,15 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
     
     console.log('API: Getting notes with params:', { type, householdId, userId: user.id })
     
+    // Get user's household memberships to find shared notes
+    const userMemberships = await prisma.membership.findMany({
+      where: { userId: user.id },
+      select: { householdId: true }
+    })
+    const userHouseholdIds = userMemberships.map(m => m.householdId)
+    
+    console.log('API: User household IDs:', userHouseholdIds)
+    
     let whereClause: any = {
       OR: [
         { createdById: user.id }, // User's own notes
@@ -43,7 +52,14 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
               userId: user.id
             }
           }
-        } // Notes where user is a collaborator
+        }, // Notes where user is a collaborator
+        {
+          // Shared notes from user's households
+          isShared: true,
+          householdId: {
+            in: userHouseholdIds
+          }
+        }
       ]
     }
 
@@ -65,6 +81,13 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
               some: {
                 userId: user.id
               }
+            }
+          },
+          {
+            // Shared notes from user's households
+            isShared: true,
+            householdId: {
+              in: userHouseholdIds
             }
           }
         ]

@@ -18,6 +18,37 @@
   writing-mode: horizontal-tb !important;
 }
 
+/* TipTap Editor specific styles for proper scrolling */
+.ProseMirror {
+  outline: none !important;
+  padding: 1rem !important;
+  line-height: 1.6 !important;
+  min-height: 400px !important;
+  height: auto !important;
+  overflow: visible !important;
+}
+
+.ProseMirror:focus {
+  outline: none !important;
+}
+
+/* Mobile keyboard handling */
+@media (max-width: 768px) {
+  .ProseMirror {
+    /* Ensure proper touch handling on mobile */
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    -webkit-touch-callout: default !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  
+  /* Improve mobile scrolling */
+  .ProseMirror-container {
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth !important;
+  }
+}
+
 /* Force direction on all elements inside contentEditable */
 [contenteditable] p,
 [contenteditable] div,
@@ -346,3 +377,28 @@ html, body {
 .animation-delay-1000 { animation-delay: 1000ms; }
 .animation-delay-1500 { animation-delay: 1500ms; }
 .animation-delay-2000 { animation-delay: 2000ms; }
+
+/* Handle broken images in notes */
+.ProseMirror img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 8px !important;
+}
+
+.ProseMirror img[src=""],
+.ProseMirror img:not([src]) {
+  display: none !important;
+}
+
+/* Show error message for broken images */
+.ProseMirror img::after {
+  content: "Image failed to load";
+  display: block;
+  padding: 1rem;
+  background: #f3f4f6;
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  color: #6b7280;
+  text-align: center;
+  font-size: 0.875rem;
+}

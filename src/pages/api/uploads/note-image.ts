@@ -118,10 +118,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const finalPath = path.join(uploadDir, file.newFilename)
     if (fs.existsSync(file.filepath)) {
       fs.renameSync(file.filepath, finalPath)
+      console.log('File moved to:', finalPath)
+    } else {
+      console.error('Source file not found:', file.filepath)
     }
 
     // Return the public URL
     const publicUrl = `/uploads/notes/${file.newFilename}`
+    console.log('Returning public URL:', publicUrl)
     
     return res.status(200).json({ 
       url: publicUrl,

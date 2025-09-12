@@ -57,6 +57,7 @@ export default function RichTextEditor({
   const [showSlashMenu, setShowSlashMenu] = useState(false)
   const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const editorContainerRef = useRef<HTMLDivElement>(null)
 
   const lowlight = createLowlight(common)
 
@@ -179,12 +180,88 @@ export default function RichTextEditor({
     },
   })
 
+  // Mobile keyboard handling to keep cursor visible
+  useEffect(() => {
+    if (!editor || !editorContainerRef.current) return
+
+    const isMobile = 'ontouchstart' in window && window.innerWidth <= 768
+    
+    if (!isMobile) return
+
+    const handleSelectionUpdate = () => {
+      const { from } = editor.state.selection
+      const coords = editor.view.coordsAtPos(from)
+      const container = editorContainerRef.current
+      
+      if (!container) return
+
+      // Get viewport info
+      const viewportHeight = window.innerHeight
+      const viewportWidth = window.innerWidth
+      
+      // Check if cursor is in the bottom 60% of the screen (where keyboard typically appears)
+      const isCursorInKeyboardArea = coords.top > viewportHeight * 0.4
+      
+      if (isCursorInKeyboardArea) {
+        // Calculate scroll position to keep cursor visible
+        const targetCursorPosition = viewportHeight * 0.25 // Keep cursor in upper 25% of screen
+        const scrollAmount = coords.top - targetCursorPosition
+        
+        // Smooth scroll to bring cursor into view
+        container.scrollTo({
+          top: container.scrollTop + scrollAmount,
+          behavior: 'smooth'
+        })
+      }
+    }
+
+    // Handle keyboard appearance/disappearance
+    const handleResize = () => {
+      // Delay to allow keyboard animation to complete
+      setTimeout(handleSelectionUpdate, 100)
+    }
+
+    // Listen for selection changes (cursor movement)
+    editor.on('selectionUpdate', handleSelectionUpdate)
+    
+    // Handle focus events
+    const handleFocus = () => {
+      setTimeout(handleSelectionUpdate, 500) // Delay to allow keyboard to appear
+    }
+
+    const handleBlur = () => {
+      // Optional: scroll back to top when keyboard disappears
+      setTimeout(() => {
+        if (editorContainerRef.current) {
+          editorContainerRef.current.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          })
+        }
+      }, 300)
+    }
+
+    const editorElement = editor.view.dom
+    editorElement.addEventListener('focus', handleFocus)
+    editorElement.addEventListener('blur', handleBlur)
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      editor.off('selectionUpdate', handleSelectionUpdate)
+      editorElement.removeEventListener('focus', handleFocus)
+      editorElement.removeEventListener('blur', handleBlur)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [editor])
+
   const handleImageUpload = useCallback(async (file: File) => {
     if (!editor) return
 
     setIsUploading(true)
     
     try {
+      console.log('Uploading image:', file.name, file.size, file.type)
+      
       const formData = new FormData()
       formData.append('image', file)
 
@@ -194,12 +271,15 @@ export default function RichTextEditor({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to upload image')
+        const errorText = await response.text()
+        console.error('Upload failed:', response.status, errorText)
+        throw new Error(`Failed to upload image: ${response.status}`)
       }
 
-      const { url } = await response.json()
+      const result = await response.json()
+      console.log('Upload successful:', result)
       
-      editor.chain().focus().setImage({ src: url }).run()
+      editor.chain().focus().setImage({ src: result.url }).run()
     } catch (error) {
       console.error('Error uploading image:', error)
       // You could show a toast notification here
@@ -245,7 +325,7 @@ export default function RichTextEditor({
   return (
     <div className={`border border-gray-200 rounded-lg ${className}`}>
       {/* Toolbar */}
-      <div className="flex items-center gap-1 p-2 border-b border-gray-200 bg-gray-50 rounded-t-lg flex-wrap">
+      <div className="sticky top-0 z-10 flex items-center gap-1 p-2 border-b border-gray-200 bg-gray-50 rounded-t-lg flex-wrap shadow-sm">
         {/* Undo/Redo */}
         <TooltipProvider>
           <Tooltip>
@@ -547,7 +627,7 @@ export default function RichTextEditor({
       </div>
 
       {/* Editor Content */}
-      <div className="min-h-[300px]">
+      <div ref={editorContainerRef} className="h-[500px] overflow-y-auto border border-gray-100 ProseMirror-container">
         <EditorContent editor={editor} />
       </div>
 
