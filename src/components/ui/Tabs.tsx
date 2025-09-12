@@ -27,10 +27,6 @@ export default function Tabs({
   size = 'md'
 }: TabsProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const [touchStart, setTouchStart] = useState<number | null>(null)
-  const [touchEnd, setTouchEnd] = useState<number | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
-  const [scrollStart, setScrollStart] = useState<number | null>(null)
 
   const sizeClasses = {
     sm: 'px-2 py-1 text-xs',
@@ -38,83 +34,9 @@ export default function Tabs({
     lg: 'px-4 py-2 text-base'
   }
 
-  // Minimum distance for a swipe gesture
-  const minSwipeDistance = 50
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const touch = e.targetTouches[0]
-    setTouchStart(touch.clientX)
-    setTouchEnd(null)
-    setIsDragging(false)
-    
-    // Store initial scroll position
-    if (containerRef.current) {
-      setScrollStart(containerRef.current.scrollLeft)
-    }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const touch = e.targetTouches[0]
-    setTouchEnd(touch.clientX)
-    
-    // Determine if this is a horizontal drag for scrolling tabs
-    if (touchStart !== null && containerRef.current) {
-      const deltaX = Math.abs(touch.clientX - touchStart)
-      const deltaY = Math.abs(touch.clientY - (e.targetTouches[0].clientY))
-      
-      // If horizontal movement is greater than vertical, allow scrolling
-      if (deltaX > deltaY && deltaX > 10) {
-        setIsDragging(true)
-        e.preventDefault() // Prevent default scrolling behavior
-        
-        // Manual scroll implementation
-        const scrollDelta = touchStart - touch.clientX
-        const newScrollLeft = (scrollStart || 0) + scrollDelta
-        containerRef.current.scrollLeft = newScrollLeft
-      }
-    }
-  }
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd || !isDragging) {
-      setIsDragging(false)
-      setTouchStart(null)
-      setTouchEnd(null)
-      setScrollStart(null)
-      return
-    }
-    
-    const distance = touchStart - touchEnd
-    const isLeftSwipe = distance > minSwipeDistance
-    const isRightSwipe = distance < -minSwipeDistance
-
-    // Only change tabs if it's a clear swipe gesture and not just scrolling
-    if ((isLeftSwipe || isRightSwipe) && Math.abs(distance) > minSwipeDistance) {
-      const currentIndex = tabs.findIndex(tab => tab.id === activeTab)
-      let newIndex = currentIndex
-
-      if (isLeftSwipe && currentIndex < tabs.length - 1) {
-        // Swipe left - go to next tab
-        newIndex = currentIndex + 1
-      } else if (isRightSwipe && currentIndex > 0) {
-        // Swipe right - go to previous tab
-        newIndex = currentIndex - 1
-      }
-
-      if (newIndex !== currentIndex && !tabs[newIndex]?.disabled) {
-        onTabChange(tabs[newIndex].id)
-      }
-    }
-    
-    setIsDragging(false)
-    setTouchStart(null)
-    setTouchEnd(null)
-    setScrollStart(null)
-  }
-
   // Auto-scroll to active tab
   useEffect(() => {
-    if (containerRef.current && !isDragging) {
+    if (containerRef.current) {
       const activeTabElement = containerRef.current.querySelector(`[data-tab-id="${activeTab}"]`) as HTMLElement
       if (activeTabElement) {
         activeTabElement.scrollIntoView({
@@ -124,7 +46,7 @@ export default function Tabs({
         })
       }
     }
-  }, [activeTab, isDragging])
+  }, [activeTab])
 
   const getVariantClasses = (isActive: boolean) => {
     switch (variant) {
@@ -148,22 +70,16 @@ export default function Tabs({
       <div 
         ref={containerRef}
         className={cn(
-          'flex overflow-x-auto scrollbar-hide',
-          // Enhanced mobile scrolling
-          'touch-pan-x', // Enable horizontal panning
-          'overscroll-x-contain', // Prevent overscroll
-          'scroll-smooth', // Smooth scrolling
-          // Better touch targets
-          'min-h-[44px]', // Minimum touch target height
-          variant === 'underline' ? 'border-b border-cozy-gray-200' : 'rounded-xl border border-cozy-gray-300 overflow-hidden'
+          'flex overflow-x-auto scrollbar-hide mobile-tabs-container',
+          // Better touch target height
+          'min-h-[48px]',
+          variant === 'underline' ? 'border-b border-cozy-gray-200' : 'rounded-xl border border-cozy-gray-300'
         )}
         style={{
-          WebkitOverflowScrolling: 'touch', // iOS momentum scrolling
-          scrollBehavior: 'smooth'
+          // Ensure horizontal scrolling works
+          overflowX: 'auto',
+          overflowY: 'hidden'
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         {tabs.map((tab, index) => {
           const isActive = activeTab === tab.id
@@ -176,22 +92,22 @@ export default function Tabs({
               onClick={() => !tab.disabled && onTabChange(tab.id)}
               disabled={tab.disabled}
               className={cn(
-                'flex items-center gap-1.5 font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:ring-offset-2 flex-shrink-0 min-w-0',
+                'flex items-center gap-1.5 font-medium transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-cozy-primary focus:ring-offset-2',
                 sizeClasses[size],
                 getVariantClasses(isActive),
                 tab.disabled && 'opacity-50 cursor-not-allowed',
                 variant === 'default' && index !== tabs.length - 1 && 'border-r border-cozy-gray-300',
                 variant === 'pills' && 'rounded-lg mx-0.5 my-1',
-                // Enhanced mobile optimizations
+                // Mobile-optimized touch targets - ensure tabs don't shrink
                 'touch-manipulation', // Better touch response
-                'min-h-[44px]', // Minimum touch target size
-                'min-w-[44px]', // Minimum touch target width
-                'px-3 py-2', // Better touch padding
+                'min-h-[48px]', // Larger touch target
+                'min-w-[80px]', // Larger minimum width for better scrolling
+                'px-4 py-3', // Better touch padding
                 'text-sm', // Consistent text size
-                'active:scale-95', // Touch feedback
-                'select-none', // Prevent text selection on touch
-                // Ensure tabs don't shrink too much
-                'whitespace-nowrap'
+                'select-none', // Prevent text selection
+                'whitespace-nowrap', // Prevent text wrapping
+                'cursor-pointer', // Better cursor feedback
+                'flex-shrink-0' // Prevent tabs from shrinking
               )}
               aria-pressed={isActive}
             >

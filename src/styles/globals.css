@@ -11,6 +11,14 @@
   display: none;  /* Safari and Chrome */
 }
 
+/* Mobile tabs scrolling optimization */
+.mobile-tabs-container {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+
 /* Fix for contentEditable text direction */
 [contenteditable] {
   direction: ltr !important;
