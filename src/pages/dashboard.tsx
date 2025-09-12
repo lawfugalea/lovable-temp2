@@ -399,79 +399,79 @@ export default function DashboardPage() {
         {activeTab === 'overview' && (
           <TabPanel>
             {/* Enhanced Header with Personalization */}
-            <div className="animate-cozy-fade-in">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-cozy-text mb-2">
-                Welcome back{session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''}! 👋
-              </h1>
-              <p className="text-cozy-text-muted">
-                Here's what's happening with your household today.
-              </p>
-            </div>
-            <div className="hidden md:flex items-center gap-2">
-              <Badge variant="secondary" className="bg-cozy-cream text-cozy-text">
-                <Heart className="w-3 h-3 mr-1" />
-                {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
-              </Badge>
-            </div>
-          </div>
-        </div>
-
-        {/* Join Success Message */}
-        {showJoinSuccess && (
-          <Card className="border-green-200 bg-green-50 animate-cozy-bounce-in">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="text-green-600 text-2xl">🎉</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-green-800">
-                    Welcome to your new household!
-                  </h3>
-                  <p className="text-sm text-green-700">
-                    You&apos;ve successfully joined the household. Your data is being loaded...
+            <div className="animate-cozy-fade-in mb-8">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-3xl font-bold text-cozy-text mb-2">
+                    Welcome back{session?.user?.name ? `, ${session.user.name.split(' ')[0]}` : ''}! 👋
+                  </h1>
+                  <p className="text-cozy-text-muted">
+                    Here's what's happening with your household today.
                   </p>
                 </div>
-                <button 
-                  onClick={() => setShowJoinSuccess(false)}
-                  className="text-green-600 hover:text-green-800 text-sm underline"
-                >
-                  Dismiss
-                </button>
+                <div className="hidden md:flex items-center gap-2">
+                  <Badge variant="secondary" className="bg-cozy-cream text-cozy-text">
+                    <Heart className="w-3 h-3 mr-1" />
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+                  </Badge>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        {/* Medicine Alerts */}
-        {dueMedicines.length > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="text-orange-600 text-2xl">⚠️</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-orange-800">
-                    Medicine Reminder
-                  </h3>
-                  <p className="text-sm text-orange-700">
-                    {dueMedicines.length} medicine{dueMedicines.length !== 1 ? 's' : ''} {dueMedicines.length === 1 ? 'is' : 'are'} due for administration
-                  </p>
-                  <div className="text-xs text-orange-600 mt-1">
-                    {dueMedicines.map(medicine => `${medicine.name} (${medicine.child.name})`).join(', ')}
+            {/* Join Success Message */}
+            {showJoinSuccess && (
+              <Card className="border-green-200 bg-green-50 animate-cozy-bounce-in mb-6">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="text-green-600 text-2xl">🎉</div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-green-800">
+                        Welcome to your new household!
+                      </h3>
+                      <p className="text-sm text-green-700">
+                        You&apos;ve successfully joined the household. Your data is being loaded...
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setShowJoinSuccess(false)}
+                      className="text-green-600 hover:text-green-800 text-sm underline"
+                    >
+                      Dismiss
+                    </button>
                   </div>
-                </div>
-                <Link href="/medicine">
-                  <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
-                    View Medicines
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Enhanced Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {/* Medicine Alerts */}
+            {dueMedicines.length > 0 && (
+              <Card className="border-orange-200 bg-orange-50 mb-6">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <div className="text-orange-600 text-2xl">⚠️</div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-orange-800">
+                        Medicine Reminder
+                      </h3>
+                      <p className="text-sm text-orange-700">
+                        {dueMedicines.length} medicine{dueMedicines.length !== 1 ? 's' : ''} {dueMedicines.length === 1 ? 'is' : 'are'} due for administration
+                      </p>
+                      <div className="text-xs text-orange-600 mt-1">
+                        {dueMedicines.map(medicine => `${medicine.name} (${medicine.child.name})`).join(', ')}
+                      </div>
+                    </div>
+                    <Link href="/medicine">
+                      <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
+                        View Medicines
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Enhanced Stats Grid */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
           {enhancedStats.map((stat, index) => {
             const Icon = stat.icon
             return (
@@ -512,20 +512,20 @@ export default function DashboardPage() {
           })}
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Quick Actions */}
-          <Card className="lg:col-span-2 animate-cozy-bounce-in" style={{ animationDelay: '400ms' }}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="w-5 h-5" />
-                Quick Actions
-              </CardTitle>
-              <CardDescription>
-                Common tasks to manage your household
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
+            {/* Main Content Grid */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Quick Actions */}
+              <Card className="lg:col-span-2 animate-cozy-bounce-in" style={{ animationDelay: '400ms' }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Zap className="w-5 h-5" />
+                    Quick Actions
+                  </CardTitle>
+                  <CardDescription>
+                    Common tasks to manage your household
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 md:grid-cols-2">
               {quickActions.map((action) => {
                 const Icon = action.icon
                 return (
@@ -555,18 +555,18 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Recent Activity */}
-          <Card className="animate-cozy-bounce-in" style={{ animationDelay: '500ms' }}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Recent Activity
-              </CardTitle>
-              <CardDescription>
-                Your latest household updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              {/* Recent Activity */}
+              <Card className="animate-cozy-bounce-in" style={{ animationDelay: '500ms' }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5" />
+                    Recent Activity
+                  </CardTitle>
+                  <CardDescription>
+                    Your latest household updates
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
               {recentActivity.length > 0 ? (
                 recentActivity.map((activity) => {
                   const Icon = activity.icon
@@ -604,18 +604,20 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Household Insights */}
-        <Card className="animate-cozy-bounce-in" style={{ animationDelay: '600ms' }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span className="animate-cozy-pulse-gentle">🌟</span>
-              Household Insights
-            </CardTitle>
-            <CardDescription>
-              Your household's progress and achievements
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
+            </div>
+
+            {/* Household Insights */}
+            <Card className="animate-cozy-bounce-in mt-6" style={{ animationDelay: '600ms' }}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="animate-cozy-pulse-gentle">🌟</span>
+                  Household Insights
+                </CardTitle>
+                <CardDescription>
+                  Your household's progress and achievements
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
             <div className="divide-y divide-cozy-gray-200">
               {[
                 { 
@@ -671,9 +673,9 @@ export default function DashboardPage() {
                 <span>Your household is thriving with love!</span>  
                 <span className="animate-cozy-pulse-gentle">💝</span>
               </div>
-             </div>
-           </CardContent>
-         </Card>
+              </div>
+            </CardContent>
+          </Card>
           </TabPanel>
         )}
 
