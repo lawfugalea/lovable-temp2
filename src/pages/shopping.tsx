@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import ListPicker from '../components/ListPicker'
-import { Plus, Check, Trash2, ShoppingCart, Search, Filter, X, FileText, Download, Save, List, Package, Template } from 'lucide-react'
+import { Plus, Check, Trash2, ShoppingCart, Search, Filter, X, FileText, Download, Save, List, Package, LayoutTemplate } from 'lucide-react'
 import Tabs, { TabPanel } from '../components/ui/Tabs'
 
 interface ShoppingItem {
@@ -725,7 +725,7 @@ export default function ShoppingPage() {
     { 
       id: 'templates', 
       label: 'Templates', 
-      icon: Template
+      icon: LayoutTemplate
     },
     { 
       id: 'search', 
@@ -1015,7 +1015,7 @@ export default function ShoppingPage() {
         {activeTab === 'search' && (
           <TabPanel>
             <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Search & Add content will be organized here</p>
+              <p className="text-cozy-text-muted">Coming soon. Prices between stores will be organized here and compared</p>
             </div>
           </TabPanel>
         )}
