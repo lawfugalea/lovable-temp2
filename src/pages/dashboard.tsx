@@ -97,6 +97,7 @@ export default function DashboardPage() {
   const [totalItems, setTotalItems] = useState(0)
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [recentDoses, setRecentDoses] = useState<MedicineDose[]>([])
+  const [recentShoppingItems, setRecentShoppingItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showJoinSuccess, setShowJoinSuccess] = useState(false)
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
@@ -159,16 +160,20 @@ export default function DashboardPage() {
         const data = await response.json()
         setShoppingLists(data.lists || [])
         
-        // Calculate total items
+        // Calculate total items and get recent items
         let total = 0
+        let recentItems: any[] = []
         for (const list of data.lists || []) {
           const itemsResponse = await fetch(`/api/shopping/items?listId=${list.id}`)
           if (itemsResponse.ok) {
             const itemsData = await itemsResponse.json()
-            total += itemsData.items?.length || 0
+            const items = itemsData.items || []
+            total += items.length
+            recentItems = [...recentItems, ...items.map((item: any) => ({ ...item, shoppingList: list }))]
           }
         }
         setTotalItems(total)
+        setRecentShoppingItems(recentItems.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()))
       }
     } catch (error) {
       console.error('Failed to load shopping data:', error)
@@ -349,27 +354,6 @@ export default function DashboardPage() {
     },
   ]
 
-  const recentActivity = [
-    ...recentDoses.slice(0, 3).map((dose) => ({
-      id: `dose-${dose.id}`,
-      type: 'medicine',
-      title: `${dose.medicine.name} given to ${dose.child.name}`,
-      time: new Date(dose.takenAt).toLocaleDateString(),
-      icon: Activity,
-      color: 'bg-cozy-primary-soft',
-      emoji: '💊'
-    })),
-    ...shoppingLists.slice(0, 2).map((list) => ({
-      id: `list-${list.id}`,
-      type: 'shopping',
-      title: `${list.name} (${list.itemCount} items)`,
-      time: 'Active list',
-      icon: ShoppingCart,
-      color: 'bg-cozy-sage-soft',
-      emoji: '🧺'
-    }))
-  ].slice(0, 5)
-
   if (status === 'loading' || loading) {
     return (
       <ModernAppShell title="Overview">
@@ -398,8 +382,8 @@ export default function DashboardPage() {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <TabPanel>
-            {/* Enhanced Header with Personalization */}
-            <div className="animate-cozy-fade-in mb-8">
+            {/* Welcome Header */}
+            <div className="animate-cozy-fade-in mb-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h1 className="text-3xl font-bold text-cozy-text mb-2">
@@ -472,60 +456,175 @@ export default function DashboardPage() {
 
             {/* Enhanced Stats Grid */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          {enhancedStats.map((stat, index) => {
-            const Icon = stat.icon
-            return (
-              <Link key={stat.name} href={stat.href}>
-                <Card className="animate-cozy-bounce-in hover:shadow-cozy-md transition-all duration-200 hover:-translate-y-1 cursor-pointer" 
-                      style={{ animationDelay: `${index * 100}ms` }}>
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-cozy-text-muted">
-                          {stat.name}
-                        </p>
-                        <p className="text-2xl font-bold text-cozy-text">{stat.value}</p>
-                        <p className="text-xs text-cozy-text-muted">
-                          {stat.change}
-                        </p>
+              {enhancedStats.map((stat, index) => {
+                const Icon = stat.icon
+                return (
+                  <Link key={stat.name} href={stat.href}>
+                    <Card className="animate-cozy-bounce-in hover:shadow-cozy-md transition-all duration-200 hover:-translate-y-1 cursor-pointer" 
+                          style={{ animationDelay: `${index * 100}ms` }}>
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-cozy-text-muted">
+                              {stat.name}
+                            </p>
+                            <p className="text-2xl font-bold text-cozy-text">{stat.value}</p>
+                            <p className="text-xs text-cozy-text-muted">
+                              {stat.change}
+                            </p>
+                          </div>
+                          <div className={`p-3 rounded-full ${stat.bgColor}`}>
+                            <Icon className={`w-6 h-6 ${stat.color}`} />
+                          </div>
+                        </div>
+                        {stat.trend === 'up' && (
+                          <Badge variant="secondary" className="mt-2">
+                            <TrendingUp className="w-3 h-3 mr-1" />
+                            Growing
+                          </Badge>
+                        )}
+                        {stat.trend === 'down' && (
+                          <Badge variant="secondary" className="mt-2 bg-orange-100 text-orange-800">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Attention
+                          </Badge>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Household Insights */}
+            <Card className="animate-cozy-bounce-in" style={{ animationDelay: '400ms' }}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span className="animate-cozy-pulse-gentle">🌟</span>
+                  Household Insights
+                </CardTitle>
+                <CardDescription>
+                  Your household's progress and achievements
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="divide-y divide-cozy-gray-200">
+                  {[
+                    { 
+                      icon: '🧺', 
+                      title: `${dashboardStats.totalShoppingItems} items in your shopping lists`, 
+                      meta: `${dashboardStats.totalShoppingLists} active lists`, 
+                      href: '/shopping' 
+                    },
+                    { 
+                      icon: '💊', 
+                      title: `${dashboardStats.activeMedicines} active medicines`, 
+                      meta: `${dashboardStats.dueMedicines} due for administration`, 
+                      href: '/medicine' 
+                    },
+                    { 
+                      icon: '💰', 
+                      title: `€${dashboardStats.monthlyIncome.toLocaleString()} monthly income`, 
+                      meta: `€${dashboardStats.monthlySavings.toLocaleString()} saved this month`, 
+                      href: '/finances' 
+                    }
+                  ].map((insight, index) => (
+                    <Link key={index} href={insight.href} className="block p-4 hover:bg-cozy-cream transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{insight.icon}</span>
+                        <div className="flex-1">
+                          <p className="font-medium text-cozy-text">{insight.title}</p>
+                          <p className="text-sm text-cozy-text-muted">{insight.meta}</p>
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-cozy-text-muted" />
                       </div>
-                      <div className={`p-3 rounded-full ${stat.bgColor}`}>
-                        <Icon className={`w-6 h-6 ${stat.color}`} />
-                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabPanel>
+        )}
+
+        {activeTab === 'activity' && (
+          <TabPanel>
+            {/* Recent Activity Content */}
+            <div className="space-y-6">
+              {/* Medicine Doses */}
+              {recentDoses.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Recent Medicine Doses
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {recentDoses.slice(0, 5).map((dose) => (
+                        <div key={dose.id} className="flex items-center justify-between p-3 bg-cozy-cream rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <div>
+                              <p className="font-medium text-sm">{dose.medicine.name}</p>
+                              <p className="text-xs text-cozy-text-muted">
+                                {dose.child.name} • {new Date(dose.takenAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="secondary" className="text-xs">
+                            {dose.dosage}
+                          </Badge>
+                        </div>
+                      ))}
                     </div>
-                    {stat.trend === 'up' && (
-                      <Badge variant="secondary" className="mt-2">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        Growing
-                      </Badge>
-                    )}
-                    {stat.trend === 'down' && (
-                      <Badge variant="secondary" className="mt-2 bg-orange-100 text-orange-800">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Attention
-                      </Badge>
-                    )}
                   </CardContent>
                 </Card>
-              </Link>
-            )
-          })}
-        </div>
+              )}
 
-            {/* Main Content Grid */}
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Quick Actions */}
-              <Card className="lg:col-span-2 animate-cozy-bounce-in" style={{ animationDelay: '400ms' }}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Zap className="w-5 h-5" />
-                    Quick Actions
-                  </CardTitle>
-                  <CardDescription>
-                    Common tasks to manage your household
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-2">
+              {/* Shopping Updates */}
+              {recentShoppingItems.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ShoppingCart className="h-5 w-5" />
+                      Recent Shopping Updates
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {recentShoppingItems.slice(0, 5).map((item) => (
+                        <div key={item.id} className="flex items-center justify-between p-3 bg-cozy-cream rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-2 h-2 rounded-full ${item.isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                            <div>
+                              <p className="font-medium text-sm">{item.name}</p>
+                              <p className="text-xs text-cozy-text-muted">
+                                {item.shoppingList.name} • {new Date(item.updatedAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant={item.isCompleted ? "default" : "secondary"} className="text-xs">
+                            {item.isCompleted ? 'Completed' : 'Pending'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Button variant="outline" className="w-full mt-4">
+                View All Activity
+              </Button>
+            </div>
+          </TabPanel>
+        )}
+
+        {activeTab === 'quick-actions' && (
+          <TabPanel>
+            {/* Quick Actions Content */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {quickActions.map((action) => {
                 const Icon = action.icon
                 return (
@@ -552,266 +651,7 @@ export default function DashboardPage() {
                   </Link>
                 )
               })}
-            </CardContent>
-          </Card>
-
-              {/* Recent Activity */}
-              <Card className="animate-cozy-bounce-in" style={{ animationDelay: '500ms' }}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="w-5 h-5" />
-                    Recent Activity
-                  </CardTitle>
-                  <CardDescription>
-                    Your latest household updates
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity) => {
-                  const Icon = activity.icon
-                  return (
-                    <div
-                      key={activity.id}
-                      className="flex items-start space-x-3"
-                    >
-                      <div className={`p-2 ${activity.color} rounded-lg`}>
-                        <Icon className="w-4 h-4 text-cozy-text" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-cozy-text">
-                          {activity.title}
-                        </p>
-                        <p className="text-xs text-cozy-text-muted">
-                          {activity.time}
-                        </p>
-                      </div>
-                      <span className="text-lg">{activity.emoji}</span>
-                    </div>
-                  )
-                })
-              ) : (
-                <div className="text-center py-8">
-                  <div className="text-4xl mb-2">🏠</div>
-                  <p className="text-sm text-cozy-text-muted">No recent activity</p>
-                  <p className="text-xs text-cozy-text-muted">Start by adding items or recording activities</p>
-                </div>
-              )}
-              <Button variant="outline" className="w-full mt-4">
-                View All Activity
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
             </div>
-
-            {/* Household Insights */}
-            <Card className="animate-cozy-bounce-in mt-6" style={{ animationDelay: '600ms' }}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span className="animate-cozy-pulse-gentle">🌟</span>
-                  Household Insights
-                </CardTitle>
-                <CardDescription>
-                  Your household's progress and achievements
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0">
-            <div className="divide-y divide-cozy-gray-200">
-              {[
-                { 
-                  icon: '🧺', 
-                  title: `${dashboardStats.totalShoppingItems} items in your shopping lists`, 
-                  meta: `${dashboardStats.totalShoppingLists} active lists`, 
-                  color: 'cozy-sage-soft',
-                  celebration: '🌸'
-                },
-                { 
-                  icon: '💰', 
-                  title: dashboardStats.monthlyIncome > 0 ? `€${dashboardStats.monthlyIncome.toLocaleString()} monthly income tracked` : 'Set up your income tracking', 
-                  meta: dashboardStats.monthlySavings > 0 ? `€${dashboardStats.monthlySavings.toLocaleString()} monthly savings` : 'Configure savings goals', 
-                  color: 'cozy-primary-soft',
-                  celebration: '✨'
-                },
-                { 
-                  icon: '💊', 
-                  title: `${dashboardStats.activeMedicines} active medicines being tracked`, 
-                  meta: dashboardStats.dueMedicines > 0 ? `${dashboardStats.dueMedicines} due for administration` : 'All medicines up to date', 
-                  color: 'cozy-cream',
-                  celebration: '🎉'
-                },
-                { 
-                  icon: '📊', 
-                  title: `${dashboardStats.recentActivityCount} activities recorded this week`, 
-                  meta: 'Keep up the great work!', 
-                  color: 'cozy-sage-soft',
-                  celebration: '🎊'
-                },
-              ].map((row, i) => (
-                <div key={i} className="px-6 py-4 hover:bg-cozy-cream/50 transition-all duration-300 group">
-                  <div className="flex items-center">
-                    <div className={`h-12 w-12 rounded-cozy bg-${row.color} grid place-items-center mr-4 shadow-cozy-sm border border-cozy-gray-200 group-hover:animate-cozy-wiggle`}>
-                      <span className="text-xl">{row.icon}</span>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm text-cozy-text font-medium truncate">{row.title}</div>
-                      <div className="text-xs text-cozy-text-muted">{row.meta}</div>
-                    </div>
-                    <div className="text-lg animate-cozy-pulse-gentle">
-                      {row.celebration}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Cute footer */}
-            <div className="px-6 py-4 bg-cozy-warm border-t border-cozy-gray-200 text-center">
-              <div className="text-sm text-cozy-text-muted flex items-center justify-center gap-2">
-                <span className="animate-cozy-pulse-gentle">💫</span>
-                <span>Your household is thriving with love!</span>  
-                <span className="animate-cozy-pulse-gentle">💝</span>
-              </div>
-              </div>
-            </CardContent>
-          </Card>
-          </TabPanel>
-        )}
-
-        {activeTab === 'activity' && (
-          <TabPanel>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="h-5 w-5" />
-                  Recent Activity
-                </CardTitle>
-                <CardDescription>
-                  Latest updates from your household
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {/* Medicine Doses */}
-                {recentDoses.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-semibold mb-3 flex items-center gap-2">
-                      <Heart className="h-4 w-4" />
-                      Recent Medicine Doses
-                    </h3>
-                    <div className="space-y-2">
-                      {recentDoses.slice(0, 5).map((dose) => (
-                        <div key={dose.id} className="flex items-center justify-between p-3 bg-cozy-cream rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 bg-cozy-terracotta/20 rounded-full flex items-center justify-center">
-                              <CheckCircle className="h-4 w-4 text-cozy-terracotta" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{dose.medicine.name}</p>
-                              <p className="text-sm text-cozy-text-muted">
-                                {dose.child.name} • {new Date(dose.takenAt).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">{dose.dosage}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Shopping Activity */}
-                <div>
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <ShoppingCart className="h-4 w-4" />
-                    Shopping Updates
-                  </h3>
-                  <div className="text-center py-8">
-                    <ShoppingCart className="h-12 w-12 text-cozy-text-muted mx-auto mb-4" />
-                    <p className="text-cozy-text-muted">No recent shopping activity</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabPanel>
-        )}
-
-        {activeTab === 'quick-actions' && (
-          <TabPanel>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-5 w-5" />
-                  Quick Actions
-                </CardTitle>
-                <CardDescription>
-                  Common tasks to get things done quickly
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                    <Link href="/shopping">
-                      <ShoppingCart className="h-6 w-6 text-cozy-sage" />
-                      <div className="text-left">
-                        <div className="font-semibold">Add Shopping Item</div>
-                        <div className="text-sm text-cozy-text-muted">Quickly add items to your list</div>
-                      </div>
-                    </Link>
-                  </Button>
-
-                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                    <Link href="/medicine">
-                      <Heart className="h-6 w-6 text-cozy-terracotta" />
-                      <div className="text-left">
-                        <div className="font-semibold">Log Medicine Dose</div>
-                        <div className="text-sm text-cozy-text-muted">Record a medicine taken</div>
-                      </div>
-                    </Link>
-                  </Button>
-
-                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                    <Link href="/finances">
-                      <DollarSign className="h-6 w-6 text-cozy-primary" />
-                      <div className="text-left">
-                        <div className="font-semibold">View Finances</div>
-                        <div className="text-sm text-cozy-text-muted">Check budget and expenses</div>
-                      </div>
-                    </Link>
-                  </Button>
-
-                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                    <Link href="/settings">
-                      <Users className="h-6 w-6 text-cozy-warm" />
-                      <div className="text-left">
-                        <div className="font-semibold">Manage Household</div>
-                        <div className="text-sm text-cozy-text-muted">Invite members and settings</div>
-                      </div>
-                    </Link>
-                  </Button>
-
-                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                    <Link href="/notes">
-                      <Star className="h-6 w-6 text-cozy-sage" />
-                      <div className="text-left">
-                        <div className="font-semibold">Add Note</div>
-                        <div className="text-sm text-cozy-text-muted">Create a new household note</div>
-                      </div>
-                    </Link>
-                  </Button>
-
-                  <Button asChild variant="outline" className="h-auto p-4 flex flex-col items-start gap-2">
-                    <Link href="/household">
-                      <Settings className="h-6 w-6 text-cozy-primary" />
-                      <div className="text-left">
-                        <div className="font-semibold">Household Settings</div>
-                        <div className="text-sm text-cozy-text-muted">Manage your household</div>
-                      </div>
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </TabPanel>
         )}
       </div>
