@@ -146,8 +146,14 @@ export async function registerBackgroundSync(): Promise<void> {
 
   try {
     const registration = await navigator.serviceWorker.ready;
-    await registration.sync.register('medicine-reminder-sync');
-    console.log('Background sync registered for medicine reminders');
+    // Type assertion for background sync API
+    const syncManager = (registration as any).sync;
+    if (syncManager) {
+      await syncManager.register('medicine-reminder-sync');
+      console.log('Background sync registered for medicine reminders');
+    } else {
+      console.log('Background sync manager not available');
+    }
   } catch (error) {
     console.error('Failed to register background sync:', error);
   }
