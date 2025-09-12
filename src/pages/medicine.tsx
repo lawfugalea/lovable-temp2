@@ -20,8 +20,12 @@ import {
   Edit,
   Trash2,
   Settings,
-  X
+  X,
+  History,
+  BarChart3,
+  Heart
 } from 'lucide-react'
+import Tabs, { TabPanel } from '../components/ui/Tabs'
 import { format, addDays, isToday, isTomorrow, parseISO } from 'date-fns'
 import FeverJournal from '../components/FeverJournal'
 
@@ -98,6 +102,9 @@ export default function MedicinePage() {
   
   // Form states
   const [newChild, setNewChild] = useState({ name: '', dateOfBirth: '', notes: '' })
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('medicines')
   const [newMedicine, setNewMedicine] = useState({ 
     childId: '', 
     name: '', 
@@ -866,6 +873,35 @@ export default function MedicinePage() {
     )
   }
 
+  // Tab configuration
+  const tabs = [
+    { 
+      id: 'medicines', 
+      label: 'Active Medicines', 
+      icon: Pill,
+      badge: medicines.filter(m => m.isActive && !m.isTemplate).length > 0 
+        ? medicines.filter(m => m.isActive && !m.isTemplate).length 
+        : undefined
+    },
+    { 
+      id: 'children', 
+      label: 'Children', 
+      icon: Baby,
+      badge: children.length > 0 ? children.length : undefined
+    },
+    { 
+      id: 'history', 
+      label: 'Dose History', 
+      icon: History,
+      badge: doses.length > 0 ? doses.length : undefined
+    },
+    { 
+      id: 'reports', 
+      label: 'Reports', 
+      icon: BarChart3
+    }
+  ]
+
   return (
     <ModernAppShell title="Medicine">
       <div className="space-y-6">
@@ -874,6 +910,36 @@ export default function MedicinePage() {
           <h1 className="text-3xl font-bold text-cozy-text mb-2">Kids Medicine Control</h1>
           <p className="text-cozy-text-muted">Track and manage your children&apos;s medications</p>
         </div>
+
+        {/* Tab Navigation */}
+        <Tabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          variant="pills"
+          className="mb-6"
+        />
+
+        {/* Tab Content */}
+        {activeTab === 'medicines' && (
+          <TabPanel>
+            {/* Active Medicines Content */}
+        )}
+
+        {activeTab === 'children' && (
+          <TabPanel>
+            {/* Children Content */}
+        )}
+
+        {activeTab === 'history' && (
+          <TabPanel>
+            {/* Dose History Content */}
+        )}
+
+        {activeTab === 'reports' && (
+          <TabPanel>
+            {/* Reports Content */}
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">

@@ -6,7 +6,8 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import ListPicker from '../components/ListPicker'
-import { Plus, Check, Trash2, ShoppingCart, Search, Filter, X, FileText, Download, Save } from 'lucide-react'
+import { Plus, Check, Trash2, ShoppingCart, Search, Filter, X, FileText, Download, Save, List, Package, Template } from 'lucide-react'
+import Tabs, { TabPanel } from '../components/ui/Tabs'
 
 interface ShoppingItem {
   id: string
@@ -62,6 +63,9 @@ export default function ShoppingPage() {
   
   // Enhanced search functionality
   const [searchHistory, setSearchHistory] = useState<string[]>([])
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('lists')
   const [searchCache, setSearchCache] = useState<Record<string, any[]>>({})
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [popularSearchTerms, setPopularSearchTerms] = useState<string[]>([])
@@ -701,6 +705,32 @@ export default function ShoppingPage() {
     )
   }
 
+  // Tab configuration
+  const tabs = [
+    { 
+      id: 'lists', 
+      label: 'Shopping Lists', 
+      icon: List,
+      badge: lists.length > 0 ? lists.length : undefined
+    },
+    { 
+      id: 'items', 
+      label: 'All Items', 
+      icon: Package,
+      badge: items.length > 0 ? items.length : undefined
+    },
+    { 
+      id: 'templates', 
+      label: 'Templates', 
+      icon: Template
+    },
+    { 
+      id: 'search', 
+      label: 'Search & Add', 
+      icon: Search
+    }
+  ]
+
   return (
     <ModernAppShell title="Shopping">
     <div className="space-y-6">
@@ -723,6 +753,36 @@ export default function ShoppingPage() {
             </div>
           )}
         </div>
+
+        {/* Tab Navigation */}
+        <Tabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          variant="pills"
+          className="mb-6"
+        />
+
+        {/* Tab Content */}
+        {activeTab === 'lists' && (
+          <TabPanel>
+            {/* Shopping Lists Content */}
+        )}
+
+        {activeTab === 'items' && (
+          <TabPanel>
+            {/* All Items Content */}
+        )}
+
+        {activeTab === 'templates' && (
+          <TabPanel>
+            {/* Templates Content */}
+        )}
+
+        {activeTab === 'search' && (
+          <TabPanel>
+            {/* Search & Add Content */}
+        )}
 
         {/* Top Section - List Picker and Add Item */}
         <div className="grid gap-6 lg:grid-cols-3 w-full items-start">

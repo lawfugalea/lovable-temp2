@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import { ContribTableDesktop, ContribCardsMobile } from '../components/ui/finance/ContribBlock'
+import Tabs, { TabPanel } from '../components/ui/Tabs'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -23,7 +24,12 @@ import {
   Calculator,
   Trash2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  BarChart3,
+  PieChart,
+  FileText,
+  Download,
+  Upload
 } from 'lucide-react'
 
 interface Earner {
@@ -98,6 +104,9 @@ export default function FinancesPage() {
   const [showExportModal, setShowExportModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [showGoalModal, setShowGoalModal] = useState(false)
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState('budget')
 
   // Get household ID
   useEffect(() => {
@@ -799,6 +808,32 @@ export default function FinancesPage() {
     )
   }
 
+  // Tab configuration
+  const tabs = [
+    { 
+      id: 'budget', 
+      label: 'Budget Planning', 
+      icon: BarChart3,
+      badge: financeState?.earners?.length > 0 ? financeState.earners.length : undefined
+    },
+    { 
+      id: 'accounts', 
+      label: 'Bank Accounts', 
+      icon: CreditCard,
+      badge: financeState?.bankAccounts?.length > 0 ? financeState.bankAccounts.length : undefined
+    },
+    { 
+      id: 'goals', 
+      label: 'Financial Goals', 
+      icon: Target
+    },
+    { 
+      id: 'reports', 
+      label: 'Reports', 
+      icon: FileText
+    }
+  ]
+
   return (
     <ModernAppShell title="Finances">
       <div className="space-y-6">
@@ -868,6 +903,36 @@ export default function FinancesPage() {
             </div>
           </div>
         </div>
+
+        {/* Tab Navigation */}
+        <Tabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          variant="pills"
+          className="mb-6"
+        />
+
+        {/* Tab Content */}
+        {activeTab === 'budget' && (
+          <TabPanel>
+            {/* Budget Planning Content */}
+        )}
+
+        {activeTab === 'accounts' && (
+          <TabPanel>
+            {/* Bank Accounts Content */}
+        )}
+
+        {activeTab === 'goals' && (
+          <TabPanel>
+            {/* Financial Goals Content */}
+        )}
+
+        {activeTab === 'reports' && (
+          <TabPanel>
+            {/* Reports Content */}
+        )}
 
         {/* Keyboard Shortcuts Modal */}
         {showShortcuts && (
