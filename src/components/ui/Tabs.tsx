@@ -29,7 +29,8 @@ export default function Tabs({
   const containerRef = useRef<HTMLDivElement>(null)
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const [touchEnd, setTouchEnd] = useState<number | null>(null)
-  const [isScrolling, setIsScrolling] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+  const [scrollStart, setScrollStart] = useState<number | null>(null)
 
   const sizeClasses = {
     sm: 'px-2 py-1 text-xs',
@@ -41,29 +42,54 @@ export default function Tabs({
   const minSwipeDistance = 50
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.targetTouches[0]
+    setTouchStart(touch.clientX)
     setTouchEnd(null)
-    setTouchStart(e.targetTouches[0].clientX)
-    setIsScrolling(false)
+    setIsDragging(false)
+    
+    // Store initial scroll position
+    if (containerRef.current) {
+      setScrollStart(containerRef.current.scrollLeft)
+    }
   }
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX)
-    // Check if user is scrolling vertically (not swiping horizontally)
-    const touchY = e.targetTouches[0].clientY
-    const touchX = e.targetTouches[0].clientX
-    if (touchStart && Math.abs(touchY - touchStart) > Math.abs(touchX - touchStart)) {
-      setIsScrolling(true)
+    const touch = e.targetTouches[0]
+    setTouchEnd(touch.clientX)
+    
+    // Determine if this is a horizontal drag for scrolling tabs
+    if (touchStart !== null && containerRef.current) {
+      const deltaX = Math.abs(touch.clientX - touchStart)
+      const deltaY = Math.abs(touch.clientY - (e.targetTouches[0].clientY))
+      
+      // If horizontal movement is greater than vertical, allow scrolling
+      if (deltaX > deltaY && deltaX > 10) {
+        setIsDragging(true)
+        e.preventDefault() // Prevent default scrolling behavior
+        
+        // Manual scroll implementation
+        const scrollDelta = touchStart - touch.clientX
+        const newScrollLeft = (scrollStart || 0) + scrollDelta
+        containerRef.current.scrollLeft = newScrollLeft
+      }
     }
   }
 
   const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd || isScrolling) return
+    if (!touchStart || !touchEnd || !isDragging) {
+      setIsDragging(false)
+      setTouchStart(null)
+      setTouchEnd(null)
+      setScrollStart(null)
+      return
+    }
     
     const distance = touchStart - touchEnd
     const isLeftSwipe = distance > minSwipeDistance
     const isRightSwipe = distance < -minSwipeDistance
 
-    if (isLeftSwipe || isRightSwipe) {
+    // Only change tabs if it's a clear swipe gesture and not just scrolling
+    if ((isLeftSwipe || isRightSwipe) && Math.abs(distance) > minSwipeDistance) {
       const currentIndex = tabs.findIndex(tab => tab.id === activeTab)
       let newIndex = currentIndex
 
@@ -79,11 +105,16 @@ export default function Tabs({
         onTabChange(tabs[newIndex].id)
       }
     }
+    
+    setIsDragging(false)
+    setTouchStart(null)
+    setTouchEnd(null)
+    setScrollStart(null)
   }
 
   // Auto-scroll to active tab
   useEffect(() => {
-    if (containerRef.current) {
+    if (containerRef.current && !isDragging) {
       const activeTabElement = containerRef.current.querySelector(`[data-tab-id="${activeTab}"]`) as HTMLElement
       if (activeTabElement) {
         activeTabElement.scrollIntoView({
@@ -93,7 +124,7 @@ export default function Tabs({
         })
       }
     }
-  }, [activeTab])
+  }, [activeTab, isDragging])
 
   const getVariantClasses = (isActive: boolean) => {
     switch (variant) {
@@ -118,8 +149,18 @@ export default function Tabs({
         ref={containerRef}
         className={cn(
           'flex overflow-x-auto scrollbar-hide',
+          // Enhanced mobile scrolling
+          'touch-pan-x', // Enable horizontal panning
+          'overscroll-x-contain', // Prevent overscroll
+          'scroll-smooth', // Smooth scrolling
+          // Better touch targets
+          'min-h-[44px]', // Minimum touch target height
           variant === 'underline' ? 'border-b border-cozy-gray-200' : 'rounded-xl border border-cozy-gray-300 overflow-hidden'
         )}
+        style={{
+          WebkitOverflowScrolling: 'touch', // iOS momentum scrolling
+          scrollBehavior: 'smooth'
+        }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -141,11 +182,16 @@ export default function Tabs({
                 tab.disabled && 'opacity-50 cursor-not-allowed',
                 variant === 'default' && index !== tabs.length - 1 && 'border-r border-cozy-gray-300',
                 variant === 'pills' && 'rounded-lg mx-0.5 my-1',
-                // Mobile optimizations
+                // Enhanced mobile optimizations
                 'touch-manipulation', // Better touch response
                 'min-h-[44px]', // Minimum touch target size
-                'px-2 sm:px-3', // Responsive padding
-                'text-xs sm:text-sm' // Responsive text size
+                'min-w-[44px]', // Minimum touch target width
+                'px-3 py-2', // Better touch padding
+                'text-sm', // Consistent text size
+                'active:scale-95', // Touch feedback
+                'select-none', // Prevent text selection on touch
+                // Ensure tabs don't shrink too much
+                'whitespace-nowrap'
               )}
               aria-pressed={isActive}
             >
