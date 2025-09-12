@@ -12,6 +12,13 @@ import {
   Bell
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { 
+  subscribeToPushNotifications, 
+  sendMedicineReminderNotification, 
+  MedicineNotificationHelpers,
+  registerBackgroundSync,
+  isSubscribedToPushNotifications
+} from '@/lib/pushNotifications'
 
 interface Medicine {
   id: string
@@ -79,36 +86,53 @@ export default function MedicineNotifications() {
     return () => clearInterval(interval)
   }, [householdId, householdLoading])
 
-  // Show browser notifications
+  // Show enhanced push notifications (iOS 16.4+ compatible)
   useEffect(() => {
-    if (!('Notification' in window) || Notification.permission !== 'granted') return
-
-    const showBrowserNotification = (medicines: Medicine[], type: string) => {
-      medicines.forEach(medicine => {
+    const showEnhancedNotification = async (medicines: Medicine[], type: string) => {
+      for (const medicine of medicines) {
         const notificationId = `${medicine.id}-${type}`
-        if (dismissed.includes(notificationId)) return
+        if (dismissed.includes(notificationId)) continue
 
-        const notification = new Notification('Medicine Reminder', {
-          body: `${medicine.child.name} needs ${medicine.name} (${medicine.dosage})`,
-          icon: '/logo.png',
-          tag: notificationId
+        // Create enhanced notification payload
+        const payload = MedicineNotificationHelpers.createMedicineReminderPayload({
+          name: medicine.name,
+          childName: medicine.child.name,
+          dosage: medicine.dosage,
+          isOverdue: type === 'due-now'
         })
 
-        notification.onclick = () => {
-          window.focus()
-          notification.close()
-        }
-      })
+        // Use enhanced push notification system
+        await sendMedicineReminderNotification(payload)
+      }
     }
 
+    // Initialize push notifications and background sync
+    const initializePushNotifications = async () => {
+      try {
+        // Register for background sync for offline medicine reminders
+        await registerBackgroundSync()
+        
+        // Subscribe to push notifications if not already subscribed
+        const isSubscribed = await isSubscribedToPushNotifications()
+        if (!isSubscribed) {
+          await subscribeToPushNotifications()
+        }
+      } catch (error) {
+        console.error('Failed to initialize push notifications:', error)
+      }
+    }
+
+    // Initialize on component mount
+    initializePushNotifications()
+
     if (notifications.dueNow.length > 0) {
-      showBrowserNotification(notifications.dueNow, 'due-now')
+      showEnhancedNotification(notifications.dueNow, 'due-now')
     }
     if (notifications.dueIn5Minutes.length > 0) {
-      showBrowserNotification(notifications.dueIn5Minutes, 'due-5min')
+      showEnhancedNotification(notifications.dueIn5Minutes, 'due-5min')
     }
     if (notifications.dueIn15Minutes.length > 0) {
-      showBrowserNotification(notifications.dueIn15Minutes, 'due-15min')
+      showEnhancedNotification(notifications.dueIn15Minutes, 'due-15min')
     }
   }, [notifications, dismissed])
 
