@@ -766,17 +766,234 @@ export default function ShoppingPage() {
         {/* Tab Content */}
         {activeTab === 'lists' && (
           <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Shopping Lists content will be organized here</p>
+            {/* List Picker */}
+            <div className="grid gap-6 lg:grid-cols-3 w-full items-start">
+              <div className="lg:col-span-1">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Shopping List</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ListPicker
+                      selectedId={selectedListId}
+                      onChange={setSelectedListId}
+                      onListsChange={setLists}
+                      onAutoSelect={setSelectedListId}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Add Item */}
+              <div className="lg:col-span-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Add New Item</CardTitle>
+                    {!selectedListId && (
+                      <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+                        ⚠️ Please select a shopping list first to add items
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {/* Search Field and Search Button */}
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-cozy-text">Search Products</label>
+                        <div className="flex gap-2">
+                          <div className="flex-1 relative" style={{ position: 'relative', zIndex: 1 }}>
+                            <Input
+                              placeholder="🛒 Search products (e.g., 'coca', 'milk', 'bread')... (Ctrl+K to focus)"
+                              value={newItemTitle}
+                              onChange={(e) => {
+                                setNewItemTitle(e.target.value)
+                                if (e.target.value.trim()) {
+                                  handleSearch(e.target.value)
+                                } else {
+                                  setSuggestions([])
+                                  setShowSuggestions(false)
+                                }
+                              }}
+                              onKeyDown={handleKeyDown}
+                              onFocus={() => setShowSuggestions(true)}
+                              className="w-full"
+                            />
+                            {showSuggestions && suggestions.length > 0 && (
+                              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                                {suggestions.slice(0, 5).map((suggestion, index) => (
+                                  <button
+                                    key={index}
+                                    className={`w-full px-4 py-2 text-left hover:bg-cozy-cream transition-colors ${
+                                      selectedIndex === index ? 'bg-cozy-cream' : ''
+                                    }`}
+                                    onClick={() => handleSuggestionClick(suggestion)}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium">{suggestion.name}</span>
+                                      {suggestion.price && (
+                                        <span className="text-xs text-cozy-text-muted">
+                                          €{(suggestion.price / 100).toFixed(2)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <Button
+                            onClick={() => handleSearch(newItemTitle)}
+                            disabled={!newItemTitle.trim() || searchLoading}
+                            className="px-4"
+                          >
+                            {searchLoading ? (
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Search className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Quantity Input */}
+                      <div>
+                        <label className="block text-sm font-medium text-cozy-text mb-1">Quantity (optional)</label>
+                        <Input
+                          placeholder="e.g., 2, 1kg, 500ml"
+                          value={newItemQty}
+                          onChange={(e) => setNewItemQty(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleAddItem()
+                            }
+                          }}
+                        />
+                      </div>
+
+                      {/* Add Button */}
+                      <Button
+                        onClick={handleAddItem}
+                        disabled={!newItemTitle.trim() || !selectedListId || loading}
+                        className="w-full"
+                      >
+                        {loading ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                        ) : (
+                          <Plus className="w-4 h-4 mr-2" />
+                        )}
+                        Add to List
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabPanel>
         )}
 
         {activeTab === 'items' && (
           <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">All Items content will be organized here</p>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Shopping Items</CardTitle>
+                <CardDescription>
+                  {selectedListId ? `Items in ${lists.find(l => l.id === selectedListId)?.name}` : 'Select a list to view items'}
+                </CardDescription>
+                {(() => {
+                  const activeItems = filteredItems.filter(item => item.status === 'ACTIVE');
+                  const totalPrice = activeItems.reduce((sum, item) => {
+                    if (item.notes) {
+                      try {
+                        const productInfo = JSON.parse(item.notes);
+                        if (productInfo.price) {
+                          return sum + productInfo.price;
+                        }
+                      } catch (e) {
+                        // Ignore JSON parse errors
+                      }
+                    }
+                    return sum;
+                  }, 0);
+                  
+                  if (totalPrice > 0) {
+                    return (
+                      <div className="mt-2 p-3 bg-cozy-cream rounded-lg">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium text-cozy-text">Estimated Total:</span>
+                          <span className="text-lg font-bold text-cozy-primary">
+                            {(totalPrice / 100).toFixed(2)}€
+                          </span>
+                        </div>
+                        <div className="text-xs text-cozy-text-muted mt-1">
+                          Based on {activeItems.filter(item => item.notes && JSON.parse(item.notes || '{}').price).length} items with prices
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </CardHeader>
+              <CardContent>
+                {filteredItems.length === 0 ? (
+                  <div className="text-center py-8 text-cozy-text-muted">
+                    {searchQuery ? 'No items match your search' : 'No items in this list yet'}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {filteredItems.map((item) => (
+                      <div key={item.id} className="flex items-center gap-4 p-3 rounded-lg hover:bg-cozy-cream transition-colors group">
+                        <button
+                          onClick={() => toggleItemStatus(item.id)}
+                          className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
+                            item.status === 'DONE' 
+                              ? 'bg-green-500 border-green-500 text-white' 
+                              : 'border-cozy-gray-300 hover:border-cozy-primary'
+                          }`}
+                        >
+                          {item.status === 'DONE' && <Check className="w-4 h-4" />}
+                        </button>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-medium ${item.status === 'DONE' ? 'line-through text-cozy-text-muted' : 'text-cozy-text'}`}>
+                            {item.title}
+                          </div>
+                          {item.qty && (
+                            <div className="text-sm text-cozy-text-muted">Qty: {item.qty}</div>
+                          )}
+                          {item.notes && (() => {
+                            try {
+                              const productInfo = JSON.parse(item.notes);
+                              if (productInfo.price) {
+                                return (
+                                  <div className="text-xs font-medium text-cozy-primary">
+                                    €{(productInfo.price / 100).toFixed(2)}
+                                  </div>
+                                );
+                              }
+                            } catch (e) {
+                              // Ignore JSON parse errors
+                            }
+                            return null;
+                          })()}
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-cozy-text-muted">
+                            {new Date(item.createdAt).toLocaleDateString()}
+                          </span>
+                          <button
+                            onClick={() => deleteItem(item.id)}
+                            className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 transition-opacity"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabPanel>
         )}
 
@@ -796,8 +1013,7 @@ export default function ShoppingPage() {
           </TabPanel>
         )}
 
-        {/* Top Section - List Picker and Add Item */}
-        <div className="grid gap-6 lg:grid-cols-3 w-full items-start">
+        {/* Items List */}
           {/* List Picker */}
           <div className="lg:col-span-1 order-2 lg:order-1">
             <Card>
