@@ -8,6 +8,7 @@ import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import { ContribTableDesktop, ContribCardsMobile } from '../components/ui/finance/ContribBlock'
 import Tabs, { TabPanel } from '../components/ui/Tabs'
+import FinanceWizard from '../components/FinanceWizard'
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -29,7 +30,8 @@ import {
   PieChart,
   FileText,
   Download,
-  Upload
+  Upload,
+  HelpCircle
 } from 'lucide-react'
 
 interface Earner {
@@ -107,6 +109,9 @@ export default function FinancesPage() {
   
   // Tab state
   const [activeTab, setActiveTab] = useState('budget')
+  
+  // Wizard state
+  const [showWizard, setShowWizard] = useState(false)
 
   // Get household ID
   useEffect(() => {
@@ -892,6 +897,16 @@ export default function FinancesPage() {
                 <span className="sm:hidden">📥</span>
               </Button>
               <Button
+                onClick={() => setShowWizard(true)}
+                variant="outline"
+                size="sm"
+                className="text-xs"
+              >
+                <HelpCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                <span className="hidden sm:inline">How it works</span>
+                <span className="sm:hidden">Help</span>
+              </Button>
+              <Button
                 onClick={() => setShowShortcuts(true)}
                 variant="outline"
                 size="sm"
@@ -916,17 +931,396 @@ export default function FinancesPage() {
         {/* Tab Content */}
         {activeTab === 'budget' && (
           <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Budget Planning content will be organized here</p>
-            </div>
+            {/* Earners Section */}
+            <CollapsibleSection
+              id="income-earners"
+              title="Income Earners"
+              icon={<Users className="h-5 w-5" />}
+              badge={earners.length}
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs sm:text-sm text-cozy-text-muted">
+                    Define who contributes to the household income
+                  </p>
+                  <Button
+                    onClick={() => {
+                      const newEarner = {
+                        id: Date.now().toString(),
+                        name: `Earner ${earners.length + 1}`,
+                        salary: 0,
+                        keep: 0
+                      }
+                      const newEarners = [...earners, newEarner]
+                      setFinanceState(prev => ({ ...prev, earners: newEarners }))
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1 text-xs sm:text-sm"
+                  >
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Add Earner</span>
+                    <span className="sm:hidden">Add</span>
+                  </Button>
+                </div>
+                <div className="space-y-3 sm:space-y-4">
+                  {earners.map((earner, index) => (
+                    <div key={`earner-${earner.id}-${index}`} className="p-3 sm:p-4 border rounded-lg">
+                      {/* Mobile-first responsive layout */}
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 items-center">
+                        {/* Name field - full width on mobile, 1 column on desktop */}
+                        <div className="sm:col-span-1">
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:hidden">
+                            Name
+                          </label>
+                          <Input
+                            ref={(el) => {
+                              inputRefs.current[`earner-name-${index}`] = el
+                            }}
+                            defaultValue={earners[index]?.name || ''}
+                            onChange={(e) => {
+                              // Store the value in ref without causing re-renders
+                              nameInputRefs.current[`earner-name-${index}`] = e.target.value
+                            }}
+                            onBlur={(e) => {
+                              // Only update state when user finishes editing
+                              const newEarners = earners.map((ear, i) => 
+                                i === index ? { ...ear, name: e.target.value } : ear
+                              )
+                              setFinanceState(prev => ({ ...prev, earners: newEarners }))
+                            }}
+                            className="font-medium w-full text-sm sm:text-base"
+                            placeholder="Earner name"
+                          />
+                        </div>
+                        
+                        {/* Salary field */}
+                        <div className="sm:col-span-1">
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:hidden">
+                            Salary (€)
+                          </label>
+                          <CurrencyInput
+                            value={earners[index]?.salary || 0}
+                            onChange={(value) => {
+                              const newEarners = earners.map((ear, i) => 
+                                i === index ? { ...ear, salary: value } : ear
+                              )
+                              setFinanceState(prev => ({ ...prev, earners: newEarners }))
+                            }}
+                            placeholder="Salary"
+                            className="w-full text-sm sm:text-base"
+                            showSuggestions={true}
+                            suggestions={[2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000, 15000, 20000, 25000, 50000, 75000, 100000, 150000, 200000]}
+                            max={200000}
+                          />
+                        </div>
+                        
+                        {/* Keep field */}
+                        <div className="sm:col-span-1">
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:hidden">
+                            Personal Keep (€)
+                          </label>
+                          <CurrencyInput
+                            value={earners[index]?.keep || 0}
+                            onChange={(value) => {
+                              const newEarners = earners.map((ear, i) => 
+                                i === index ? { ...ear, keep: value } : ear
+                              )
+                              setFinanceState(prev => ({ ...prev, earners: newEarners }))
+                            }}
+                            placeholder="Personal keep"
+                            className="w-full text-sm sm:text-base"
+                            max={earners[index]?.salary || 0}
+                          />
+                        </div>
+                        
+                        {/* Available field */}
+                        <div className="sm:col-span-1">
+                          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:hidden">
+                            Available (€)
+                          </label>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm sm:text-base font-medium text-cozy-primary">
+                              €{((earners[index]?.salary || 0) - (earners[index]?.keep || 0)).toLocaleString()}
+                            </span>
+                            <Button
+                              onClick={() => {
+                                const newEarners = earners.filter((_, i) => i !== index)
+                                setFinanceState(prev => ({ ...prev, earners: newEarners }))
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="ml-2 p-1 sm:p-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CollapsibleSection>
           </TabPanel>
         )}
 
         {activeTab === 'accounts' && (
           <TabPanel>
-            <div className="text-center py-8">
-              <p className="text-cozy-text-muted">Bank Accounts content will be organized here</p>
-            </div>
+            {/* Bank Accounts Section */}
+            <CollapsibleSection
+              id="bank-accounts"
+              title="Bank Accounts"
+              icon={<CreditCard className="h-5 w-5" />}
+              badge={bankAccounts.length}
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs sm:text-sm text-cozy-text-muted">
+                    Manage your bank accounts and known expenses
+                  </p>
+                  <Button
+                    onClick={() => {
+                      const newAccount: BankAccount = {
+                        id: Date.now().toString(),
+                        name: `Account ${bankAccounts.length + 1}`,
+                        type: 'checking',
+                        target: 0,
+                        knownExpenses: []
+                      }
+                      const newAccounts = [...bankAccounts, newAccount]
+                      setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                      markAsChanged()
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1 text-xs sm:text-sm"
+                  >
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Add Account</span>
+                    <span className="sm:hidden">Add</span>
+                  </Button>
+                </div>
+                <div className="space-y-4 sm:space-y-6">
+                  {bankAccounts.map((account, index) => (
+                    <div key={account.id} className="p-3 sm:p-4 border rounded-lg space-y-3 sm:space-y-4">
+                      {/* Account Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                        <div className="flex-1 min-w-0">
+                          <Input
+                            ref={(el) => {
+                              inputRefs.current[`account-name-${index}`] = el
+                            }}
+                            defaultValue={account.name}
+                            onChange={(e) => {
+                              // Store the value in ref without causing re-renders
+                              nameInputRefs.current[`account-name-${index}`] = e.target.value
+                            }}
+                            onBlur={(e) => {
+                              // Only update state when user finishes editing
+                              const newAccounts = bankAccounts.map((acc, i) => 
+                                i === index ? { ...acc, name: e.target.value } : acc
+                              )
+                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                            }}
+                            className="font-medium w-full text-sm sm:text-base"
+                            placeholder="Account name"
+                          />
+                        </div>
+                        <div className="w-full sm:w-32">
+                          <select
+                            value={account.type}
+                            onChange={(e) => {
+                              const newAccounts = bankAccounts.map((acc, i) => 
+                                i === index ? { ...acc, type: e.target.value as BankAccount['type'] } : acc
+                              )
+                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                              markAsChanged()
+                            }}
+                            className="w-full px-3 py-2 text-sm sm:text-base border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
+                          >
+                            <option value="checking">Checking</option>
+                            <option value="savings">Savings</option>
+                            <option value="credit">Credit</option>
+                            <option value="investment">Investment</option>
+                          </select>
+                        </div>
+                        <div className="w-full sm:w-32">
+                          <CurrencyInput
+                            value={account.target || 0}
+                            onChange={(value) => {
+                              const newAccounts = bankAccounts.map((acc, i) => 
+                                i === index ? { ...acc, target: value } : acc
+                              )
+                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                            }}
+                            placeholder="Target"
+                            className={`text-sm sm:text-base w-full ${(() => {
+                              const newTotalTargets = bankAccounts.reduce((sum, acc, i) => 
+                                sum + (i === index ? (acc.target || 0) : acc.target), 0
+                              )
+                              const newTotalAllocated = autoSavingsTarget + newTotalTargets + totalPersonalKeep
+                              const newUnallocated = totalSalary - newTotalAllocated
+                              return newUnallocated < 0 ? 'border-red-300 bg-red-50' : ''
+                            })()}`}
+                            showSuggestions={true}
+                            suggestions={[
+                              Math.round(totalSalary * 0.1), // 10% of total income
+                              Math.round(totalSalary * 0.15), // 15% of total income
+                              Math.round(totalSalary * 0.2), // 20% of total income
+                              Math.round(totalSalary * 0.25), // 25% of total income
+                              1000, 1500, 2000, 3000, 5000
+                            ].filter((val, index, arr) => val > 0 && arr.indexOf(val) === index)}
+                            max={totalSalary * 0.8} // Max 80% of total income
+                          />
+                        </div>
+                        {bankAccounts.length > 1 && (
+                          <Button
+                            onClick={() => {
+                              const newAccounts = bankAccounts.filter((_, i) => i !== index)
+                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                              markAsChanged()
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 p-1 sm:p-2"
+                          >
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Known Expenses */}
+                      <div className="space-y-2 sm:space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs sm:text-sm font-medium text-cozy-text">Known Expenses</h4>
+                          <Button
+                            onClick={() => {
+                              const newExpense: KnownExpense = {
+                                id: Date.now().toString(),
+                                name: '',
+                                amount: 0,
+                                frequency: 'monthly',
+                                category: 'Other'
+                              }
+                              const newAccounts = bankAccounts.map((acc, i) => 
+                                i === index 
+                                  ? { ...acc, knownExpenses: [...acc.knownExpenses, newExpense] }
+                                  : acc
+                              )
+                              setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                              markAsChanged()
+                            }}
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            <span className="hidden sm:inline">Add Expense</span>
+                            <span className="sm:hidden">Add</span>
+                          </Button>
+                        </div>
+                        
+                        {account.knownExpenses.map((expense, expenseIndex) => (
+                          <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 sm:p-3 bg-cozy-cream rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <Input
+                                ref={(el) => {
+                                  inputRefs.current[`expense-name-${index}-${expenseIndex}`] = el
+                                }}
+                                defaultValue={expense.name}
+                                onChange={(e) => {
+                                  // Store the value in ref without causing re-renders
+                                  nameInputRefs.current[`expense-name-${index}-${expenseIndex}`] = e.target.value
+                                }}
+                                onBlur={(e) => {
+                                  // Only update state when user finishes editing
+                                  const newAccounts = bankAccounts.map((acc, i) => 
+                                    i === index 
+                                      ? { 
+                                          ...acc, 
+                                          knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
+                                            expIdx === expenseIndex ? { ...exp, name: e.target.value } : exp
+                                          )
+                                        } 
+                                      : acc
+                                  )
+                                  setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                                }}
+                                placeholder="Expense name"
+                                className="text-xs sm:text-sm w-full"
+                              />
+                            </div>
+                            <div className="w-full sm:w-24">
+                              <CurrencyInput
+                                value={expense.amount || 0}
+                                onChange={(value) => {
+                                  const newAccounts = bankAccounts.map((acc, i) => 
+                                    i === index 
+                                      ? { 
+                                          ...acc, 
+                                          knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
+                                            expIdx === expenseIndex ? { ...exp, amount: value } : exp
+                                          )
+                                        } 
+                                      : acc
+                                  )
+                                  setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                                  markAsChanged()
+                                }}
+                                placeholder="Amount"
+                                className="text-xs sm:text-sm w-full"
+                              />
+                            </div>
+                            <div className="w-full sm:w-28">
+                              <select
+                                value={expense.frequency}
+                                onChange={(e) => {
+                                  const newAccounts = bankAccounts.map((acc, i) => 
+                                    i === index 
+                                      ? { 
+                                          ...acc, 
+                                          knownExpenses: acc.knownExpenses.map((exp, expIdx) => 
+                                            expIdx === expenseIndex ? { ...exp, frequency: e.target.value as KnownExpense['frequency'] } : exp
+                                          )
+                                        } 
+                                      : acc
+                                  )
+                                  setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                                  markAsChanged()
+                                }}
+                                className="w-full px-2 py-1 text-xs sm:text-sm border border-cozy-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-cozy-primary"
+                              >
+                                <option value="monthly">Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="yearly">Yearly</option>
+                                <option value="one-time">One-time</option>
+                              </select>
+                            </div>
+                            <Button
+                              onClick={() => {
+                                const newAccounts = bankAccounts.map((acc, i) => 
+                                  i === index 
+                                    ? { ...acc, knownExpenses: acc.knownExpenses.filter((_, expIdx) => expIdx !== expenseIndex) }
+                                    : acc
+                                )
+                                setFinanceState(prev => ({ ...prev, bankAccounts: newAccounts }))
+                                markAsChanged()
+                              }}
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full sm:w-auto p-1 sm:p-2"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CollapsibleSection>
           </TabPanel>
         )}
 
@@ -2287,6 +2681,17 @@ export default function FinancesPage() {
         </Card>
 
       </div>
+
+      {/* Finance Wizard */}
+      <FinanceWizard
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        onComplete={() => {
+          setShowWizard(false)
+          // Optionally set a flag that user has seen the wizard
+          localStorage.setItem('finance-wizard-completed', 'true')
+        }}
+      />
     </ModernAppShell>
   )
 }
