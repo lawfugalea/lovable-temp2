@@ -100,9 +100,12 @@ export default function Tabs({
 interface TabPanelProps {
   children: React.ReactNode
   className?: string
+  isActive?: boolean
 }
 
-export function TabPanel({ children, className = '' }: TabPanelProps) {
+export function TabPanel({ children, className = '', isActive = true }: TabPanelProps) {
+  if (!isActive) return null
+  
   return (
     <div className={cn('mt-6', className)}>
       {children}

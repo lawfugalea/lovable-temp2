@@ -842,80 +842,99 @@ export default function FinancesPage() {
   return (
     <ModernAppShell title="Finances">
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-cozy-text mb-2 flex items-center gap-3">
-            <span className="animate-cozy-wiggle">💰</span>Financial Planning
-            <div className="flex items-center gap-2 text-sm">
+        {/* Enhanced Header */}
+        <div className="mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 sm:p-3 bg-gradient-to-br from-cozy-primary/10 to-cozy-primary/5 rounded-xl border border-cozy-primary/20">
+                <DollarSign className="w-5 h-5 sm:w-7 sm:h-7 text-cozy-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-cozy-text">
+                  Financial Planning
+                </h1>
+                <p className="text-xs sm:text-sm text-cozy-text-muted mt-1">
+                  Plan your household finances with love and care
+                </p>
+              </div>
+            </div>
+            
+            {/* Save Status */}
+            <div className="flex items-center gap-2">
               {saveStatus === 'saving' && (
-                <div className="flex items-center gap-2 text-cozy-text-muted">
+                <div className="flex items-center gap-2 text-cozy-text-muted bg-cozy-cream px-3 py-2 rounded-lg">
                   <div className="w-3 h-3 border border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
-                  <span>Saving...</span>
+                  <span className="text-xs sm:text-sm">Saving...</span>
                 </div>
               )}
               {saveStatus === 'saved' && lastSaved && (
-                <div className="flex items-center gap-2 text-green-600">
+                <div className="flex items-center gap-2 text-green-600 bg-green-50 px-3 py-2 rounded-lg">
                   <CheckCircle className="w-3 h-3" />
-                  <span className="hidden sm:inline">Saved {lastSaved.toLocaleTimeString()}</span>
-                  <span className="sm:hidden">Saved</span>
+                  <span className="text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Saved {lastSaved.toLocaleTimeString()}</span>
+                    <span className="sm:hidden">Saved</span>
+                  </span>
                 </div>
               )}
               {saveStatus === 'error' && (
-                <div className="flex items-center gap-2 text-red-600">
+                <div className="flex items-center gap-2 text-red-600 bg-red-50 px-3 py-2 rounded-lg">
                   <AlertCircle className="w-3 h-3" />
-                  <span>Save failed</span>
+                  <span className="text-xs sm:text-sm">Save failed</span>
                 </div>
               )}
               {saveStatus === 'unsaved' && (
-                <div className="flex items-center gap-2 text-orange-600">
+                <div className="flex items-center gap-2 text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
                   <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
-                  <span className="hidden sm:inline">Unsaved changes</span>
-                  <span className="sm:hidden">Unsaved</span>
+                  <span className="text-xs sm:text-sm">
+                    <span className="hidden sm:inline">Unsaved changes</span>
+                    <span className="sm:hidden">Unsaved</span>
+                  </span>
                 </div>
               )}
             </div>
-          </h1>
-          <div className="flex items-center justify-between">
-            <p className="text-cozy-text-muted">Plan your household finances with love and care</p>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={exportFinancialPlan}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <span className="hidden sm:inline">Export Plan</span>
-                <span className="sm:hidden">📤</span>
-              </Button>
-              <Button
-                onClick={() => setShowImportModal(true)}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <span className="hidden sm:inline">Import Plan</span>
-                <span className="sm:hidden">📥</span>
-              </Button>
-              <Button
-                onClick={() => setShowWizard(true)}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <HelpCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
-                <span className="hidden sm:inline">How it works</span>
-                <span className="sm:hidden">Help</span>
-              </Button>
-              <Button
-                onClick={() => setShowShortcuts(true)}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <span className="hidden sm:inline">Keyboard Shortcuts</span>
-                <span className="sm:hidden">⌨️</span>
-              </Button>
-            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={exportFinancialPlan}
+              variant="outline"
+              size="sm"
+              className="text-xs sm:text-sm bg-white hover:bg-cozy-cream border-cozy-gray-300"
+            >
+              <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              <span className="hidden sm:inline">Export Plan</span>
+              <span className="sm:hidden">Export</span>
+            </Button>
+            <Button
+              onClick={() => setShowImportModal(true)}
+              variant="outline"
+              size="sm"
+              className="text-xs sm:text-sm bg-white hover:bg-cozy-cream border-cozy-gray-300"
+            >
+              <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              <span className="hidden sm:inline">Import Plan</span>
+              <span className="sm:hidden">Import</span>
+            </Button>
+            <Button
+              onClick={() => setShowWizard(true)}
+              variant="outline"
+              size="sm"
+              className="text-xs sm:text-sm bg-white hover:bg-cozy-cream border-cozy-gray-300"
+            >
+              <HelpCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+              <span className="hidden sm:inline">How it works</span>
+              <span className="sm:hidden">Help</span>
+            </Button>
+            <Button
+              onClick={() => setShowShortcuts(true)}
+              variant="outline"
+              size="sm"
+              className="text-xs sm:text-sm bg-white hover:bg-cozy-cream border-cozy-gray-300"
+            >
+              <span className="hidden sm:inline">Keyboard Shortcuts</span>
+              <span className="sm:hidden">⌨️</span>
+            </Button>
           </div>
         </div>
 
@@ -929,8 +948,7 @@ export default function FinancesPage() {
         />
 
         {/* Tab Content */}
-        {activeTab === 'budget' && (
-          <TabPanel>
+        <TabPanel isActive={activeTab === 'budget'}>
             {/* Earners Section */}
             <CollapsibleSection
               id="income-earners"
@@ -1062,11 +1080,9 @@ export default function FinancesPage() {
                 </div>
               </div>
             </CollapsibleSection>
-          </TabPanel>
-        )}
+        </TabPanel>
 
-        {activeTab === 'accounts' && (
-          <TabPanel>
+        <TabPanel isActive={activeTab === 'accounts'}>
             {/* Bank Accounts Section */}
             <CollapsibleSection
               id="bank-accounts"
@@ -1321,11 +1337,9 @@ export default function FinancesPage() {
                 </div>
               </div>
             </CollapsibleSection>
-          </TabPanel>
-        )}
+        </TabPanel>
 
-        {activeTab === 'goals' && (
-          <TabPanel>
+        <TabPanel isActive={activeTab === 'goals'}>
             {/* Financial Goals Section */}
             <CollapsibleSection
               id="financial-goals"
@@ -1465,11 +1479,9 @@ export default function FinancesPage() {
                 )}
               </div>
             </CollapsibleSection>
-          </TabPanel>
-        )}
+        </TabPanel>
 
-        {activeTab === 'reports' && (
-          <TabPanel>
+        <TabPanel isActive={activeTab === 'reports'}>
             {/* Split Method */}
             <Card>
               <CardHeader className="pb-3">
@@ -1525,8 +1537,7 @@ export default function FinancesPage() {
                 />
               </CardContent>
             </Card>
-          </TabPanel>
-        )}
+        </TabPanel>
 
         {/* Keyboard Shortcuts Modal */}
         {showShortcuts && (
