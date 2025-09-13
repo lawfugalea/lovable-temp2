@@ -112,6 +112,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (isPinned !== undefined) updateData.isPinned = isPinned
       if (isArchived !== undefined) updateData.isArchived = isArchived
       if (isShared !== undefined) updateData.isShared = isShared
+      // if (collabDocId !== undefined) updateData.collabDocId = collabDocId
       
       // Handle householdId based on the final isShared status
       const finalIsShared = isShared !== undefined ? isShared : existingNote.isShared
@@ -138,7 +139,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           color: true,
           isPinned: true,
           isArchived: true,
-          householdId: true,
+            householdId: true,
           createdAt: true,
           updatedAt: true,
           createdBy: {

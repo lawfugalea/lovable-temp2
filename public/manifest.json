@@ -1,12 +1,15 @@
 {
-  "name": "HouseFlow",
-  "short_name": "HouseFlow",
-  "description": "Household management app for shopping, finances, and medicine tracking",
-  "start_url": "/",
+  "name": "Houseflow Notes",
+  "short_name": "Houseflow",
+  "description": "Modern notes app with real-time collaboration for your household",
+  "start_url": "/notes?source=pwa",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "theme_color": "#3b82f6",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
       "src": "/logo.png",
@@ -33,11 +36,51 @@
       "purpose": "maskable"
     }
   ],
-  "categories": ["productivity", "utilities"],
-  "lang": "en",
-  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "New Note",
+      "short_name": "New Note",
+      "description": "Create a new note",
+      "url": "/notes?action=new",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "All Notes",
+      "short_name": "All Notes",
+      "description": "View all notes",
+      "url": "/notes",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Houseflow Notes on desktop"
+    },
+    {
+      "src": "/screenshot-narrow.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Houseflow Notes on mobile"
+    }
+  ],
   "prefer_related_applications": false,
-  "display_override": ["window-controls-overlay", "standalone"],
   "edge_side_panel": {
     "preferred_width": 400
   }

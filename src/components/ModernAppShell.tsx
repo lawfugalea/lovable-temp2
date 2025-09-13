@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
 import { 
@@ -23,6 +24,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import CommandPalette from './CommandPalette'
 import MedicineNotifications from './MedicineNotifications'
+// import PWAInstall from './PWAInstall'
+// import MobileOptimizedLayout from './MobileOptimizedLayout'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -61,7 +64,23 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
   }, [])
 
   return (
-    <div className="min-h-screen bg-cozy-bg lg:flex">
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+        <meta name="theme-color" content="#3b82f6" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Houseflow" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="msapplication-TileColor" content="#3b82f6" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/logo.png" />
+        <link rel="icon" type="image/png" sizes="512x512" href="/logo.png" />
+      </Head>
+      
+      <div className="min-h-screen bg-cozy-bg lg:flex">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div
@@ -230,6 +249,10 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
 
       {/* Medicine Notifications */}
       <MedicineNotifications />
-    </div>
+      
+      {/* PWA Install Prompt */}
+      {/* <PWAInstall /> */}
+        </div>
+    </>
   )
 }
