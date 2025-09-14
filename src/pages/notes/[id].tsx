@@ -264,6 +264,26 @@ export default function NoteEditorPage({ note: initialNote, userCanEdit }: NoteE
     }
   }, [showColorPicker])
 
+  // Get background color class based on note color
+  const getNoteBackgroundColor = (color: string) => {
+    const colorMap: { [key: string]: string } = {
+      'yellow': 'bg-yellow-50',
+      'sage': 'bg-green-50', 
+      'coral': 'bg-orange-50',
+      'terracotta': 'bg-red-50',
+      'cream': 'bg-amber-50',
+      'sand': 'bg-stone-50',
+      'warm-gray': 'bg-gray-50',
+      'soft-blue': 'bg-blue-50',
+      'lavender': 'bg-purple-50',
+      'pink': 'bg-pink-50',
+      'emerald': 'bg-emerald-50',
+      'indigo': 'bg-indigo-50',
+      'default': 'bg-cozy-surface'
+    }
+    return colorMap[color] || 'bg-cozy-surface'
+  }
+
   if (!session) {
     return (
       <ModernAppShell title="Note">
@@ -311,7 +331,12 @@ export default function NoteEditorPage({ note: initialNote, userCanEdit }: NoteE
                     note.color === 'sand' ? 'bg-stone-400' :
                     note.color === 'warm-gray' ? 'bg-gray-400' :
                     note.color === 'soft-blue' ? 'bg-blue-400' :
-                    note.color === 'lavender' ? 'bg-purple-400' : 'bg-gray-400'
+                    note.color === 'lavender' ? 'bg-purple-400' :
+                    note.color === 'pink' ? 'bg-pink-400' :
+                    note.color === 'emerald' ? 'bg-emerald-400' :
+                    note.color === 'indigo' ? 'bg-indigo-400' :
+                    note.color === 'default' || !note.color ? 'bg-cozy-gray-300' :
+                    'bg-gray-400'
                   }`} />
                   <span className="text-sm text-cozy-text-muted">
                     {note.isPinned ? 'Pinned' : 'Note'}
@@ -406,18 +431,22 @@ export default function NoteEditorPage({ note: initialNote, userCanEdit }: NoteE
                     </button>
                     
                     {showColorPicker && (
-                      <div className="absolute right-0 top-full mt-2 bg-cozy-surface border border-cozy-gray-200 rounded-lg shadow-cozy-lg p-3 z-10">
-                        <div className="grid grid-cols-3 gap-2">
+                      <div className="absolute right-0 top-full mt-2 bg-white border border-cozy-gray-200 rounded-xl shadow-xl p-4 z-20 min-w-[200px]">
+                        <div className="text-xs font-medium text-cozy-text-muted mb-3">Choose a color</div>
+                        <div className="grid grid-cols-4 gap-3">
                           {[
-                            { name: 'yellow', bg: 'bg-yellow-200', hover: 'hover:bg-yellow-300' },
-                            { name: 'sage', bg: 'bg-green-200', hover: 'hover:bg-green-300' },
-                            { name: 'coral', bg: 'bg-orange-200', hover: 'hover:bg-orange-300' },
-                            { name: 'terracotta', bg: 'bg-red-200', hover: 'hover:bg-red-300' },
-                            { name: 'cream', bg: 'bg-amber-200', hover: 'hover:bg-amber-300' },
-                            { name: 'sand', bg: 'bg-stone-200', hover: 'hover:bg-stone-300' },
-                            { name: 'warm-gray', bg: 'bg-gray-200', hover: 'hover:bg-gray-300' },
-                            { name: 'soft-blue', bg: 'bg-blue-200', hover: 'hover:bg-blue-300' },
-                            { name: 'lavender', bg: 'bg-purple-200', hover: 'hover:bg-purple-300' }
+                            { name: 'yellow', bg: 'bg-yellow-50', border: 'border-yellow-200', accent: 'bg-yellow-400' },
+                            { name: 'sage', bg: 'bg-green-50', border: 'border-green-200', accent: 'bg-green-400' },
+                            { name: 'coral', bg: 'bg-orange-50', border: 'border-orange-200', accent: 'bg-orange-400' },
+                            { name: 'terracotta', bg: 'bg-red-50', border: 'border-red-200', accent: 'bg-red-400' },
+                            { name: 'cream', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'bg-amber-400' },
+                            { name: 'sand', bg: 'bg-stone-50', border: 'border-stone-200', accent: 'bg-stone-400' },
+                            { name: 'warm-gray', bg: 'bg-gray-50', border: 'border-gray-200', accent: 'bg-gray-400' },
+                            { name: 'soft-blue', bg: 'bg-blue-50', border: 'border-blue-200', accent: 'bg-blue-400' },
+                            { name: 'lavender', bg: 'bg-purple-50', border: 'border-purple-200', accent: 'bg-purple-400' },
+                            { name: 'pink', bg: 'bg-pink-50', border: 'border-pink-200', accent: 'bg-pink-400' },
+                            { name: 'emerald', bg: 'bg-emerald-50', border: 'border-emerald-200', accent: 'bg-emerald-400' },
+                            { name: 'indigo', bg: 'bg-indigo-50', border: 'border-indigo-200', accent: 'bg-indigo-400' }
                           ].map((color) => (
                             <button
                               key={color.name}
@@ -425,12 +454,37 @@ export default function NoteEditorPage({ note: initialNote, userCanEdit }: NoteE
                                 handleNoteUpdate('color', color.name)
                                 setShowColorPicker(false)
                               }}
-                              className={`w-8 h-8 rounded-full border-2 transition-all ${
-                                note.color === color.name ? 'border-cozy-text scale-110' : 'border-cozy-gray-300'
-                              } ${color.bg} ${color.hover}`}
+                              className={`relative w-10 h-10 rounded-lg border-2 transition-all duration-200 hover:scale-105 ${
+                                note.color === color.name 
+                                  ? `${color.border} shadow-md` 
+                                  : 'border-cozy-gray-200 hover:border-cozy-gray-300'
+                              } ${color.bg}`}
                               title={color.name}
-                            />
+                            >
+                              {/* Accent dot to show the color more clearly */}
+                              <div className={`absolute top-1 right-1 w-3 h-3 rounded-full ${color.accent}`} />
+                              {note.color === color.name && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="w-2 h-2 bg-cozy-text rounded-full" />
+                                </div>
+                              )}
+                            </button>
                           ))}
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-cozy-gray-100">
+                          <button
+                            onClick={() => {
+                              handleNoteUpdate('color', 'default')
+                              setShowColorPicker(false)
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                              note.color === 'default' || !note.color
+                                ? 'bg-cozy-primary-soft text-cozy-primary-deep'
+                                : 'text-cozy-text-muted hover:bg-cozy-gray-50'
+                            }`}
+                          >
+                            Default (No color)
+                          </button>
                         </div>
                       </div>
                     )}
@@ -460,7 +514,7 @@ export default function NoteEditorPage({ note: initialNote, userCanEdit }: NoteE
         </div>
 
         {/* Main Content */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 ${getNoteBackgroundColor(note.color)}`}>
           {/* Read-only Notice */}
           {!userCanEdit && (
             <div className="mb-6 p-4 bg-cozy-primary-soft border border-cozy-primary/20 rounded-lg">
@@ -524,21 +578,23 @@ export default function NoteEditorPage({ note: initialNote, userCanEdit }: NoteE
 
           {/* Editor */}
           <div className="min-h-[400px]">
-            <ClientOnly fallback={
-              <div className="min-h-[400px] p-4 border border-cozy-gray-200 rounded-lg bg-cozy-gray-100 flex items-center justify-center">
-                <div className="text-cozy-text-muted">Loading editor...</div>
-              </div>
-            }>
-              <ModernTiptapEditor
-                content={note.contentJson || note.content}
-                onUpdate={handleContentUpdate}
-                placeholder={userCanEdit ? "Start writing your note..." : "This note is read-only"}
-                editable={userCanEdit}
-                collabDocId={undefined}
-                userInfo={userInfo}
-                className="min-h-[400px]"
-              />
-            </ClientOnly>
+            <div className="bg-white/80 backdrop-blur-sm border border-cozy-gray-200 rounded-lg shadow-sm">
+              <ClientOnly fallback={
+                <div className="min-h-[400px] p-4 flex items-center justify-center">
+                  <div className="text-cozy-text-muted">Loading editor...</div>
+                </div>
+              }>
+                <ModernTiptapEditor
+                  content={note.contentJson || note.content}
+                  onUpdate={handleContentUpdate}
+                  placeholder={userCanEdit ? "Start writing your note..." : "This note is read-only"}
+                  editable={userCanEdit}
+                  collabDocId={undefined}
+                  userInfo={userInfo}
+                  className="min-h-[400px]"
+                />
+              </ClientOnly>
+            </div>
           </div>
 
           {/* Collaborators Panel */}

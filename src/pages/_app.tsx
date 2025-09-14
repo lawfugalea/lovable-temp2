@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Head from "next/head";
 import "../styles/globals.css";
 import AuthApp from "@/components/AuthApp";
+import UpdateNotification from "@/components/UpdateNotification";
 
 export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   const router = useRouter();
@@ -18,6 +19,11 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
       navigator.serviceWorker.register('/sw.js')
         .then((registration) => {
           console.log('SW registered: ', registration);
+          
+          // Check for updates every 30 minutes
+          setInterval(() => {
+            registration.update();
+          }, 30 * 60 * 1000);
         })
         .catch((registrationError) => {
           console.log('SW registration failed: ', registrationError);
@@ -37,8 +43,12 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
           <meta name="apple-mobile-web-app-title" content="HouseFlow" />
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+          <meta name="apple-touch-fullscreen" content="yes" />
+          <link rel="apple-touch-icon" href="/logo.png" />
+          <link rel="apple-touch-startup-image" href="/logo.png" />
         </Head>
         <Component {...pageProps} />
+        <UpdateNotification />
       </>
     );
   }
@@ -54,11 +64,20 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
           <meta name="apple-mobile-web-app-title" content="HouseFlow" />
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+          <meta name="apple-touch-fullscreen" content="yes" />
+          <link rel="apple-touch-icon" href="/logo.png" />
+          <link rel="apple-touch-startup-image" href="/logo.png" />
         </Head>
         <Component {...pageProps} />
+        <UpdateNotification />
       </>
     );
   }
 
-  return <AuthApp Component={Component} pageProps={pageProps} session={session} />;
+  return (
+    <>
+      <AuthApp Component={Component} pageProps={pageProps} session={session} />
+      <UpdateNotification />
+    </>
+  );
 }

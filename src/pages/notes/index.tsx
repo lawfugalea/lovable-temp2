@@ -472,18 +472,41 @@ export default function NotesIndexPage() {
     switch (color) {
       case 'yellow':
         return 'bg-yellow-50 border-yellow-200 hover:bg-yellow-100'
+      case 'sage':
+        return 'bg-green-50 border-green-200 hover:bg-green-100'
+      case 'coral':
+        return 'bg-orange-50 border-orange-200 hover:bg-orange-100'
+      case 'terracotta':
+        return 'bg-red-50 border-red-200 hover:bg-red-100'
+      case 'cream':
+        return 'bg-amber-50 border-amber-200 hover:bg-amber-100'
+      case 'sand':
+        return 'bg-stone-50 border-stone-200 hover:bg-stone-100'
+      case 'warm-gray':
+        return 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+      case 'soft-blue':
+        return 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+      case 'lavender':
+        return 'bg-purple-50 border-purple-200 hover:bg-purple-100'
+      case 'pink':
+        return 'bg-pink-50 border-pink-200 hover:bg-pink-100'
+      case 'emerald':
+        return 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+      case 'indigo':
+        return 'bg-indigo-50 border-indigo-200 hover:bg-indigo-100'
+      case 'default':
+        return 'bg-cozy-surface border-cozy-gray-200 hover:bg-cozy-gray-100'
+      // Legacy color support
       case 'green':
         return 'bg-green-50 border-green-200 hover:bg-green-100'
       case 'blue':
         return 'bg-blue-50 border-blue-200 hover:bg-blue-100'
       case 'purple':
         return 'bg-purple-50 border-purple-200 hover:bg-purple-100'
-      case 'pink':
-        return 'bg-pink-50 border-pink-200 hover:bg-pink-100'
       case 'gray':
         return 'bg-gray-50 border-gray-200 hover:bg-gray-100'
       default:
-        return 'bg-white border-gray-200 hover:bg-gray-50'
+        return 'bg-cozy-surface border-cozy-gray-200 hover:bg-cozy-gray-100'
     }
   }, [])
 
@@ -750,12 +773,16 @@ export default function NotesIndexPage() {
                             {/* Quick Color Picker */}
                             <div className="flex items-center gap-1">
                               {[
-                                { name: 'yellow', bg: 'bg-yellow-200', hover: 'hover:bg-yellow-300' },
-                                { name: 'sage', bg: 'bg-green-200', hover: 'hover:bg-green-300' },
-                                { name: 'coral', bg: 'bg-orange-200', hover: 'hover:bg-orange-300' },
-                                { name: 'terracotta', bg: 'bg-red-200', hover: 'hover:bg-red-300' },
-                                { name: 'cream', bg: 'bg-amber-200', hover: 'hover:bg-amber-300' },
-                                { name: 'sand', bg: 'bg-stone-200', hover: 'hover:bg-stone-300' }
+                                { name: 'yellow', bg: 'bg-yellow-50', accent: 'bg-yellow-400' },
+                                { name: 'sage', bg: 'bg-green-50', accent: 'bg-green-400' },
+                                { name: 'coral', bg: 'bg-orange-50', accent: 'bg-orange-400' },
+                                { name: 'terracotta', bg: 'bg-red-50', accent: 'bg-red-400' },
+                                { name: 'cream', bg: 'bg-amber-50', accent: 'bg-amber-400' },
+                                { name: 'sand', bg: 'bg-stone-50', accent: 'bg-stone-400' },
+                                { name: 'warm-gray', bg: 'bg-gray-50', accent: 'bg-gray-400' },
+                                { name: 'soft-blue', bg: 'bg-blue-50', accent: 'bg-blue-400' },
+                                { name: 'lavender', bg: 'bg-purple-50', accent: 'bg-purple-400' },
+                                { name: 'pink', bg: 'bg-pink-50', accent: 'bg-pink-400' }
                               ].map((color) => (
                                 <button
                                   key={color.name}
@@ -763,11 +790,13 @@ export default function NotesIndexPage() {
                                     e.stopPropagation()
                                     handleNoteUpdate(note.id, 'color', color.name)
                                   }}
-                                  className={`w-3 h-3 rounded-full border-2 ${
+                                  className={`relative w-4 h-4 rounded border ${
                                     note.color === color.name ? 'border-cozy-text scale-110' : 'border-cozy-gray-300'
-                                  } ${color.bg} ${color.hover} transition-all`}
+                                  } ${color.bg} transition-all hover:scale-105`}
                                   title={color.name}
-                                />
+                                >
+                                  <div className={`absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full ${color.accent}`} />
+                                </button>
                               ))}
                             </div>
                             

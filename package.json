@@ -1,15 +1,17 @@
 {
   "name": "houseflow",
-  "version": "0.1.0",
+  "version": "0.1.6",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "node scripts/update-version.js && prisma generate && next build",
+    "build:production": "node scripts/update-version.js && prisma generate && next build",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "start": "next start",
     "lint": "next lint",
+    "update-version": "node scripts/update-version.js",
     "scrape:smart": "node scripts/scrape-smart.js",
     "scrape:smart:headed": "node scripts/scrape-smart.js headed",
     "build:dev": "vite build --mode development"
