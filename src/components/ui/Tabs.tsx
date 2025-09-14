@@ -29,9 +29,9 @@ export default function Tabs({
   const containerRef = useRef<HTMLDivElement>(null)
 
   const sizeClasses = {
-    sm: 'px-2 py-1 text-xs',
-    md: 'px-3 py-1.5 text-sm',
-    lg: 'px-4 py-2 text-base'
+    sm: 'px-2 py-1.5 text-xs',
+    md: 'px-3 py-2 text-sm',
+    lg: 'px-4 py-2.5 text-base'
   }
 
   // Auto-scroll to active tab
@@ -71,9 +71,9 @@ export default function Tabs({
         ref={containerRef}
         className={cn(
           'flex overflow-x-auto scrollbar-hide mobile-tabs-container',
-          // Better touch target height
-          'min-h-[48px]',
-          variant === 'underline' ? 'border-b border-cozy-gray-200' : 'rounded-xl border border-cozy-gray-300'
+          // Better touch target height for mobile
+          'min-h-[44px] sm:min-h-[48px]',
+          variant === 'underline' ? 'border-b border-cozy-gray-200' : 'rounded-lg sm:rounded-xl border border-cozy-gray-300'
         )}
         style={{
           // Ensure horizontal scrolling works
@@ -100,10 +100,10 @@ export default function Tabs({
                 variant === 'pills' && 'rounded-lg mx-0.5 my-1',
                 // Mobile-optimized touch targets - ensure tabs don't shrink
                 'touch-manipulation', // Better touch response
-                'min-h-[48px]', // Larger touch target
-                'min-w-[80px]', // Larger minimum width for better scrolling
-                'px-4 py-3', // Better touch padding
-                'text-sm', // Consistent text size
+                'min-h-[44px] sm:min-h-[48px]', // Responsive touch target
+                'min-w-[70px] sm:min-w-[80px]', // Responsive minimum width
+                'px-2 sm:px-4 py-2 sm:py-3', // Responsive touch padding
+                'text-xs sm:text-sm', // Responsive text size
                 'select-none', // Prevent text selection
                 'whitespace-nowrap', // Prevent text wrapping
                 'cursor-pointer', // Better cursor feedback
@@ -111,7 +111,7 @@ export default function Tabs({
               )}
               aria-pressed={isActive}
             >
-              {Icon && <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />}
+              {Icon && <Icon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />}
               <span className="truncate">{tab.label}</span>
               {tab.badge && (
                 <span className={cn(
