@@ -2,6 +2,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',          // <-- needed for .next/standalone
+  outputFileTracingRoot: __dirname, // Fix workspace root warning
   reactStrictMode: false,        // Disable strict mode
   eslint: {
     ignoreDuringBuilds: true,    // Ignore ESLint errors during build

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
@@ -6,6 +6,8 @@ import TaskItem from '@tiptap/extension-task-item'
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
+import Placeholder from '@tiptap/extension-placeholder'
 import { 
   Bold, 
   Italic, 
@@ -56,6 +58,8 @@ export default function ModernTiptapEditor({
   const [isConnected, setIsConnected] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected')
   const [isClient, setIsClient] = useState(false)
+  const [, forceUpdate] = useState({})
+  const [toolbarUpdateTrigger, setToolbarUpdateTrigger] = useState(0)
   const collabProvider = useRef(getCollabProvider())
   const editorRef = useRef<HTMLDivElement>(null)
 
@@ -64,14 +68,25 @@ export default function ModernTiptapEditor({
   }, [])
 
   const editor = useEditor({
-    immediatelyRender: false,
+    immediatelyRender: true,
     extensions: [
       StarterKit.configure({
         // history: false, // Disable built-in history for collaboration
         // Disable extensions that we're configuring separately
         underline: false, // We're using our own Underline extension
-        highlight: false, // We're using our own Highlight extension
         link: false, // We're using our own Link extension
+        // Ensure all other extensions are enabled
+        bold: {},
+        italic: {},
+        strike: {},
+        code: {},
+        heading: {},
+        bulletList: {},
+        orderedList: {},
+        blockquote: {},
+        hardBreak: {},
+        horizontalRule: {},
+        codeBlock: {},
       }),
       TaskList.configure({
         HTMLAttributes: {
@@ -94,6 +109,15 @@ export default function ModernTiptapEditor({
         HTMLAttributes: {
           class: 'text-blue-600 underline cursor-pointer hover:text-blue-800',
         },
+      }),
+      Image.configure({
+        HTMLAttributes: {
+          class: 'max-w-full h-auto rounded-lg',
+        },
+      }),
+      Placeholder.configure({
+        placeholder: placeholder,
+        emptyEditorClass: 'is-editor-empty',
       }),
       ...(collabDocId ? [
         // Collaboration.configure({
@@ -119,15 +143,22 @@ export default function ModernTiptapEditor({
     },
     editable,
     onUpdate: ({ editor }) => {
+      // Update active states immediately
+      updateActiveStates()
+      
       if (onUpdate) {
         const json = editor.getJSON()
         const text = editor.getText()
         onUpdate(json, text)
       }
     },
+    onSelectionUpdate: () => {
+      // Update active states when selection changes
+      updateActiveStates()
+    },
     editorProps: {
       attributes: {
-        class: `prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[200px] ${className}`,
+        class: `prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[200px] focus:ring-2 focus:ring-cozy-primary/20 focus:border-cozy-primary/30 ${className}`,
         'data-placeholder': placeholder,
       },
       handleKeyDown: (view, event) => {
@@ -144,6 +175,32 @@ export default function ModernTiptapEditor({
       },
     },
   })
+
+  // Update active states immediately when editor changes
+  const updateActiveStates = useCallback(() => {
+    if (!editor) return
+    
+    const newStates = {
+      bold: editor.isActive('bold'),
+      italic: editor.isActive('italic'),
+      underline: editor.isActive('underline'),
+      strike: editor.isActive('strike'),
+      code: editor.isActive('code'),
+      highlight: editor.isActive('highlight'),
+      heading1: editor.isActive('heading', { level: 1 }),
+      heading2: editor.isActive('heading', { level: 2 }),
+      heading3: editor.isActive('heading', { level: 3 }),
+      bulletList: editor.isActive('bulletList'),
+      orderedList: editor.isActive('orderedList'),
+      taskList: editor.isActive('taskList'),
+      blockquote: editor.isActive('blockquote'),
+      link: editor.isActive('link'),
+      canUndo: editor.can().undo(),
+      canRedo: editor.can().redo()
+    }
+    
+    setActiveStates(newStates)
+  }, [editor])
 
   // Connect to collaboration when collabDocId is provided
   useEffect(() => {
@@ -187,6 +244,176 @@ export default function ModernTiptapEditor({
     }
   }, [collabDocId])
 
+  // Memoized button handlers for better performance
+  const toggleBold = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleBold().run()
+    // Force immediate state update
+    setActiveStates(prev => ({
+      ...prev,
+      bold: editor.isActive('bold')
+    }))
+  }, [editor])
+
+  const toggleItalic = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleItalic().run()
+    setActiveStates(prev => ({
+      ...prev,
+      italic: editor.isActive('italic')
+    }))
+  }, [editor])
+
+  const toggleUnderline = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleUnderline().run()
+    setActiveStates(prev => ({
+      ...prev,
+      underline: editor.isActive('underline')
+    }))
+  }, [editor])
+
+  const toggleStrike = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleStrike().run()
+    setActiveStates(prev => ({
+      ...prev,
+      strike: editor.isActive('strike')
+    }))
+  }, [editor])
+
+  const toggleCode = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleCode().run()
+    setActiveStates(prev => ({
+      ...prev,
+      code: editor.isActive('code')
+    }))
+  }, [editor])
+
+  const toggleHighlight = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleHighlight().run()
+    setActiveStates(prev => ({
+      ...prev,
+      highlight: editor.isActive('highlight')
+    }))
+  }, [editor])
+
+  const toggleHeading1 = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleHeading({ level: 1 }).run()
+    setActiveStates(prev => ({
+      ...prev,
+      heading1: editor.isActive('heading', { level: 1 }),
+      heading2: false,
+      heading3: false
+    }))
+  }, [editor])
+
+  const toggleHeading2 = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleHeading({ level: 2 }).run()
+    setActiveStates(prev => ({
+      ...prev,
+      heading1: false,
+      heading2: editor.isActive('heading', { level: 2 }),
+      heading3: false
+    }))
+  }, [editor])
+
+  const toggleHeading3 = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleHeading({ level: 3 }).run()
+    setActiveStates(prev => ({
+      ...prev,
+      heading1: false,
+      heading2: false,
+      heading3: editor.isActive('heading', { level: 3 })
+    }))
+  }, [editor])
+
+  const toggleBulletList = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleBulletList().run()
+    setActiveStates(prev => ({
+      ...prev,
+      bulletList: editor.isActive('bulletList'),
+      orderedList: false,
+      taskList: false
+    }))
+  }, [editor])
+
+  const toggleOrderedList = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleOrderedList().run()
+    setActiveStates(prev => ({
+      ...prev,
+      bulletList: false,
+      orderedList: editor.isActive('orderedList'),
+      taskList: false
+    }))
+  }, [editor])
+
+  const toggleTaskList = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleTaskList().run()
+    setActiveStates(prev => ({
+      ...prev,
+      bulletList: false,
+      orderedList: false,
+      taskList: editor.isActive('taskList')
+    }))
+  }, [editor])
+
+  const toggleBlockquote = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().toggleBlockquote().run()
+    setActiveStates(prev => ({
+      ...prev,
+      blockquote: editor.isActive('blockquote')
+    }))
+  }, [editor])
+
+  const undo = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().undo().run()
+    setActiveStates(prev => ({
+      ...prev,
+      canUndo: editor.can().undo(),
+      canRedo: editor.can().redo()
+    }))
+  }, [editor])
+
+  const redo = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().redo().run()
+    setActiveStates(prev => ({
+      ...prev,
+      canUndo: editor.can().undo(),
+      canRedo: editor.can().redo()
+    }))
+  }, [editor])
+
+  const clearFormatting = useCallback(() => {
+    if (!editor) return
+    editor.chain().focus().clearNodes().unsetAllMarks().run()
+    setActiveStates(prev => ({
+      ...prev,
+      bold: false,
+      italic: false,
+      underline: false,
+      strike: false,
+      code: false,
+      highlight: false,
+      heading1: false,
+      heading2: false,
+      heading3: false,
+      blockquote: false,
+      link: false
+    }))
+  }, [editor])
+
   const addLink = useCallback(() => {
     if (!editor) {
       console.log('Editor not available for addLink')
@@ -197,13 +424,48 @@ export default function ModernTiptapEditor({
     if (url) {
       console.log('Adding link:', url)
       editor.chain().focus().setLink({ href: url }).run()
+      setActiveStates(prev => ({
+        ...prev,
+        link: editor.isActive('link')
+      }))
     }
   }, [editor])
 
   const removeLink = useCallback(() => {
     if (!editor) return
     editor.chain().focus().unsetLink().run()
+    setActiveStates(prev => ({
+      ...prev,
+      link: editor.isActive('link')
+    }))
   }, [editor])
+
+  // Active states that update immediately
+  const [activeStates, setActiveStates] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
+    strike: false,
+    code: false,
+    highlight: false,
+    heading1: false,
+    heading2: false,
+    heading3: false,
+    bulletList: false,
+    orderedList: false,
+    taskList: false,
+    blockquote: false,
+    link: false,
+    canUndo: false,
+    canRedo: false
+  })
+
+  // Initialize active states when editor is ready
+  useEffect(() => {
+    if (editor) {
+      updateActiveStates()
+    }
+  }, [editor, updateActiveStates])
 
   if (!editor) {
     return (
@@ -214,61 +476,61 @@ export default function ModernTiptapEditor({
   }
 
   return (
-    <div className="relative">
+    <div className="relative border border-cozy-gray-200 rounded-lg bg-cozy-surface">
       {/* Toolbar */}
       {isClient && editor && (
-        <div className="sticky top-0 z-10 bg-cozy-surface border-b border-cozy-gray-200 p-2 flex flex-wrap items-center gap-1 mb-4 shadow-cozy-sm">
+        <div className="bg-cozy-surface border-b border-cozy-gray-200 p-2 flex flex-wrap items-center gap-1 shadow-cozy-sm rounded-t-lg">
         {/* Text Formatting */}
         <div className="flex items-center gap-1 border-r border-cozy-gray-200 pr-2 mr-2">
           <button
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('bold') ? 'bg-cozy-gray-200' : ''
+            onClick={toggleBold}
+            className={`p-2 rounded transition-all duration-150 hover:bg-cozy-gray-100 hover:scale-105 active:scale-95 ${
+              activeStates.bold ? 'bg-cozy-primary-soft text-cozy-primary-deep shadow-cozy-sm' : 'hover:shadow-sm'
             }`}
             title="Bold"
           >
             <Bold className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('italic') ? 'bg-cozy-gray-200' : ''
+            onClick={toggleItalic}
+            className={`p-2 rounded transition-all duration-150 hover:bg-cozy-gray-100 hover:scale-105 active:scale-95 ${
+              activeStates.italic ? 'bg-cozy-primary-soft text-cozy-primary-deep shadow-cozy-sm' : 'hover:shadow-sm'
             }`}
             title="Italic"
           >
             <Italic className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('underline') ? 'bg-cozy-gray-200' : ''
+            onClick={toggleUnderline}
+            className={`p-2 rounded transition-all duration-150 hover:bg-cozy-gray-100 hover:scale-105 active:scale-95 ${
+              activeStates.underline ? 'bg-cozy-primary-soft text-cozy-primary-deep shadow-cozy-sm' : 'hover:shadow-sm'
             }`}
             title="Underline"
           >
             <UnderlineIcon className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('strike') ? 'bg-cozy-gray-200' : ''
+            onClick={toggleStrike}
+            className={`p-2 rounded transition-all duration-150 hover:bg-cozy-gray-100 hover:scale-105 active:scale-95 ${
+              activeStates.strike ? 'bg-cozy-primary-soft text-cozy-primary-deep shadow-cozy-sm' : 'hover:shadow-sm'
             }`}
             title="Strikethrough"
           >
             <Strikethrough className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().toggleCode().run()}
-            className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('code') ? 'bg-cozy-gray-200' : ''
+            onClick={toggleCode}
+            className={`p-2 rounded transition-all duration-150 hover:bg-cozy-gray-100 hover:scale-105 active:scale-95 ${
+              activeStates.code ? 'bg-cozy-primary-soft text-cozy-primary-deep shadow-cozy-sm' : 'hover:shadow-sm'
             }`}
             title="Code"
           >
             <Code className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().toggleHighlight().run()}
-            className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('highlight') ? 'bg-cozy-gray-200' : ''
+            onClick={toggleHighlight}
+            className={`p-2 rounded transition-all duration-150 hover:bg-cozy-gray-100 hover:scale-105 active:scale-95 ${
+              activeStates.highlight ? 'bg-cozy-primary-soft text-cozy-primary-deep shadow-cozy-sm' : 'hover:shadow-sm'
             }`}
             title="Highlight"
           >
@@ -279,27 +541,27 @@ export default function ModernTiptapEditor({
         {/* Headings */}
         <div className="flex items-center gap-1 border-r border-cozy-gray-200 pr-2 mr-2">
           <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            onClick={toggleHeading1}
             className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('heading', { level: 1 }) ? 'bg-cozy-gray-200' : ''
+              activeStates.heading1 ? 'bg-cozy-gray-200' : ''
             }`}
             title="Heading 1"
           >
             <Heading1 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            onClick={toggleHeading2}
             className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('heading', { level: 2 }) ? 'bg-cozy-gray-200' : ''
+              activeStates.heading2 ? 'bg-cozy-gray-200' : ''
             }`}
             title="Heading 2"
           >
             <Heading2 className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            onClick={toggleHeading3}
             className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('heading', { level: 3 }) ? 'bg-cozy-gray-200' : ''
+              activeStates.heading3 ? 'bg-cozy-gray-200' : ''
             }`}
             title="Heading 3"
           >
@@ -310,30 +572,27 @@ export default function ModernTiptapEditor({
         {/* Lists */}
         <div className="flex items-center gap-1 border-r border-cozy-gray-200 pr-2 mr-2">
           <button
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            onClick={toggleBulletList}
             className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('bulletList') ? 'bg-cozy-gray-200' : ''
+              activeStates.bulletList ? 'bg-cozy-gray-200' : ''
             }`}
             title="Bullet List"
           >
             <List className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            onClick={toggleOrderedList}
             className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('orderedList') ? 'bg-cozy-gray-200' : ''
+              activeStates.orderedList ? 'bg-cozy-gray-200' : ''
             }`}
             title="Numbered List"
           >
             <ListOrdered className="w-4 h-4" />
           </button>
           <button
-            onClick={() => {
-              console.log('Task list button clicked')
-              editor.chain().focus().toggleTaskList().run()
-            }}
+            onClick={toggleTaskList}
             className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('taskList') ? 'bg-cozy-gray-200' : ''
+              activeStates.taskList ? 'bg-cozy-gray-200' : ''
             }`}
             title="Task List"
           >
@@ -344,9 +603,9 @@ export default function ModernTiptapEditor({
         {/* Block Elements */}
         <div className="flex items-center gap-1 border-r border-cozy-gray-200 pr-2 mr-2">
           <button
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            onClick={toggleBlockquote}
             className={`p-2 rounded hover:bg-cozy-gray-100 transition-colors ${
-              editor.isActive('blockquote') ? 'bg-cozy-gray-200' : ''
+              activeStates.blockquote ? 'bg-cozy-gray-200' : ''
             }`}
             title="Quote"
           >
@@ -356,7 +615,7 @@ export default function ModernTiptapEditor({
 
         {/* Links */}
         <div className="flex items-center gap-1 border-r border-cozy-gray-200 pr-2 mr-2">
-          {editor.isActive('link') ? (
+          {activeStates.link ? (
             <button
               onClick={removeLink}
               className="p-2 rounded hover:bg-cozy-gray-100 transition-colors"
@@ -378,23 +637,23 @@ export default function ModernTiptapEditor({
         {/* History & Clear */}
         <div className="flex items-center gap-1">
           <button
-            onClick={() => editor.chain().focus().undo().run()}
-            disabled={!editor.can().undo()}
+            onClick={undo}
+            disabled={!activeStates.canUndo}
             className="p-2 rounded hover:bg-cozy-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Undo"
           >
             <Undo className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().redo().run()}
-            disabled={!editor.can().redo()}
+            onClick={redo}
+            disabled={!activeStates.canRedo}
             className="p-2 rounded hover:bg-cozy-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Redo"
           >
             <Redo className="w-4 h-4" />
           </button>
           <button
-            onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
+            onClick={clearFormatting}
             className="p-2 rounded hover:bg-cozy-gray-100 transition-colors"
             title="Clear Formatting"
           >
@@ -465,7 +724,7 @@ export default function ModernTiptapEditor({
       </BubbleMenu> */}
 
       {/* Editor Content */}
-      <div ref={editorRef} className="relative">
+      <div ref={editorRef} className="relative p-4 min-h-[200px] focus-within:bg-cozy-bg/50 transition-colors">
         {isClient && editor && <EditorContent editor={editor} />}
         {!isClient && (
           <div className="min-h-[200px] p-4 text-cozy-text-muted">
@@ -474,12 +733,6 @@ export default function ModernTiptapEditor({
         )}
       </div>
 
-      {/* Placeholder */}
-      {isClient && editor && editor.isEmpty && (
-        <div className="absolute top-0 left-0 text-cozy-text-muted pointer-events-none select-none">
-          {placeholder}
-        </div>
-      )}
     </div>
   )
 }
