@@ -119,6 +119,16 @@ export async function sendMedicineReminderNotification(payload: NotificationPayl
     return;
   }
 
+  // Check if notification permission is granted
+  if (Notification.permission !== 'granted') {
+    console.log('Notification permission not granted, requesting permission...');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.log('Notification permission denied');
+      return;
+    }
+  }
+
   try {
     const registration = await navigator.serviceWorker.ready;
     await registration.showNotification(payload.title, {
