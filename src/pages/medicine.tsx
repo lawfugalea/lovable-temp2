@@ -957,6 +957,17 @@ export default function MedicinePage() {
     return `${year}-${month}-${day}T${hours}:${minutes}`
   }
 
+  // Helper function to convert stored date to local datetime-local format
+  const dateToLocalDatetimeString = (dateString: string) => {
+    const date = new Date(dateString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
   const getChildAge = (dateOfBirth: string) => {
     const birth = new Date(dateOfBirth)
     const now = new Date()
@@ -1445,7 +1456,7 @@ export default function MedicinePage() {
                                             medicineId: dose.medicineId,
                                             dosage: dose.dosage,
                                             notes: dose.notes || '',
-                                            takenAt: new Date(dose.takenAt).toISOString().slice(0, 16) // Format for datetime-local input
+                                            takenAt: dateToLocalDatetimeString(dose.takenAt) // Format for datetime-local input
                                           })
                                           setShowDoseModal(true)
                                         }}
@@ -1626,7 +1637,7 @@ export default function MedicinePage() {
                                           medicineId: dose.medicineId,
                                           dosage: dose.dosage,
                                           notes: dose.notes || '',
-                                          takenAt: new Date(dose.takenAt).toISOString().slice(0, 16)
+                                          takenAt: dateToLocalDatetimeString(dose.takenAt)
                                         })
                                         setShowDoseModal(true)
                                       }}
