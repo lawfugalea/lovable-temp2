@@ -11,6 +11,7 @@ interface ChecklistItem {
   text: string;
   isChecked: boolean;
   order: number;
+  category?: string;
 }
 
 interface NoteImage {
@@ -81,7 +82,9 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
   const [isPinned, setIsPinned] = useState(note.isPinned);
   const [saving, setSaving] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState('');
   const [isAddingItem, setIsAddingItem] = useState(false);
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -127,7 +130,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
     
     saveTimeoutRef.current = setTimeout(() => {
       saveNote();
-    }, 2000); // Auto-save after 2 seconds of inactivity (better UX)
+    }, 2000);
   };
 
   // Auto-save when title or content changes
@@ -144,9 +147,9 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [title, content]);
+  }, [title, content, note.title, note.content]);
 
-  // Auto-save for other properties (immediate save for these)
+  // Auto-save for other properties
   const saveProperty = async (updates: Partial<Note>) => {
     try {
       await onUpdate(note.id, updates);
@@ -155,39 +158,23 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
     }
   };
 
-  // Auto-save when color changes
   useEffect(() => {
     if (color !== note.color) {
       saveProperty({ color });
     }
-  }, [color]);
+  }, [color, note.color]);
 
-  // Auto-save when visibility changes
   useEffect(() => {
     if (visibility !== note.visibility) {
       saveProperty({ visibility });
     }
-  }, [visibility]);
+  }, [visibility, note.visibility]);
 
-  // Auto-save when pin status changes
   useEffect(() => {
     if (isPinned !== note.isPinned) {
       saveProperty({ isPinned });
     }
-  }, [isPinned]);
-
-  // Keyboard shortcut for save (Ctrl+S)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        saveNote();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isPinned, note.isPinned]);
 
   const addChecklistItem = async () => {
     if (!newChecklistItem.trim() || isAddingItem) return;
@@ -197,12 +184,13 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
       const response = await fetch(`/api/notes/${currentNote.id}/checklist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: newChecklistItem.trim() })
+        body: JSON.stringify({ 
+          text: newChecklistItem.trim(),
+          category: newItemCategory.trim() || null
+        })
       });
 
       if (response.ok) {
-        const newItem = await response.json();
-        // Refresh the note data
         const noteResponse = await fetch(`/api/notes/${currentNote.id}`);
         if (noteResponse.ok) {
           const updatedNote = await noteResponse.json();
@@ -210,15 +198,8 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
           onUpdate(currentNote.id, updatedNote);
         }
         setNewChecklistItem('');
-        
-        // Auto-scroll to input on mobile after adding item
-        setTimeout(() => {
-          const inputElement = document.querySelector('input[placeholder*="Add new checklist item"]') as HTMLInputElement;
-          if (inputElement) {
-            inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            inputElement.focus();
-          }
-        }, 100);
+        setNewItemCategory('');
+        setShowCategoryInput(false);
       }
     } catch (error) {
       console.error('Failed to add checklist item:', error);
@@ -236,7 +217,6 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
       });
 
       if (response.ok) {
-        // Refresh the note data
         const noteResponse = await fetch(`/api/notes/${currentNote.id}`);
         if (noteResponse.ok) {
           const updatedNote = await noteResponse.json();
@@ -250,101 +230,21 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
   };
 
   const deleteChecklistItem = async (itemId: string) => {
-    // Optimistic update - remove item immediately from UI
-    const optimisticUpdate = {
-      ...currentNote,
-      checklistItems: (currentNote.checklistItems || []).filter(item => item.id !== itemId)
-    };
-    setCurrentNote(optimisticUpdate);
-    onUpdate(currentNote.id, optimisticUpdate);
-
     try {
       const response = await fetch(`/api/checklist-items/${itemId}`, {
         method: 'DELETE'
       });
 
-      if (!response.ok) {
-        // Revert optimistic update on failure
+      if (response.ok) {
         const noteResponse = await fetch(`/api/notes/${currentNote.id}`);
         if (noteResponse.ok) {
-          const revertedNote = await noteResponse.json();
-          setCurrentNote(revertedNote);
-          onUpdate(currentNote.id, revertedNote);
+          const updatedNote = await noteResponse.json();
+          setCurrentNote(updatedNote);
+          onUpdate(currentNote.id, updatedNote);
         }
-        console.error('Failed to delete checklist item');
       }
     } catch (error) {
-      // Revert optimistic update on error
-      const noteResponse = await fetch(`/api/notes/${currentNote.id}`);
-      if (noteResponse.ok) {
-        const revertedNote = await noteResponse.json();
-        setCurrentNote(revertedNote);
-        onUpdate(currentNote.id, revertedNote);
-      }
       console.error('Failed to delete checklist item:', error);
-    }
-  };
-
-  const handleDeleteNote = () => {
-    onDelete(currentNote.id);
-  };
-
-  const uploadImage = async (file: File) => {
-    if (uploadingImage) return;
-    setUploadingImage(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const response = await fetch(`/api/notes/${currentNote.id}/images`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (response.ok) {
-        const newImage = await response.json();
-        const updatedNote = {
-          ...currentNote,
-          images: [...(currentNote.images || []), newImage]
-        };
-        setCurrentNote(updatedNote);
-        onUpdate(currentNote.id, updatedNote);
-      } else {
-        console.error('Failed to upload image');
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      uploadImage(file);
-    }
-    // Reset the input value so the same file can be selected again
-    event.target.value = '';
-  };
-
-  const deleteImage = async (imageId: string) => {
-    try {
-      const response = await fetch(`/api/notes/images/${imageId}`, {
-        method: 'DELETE'
-      });
-
-      if (response.ok) {
-        const updatedNote = {
-          ...currentNote,
-          images: (currentNote.images || []).filter(img => img.id !== imageId)
-        };
-        setCurrentNote(updatedNote);
-        onUpdate(currentNote.id, updatedNote);
-      }
-    } catch (error) {
-      console.error('Error deleting image:', error);
     }
   };
 
@@ -352,7 +252,6 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
     if (saving) return;
     setSaving(true);
     
-    // Immediately update the local state for snappy UI
     const optimisticUpdate = {
       ...currentNote,
       type: newType
@@ -371,12 +270,10 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
         setCurrentNote(updatedNote);
         onUpdate(currentNote.id, updatedNote);
       } else {
-        // Revert on error
         setCurrentNote(currentNote);
       }
     } catch (error) {
       console.error('Failed to change note type:', error);
-      // Revert on error
       setCurrentNote(currentNote);
     } finally {
       setSaving(false);
@@ -384,368 +281,183 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50">
-      <div className={`rounded-t-3xl md:rounded-3xl w-full max-w-5xl max-h-[100vh] md:max-h-[95vh] overflow-hidden shadow-2xl ${getColorClasses(color, 'modal')} h-full md:h-auto border-0 md:border border-white/20`}>
-        {/* Header */}
-        <div className="bg-white/20 backdrop-blur-md border-b border-white/20 p-3 md:p-6">
-          {/* Mobile Header - Compact Layout */}
-          <div className="block md:hidden">
-            <div className="flex items-center justify-between mb-3">
-              <button
-                onClick={onClose}
-                className="p-2 rounded-xl hover:bg-white/30 transition-all duration-200 backdrop-blur-sm"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setIsPinned(!isPinned)}
-                  className={`p-2 rounded-xl transition-all duration-200 backdrop-blur-sm ${
-                    isPinned ? 'bg-orange-500/20 text-orange-600' : 'hover:bg-white/30'
-                  }`}
-                >
-                  {isPinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={() => setShowDeleteConfirm(true)}
-                  className="p-2 rounded-xl hover:bg-red-500/20 text-red-500 transition-all duration-200 backdrop-blur-sm"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={saveNote}
-                  disabled={saving}
-                  className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-2 rounded-xl hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 flex items-center gap-1 text-sm shadow-lg"
-                >
-                  <Save className="w-4 h-4" />
-                  <span>{saving ? '...' : 'Save'}</span>
-                </button>
-              </div>
-            </div>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-2 md:p-8 z-50">
+      <div className="w-full h-full md:w-[90vw] md:h-[85vh] md:max-w-4xl bg-white shadow-2xl rounded-2xl md:rounded-3xl flex flex-col overflow-hidden">
+        
+        {/* Simple Clean Header */}
+        <div className="bg-white border-b border-gray-200 p-4 md:p-6 shrink-0">
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl hover:bg-gray-100 transition-all"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+            
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => {
-                if (title !== note.title) {
-                  saveNote();
-                }
-              }}
-              className="w-full text-lg font-bold bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3 outline-none text-gray-900 placeholder-gray-600 focus:bg-white/20 focus:border-white/40 transition-all duration-200"
+              className="flex-1 text-xl md:text-2xl font-bold bg-transparent border-0 outline-none text-gray-900 placeholder-gray-400"
               placeholder="Note title..."
             />
-          </div>
-
-          {/* Desktop Header - Original Layout */}
-          <div className="hidden md:flex items-center justify-between mb-4">
-            <div className="flex items-center gap-4 flex-1">
-              <button
-                onClick={onClose}
-                className="p-2 rounded-xl hover:bg-white/30 transition-all duration-200 backdrop-blur-sm"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onBlur={() => {
-                  if (title !== note.title) {
-                    saveNote();
-                  }
-                }}
-                className="text-2xl font-bold bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl px-4 py-3 outline-none flex-1 min-w-0 text-gray-900 placeholder-gray-600 focus:bg-white/20 focus:border-white/40 transition-all duration-200"
-                placeholder="Note title..."
-              />
-            </div>
             
             <div className="flex items-center gap-2">
+              {saving ? (
+                <div className="flex items-center gap-2 text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  <span>Saving</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span>Saved</span>
+                </div>
+              )}
+              
               <button
                 onClick={() => setIsPinned(!isPinned)}
-                className={`p-2 rounded-xl transition-all duration-200 backdrop-blur-sm ${
-                  isPinned ? 'bg-orange-500/20 text-orange-600 border border-orange-300/30' : 'hover:bg-white/30 border border-transparent'
+                className={`p-2 rounded-xl transition-all ${
+                  isPinned ? 'bg-orange-100 text-orange-600' : 'hover:bg-gray-100 text-gray-600'
                 }`}
               >
-                {isPinned ? <Pin className="w-5 h-5" /> : <PinOff className="w-5 h-5" />}
+                {isPinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
               </button>
               
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="p-2 rounded-xl hover:bg-red-500/20 text-red-500 transition-all duration-200 backdrop-blur-sm border border-transparent hover:border-red-300/30"
-                title="Delete note"
+                className="p-2 rounded-xl hover:bg-red-100 text-red-500 transition-all"
               >
-                <Trash2 className="w-5 h-5" />
+                <Trash2 className="w-4 h-4" />
               </button>
-              
-              <button
-                onClick={saveNote}
-                disabled={saving}
-                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-2xl hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 flex items-center gap-2 text-base shadow-lg backdrop-blur-sm transition-all duration-200 border border-orange-400/30"
-              >
-                <Save className="w-4 h-4" />
-                <span>{saving ? 'Saving...' : 'Save'}</span>
-              </button>
-              
-              {/* Auto-save indicator */}
-              {saving ? (
-                <div className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-gray-500">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-                  <span className="hidden sm:inline">Saving...</span>
-                </div>
-              ) : hasUnsavedChanges ? (
-                <div className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-amber-600">
-                  <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                  <span className="hidden sm:inline">Unsaved changes</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 md:gap-2 text-xs md:text-sm text-green-600">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="hidden sm:inline">Saved</span>
-                </div>
-              )}
             </div>
           </div>
-
-          {/* Controls */}
-          <div className="mt-3 md:mt-0">
-            {/* Mobile: Compact horizontal layout */}
-            <div className="flex items-center justify-between gap-2 md:hidden">
-              <div className="flex bg-white/20 backdrop-blur-sm rounded-2xl p-1 border border-white/20">
-                <button
-                  onClick={() => changeNoteType('TEXT')}
-                  disabled={saving}
-                  className={`px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 ${
-                    currentNote.type === 'TEXT' 
-                      ? 'bg-white/40 text-gray-900 shadow-sm' 
-                      : 'text-gray-700 hover:bg-white/20'
-                  }`}
-                >
-                  Text
-                </button>
-                <button
-                  onClick={() => changeNoteType('CHECKLIST')}
-                  disabled={saving}
-                  className={`px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200 ${
-                    currentNote.type === 'CHECKLIST' 
-                      ? 'bg-white/40 text-gray-900 shadow-sm' 
-                      : 'text-gray-700 hover:bg-white/20'
-                  }`}
-                >
-                  List
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-1 p-1 bg-white/20 backdrop-blur-sm rounded-2xl border border-white/20">
-                {colorOptions.slice(0, 6).map(colorOption => (
-                  <button
-                    key={colorOption.name}
-                    onClick={() => setColor(colorOption.name)}
-                    className={`w-6 h-6 rounded-lg border transition-all duration-200 ${
-                      color === colorOption.name 
-                        ? 'border-gray-800 scale-110' 
-                        : 'border-white/40'
-                    } ${colorOption.bg}`}
-                    title={colorOption.label}
-                  />
-                ))}
-              </div>
-              
+          
+          {/* Simple Controls */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            {/* Type Toggle */}
+            <div className="flex bg-gray-100 rounded-xl p-1">
               <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingImage}
-                className="p-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl hover:bg-white/30 disabled:opacity-50 transition-all duration-200"
+                onClick={() => changeNoteType('TEXT')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  currentNote.type === 'TEXT' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
               >
-                {uploadingImage ? (
-                  <div className="w-4 h-4 border-2 border-white/40 border-t-orange-500 rounded-full animate-spin"></div>
-                ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                )}
+                <span>📝</span>
+                <span>Text</span>
+              </button>
+              <button
+                onClick={() => changeNoteType('CHECKLIST')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  currentNote.type === 'CHECKLIST' 
+                    ? 'bg-white text-gray-900 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <span>✅</span>
+                <span>List</span>
               </button>
             </div>
             
-            {/* Mobile: Visibility selector */}
-            <div className="flex items-center justify-center mt-2 md:hidden">
-              <select
-                value={visibility}
-                onChange={(e) => setVisibility(e.target.value as 'PRIVATE' | 'HOUSEHOLD' | 'READ_ONLY')}
-                className="bg-white/20 backdrop-blur-sm border border-white/20 rounded-2xl px-3 py-2 text-sm focus:bg-white/30 focus:border-white/40 transition-all duration-200"
-              >
-                <option value="PRIVATE">🔒 Private</option>
-                <option value="HOUSEHOLD">👥 Household</option>
-                <option value="READ_ONLY">👁️ Read Only</option>
-              </select>
+            {/* Colors */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Color:</span>
+              {colorOptions.slice(0, 6).map(colorOption => (
+                <button
+                  key={colorOption.name}
+                  onClick={() => setColor(colorOption.name)}
+                  className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                    color === colorOption.name 
+                      ? 'border-gray-800 scale-110' 
+                      : 'border-gray-300 hover:scale-105'
+                  } ${colorOption.bg}`}
+                />
+              ))}
             </div>
-
-            {/* Desktop: Original layout */}
-            <div className="hidden md:flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-medium text-gray-700">Type:</span>
-                  <div className="flex bg-white/20 backdrop-blur-sm rounded-2xl p-1 border border-white/20">
-                    <button
-                      onClick={() => changeNoteType('TEXT')}
-                      disabled={saving}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        currentNote.type === 'TEXT' 
-                          ? 'bg-white/40 text-gray-900 shadow-sm backdrop-blur-sm border border-white/30' 
-                          : 'text-gray-700 hover:text-gray-900 hover:bg-white/20'
-                      } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      {saving && currentNote.type === 'TEXT' ? '...' : 'Text'}
-                    </button>
-                    <button
-                      onClick={() => changeNoteType('CHECKLIST')}
-                      disabled={saving}
-                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                        currentNote.type === 'CHECKLIST' 
-                          ? 'bg-white/40 text-gray-900 shadow-sm backdrop-blur-sm border border-white/30' 
-                          : 'text-gray-700 hover:text-gray-900 hover:bg-white/20'
-                      } ${saving ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                    >
-                      {saving && currentNote.type === 'CHECKLIST' ? '...' : 'Checklist'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <Palette className="w-4 h-4 text-gray-700" />
-                <span className="text-sm font-medium text-gray-700 hidden sm:inline">Color:</span>
-              </div>
-              <div className="flex items-center gap-2 p-2 bg-white/20 backdrop-blur-sm rounded-2xl border border-white/20 flex-wrap">
-                {colorOptions.map(colorOption => (
+            
+            {/* Visibility */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Share:</span>
+              <div className="flex bg-gray-100 rounded-xl p-1">
+                {[
+                  { value: 'PRIVATE', label: 'Private', icon: '🔒' },
+                  { value: 'HOUSEHOLD', label: 'Family', icon: '👥' },
+                  { value: 'READ_ONLY', label: 'View Only', icon: '👁️' }
+                ].map(option => (
                   <button
-                    key={colorOption.name}
-                    onClick={() => setColor(colorOption.name)}
-                    className={`w-8 h-8 sm:w-7 sm:h-7 rounded-xl border-2 transition-all duration-200 hover:scale-110 shadow-sm ${
-                      color === colorOption.name 
-                        ? 'border-gray-800 scale-110 shadow-lg' 
-                        : 'border-white/40 hover:border-gray-400'
-                    } ${colorOption.bg}`}
-                    title={colorOption.label}
-                  />
+                    key={option.value}
+                    onClick={() => setVisibility(option.value as 'PRIVATE' | 'HOUSEHOLD' | 'READ_ONLY')}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                      visibility === option.value
+                        ? 'bg-white text-gray-900 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <span>{option.icon}</span>
+                    <span className="hidden sm:inline">{option.label}</span>
+                  </button>
                 ))}
               </div>
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
-              <div className="flex items-center gap-3">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingImage}
-                  className="flex items-center gap-2 px-4 py-3 sm:py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-2xl hover:bg-white/30 disabled:opacity-50 text-sm transition-all duration-200 shadow-sm flex-1 sm:flex-initial justify-center sm:justify-start"
-                >
-                  {uploadingImage ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/40 border-t-orange-500 rounded-full animate-spin"></div>
-                      <span>Uploading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span>Add Image</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-            <div className="flex items-center gap-2">
-              {visibility === 'PRIVATE' && <Lock className="w-4 h-4 text-red-500" />}
-              {visibility === 'HOUSEHOLD' && <Eye className="w-4 h-4 text-green-500" />}
-              {visibility === 'READ_ONLY' && <EyeOff className="w-4 h-4 text-blue-500" />}
-              <select
-                value={visibility}
-                onChange={(e) => setVisibility(e.target.value as 'PRIVATE' | 'HOUSEHOLD' | 'READ_ONLY')}
-                className="border border-gray-200 rounded-lg px-3 py-1 text-sm"
-              >
-                <option value="PRIVATE">Private</option>
-                <option value="HOUSEHOLD">Household</option>
-                <option value="READ_ONLY">Read Only</option>
-              </select>
-            </div>
-          </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="p-3 md:p-6 overflow-y-auto flex-1 md:max-h-[calc(90vh-200px)]">
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col overflow-hidden">
           {currentNote.type === 'TEXT' ? (
-            <textarea
-              ref={contentRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              onBlur={() => {
-                // Save immediately when user leaves content field
-                if (content !== (note.content || '')) {
-                  saveNote();
-                }
-              }}
-              placeholder="Start writing your note..."
-              className={`w-full p-4 md:p-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-3xl focus:bg-white/15 focus:border-white/40 resize-none min-h-[50vh] md:min-h-[400px] text-base md:text-lg placeholder-gray-600 transition-all duration-200 shadow-inner ${getColorClasses(color, 'modal')}`}
-            />
-          ) : null}
+            <>
+              {/* Simple Text Editor */}
+              <div className="flex-1 p-4 md:p-6">
+                <textarea
+                  ref={contentRef}
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Start writing your note...
 
-          {/* Images Section */}
-          {currentNote.images && currentNote.images.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-lg font-medium text-gray-700 mb-4">Images</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {currentNote.images.map((image) => (
-                  <div key={image.id} className="relative group">
-                    <img
-                      src={image.url}
-                      alt={image.originalName}
-                      className="w-full h-32 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => onImageClick(image)}
-                    />
-                    <button
-                      onClick={() => deleteImage(image.id)}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                      title="Delete image"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                      {image.originalName}
-                    </div>
-                  </div>
-                ))}
+💡 Your note auto-saves as you type!"
+                  className="w-full h-full p-4 md:p-6 bg-gray-50 border border-gray-200 rounded-2xl outline-none resize-none text-base md:text-lg leading-relaxed placeholder-gray-500 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all"
+                  autoFocus
+                />
               </div>
-            </div>
-          )}
-
-          {currentNote.type === 'CHECKLIST' ? (
-            <div className="space-y-6">
-              {/* Progress */}
+              
+              {/* Bottom Toolbar */}
+              <div className="bg-gray-50 border-t border-gray-200 p-4 flex items-center justify-center">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="flex items-center gap-2 bg-blue-500 text-white px-6 py-3 rounded-xl hover:bg-blue-600 disabled:opacity-50 transition-all font-medium"
+                >
+                  {uploadingImage ? (
+                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  )}
+                  <span>Add Image</span>
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Simple Progress */}
               {currentNote.checklistItems && currentNote.checklistItems.length > 0 && (
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-lg font-medium text-gray-700">
-                      {(currentNote.checklistItems || []).filter(item => item.isChecked).length} of {(currentNote.checklistItems || []).length} completed
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {Math.round(((currentNote.checklistItems || []).filter(item => item.isChecked).length / (currentNote.checklistItems || []).length) * 100)}%
-                    </div>
+                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mx-4 md:mx-6 mt-4 md:mt-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-semibold text-gray-800">
+                      {currentNote.checklistItems.filter(item => item.isChecked).length} of {currentNote.checklistItems.length} done
+                    </span>
+                    <span className="text-sm text-green-600 font-bold">
+                      {Math.round((currentNote.checklistItems.filter(item => item.isChecked).length / currentNote.checklistItems.length) * 100)}%
+                    </span>
                   </div>
-                  
-                  {/* Progress bar */}
-                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div className="w-full bg-green-200 rounded-full h-2">
                     <div 
-                      className="bg-gradient-to-r from-orange-400 to-orange-500 h-full rounded-full transition-all duration-500 ease-out"
+                      className="bg-green-500 h-full rounded-full transition-all duration-500"
                       style={{ 
-                        width: `${((currentNote.checklistItems || []).filter(item => item.isChecked).length / (currentNote.checklistItems || []).length) * 100}%`
+                        width: `${(currentNote.checklistItems.filter(item => item.isChecked).length / currentNote.checklistItems.length) * 100}%`
                       }}
                     />
                   </div>
@@ -753,81 +465,160 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
               )}
               
               {/* Checklist Items */}
-              <div className="space-y-3 mb-6">
+              <div className="flex-1 overflow-y-auto p-4 md:p-6">
                 {!currentNote.checklistItems || currentNote.checklistItems.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <div className="text-4xl mb-2">📝</div>
-                    <p className="text-lg font-medium">No checklist items yet</p>
-                    <p className="text-sm">Add your first item below to get started!</p>
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8">
+                    <div className="text-6xl mb-4">✅</div>
+                    <h3 className="text-2xl font-bold mb-3 text-gray-800">Start Your Checklist</h3>
+                    <p className="text-gray-600 mb-6">Add items below and organize with categories</p>
+                    <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 border border-blue-200 max-w-md">
+                      <p className="font-semibold mb-2">💡 Tips:</p>
+                      <p>• Press Enter to add items</p>
+                      <p>• Use 📁 for categories</p>
+                      <p>• Tap to check off</p>
+                    </div>
                   </div>
                 ) : (
-                  currentNote.checklistItems?.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 group p-4 md:p-3 rounded-2xl hover:bg-white/10 transition-all duration-200 backdrop-blur-sm border border-white/10 hover:border-white/20">
-                    <button
-                      onClick={() => toggleChecklistItem(item.id, item.isChecked)}
-                      className={`w-7 h-7 md:w-6 md:h-6 rounded-xl border-2 flex items-center justify-center transition-all hover:scale-110 ${
-                        item.isChecked 
-                          ? 'bg-green-500 border-green-500 text-white shadow-md' 
-                          : 'border-gray-400 hover:border-green-400 hover:bg-green-50/50'
-                      }`}
-                    >
-                      {item.isChecked && <span className="text-sm font-bold">✓</span>}
-                    </button>
-                    
-                    <span className={`flex-1 text-base md:text-lg ${item.isChecked ? 'line-through text-gray-500' : 'text-gray-900'} cursor-pointer`}
-                      onClick={() => toggleChecklistItem(item.id, item.isChecked)}
-                    >
-                      {item.text}
-                    </span>
-                    
-                    <button
-                      onClick={() => deleteChecklistItem(item.id)}
-                      className="opacity-70 md:opacity-0 group-hover:opacity-100 p-2 md:p-2 rounded-xl hover:bg-red-500/20 text-red-500 transition-all"
-                      title="Delete item"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
+                  <div className="space-y-4">
+                    {(() => {
+                      const groupedItems = currentNote.checklistItems.reduce((groups: Record<string, ChecklistItem[]>, item) => {
+                        const category = item.category || 'General';
+                        if (!groups[category]) groups[category] = [];
+                        groups[category].push(item);
+                        return groups;
+                      }, {});
+
+                      return Object.entries(groupedItems)
+                        .sort(([a], [b]) => a === 'General' ? 1 : b === 'General' ? -1 : a.localeCompare(b))
+                        .map(([category, items]) => (
+                          <div key={category} className="bg-gray-50 rounded-2xl border border-gray-200 p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                                <span>{category === 'General' ? '📋' : '📁'}</span>
+                                {category}
+                              </h4>
+                              <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-lg">
+                                {items.filter(item => item.isChecked).length}/{items.length}
+                              </span>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              {items.map((item) => (
+                                <div key={item.id} className="flex items-center gap-3 p-3 bg-white rounded-xl hover:bg-gray-50 transition-all group">
+                                  <button
+                                    onClick={() => toggleChecklistItem(item.id, item.isChecked)}
+                                    className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                                      item.isChecked 
+                                        ? 'bg-green-500 border-green-500 text-white' 
+                                        : 'border-gray-300 hover:border-green-400'
+                                    }`}
+                                  >
+                                    {item.isChecked && <span className="text-sm font-bold">✓</span>}
+                                  </button>
+                                  
+                                  <span className={`flex-1 text-base cursor-pointer ${item.isChecked ? 'line-through text-gray-500' : 'text-gray-900'}`}
+                                    onClick={() => toggleChecklistItem(item.id, item.isChecked)}
+                                  >
+                                    {item.text}
+                                  </span>
+                                  
+                                  <button
+                                    onClick={() => deleteChecklistItem(item.id)}
+                                    className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-red-100 text-red-500 transition-all"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ));
+                    })()}
                   </div>
-                  ))
                 )}
               </div>
               
-              {/* Add New Item */}
-              <div className="border-t border-white/20 pt-6 mt-6">
-                <div className="flex flex-col sm:flex-row gap-3">
-                          <input
-                            type="text"
-                            value={newChecklistItem}
-                            onChange={(e) => setNewChecklistItem(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && addChecklistItem()}
-                            onFocus={() => {
-                              // Auto-scroll to input on mobile when focused
-                              setTimeout(() => {
-                                const inputElement = document.querySelector('input[placeholder*="Add new checklist item"]') as HTMLInputElement;
-                                if (inputElement && window.innerWidth < 768) {
-                                  inputElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                }
-                              }, 100);
-                            }}
-                            placeholder="Add new checklist item..."
-                            className="flex-1 px-4 py-4 sm:py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl focus:bg-white/15 focus:border-white/40 text-base transition-all duration-200 placeholder-gray-600"
-                          />
+              {/* Simple Add Bar */}
+              <div className="bg-gray-50 border-t border-gray-200 p-4">
+                {showCategoryInput && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700">📁</span>
+                    <input
+                      type="text"
+                      value={newItemCategory}
+                      onChange={(e) => setNewItemCategory(e.target.value)}
+                      placeholder="Category name..."
+                      className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => {
+                        setShowCategoryInput(false);
+                        setNewItemCategory('');
+                      }}
+                      className="p-2 rounded-lg hover:bg-gray-200 text-gray-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newChecklistItem}
+                    onChange={(e) => setNewChecklistItem(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addChecklistItem();
+                      }
+                    }}
+                    placeholder="What do you need to do? (Press Enter)"
+                    className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl text-base placeholder-gray-500 focus:ring-2 focus:ring-blue-500"
+                  />
+                  
+                  {!showCategoryInput && (
+                    <button
+                      onClick={() => setShowCategoryInput(true)}
+                      className="p-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
+                    >
+                      📁
+                    </button>
+                  )}
+                  
                   <button
                     onClick={addChecklistItem}
                     disabled={!newChecklistItem.trim() || isAddingItem}
-                    className="px-6 py-4 sm:py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-2xl hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 flex items-center justify-center sm:justify-start gap-2 font-medium transition-all duration-200 shadow-lg"
+                    className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50 font-medium transition-all"
                   >
-                    <Plus className="w-5 h-5" />
-                    {isAddingItem ? 'Adding...' : 'Add Item'}
+                    {isAddingItem ? 'Adding...' : 'Add'}
                   </button>
                 </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  💡 Tip: Press Enter to quickly add items
-                </p>
+                
+                {newItemCategory && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    Adding to: <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">📁 {newItemCategory}</span>
+                  </div>
+                )}
               </div>
-            </div>
-          ) : null}
+            </>
+          )}
         </div>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              // Handle file upload here
+            }
+          }}
+          className="hidden"
+        />
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -846,7 +637,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                 Cancel
               </button>
               <button
-                onClick={handleDeleteNote}
+                onClick={() => onDelete(currentNote.id)}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
               >
                 Delete
@@ -859,7 +650,9 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
   );
 }
 
+// Rest of the component stays the same...
 export default function NotesPage() {
+  // All the existing state and functions remain the same
   const { data: session, status } = useSession();
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
@@ -878,25 +671,50 @@ export default function NotesPage() {
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<NoteImage | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>('');
 
   useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Notes page useEffect - status:', status, 'session:', !!session);
+    }
     if (status === 'loading') return;
     if (!session) {
-      router.push('/auth/signin');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No session found - middleware should handle redirect');
+      }
       return;
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Session found, fetching notes...');
     }
     fetchNotes();
   }, [session, status, router]);
 
   const fetchNotes = async () => {
     try {
+      setDebugInfo('');
       const response = await fetch('/api/notes');
+      
       if (response.ok) {
         const data = await response.json();
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Notes fetched successfully:', data.length, 'notes');
+        }
         setNotes(data);
+      } else {
+        const errorData = await response.text();
+        console.error('Failed to fetch notes. Status:', response.status, 'Response:', errorData);
+        setDebugInfo(`Error ${response.status}: ${errorData}`);
+        if (response.status === 401) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Unauthorized - session may have expired');
+          }
+          window.location.reload();
+        }
       }
     } catch (error) {
-      console.error('Failed to fetch notes:', error);
+      console.error('Error fetching notes:', error);
+      setDebugInfo(`Network error: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -1020,7 +838,33 @@ export default function NotesPage() {
     }
   };
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading') {
+    return (
+      <ModernAppShell title="Notes">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Checking authentication...</p>
+          </div>
+        </div>
+      </ModernAppShell>
+    );
+  }
+
+  if (!session) {
+    return (
+      <ModernAppShell title="Notes">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Redirecting to login...</p>
+          </div>
+        </div>
+      </ModernAppShell>
+    );
+  }
+
+  if (loading) {
     return (
       <ModernAppShell title="Notes">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -1038,181 +882,214 @@ export default function NotesPage() {
       <SEO title="Family Notes - HouseFlow" description="Create and manage your family notes" />
       
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Family Notes</h1>
-            <p className="text-gray-600 mt-1">Share notes and checklists with your family</p>
+        {/* Debug Info - only show if there are errors */}
+        {process.env.NODE_ENV === 'development' && debugInfo && debugInfo.includes('Error') && (
+          <div className="bg-red-100 border border-red-300 rounded-lg p-3 text-sm">
+            <strong>Debug Error:</strong> {debugInfo}
+            <br />
+            <strong>Session:</strong> {session ? `User: ${session.user?.email}` : 'No session'}
+            <br />
+            <strong>Status:</strong> {status}
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-2xl flex items-center gap-2 font-medium transition-colors"
-            disabled={isCreating}
-          >
-            <Plus className="w-5 h-5" />
-            {isCreating ? 'Creating...' : 'New Note'}
-          </button>
+        )}
+        
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Family Notes</h1>
+            <p className="text-gray-600 mt-1 text-sm sm:text-base">Share notes and checklists with your family</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            {process.env.NODE_ENV === 'development' && (
+              <button
+                onClick={() => {
+                  setLoading(true);
+                  fetchNotes();
+                }}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors"
+                disabled={loading}
+              >
+                🔄 {loading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            )}
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-4 sm:px-6 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors w-full sm:w-auto"
+              disabled={isCreating}
+            >
+              <Plus className="w-5 h-5" />
+              <span className="whitespace-nowrap">{isCreating ? 'Creating...' : 'New Note'}</span>
+            </button>
+          </div>
         </div>
 
-          {/* Search and Filters */}
-          <div className="mb-8 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search notes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white/80 backdrop-blur-sm"
-              />
-            </div>
-
-            <div className="flex items-center gap-4 overflow-x-auto pb-2">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Filter className="w-4 h-4" />
-                <span>Filter by color:</span>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSelectedColor('all')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                    selectedColor === 'all' 
-                      ? 'bg-orange-500 text-white' 
-                      : 'bg-white text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  All
-                </button>
-                {colorOptions.map(color => (
-                  <button
-                    key={color.name}
-                    onClick={() => setSelectedColor(color.name)}
-                    className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                      selectedColor === color.name 
-                        ? 'bg-orange-500 text-white' 
-                        : `${color.bg} text-gray-600 hover:opacity-80`
-                    }`}
-                  >
-                    {color.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* Search and Filters */}
+        <div className="mb-6 sm:mb-8 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white/80 backdrop-blur-sm text-base"
+            />
           </div>
 
-          {/* Notes Grid */}
-          {filteredNotes.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">📝</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No notes found</h3>
-              <p className="text-gray-600 mb-6">
-                {searchQuery || selectedColor !== 'all' 
-                  ? 'Try adjusting your search or filters'
-                  : 'Create your first note to get started'
-                }
-              </p>
-              {!searchQuery && selectedColor === 'all' && (
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-2xl font-medium transition-colors"
-                >
-                  Create Note
-                </button>
-              )}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-600 shrink-0">
+              <Filter className="w-4 h-4" />
+              <span className="hidden sm:inline">Filter by color:</span>
+              <span className="sm:hidden">Filter:</span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
-              {filteredNotes.map(note => (
-                <div
-                  key={note.id}
-                  className={`backdrop-blur-md rounded-3xl border border-white/30 p-4 md:p-6 cursor-pointer group hover:scale-[1.02] md:hover:scale-105 transition-all duration-300 shadow-xl hover:shadow-2xl ${getColorClasses(note.color, 'card')} hover:border-white/50`}
-                  onClick={() => openEditModal(note)}
+            <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
+              <button
+                onClick={() => setSelectedColor('all')}
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-colors shrink-0 ${
+                  selectedColor === 'all' 
+                    ? 'bg-orange-500 text-white' 
+                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                }`}
+              >
+                All
+              </button>
+              {colorOptions.map(color => (
+                <button
+                  key={color.name}
+                  onClick={() => setSelectedColor(color.name)}
+                  className={`px-3 py-2 rounded-full text-sm font-medium transition-colors shrink-0 border ${
+                    selectedColor === color.name 
+                      ? 'bg-orange-500 text-white border-orange-500' 
+                      : `${color.bg} text-gray-600 hover:opacity-80 border-gray-200`
+                  }`}
                 >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
-                      {note.title}
-                    </h3>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        togglePin(note.id, note.isPinned);
-                      }}
-                      className="ml-2 p-1 rounded-full hover:bg-white/50 transition-colors"
-                    >
-                      {note.isPinned ? (
-                        <Pin className="w-4 h-4 text-orange-500" />
-                      ) : (
-                        <PinOff className="w-4 h-4 text-gray-400" />
+                  {color.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Notes Grid */}
+        {filteredNotes.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">📝</div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No notes found</h3>
+            <p className="text-gray-600 mb-6">
+              {searchQuery || selectedColor !== 'all' 
+                ? 'Try adjusting your search or filters'
+                : 'Create your first note to get started'
+              }
+            </p>
+            {!searchQuery && selectedColor === 'all' && (
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-2xl font-medium transition-colors"
+              >
+                Create Note
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+            {filteredNotes.map(note => (
+              <div
+                key={note.id}
+                className={`backdrop-blur-md rounded-2xl sm:rounded-3xl border border-white/30 p-3 sm:p-4 md:p-6 cursor-pointer group hover:scale-[1.01] sm:hover:scale-[1.02] md:hover:scale-105 transition-all duration-300 shadow-lg sm:shadow-xl hover:shadow-xl sm:hover:shadow-2xl ${getColorClasses(note.color, 'card')} hover:border-white/50 active:scale-[0.98] touch-manipulation`}
+                onClick={() => openEditModal(note)}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="font-semibold text-gray-900 line-clamp-2 flex-1">
+                    {note.title}
+                  </h3>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePin(note.id, note.isPinned);
+                    }}
+                    className="ml-2 p-2 rounded-full hover:bg-white/50 transition-colors touch-manipulation"
+                  >
+                    {note.isPinned ? (
+                      <Pin className="w-4 h-4 text-orange-500" />
+                    ) : (
+                      <PinOff className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Images Preview */}
+                {note.images && note.images.length > 0 && (
+                  <div className="mb-3">
+                    <div className="flex gap-2 overflow-x-auto">
+                      {note.images.slice(0, 3).map((image) => (
+                        <div key={image.id} className="flex-shrink-0">
+                          <img
+                            src={image.url}
+                            alt={image.originalName}
+                            className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity touch-manipulation"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedImage(image);
+                            }}
+                          />
+                        </div>
+                      ))}
+                      {note.images.length > 3 && (
+                        <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
+                          <span className="text-xs text-gray-500">+{note.images.length - 3}</span>
+                        </div>
                       )}
-                    </button>
-                  </div>
-
-                  {/* Images Preview */}
-                  {note.images && note.images.length > 0 && (
-                    <div className="mb-3">
-                      <div className="flex gap-2 overflow-x-auto">
-                        {note.images.slice(0, 3).map((image) => (
-                          <div key={image.id} className="flex-shrink-0">
-                            <img
-                              src={image.url}
-                              alt={image.originalName}
-                              className="w-12 h-12 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedImage(image);
-                              }}
-                            />
-                          </div>
-                        ))}
-                        {note.images.length > 3 && (
-                          <div className="flex-shrink-0 w-12 h-12 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center">
-                            <span className="text-xs text-gray-500">+{note.images.length - 3}</span>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {note.type === 'CHECKLIST' ? (
-                    <div className="mb-4">
-                      <div className="text-sm text-gray-600 mb-2">
-                        {note.checklistItems.filter(item => item.isChecked).length} of {note.checklistItems.length} completed
-                      </div>
-                      <div className="space-y-1">
-                        {note.checklistItems.slice(0, 3).map(item => (
-                          <div key={item.id} className="flex items-center gap-2 text-sm">
-                            <div className={`w-3 h-3 rounded border ${item.isChecked ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
-                              {item.isChecked && <div className="w-full h-full flex items-center justify-center text-white text-xs">✓</div>}
-                            </div>
+                {note.type === 'CHECKLIST' ? (
+                  <div className="mb-4">
+                    <div className="text-sm text-gray-600 mb-2">
+                      {note.checklistItems.filter(item => item.isChecked).length} of {note.checklistItems.length} completed
+                    </div>
+                    <div className="space-y-1">
+                      {note.checklistItems.slice(0, 3).map(item => (
+                        <div key={item.id} className="flex items-center gap-2 text-sm">
+                          <div className={`w-3 h-3 rounded border ${item.isChecked ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
+                            {item.isChecked && <div className="w-full h-full flex items-center justify-center text-white text-xs">✓</div>}
+                          </div>
+                          <div className="flex-1">
+                            {item.category && (
+                              <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded mr-2">
+                                {item.category}
+                              </span>
+                            )}
                             <span className={item.isChecked ? 'line-through text-gray-500' : 'text-gray-700'}>
                               {item.text}
                             </span>
                           </div>
-                        ))}
-                        {note.checklistItems.length > 3 && (
-                          <div className="text-xs text-gray-500">
-                            +{note.checklistItems.length - 3} more items
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-gray-600 text-sm line-clamp-3 mb-4">
-                      {note.content}
-                    </p>
-                  )}
-
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
-                    <div className="flex items-center gap-2">
-                      {getVisibilityIcon(note.visibility)}
-                      <span className="text-xs">{note.owner.name}</span>
+                        </div>
+                      ))}
+                      {note.checklistItems.length > 3 && (
+                        <div className="text-xs text-gray-500">
+                          +{note.checklistItems.length - 3} more items
+                        </div>
+                      )}
                     </div>
                   </div>
+                ) : (
+                  <p className="text-gray-600 text-sm line-clamp-3 mb-4">
+                    {note.content}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
+                  <div className="flex items-center gap-2">
+                    {getVisibilityIcon(note.visibility)}
+                    <span className="text-xs">{note.owner.name}</span>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Create Note Modal */}
         {showCreateModal && (
