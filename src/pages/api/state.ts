@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 // Use a RELATIVE import to avoid TS path alias issues:
-import { prisma } from '../../lib/prisma';
+import { prisma } from '@/lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = String(req.query.householdId || '').trim();
@@ -14,6 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const row = await prisma.pageState.findUnique({
         where: { householdId_page: { householdId, page } },
       });
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({ ok: true, data: row?.data ?? null, updatedAt: row?.updatedAt ?? null });
     }
 
@@ -26,6 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         update: { data, updatedBy: updatedBy ?? null },
         create: { householdId, page, data, updatedBy: updatedBy ?? null },
       });
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(200).json({ ok: true, updatedAt: saved.updatedAt });
     }
 

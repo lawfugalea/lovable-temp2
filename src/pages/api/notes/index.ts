@@ -1,217 +1,175 @@
-import { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
-import { prisma } from '@/lib/prisma'
+import { NextApiRequest, NextApiResponse } from 'next';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import { prisma } from '@/lib/prisma';
+
+async function requireUser(req: NextApiRequest, res: NextApiResponse) {
+  const sess = (await getServerSession(req, res, authOptions as any)) as any;
+  const userId = sess?.user?.id as string | undefined;
+  if (!userId) { 
+    res.status(401).json({ error: 'Unauthorized' }); 
+    return null; 
+  }
+  return userId;
+}
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session?.user?.email) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
+  const userId = await requireUser(req, res);
+  if (!userId) return;
 
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email }
-  })
+  if (req.method === 'GET') {
+    try {
+      // Get user's active household
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { activeHouseholdId: true }
+      });
 
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' })
-  }
-
-  switch (req.method) {
-    case 'GET':
-      return handleGetNotes(req, res, user)
-    case 'POST':
-      return handleCreateNote(req, res, user)
-    default:
-      return res.status(405).json({ error: 'Method not allowed' })
-  }
-}
-
-async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: any) {
-  try {
-    const { type = 'all', householdId } = req.query
-    
-    console.log('API: Getting notes with params:', { type, householdId, userId: user.id })
-    
-    // Get user's household memberships to find shared notes
-    const userMemberships = await prisma.membership.findMany({
-      where: { userId: user.id },
-      select: { householdId: true }
-    })
-    const userHouseholdIds = userMemberships.map(m => m.householdId)
-    
-    console.log('API: User household IDs:', userHouseholdIds)
-    
-    let whereClause: any = {
-      OR: [
-        { createdById: user.id }, // User's own notes
-        { 
-          collaborators: {
-            some: {
-              userId: user.id
-            }
-          }
-        }, // Notes where user is a collaborator
-        {
-          // Shared notes from user's households
-          isShared: true,
-          householdId: {
-            in: userHouseholdIds
-          }
-        }
-      ]
-    }
-
-    // Filter by type
-    if (type === 'personal') {
-      whereClause = {
-        createdById: user.id,
-        isShared: false
+      if (!user?.activeHouseholdId) {
+        return res.status(400).json({ error: 'No active household' });
       }
-    } else if (type === 'shared') {
-      whereClause = {
-        OR: [
-          { 
-            createdById: user.id,
-            isShared: true
-          },
-          { 
-            collaborators: {
-              some: {
-                userId: user.id
-              }
-            }
-          },
-          {
-            // Shared notes from user's households
-            isShared: true,
-            householdId: {
-              in: userHouseholdIds
-            }
-          }
-        ]
-      }
-    }
 
-    // Filter by household if specified
-    if (householdId && type !== 'personal') {
-      whereClause.householdId = householdId
-    }
-
-    console.log('API: Final whereClause:', JSON.stringify(whereClause, null, 2))
-
-    const notes = await prisma.note.findMany({
-      where: whereClause,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        collaborators: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          }
-        },
-        household: {
-          select: {
-            id: true,
-            name: true
-          }
-        }
-      },
-      orderBy: [
-        { isPinned: 'desc' },
-        { updatedAt: 'desc' }
-      ]
-    })
-
-    console.log('API: Found notes:', notes.length)
-    console.log('API: Notes data:', notes.map(n => ({ id: n.id, title: n.title, isShared: n.isShared, householdId: n.householdId, color: n.color })))
-    console.log('API: First note full data:', notes[0])
-
-    return res.status(200).json({ notes })
-  } catch (error) {
-    console.error('Error fetching notes:', error)
-    return res.status(500).json({ error: 'Failed to fetch notes' })
-  }
-}
-
-async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user: any) {
-  try {
-    const { title, content, contentJson, contentText, isShared, color, householdId } = req.body
-
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' })
-    }
-
-    // Validate household access for shared notes
-    if (isShared && householdId) {
-      const membership = await prisma.membership.findUnique({
+      // Get notes for the household
+      const notes = await prisma.note.findMany({
         where: {
-          userId_householdId: {
-            userId: user.id,
-            householdId: householdId
+          householdId: user.activeHouseholdId,
+          OR: [
+            { visibility: 'HOUSEHOLD' },
+            { ownerId: userId }
+          ]
+        },
+        include: {
+          owner: {
+            select: { id: true, name: true, email: true }
+          },
+          checklistItems: {
+            orderBy: { order: 'asc' }
+          },
+          images: {
+            orderBy: { createdAt: 'asc' }
           }
-        }
-      })
+        },
+        orderBy: [
+          { isPinned: 'desc' },
+          { updatedAt: 'desc' }
+        ]
+      });
 
-      if (!membership) {
-        return res.status(403).json({ error: 'Not a member of this household' })
-      }
+      return res.status(200).json(notes);
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+      return res.status(500).json({ error: 'Failed to fetch notes' });
     }
+  }
 
-    const note = await prisma.note.create({
-      data: {
-        title,
-        content: content || '',
-        contentJson: contentJson || null,
-        contentText: contentText || '',
-        isShared: isShared || false,
-        color: color || 'yellow',
-        createdById: user.id,
-        householdId: isShared ? householdId : null
-      },
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
+  if (req.method === 'POST') {
+    try {
+      const { title, content, type, color, visibility } = req.body;
+
+      if (!title?.trim()) {
+        return res.status(400).json({ error: 'Title is required' });
+      }
+
+      // Get user's active household
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { activeHouseholdId: true }
+      });
+
+      if (!user?.activeHouseholdId) {
+        return res.status(400).json({ error: 'No active household' });
+      }
+
+      // Create the note
+      const note = await prisma.note.create({
+        data: {
+          title: title.trim(),
+          content: content || '',
+          type: type || 'TEXT',
+          color: color || 'yellow',
+          visibility: visibility || 'HOUSEHOLD',
+          householdId: user.activeHouseholdId,
+          ownerId: userId
         },
-        collaborators: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
+        include: {
+          owner: {
+            select: { id: true, name: true, email: true }
+          },
+          checklistItems: {
+            orderBy: { order: 'asc' }
+          },
+        }
+      });
+
+      // If it's a checklist note, add some default items based on title
+      if (note.type === 'CHECKLIST') {
+        let defaultItems = [
+          { text: 'First item', order: 1 },
+          { text: 'Second item', order: 2 }
+        ];
+
+        // Add specific default items based on common checklist types
+        const titleLower = title.toLowerCase();
+        if (titleLower.includes('pack') || titleLower.includes('holiday') || titleLower.includes('travel')) {
+          defaultItems = [
+            { text: 'Clothes', order: 1 },
+            { text: 'Toiletries', order: 2 },
+            { text: 'Phone charger', order: 3 },
+            { text: 'Passport/ID', order: 4 },
+            { text: 'Medications', order: 5 }
+          ];
+        } else if (titleLower.includes('grocery') || titleLower.includes('shopping')) {
+          defaultItems = [
+            { text: 'Milk', order: 1 },
+            { text: 'Bread', order: 2 },
+            { text: 'Eggs', order: 3 },
+            { text: 'Fruits', order: 4 }
+          ];
+        } else if (titleLower.includes('clean') || titleLower.includes('chore')) {
+          defaultItems = [
+            { text: 'Vacuum living room', order: 1 },
+            { text: 'Clean bathroom', order: 2 },
+            { text: 'Do laundry', order: 3 },
+            { text: 'Take out trash', order: 4 }
+          ];
+        }
+
+        for (const item of defaultItems) {
+          await prisma.checklistItem.create({
+            data: {
+              noteId: note.id,
+              text: item.text,
+              order: item.order
             }
-          }
-        },
-        household: {
-          select: {
-            id: true,
-            name: true
+          });
+        }
+
+        // Fetch the note again with the new checklist items
+        const updatedNote = await prisma.note.findUnique({
+          where: { id: note.id },
+        include: {
+          owner: {
+            select: { id: true, name: true, email: true }
+          },
+          checklistItems: {
+            orderBy: { order: 'asc' }
+          },
+          images: {
+            orderBy: { createdAt: 'asc' }
           }
         }
-      }
-    })
+        });
 
-    return res.status(201).json({ note })
-  } catch (error) {
-    console.error('Error creating note:', error)
-    return res.status(500).json({ error: 'Failed to create note' })
+        return res.status(201).json(updatedNote);
+      }
+
+      return res.status(201).json(note);
+    } catch (error) {
+      console.error('Error creating note:', error);
+      return res.status(500).json({ error: 'Failed to create note' });
+    }
   }
+
+  res.setHeader('Allow', ['GET', 'POST']);
+  return res.status(405).end('Method Not Allowed');
 }
