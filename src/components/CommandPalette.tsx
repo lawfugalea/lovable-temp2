@@ -87,15 +87,6 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       keywords: ['medicine', 'medication', 'children', 'kids', 'health']
     },
     {
-      id: 'nav-notes',
-      title: 'Go to Notes',
-      description: 'Manage your personal and shared notes',
-      icon: FileText,
-      action: () => router.push('/notes'),
-      category: 'Navigation',
-      keywords: ['notes', 'writing', 'personal', 'shared', 'memo', 'journal']
-    },
-    {
       id: 'nav-settings',
       title: 'Go to Settings',
       description: 'Manage your preferences',
@@ -168,8 +159,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       description: 'Create a new personal or shared note',
       icon: FileText,
       action: () => {
-        router.push('/notes')
-        // Could trigger add note modal here
+        // Notes feature removed
       },
       category: 'Quick Actions',
       keywords: ['add', 'note', 'writing', 'memo', 'personal', 'shared']

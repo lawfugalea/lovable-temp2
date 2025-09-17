@@ -23,9 +23,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         orderBy: { createdAt: 'desc' }
       })
       
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(children)
     } catch (error) {
       console.error('Failed to fetch children:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to fetch children' })
     }
   }
@@ -47,9 +49,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
       
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(child)
     } catch (error) {
       console.error('Failed to create child:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to create child' })
     }
   }

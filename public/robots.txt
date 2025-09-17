@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://galeahub.online/sitemap.xml
+
+# Block access to admin and API routes
+Disallow: /api/
+Disallow: /admin
+Disallow: /_next/
+Disallow: /temp-keep-clone/
+
+# Allow access to public pages
+Allow: /
+Allow: /notes
+Allow: /shopping
+Allow: /medicine
+Allow: /finances

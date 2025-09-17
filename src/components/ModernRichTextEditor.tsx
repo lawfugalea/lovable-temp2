@@ -131,6 +131,28 @@ export default function ModernRichTextEditor({
           class: 'flex items-start gap-2',
         },
         nested: true,
+        renderHTML({ node, HTMLAttributes }) {
+          return [
+            'li',
+            HTMLAttributes,
+            [
+              'label',
+              {
+                contenteditable: 'false',
+                style: 'display: flex; align-items: flex-start; gap: 0.5rem; user-select: none;',
+              },
+              [
+                'input',
+                {
+                  type: 'checkbox',
+                  checked: node.attrs.checked ? 'checked' : null,
+                  style: 'width: 10px !important; height: 10px !important; min-width: 10px !important; min-height: 10px !important; max-width: 10px !important; max-height: 10px !important; margin: 0; padding: 0; appearance: none; -webkit-appearance: none; border: 1px solid #9ca3af; border-radius: 2px; background: white; position: relative; flex-shrink: 0;',
+                },
+              ],
+              ['div', { style: 'flex: 1;' }, 0],
+            ],
+          ]
+        },
       }),
       Underline,
       HorizontalRule,

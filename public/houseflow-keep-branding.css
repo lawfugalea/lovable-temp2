@@ -1,0 +1,435 @@
+/* HouseFlow Google Keep Clone Branding */
+
+/* Override the main background */
+.main {
+  background: linear-gradient(135deg, hsl(35, 40%, 95%) 0%, hsl(25, 35%, 92%) 50%, hsl(18, 30%, 90%) 100%) !important;
+  color: hsl(25, 15%, 15%) !important;
+  min-height: 100vh !important;
+}
+
+/* Force light theme override */
+body, html {
+  background: linear-gradient(135deg, hsl(35, 40%, 95%) 0%, hsl(25, 35%, 92%) 50%, hsl(18, 30%, 90%) 100%) !important;
+  color: hsl(25, 15%, 15%) !important;
+}
+
+/* Update the header/navbar styling */
+.navbar {
+  background: linear-gradient(90deg, hsl(18, 85%, 90%) 0%, hsl(35, 60%, 88%) 30%, hsl(95, 30%, 88%) 70%, hsl(45, 50%, 90%) 100%) !important;
+  border-bottom: 1px solid hsl(25, 6%, 88%) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 1rem !important;
+}
+
+/* Center the search box */
+.navbar .sec-col {
+  flex: 1 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.navbar .form-container {
+  width: 100% !important;
+  max-width: 600px !important;
+  margin: 0 auto !important;
+}
+
+/* Hide or minimize the first and third columns */
+.navbar .first-col {
+  min-width: 200px !important;
+}
+
+.navbar .th-col {
+  min-width: 200px !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+
+/* Update the search bar */
+.search-bar {
+  background-color: hsl(35, 15%, 99%) !important;
+  border: 1px solid hsl(25, 6%, 88%) !important;
+  color: hsl(25, 15%, 15%) !important;
+}
+
+.search-bar:focus {
+  background-color: hsl(35, 15%, 99%) !important;
+  border-color: hsl(18, 75%, 65%) !important;
+  box-shadow: 0 0 0 3px hsla(18, 75%, 65%, 0.1) !important;
+}
+
+/* Update note cards with HouseFlow colors */
+.note-container {
+  background-color: hsl(35, 15%, 99%) !important;
+  border: 1px solid hsl(25, 6%, 88%) !important;
+  box-shadow: 0 2px 8px hsla(25, 15%, 15%, 0.08) !important;
+  border-radius: 1.25rem !important;
+}
+
+.note-container:hover {
+  box-shadow: 0 4px 16px hsla(25, 15%, 15%, 0.12) !important;
+  transform: translateY(-2px) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* Update note colors to match HouseFlow palette */
+.note-container[style*="background-color: #feff8c"] {
+  background-color: hsl(45, 40%, 92%) !important; /* cream */
+}
+
+.note-container[style*="background-color: #ffcc02"] {
+  background-color: hsl(18, 75%, 65%) !important; /* primary coral */
+}
+
+.note-container[style*="background-color: #ccff90"] {
+  background-color: hsl(95, 20%, 65%) !important; /* sage */
+}
+
+.note-container[style*="background-color: #a7ffeb"] {
+  background-color: hsl(95, 25%, 85%) !important; /* sage-soft */
+}
+
+.note-container[style*="background-color: #cbf0f8"] {
+  background-color: hsl(200, 50%, 90%) !important; /* soft blue */
+}
+
+.note-container[style*="background-color: #aecbfa"] {
+  background-color: hsl(220, 60%, 85%) !important; /* indigo */
+}
+
+.note-container[style*="background-color: #d7aefb"] {
+  background-color: hsl(280, 50%, 85%) !important; /* lavender */
+}
+
+.note-container[style*="background-color: #fdcfe8"] {
+  background-color: hsl(320, 50%, 90%) !important; /* pink */
+}
+
+.note-container[style*="background-color: #f4e5c1"] {
+  background-color: hsl(35, 30%, 85%) !important; /* sand */
+}
+
+.note-container[style*="background-color: #e8eaed"] {
+  background-color: hsl(25, 8%, 95%) !important; /* warm gray */
+}
+
+/* Update text colors */
+.note-title, .note-body, .cbox-note {
+  color: hsl(25, 15%, 15%) !important;
+}
+
+.note-title.ph, .note-body.ph, .cbox-note.ph {
+  color: hsl(25, 8%, 45%) !important;
+}
+
+/* Update hover effects */
+.H:hover {
+  background-color: hsla(18, 75%, 65%, 0.1) !important;
+  border-radius: 50% !important;
+}
+
+/* Update tooltips */
+.pop:hover::before {
+  background-color: hsl(25, 15%, 15%) !important;
+  color: hsl(35, 15%, 99%) !important;
+  border-radius: 0.5rem !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Update labels */
+.labels-container .label-container {
+  background-color: hsla(18, 75%, 65%, 0.1) !important;
+  border: 1px solid hsla(18, 75%, 65%, 0.3) !important;
+  color: hsl(18, 65%, 45%) !important;
+  border-radius: 1rem !important;
+}
+
+/* Update icons */
+.icons-container .icons .alarm,
+.icons-container .icons .colab,
+.icons-container .icons .color,
+.icons-container .icons .image,
+.icons-container .icons .archive,
+.icons-container .icons .unarchive,
+.icons-container .icons .more,
+.icons-container .icons .undo,
+.icons-container .icons .delete,
+.icons-container .icons .restore {
+  opacity: 0.7 !important;
+}
+
+.icons-container .icons .alarm:hover,
+.icons-container .icons .colab:hover,
+.icons-container .icons .color:hover,
+.icons-container .icons .image:hover,
+.icons-container .icons .archive:hover,
+.icons-container .icons .unarchive:hover,
+.icons-container .icons .more:hover,
+.icons-container .icons .undo:hover,
+.icons-container .icons .delete:hover,
+.icons-container .icons .restore:hover {
+  opacity: 1 !important;
+  background-color: hsla(18, 75%, 65%, 0.1) !important;
+  border-radius: 50% !important;
+}
+
+/* Update pin icon */
+.pin-icon {
+  opacity: 0.6 !important;
+}
+
+.pin-icon:hover {
+  opacity: 1 !important;
+  background-color: hsla(18, 75%, 65%, 0.1) !important;
+  border-radius: 50% !important;
+}
+
+.pin-icon.pinned {
+  opacity: 1 !important;
+  background-color: hsla(18, 75%, 65%, 0.2) !important;
+}
+
+/* Update checkboxes */
+.cbox-icon {
+  opacity: 0.6 !important;
+}
+
+.cbox-icon:hover {
+  opacity: 0.9 !important;
+}
+
+.cbox-icon.done {
+  opacity: 1 !important;
+}
+
+/* Update completed items */
+.cbox-done {
+  color: hsl(25, 8%, 45%) !important;
+}
+
+/* Update tooltip menus */
+[data-tooltip=true] {
+  background-color: hsl(35, 15%, 99%) !important;
+  border: 1px solid hsl(25, 6%, 88%) !important;
+  box-shadow: 0 8px 32px hsla(25, 15%, 15%, 0.16) !important;
+  border-radius: 1rem !important;
+}
+
+[data-tooltip=true].moreMenu div {
+  color: hsl(25, 15%, 15%) !important;
+}
+
+[data-tooltip=true].moreMenu div:hover {
+  background-color: hsla(18, 75%, 65%, 0.1) !important;
+}
+
+/* Update color picker */
+[data-tooltip=true].colorMenu {
+  background-color: hsl(35, 15%, 99%) !important;
+  border: 1px solid hsl(25, 6%, 88%) !important;
+}
+
+[data-tooltip=true].colorMenu .first-row div:hover,
+[data-tooltip=true].colorMenu .second-row div:hover {
+  border-color: hsl(18, 75%, 65%) !important;
+  transform: scale(1.1) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Update label menu */
+[data-tooltip=true].labelMenu {
+  background-color: hsl(35, 15%, 99%) !important;
+  border: 1px solid hsl(25, 6%, 88%) !important;
+}
+
+[data-tooltip=true].labelMenu .title {
+  color: hsl(25, 15%, 15%) !important;
+}
+
+[data-tooltip=true].labelMenu .search input {
+  color: hsl(25, 15%, 15%) !important;
+  border-bottom-color: hsl(25, 6%, 88%) !important;
+}
+
+[data-tooltip=true].labelMenu .search input:focus {
+  border-bottom-color: hsl(18, 75%, 65%) !important;
+}
+
+[data-tooltip=true].labelMenu .search input::placeholder {
+  color: hsl(25, 8%, 45%) !important;
+}
+
+[data-tooltip=true].labelMenu .label-list-container .label-list .label-name {
+  color: hsl(25, 15%, 15%) !important;
+}
+
+[data-tooltip=true].labelMenu .label-list-container .label-list:hover {
+  background-color: hsla(18, 75%, 65%, 0.1) !important;
+}
+
+/* Update scrollbar */
+*::-webkit-scrollbar-thumb {
+  background-color: hsla(18, 75%, 65%, 0.3) !important;
+  border-radius: 8px !important;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsla(18, 75%, 65%, 0.5) !important;
+}
+
+/* Update no notes state */
+.no-notes {
+  color: hsl(25, 8%, 45%) !important;
+}
+
+.no-notes .text {
+  color: hsl(25, 8%, 45%) !important;
+}
+
+/* Add HouseFlow logo/branding to header */
+.houseflow-logo {
+  width: 40px !important;
+  height: 40px !important;
+  background: linear-gradient(135deg, hsl(18, 75%, 65%) 0%, hsl(35, 60%, 70%) 100%) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 16px hsla(18, 75%, 65%, 0.2) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.houseflow-logo .logo-text {
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 1.5rem !important;
+  text-shadow: 0 1px 2px hsla(0, 0%, 0%, 0.1) !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Add subtle animations */
+.note-container {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.note-container:hover {
+  transform: translateY(-2px) scale(1.02) !important;
+}
+
+/* Update section titles */
+[_title] {
+  color: hsl(18, 65%, 45%) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+}
+
+/* Add HouseFlow accent colors to interactive elements */
+button:hover, .H:hover {
+  background-color: hsla(18, 75%, 65%, 0.1) !important;
+  transition: all 0.2s ease !important;
+}
+
+/* Update focus states */
+input:focus, textarea:focus, [contenteditable]:focus {
+  outline: 2px solid hsl(18, 75%, 65%) !important;
+  outline-offset: 2px !important;
+  border-radius: 0.5rem !important;
+}
+
+/* Remove Google Keep references */
+.keep-img {
+  display: none !important;
+}
+
+.navbar .text {
+  color: hsl(18, 65%, 45%) !important;
+  font-weight: 600 !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+/* Fix sidebar styling */
+.sidebar {
+  background-color: hsl(35, 15%, 99%) !important;
+  border-right: 1px solid hsl(25, 6%, 88%) !important;
+}
+
+.sidebar .nav-item {
+  color: hsl(25, 15%, 15%) !important;
+  border-radius: 0.75rem !important;
+  margin: 0.25rem 0 !important;
+  padding: 0.75rem 1rem !important;
+  transition: all 0.2s ease !important;
+}
+
+.sidebar .nav-item:hover {
+  background-color: hsla(18, 75%, 65%, 0.1) !important;
+}
+
+.sidebar .nav-item.active {
+  background-color: hsla(18, 75%, 65%, 0.2) !important;
+  color: hsl(18, 65%, 45%) !important;
+  font-weight: 600 !important;
+}
+
+/* Fix main content area */
+.main-content {
+  background: transparent !important;
+  padding: 1rem !important;
+}
+
+/* Fix note input area */
+.note-input {
+  background-color: hsl(35, 15%, 99%) !important;
+  border: 1px solid hsl(25, 6%, 88%) !important;
+  border-radius: 1.25rem !important;
+  box-shadow: 0 2px 8px hsla(25, 15%, 15%, 0.08) !important;
+  padding: 1rem !important;
+  margin-bottom: 1rem !important;
+}
+
+.note-input input, .note-input textarea {
+  background: transparent !important;
+  border: none !important;
+  color: hsl(25, 15%, 15%) !important;
+  font-family: 'Inter', sans-serif !important;
+}
+
+.note-input input::placeholder, .note-input textarea::placeholder {
+  color: hsl(25, 8%, 45%) !important;
+}
+
+/* Fix section headers */
+.section-header {
+  color: hsl(18, 65%, 45%) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.1em !important;
+  font-family: 'Inter', sans-serif !important;
+  margin: 1rem 0 0.5rem 0 !important;
+}
+
+/* Override any remaining dark theme elements */
+* {
+  color: hsl(25, 15%, 15%) !important;
+}
+
+/* Specific overrides for dark elements */
+.main-container, .content-area, .notes-grid {
+  background: transparent !important;
+}
+
+/* Fix any remaining black backgrounds */
+[style*="background-color: #202124"], 
+[style*="background-color: #1e1d1d"], 
+[style*="background-color: #2d2e30"] {
+  background-color: hsl(35, 15%, 99%) !important;
+}
+
+/* Fix any remaining white text on dark backgrounds */
+[style*="color: #fff"], 
+[style*="color: #e8eaed"] {
+  color: hsl(25, 15%, 15%) !important;
+}

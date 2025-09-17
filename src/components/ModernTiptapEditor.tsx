@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import CustomTaskItem from './CustomTaskItem'
 import Highlight from '@tiptap/extension-highlight'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -28,7 +29,7 @@ import {
   Redo,
   MoreHorizontal
 } from 'lucide-react'
-import { getCollabProvider, generateCollabDocId } from '@/lib/collaboration'
+// import { getCollabProvider, generateCollabDocId } from '@/lib/collaboration'
 // import { Collaboration } from '@tiptap/extension-collaboration'
 // import { CollaborationCursor } from '@tiptap/extension-collaboration-cursor'
 
@@ -60,7 +61,7 @@ export default function ModernTiptapEditor({
   const [isClient, setIsClient] = useState(false)
   const [, forceUpdate] = useState({})
   const [toolbarUpdateTrigger, setToolbarUpdateTrigger] = useState(0)
-  const collabProvider = useRef(getCollabProvider())
+  // const collabProvider = useRef(getCollabProvider())
   const editorRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function ModernTiptapEditor({
         },
         itemTypeName: 'taskItem',
       }),
-      TaskItem.configure({
+      CustomTaskItem.configure({
         nested: true,
         HTMLAttributes: {
           class: 'flex items-start gap-2',
@@ -203,46 +204,46 @@ export default function ModernTiptapEditor({
   }, [editor])
 
   // Connect to collaboration when collabDocId is provided
-  useEffect(() => {
-    if (collabDocId && editor) {
-      setConnectionStatus('connecting')
+  // useEffect(() => {
+  //   if (collabDocId && editor) {
+  //     setConnectionStatus('connecting')
       
-      collabProvider.current.connect(collabDocId).then(() => {
-        setConnectionStatus('connected')
-        setIsConnected(true)
+  //     collabProvider.current.connect(collabDocId).then(() => {
+  //       setConnectionStatus('connected')
+  //       setIsConnected(true)
         
-        // Update user info if provided
-        if (userInfo) {
-          collabProvider.current.updateUserInfo(userInfo)
-        }
-      }).catch((error) => {
-        console.error('Failed to connect to collaboration:', error)
-        setConnectionStatus('disconnected')
-        setIsConnected(false)
-      })
+  //       // Update user info if provided
+  //       if (userInfo) {
+  //         collabProvider.current.updateUserInfo(userInfo)
+  //       }
+  //     }).catch((error) => {
+  //       console.error('Failed to connect to collaboration:', error)
+  //       setConnectionStatus('disconnected')
+  //       setIsConnected(false)
+  //     })
 
-      // Listen for status changes
-      const handleStatusChange = (status: 'connected' | 'disconnected') => {
-        setIsConnected(status === 'connected')
-        setConnectionStatus(status)
-      }
+  //     // Listen for status changes
+  //     const handleStatusChange = (status: 'connected' | 'disconnected') => {
+  //       setIsConnected(status === 'connected')
+  //       setConnectionStatus(status)
+  //     }
 
-      collabProvider.current.onStatusChange(handleStatusChange)
+  //     collabProvider.current.onStatusChange(handleStatusChange)
 
-      return () => {
-        collabProvider.current.offStatusChange(handleStatusChange)
-      }
-    }
-  }, [collabDocId, editor, userInfo])
+  //     return () => {
+  //       collabProvider.current.offStatusChange(handleStatusChange)
+  //     }
+  //   }
+  // }, [collabDocId, editor, userInfo])
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (collabDocId) {
-        collabProvider.current.disconnect()
-      }
-    }
-  }, [collabDocId])
+  // // Cleanup on unmount
+  // useEffect(() => {
+  //   return () => {
+  //     if (collabDocId) {
+  //       collabProvider.current.disconnect()
+  //     }
+  //   }
+  // }, [collabDocId])
 
   // Memoized button handlers for better performance
   const toggleBold = useCallback(() => {

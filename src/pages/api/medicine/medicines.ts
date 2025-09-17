@@ -69,9 +69,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.log(`Found ${medicines.length} medicines for household ${householdId}`)
       console.log('Medicines:', medicines.map(m => ({ id: m.id, name: m.name, isTemplate: m.isTemplate, isActive: m.isActive })))
       
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(medicines)
     } catch (error) {
       console.error('Failed to fetch medicines:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to fetch medicines' })
     }
   }
@@ -186,9 +188,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       
       console.log('Medicine created successfully:', medicine)
 
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(medicine)
     } catch (error) {
       console.error('Failed to create medicine:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to create medicine' })
     }
   }
@@ -233,9 +237,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Invalid action' })
       }
 
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(updatedMedicine)
     } catch (error) {
       console.error('Failed to update medicine:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to update medicine' })
     }
   }

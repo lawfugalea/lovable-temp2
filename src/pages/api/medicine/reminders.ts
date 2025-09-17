@@ -30,9 +30,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         orderBy: { scheduledAt: 'asc' }
       })
       
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(reminders)
     } catch (error) {
       console.error('Failed to fetch reminders:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to fetch reminders' })
     }
   }

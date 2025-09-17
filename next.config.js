@@ -7,6 +7,16 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,    // Ignore ESLint errors during build
   },
+  
+  // SEO and Performance optimizations
+  compress: true,
+  poweredByHeader: false,
+  generateEtags: true,
+  
+  // Experimental features for better performance
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@prisma/client'],
+  },
   webpack: (config, { dev, isServer }) => {
     if (dev) {
       // Reduce noisy watching; ignore huge folders

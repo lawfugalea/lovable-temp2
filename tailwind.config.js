@@ -12,6 +12,21 @@ module.exports = {
         display: ['Inter', 'system-ui', 'ui-sans-serif'],
       },
       colors: {
+        // Google Keep-style colors
+        'keep': {
+          'yellow': '#FFFDE7',
+          'sage': '#F1F8E9',
+          'coral': '#FFF8E1',
+          'terracotta': '#FBE9E7',
+          'cream': '#FFF3E0',
+          'sand': '#ECEFF1',
+          'warm-gray': '#FAFAFA',
+          'soft-blue': '#E3F2FD',
+          'lavender': '#EDE7F6',
+          'pink': '#F3E5F5',
+          'emerald': '#E0F7FA',
+          'indigo': '#F9FBE7',
+        },
         cozy: {
           // Backgrounds
           bg: 'hsl(35, 25%, 97%)',
@@ -69,6 +84,14 @@ module.exports = {
         'cozy-float': 'float 3s ease-in-out infinite',
         'cozy-loading-dance': 'loadingDance 1.5s ease-in-out infinite',
         'cozy-confetti': 'confetti 1s ease-out forwards',
+        'cozy-slide-up': 'slideUp 0.6s ease-out',
+        'cozy-slide-in-left': 'slideInLeft 0.6s ease-out',
+        'cozy-slide-in-right': 'slideInRight 0.6s ease-out',
+        'cozy-scale-in': 'scaleIn 0.5s ease-out',
+        'cozy-rotate-in': 'rotateIn 0.8s ease-out',
+        'cozy-morph': 'morph 2s ease-in-out infinite',
+        'cozy-twinkle': 'twinkle 1.5s ease-in-out infinite',
+        'cozy-wave': 'wave 2s ease-in-out infinite',
       },
       keyframes: {
         wiggle: {
@@ -122,8 +145,132 @@ module.exports = {
             opacity: '0',
           },
         },
+        slideUp: {
+          '0%': { 
+            opacity: '0',
+            transform: 'translateY(30px)',
+          },
+          '100%': { 
+            opacity: '1',
+            transform: 'translateY(0)',
+          },
+        },
+        slideInLeft: {
+          '0%': { 
+            opacity: '0',
+            transform: 'translateX(-30px)',
+          },
+          '100%': { 
+            opacity: '1',
+            transform: 'translateX(0)',
+          },
+        },
+        slideInRight: {
+          '0%': { 
+            opacity: '0',
+            transform: 'translateX(30px)',
+          },
+          '100%': { 
+            opacity: '1',
+            transform: 'translateX(0)',
+          },
+        },
+        scaleIn: {
+          '0%': { 
+            opacity: '0',
+            transform: 'scale(0.8)',
+          },
+          '100%': { 
+            opacity: '1',
+            transform: 'scale(1)',
+          },
+        },
+        rotateIn: {
+          '0%': { 
+            opacity: '0',
+            transform: 'rotate(-180deg) scale(0.5)',
+          },
+          '100%': { 
+            opacity: '1',
+            transform: 'rotate(0deg) scale(1)',
+          },
+        },
+        morph: {
+          '0%, 100%': { 
+            borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%',
+          },
+          '50%': { 
+            borderRadius: '30% 60% 70% 40% / 50% 60% 30% 60%',
+          },
+        },
+        twinkle: {
+          '0%, 100%': { 
+            opacity: '1',
+            transform: 'scale(1)',
+          },
+          '50%': { 
+            opacity: '0.5',
+            transform: 'scale(1.1)',
+          },
+        },
+        wave: {
+          '0%, 100%': { 
+            transform: 'rotate(0deg)',
+          },
+          '25%': { 
+            transform: 'rotate(5deg)',
+          },
+          '75%': { 
+            transform: 'rotate(-5deg)',
+          },
+        },
       },
     },
   },
-  plugins: [],
+  plugins: [
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.break-inside-avoid': {
+          'break-inside': 'avoid',
+        },
+        '.line-clamp-1': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '1',
+        },
+        '.line-clamp-2': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '2',
+        },
+        '.line-clamp-3': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '3',
+        },
+        '.line-clamp-4': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '4',
+        },
+        '.line-clamp-5': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '5',
+        },
+        '.line-clamp-6': {
+          overflow: 'hidden',
+          display: '-webkit-box',
+          '-webkit-box-orient': 'vertical',
+          '-webkit-line-clamp': '6',
+        },
+      }
+      addUtilities(newUtilities)
+    }
+  ],
 };

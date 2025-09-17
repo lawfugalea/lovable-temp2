@@ -38,9 +38,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         orderBy: { takenAt: 'desc' }
       })
       
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(doses)
     } catch (error) {
       console.error('Failed to fetch doses:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to fetch doses' })
     }
   }
@@ -62,6 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const [datePart, timePart] = takenAt.split('T')
         const [year, month, day] = datePart.split('-')
         const [hour, minute] = timePart.split(':')
+        // Create date in local timezone - this will be stored as UTC in the database
         takenAtDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
       } else {
         takenAtDate = new Date(takenAt)
@@ -78,9 +81,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
       
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(dose)
     } catch (error) {
       console.error('Failed to create dose:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to create dose' })
     }
   }

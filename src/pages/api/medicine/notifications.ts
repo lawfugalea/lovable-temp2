@@ -109,12 +109,16 @@ function calculateNextDoseTime(frequency: string, lastDoseTime: Date): Date {
       return new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
     default:
       // Fallback for any custom frequencies
-      if (frequency.includes('hour')) {
-        const hours = parseInt(frequency.match(/\d+/)?.[0] || '6')
-        return new Date(lastDoseTime.getTime() + hours * 60 * 60 * 1000)
-      } else if (frequency.includes('daily')) {
+      // First check for daily patterns (most important)
+      if (frequency.toLowerCase().includes('once') && frequency.toLowerCase().includes('daily')) {
         return new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
+      } else if (frequency.toLowerCase().includes('daily')) {
+        return new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
+      } else if (frequency.toLowerCase().includes('hour')) {
+        const hours = parseInt(frequency.match(/\d+/)?.[0] || '24')
+        return new Date(lastDoseTime.getTime() + hours * 60 * 60 * 1000)
       }
-      return new Date(lastDoseTime.getTime() + 6 * 60 * 60 * 1000) // Default to 6 hours
+      // Default to 24 hours for unknown frequencies to be safe
+      return new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
   }
 }

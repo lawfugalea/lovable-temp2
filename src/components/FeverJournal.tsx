@@ -100,11 +100,41 @@ const getAgeInMonths = (dateOfBirth: string) => {
 
 const getCurrentLocalTime = () => {
   const now = new Date()
+  
+  // Create a new Date object and format it for datetime-local input
+  // This ensures we get the exact current local time
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   const hours = String(now.getHours()).padStart(2, '0')
   const minutes = String(now.getMinutes()).padStart(2, '0')
+  
+  // Return in the format expected by datetime-local input: YYYY-MM-DDTHH:MM
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+// Helper function to convert stored date to local datetime-local format
+const dateToLocalDatetimeString = (dateString: string) => {
+  // Parse the date string and create a new Date object
+  const date = new Date(dateString)
+  
+  // The issue is that when we store a local time (e.g., 20:15), it gets stored as UTC in the database
+  // When we retrieve it, we need to convert it back to the original local time
+  // We do this by adjusting for the timezone offset
+  
+  // Get the timezone offset in minutes (positive means behind UTC, negative means ahead)
+  const timezoneOffset = date.getTimezoneOffset()
+  
+  // Create a new date adjusted for the timezone offset
+  // This gives us the original local time that was entered
+  const localDate = new Date(date.getTime() - (timezoneOffset * 60000))
+  
+  const year = localDate.getUTCFullYear()
+  const month = String(localDate.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(localDate.getUTCDate()).padStart(2, '0')
+  const hours = String(localDate.getUTCHours()).padStart(2, '0')
+  const minutes = String(localDate.getUTCMinutes()).padStart(2, '0')
+  
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
@@ -433,7 +463,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
       method: reading.method,
       notes: reading.notes || '',
       takenBy: reading.takenBy || '',
-      takenAt: new Date(reading.takenAt).toISOString().slice(0, 16)
+      takenAt: dateToLocalDatetimeString(reading.takenAt)
     })
   }
 

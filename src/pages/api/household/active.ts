@@ -20,7 +20,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { userId, householdId: u.activeHouseholdId },
         select: { id: true },
       });
-      if (valid) return res.status(200).json({ householdId: u.activeHouseholdId });
+      if (valid) {
+        res.setHeader('Cache-Control', 'no-store');
+        return res.status(200).json({ householdId: u.activeHouseholdId });
+      }
     }
 
     // 2) Fallback: use their only membership (SINGLE HOUSEHOLD MODEL)
@@ -28,7 +31,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: { userId },
       select: { householdId: true },
     });
-    if (!membership) return res.status(404).json({ error: 'No household' });
+    if (!membership) {
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(404).json({ error: 'No household' });
+    }
 
     // Persist fallback to user for next time
     await prisma.user.update({
@@ -36,6 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: { activeHouseholdId: membership.householdId },
     });
 
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ householdId: membership.householdId });
   }
 
@@ -54,6 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       data: { activeHouseholdId: householdId },
     });
 
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ ok: true, householdId });
   }
 

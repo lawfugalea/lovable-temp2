@@ -34,6 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (method === 'GET') {
     const ps = await prisma.pageState.findUnique({ where: { householdId_page: { householdId, page } } });
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ data: ps?.data ?? null, updatedAt: ps?.updatedAt ?? null });
   }
 
@@ -48,6 +49,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       create: { householdId, page, data, updatedBy: userId },
       select: { data: true, updatedAt: true },
     });
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json(saved);
   }
 

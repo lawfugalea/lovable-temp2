@@ -36,7 +36,7 @@ export default function InviteBanner() {
         await update({ reason: "reconcile" } as any);
       } catch {}
     })();
-  }, [update]);
+  }, []); // Remove update from dependencies to prevent re-runs
 
   if (!joined && !inviteError) return null;
 

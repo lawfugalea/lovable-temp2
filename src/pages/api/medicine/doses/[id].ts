@@ -40,6 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
+    res.setHeader('Cache-Control', 'no-store');
     return res.json(existingDose)
   }
 
@@ -59,6 +60,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const [datePart, timePart] = takenAt.split('T')
         const [year, month, day] = datePart.split('-')
         const [hour, minute] = timePart.split(':')
+        // Create date in local timezone - this will be stored as UTC in the database
         takenAtDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
       } else {
         takenAtDate = new Date(takenAt)
@@ -77,9 +79,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
 
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(updatedDose)
     } catch (error) {
       console.error('Failed to update dose:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to update dose' })
     }
   }
@@ -89,9 +93,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await prisma.medicineDose.delete({
         where: { id }
       })
+      res.setHeader('Cache-Control', 'no-store');
       return res.json({ message: 'Dose deleted' })
     } catch (error) {
       console.error('Failed to delete dose:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to delete dose' })
     }
   }

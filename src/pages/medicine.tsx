@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useHouseholdId } from '@/lib/useHouseholdId'
 import ModernAppShell from '../components/ModernAppShell'
+import SEO from '../components/SEO'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -187,7 +188,15 @@ export default function MedicinePage() {
     medicineId: '', 
     dosage: '', 
     notes: '', 
-    takenAt: new Date().toISOString().slice(0, 16)
+    takenAt: (() => {
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      return `${year}-${month}-${day}T${hours}:${minutes}`
+    })()
   })
   const [nextDoseOverride, setNextDoseOverride] = useState({
     medicineId: '',
@@ -205,7 +214,15 @@ export default function MedicinePage() {
     severity: 'mild' as 'mild' | 'moderate' | 'severe',
     description: '',
     symptoms: '',
-    occurredAt: new Date().toISOString().slice(0, 16),
+    occurredAt: (() => {
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      return `${year}-${month}-${day}T${hours}:${minutes}`
+    })(),
     duration: '',
     actionTaken: '',
     notes: ''
@@ -255,12 +272,130 @@ export default function MedicinePage() {
     }
   }, [])
 
-  // Request notification permission on component mount
+  // Request notification permission and register background sync on component mount
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
+    const setupNotifications = async () => {
+      // Request notification permission
+      if ('Notification' in window && Notification.permission === 'default') {
+        await Notification.requestPermission()
+      }
+      
+      // Register for periodic background sync if supported
+      if ('serviceWorker' in navigator && 'periodicSync' in (window.ServiceWorkerRegistration.prototype as any)) {
+        try {
+          const registration = await navigator.serviceWorker.ready
+          await (registration as any).periodicSync.register('medicine-reminders', {
+            minInterval: 5 * 60 * 1000 // Check every 5 minutes
+          })
+          console.log('Periodic background sync registered for medicine reminders')
+        } catch (error) {
+          console.log('Periodic background sync not supported or failed:', error)
+        }
+      } else {
+        // Fallback: Set up a background check using setTimeout for browsers without periodic sync
+        console.log('Periodic background sync not supported, using fallback method')
+        setupBackgroundCheckFallback()
+      }
+      
+      // Store household ID for service worker to use
+      if (householdId && 'serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.ready
+          // Store household ID in cache for service worker
+          const cache = await caches.open('houseflow-settings')
+          await cache.put('/api/household/active', new Response(JSON.stringify({ householdId }), {
+            headers: { 'Content-Type': 'application/json' }
+          }))
+        } catch (error) {
+          console.log('Failed to store household ID for service worker:', error)
+        }
+      }
     }
-  }, [])
+    
+    setupNotifications()
+  }, [householdId])
+
+  // Fallback background check for browsers without periodic sync
+  const setupBackgroundCheckFallback = () => {
+    // This is a limited fallback - it only works when the app is in the background but still active
+    // For true background notifications, periodic sync or push notifications are needed
+    const checkInterval = setInterval(async () => {
+      // Only check if the app is in the background (document.hidden)
+      if (document.hidden && householdId) {
+        try {
+          const response = await fetch(`/api/medicine/notifications?householdId=${householdId}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          })
+          
+          if (response.ok) {
+            const data = await response.json()
+            
+            // Show notifications for due medicines (with anti-spam)
+            if (data.dueNow && data.dueNow.length > 0 && Notification.permission === 'granted') {
+              const medicineIds = data.dueNow.map((m: any) => m.id)
+              const notificationKey = createNotificationKey('due-now-fallback', medicineIds)
+              
+              if (shouldShowNotification(notificationKey)) {
+                const medicineNames = data.dueNow.map((m: any) => `${m.name} (${m.child?.name || 'Unknown'})`).join(', ')
+                
+                new Notification('Medicine Reminder', {
+                  body: `${data.dueNow.length} medicine(s) are due: ${medicineNames}`,
+                  icon: '/logo.png',
+                  tag: 'medicine-reminder-fallback',
+                  requireInteraction: true
+                })
+              }
+            }
+          }
+        } catch (error) {
+          console.log('Background check fallback failed:', error)
+        }
+      }
+    }, 5 * 60 * 1000) // Check every 5 minutes
+    
+    // Clean up interval when component unmounts
+    return () => clearInterval(checkInterval)
+  }
+
+  // Notification tracking to prevent spam
+  const notificationHistory = useRef(new Map())
+  const NOTIFICATION_COOLDOWN = 5 * 60 * 1000 // 5 minutes cooldown
+
+  // Function to check if notification should be shown (anti-spam)
+  const shouldShowNotification = (notificationKey: string) => {
+    const now = Date.now()
+    const lastShown = notificationHistory.current.get(notificationKey)
+    
+    // Clean up old entries (older than 1 hour) to prevent memory leaks
+    if (notificationHistory.current.size > 100) {
+      for (const [key, timestamp] of notificationHistory.current.entries()) {
+        if (now - timestamp > 60 * 60 * 1000) { // 1 hour
+          notificationHistory.current.delete(key)
+        }
+      }
+    }
+    
+    if (!lastShown) {
+      notificationHistory.current.set(notificationKey, now)
+      return true
+    }
+    
+    if (now - lastShown > NOTIFICATION_COOLDOWN) {
+      notificationHistory.current.set(notificationKey, now)
+      return true
+    }
+    
+    return false
+  }
+
+  // Function to create a unique notification key
+  const createNotificationKey = (type: string, medicineIds: string[]) => {
+    return `${type}-${medicineIds.sort().join(',')}`
+  }
 
   // Check for due medicines every minute (only when data is loaded)
   useEffect(() => {
@@ -276,7 +411,15 @@ export default function MedicinePage() {
 
   const loadChildren = async () => {
     try {
-      const response = await fetch(`/api/medicine/children?householdId=${householdId}`)
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = Date.now()
+      const response = await fetch(`/api/medicine/children?householdId=${householdId}&_t=${cacheBuster}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         setChildren(data)
@@ -288,7 +431,15 @@ export default function MedicinePage() {
 
   const loadMedicines = async () => {
     try {
-      const response = await fetch(`/api/medicine/medicines?householdId=${householdId}`)
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = Date.now()
+      const response = await fetch(`/api/medicine/medicines?householdId=${householdId}&_t=${cacheBuster}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         console.log('Loaded medicines:', data)
@@ -304,7 +455,15 @@ export default function MedicinePage() {
 
   const loadDoses = async () => {
     try {
-      const response = await fetch(`/api/medicine/doses?householdId=${householdId}`)
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = Date.now()
+      const response = await fetch(`/api/medicine/doses?householdId=${householdId}&_t=${cacheBuster}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         setDoses(data)
@@ -316,7 +475,15 @@ export default function MedicinePage() {
 
   const loadReminders = async () => {
     try {
-      const response = await fetch(`/api/medicine/reminders?householdId=${householdId}`)
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = Date.now()
+      const response = await fetch(`/api/medicine/reminders?householdId=${householdId}&_t=${cacheBuster}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         setReminders(data)
@@ -328,7 +495,15 @@ export default function MedicinePage() {
 
   const loadReactions = async () => {
     try {
-      const response = await fetch(`/api/medicine/reactions?householdId=${householdId}`)
+      // Add cache-busting parameter to ensure fresh data
+      const cacheBuster = Date.now()
+      const response = await fetch(`/api/medicine/reactions?householdId=${householdId}&_t=${cacheBuster}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
       if (response.ok) {
         const data = await response.json()
         setReactions(data)
@@ -365,19 +540,37 @@ export default function MedicinePage() {
     })
 
     if (dueMedicines.length > 0) {
-      // Show notification
+      // Show notification using service worker for better background support (with anti-spam)
       if ('Notification' in window && Notification.permission === 'granted') {
-        const medicineNames = dueMedicines.map(m => {
-          const child = children.find(c => c.id === m.childId)
-          return `${m.name} (${child?.name || 'Unknown'})`
-        }).join(', ')
+        const medicineIds = dueMedicines.map(m => m.id)
+        const notificationKey = createNotificationKey('due-now', medicineIds)
         
-        new Notification('Medicine Reminder', {
-          body: `${dueMedicines.length} medicine(s) are due: ${medicineNames}`,
-          icon: '/logo.png',
-          tag: 'medicine-reminder',
-          requireInteraction: true
-        })
+        if (shouldShowNotification(notificationKey)) {
+          const medicineNames = dueMedicines.map(m => {
+            const child = children.find(c => c.id === m.childId)
+            return `${m.name} (${child?.name || 'Unknown'})`
+          }).join(', ')
+          
+          // Use service worker to show notification for better background support
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+              type: 'SCHEDULE_NOTIFICATION',
+              title: 'Medicine Reminder',
+              body: `${dueMedicines.length} medicine(s) are due: ${medicineNames}`,
+              icon: '/logo.png',
+              tag: 'medicine-reminder',
+              delay: 0
+            })
+          } else {
+            // Fallback to regular notification
+            new Notification('Medicine Reminder', {
+              body: `${dueMedicines.length} medicine(s) are due: ${medicineNames}`,
+              icon: '/logo.png',
+              tag: 'medicine-reminder',
+              requireInteraction: true
+            })
+          }
+        }
       }
     }
   }
@@ -385,33 +578,66 @@ export default function MedicinePage() {
   const calculateNextDoseTime = (frequency: string, lastDoseTime: Date): Date => {
     const now = new Date()
     
+    // Debug logging to understand the issue
+    console.log('calculateNextDoseTime debug:', {
+      frequency: frequency,
+      lastDoseTime: lastDoseTime.toString(),
+      lastDoseTimeLocal: lastDoseTime.toLocaleString(),
+      now: now.toString(),
+      nowLocal: now.toLocaleString()
+    })
+    
+    let nextDoseTime: Date
+    
     switch (frequency) {
       case 'every 2 hours':
-        return new Date(lastDoseTime.getTime() + 2 * 60 * 60 * 1000)
+        nextDoseTime = new Date(lastDoseTime.getTime() + 2 * 60 * 60 * 1000)
+        break
       case 'every 4 hours':
-        return new Date(lastDoseTime.getTime() + 4 * 60 * 60 * 1000)
+        nextDoseTime = new Date(lastDoseTime.getTime() + 4 * 60 * 60 * 1000)
+        break
       case 'every 6 hours':
-        return new Date(lastDoseTime.getTime() + 6 * 60 * 60 * 1000)
+        nextDoseTime = new Date(lastDoseTime.getTime() + 6 * 60 * 60 * 1000)
+        break
       case 'every 8 hours':
-        return new Date(lastDoseTime.getTime() + 8 * 60 * 60 * 1000)
+        nextDoseTime = new Date(lastDoseTime.getTime() + 8 * 60 * 60 * 1000)
+        break
       case 'every 12 hours':
-        return new Date(lastDoseTime.getTime() + 12 * 60 * 60 * 1000)
+        nextDoseTime = new Date(lastDoseTime.getTime() + 12 * 60 * 60 * 1000)
+        break
       case 'twice daily':
-        return new Date(lastDoseTime.getTime() + 12 * 60 * 60 * 1000)
+        nextDoseTime = new Date(lastDoseTime.getTime() + 12 * 60 * 60 * 1000)
+        break
       case 'once daily':
-        return new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
+        nextDoseTime = new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
+        break
       case 'as needed':
-        return new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000) // Default to 24 hours for "as needed"
+        nextDoseTime = new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000) // Default to 24 hours for "as needed"
+        break
       default:
         // Fallback for any custom frequencies
-        if (frequency.includes('hour')) {
-          const hours = parseInt(frequency.match(/\d+/)?.[0] || '6')
-          return new Date(lastDoseTime.getTime() + hours * 60 * 60 * 1000)
-        } else if (frequency.includes('daily')) {
-          return new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
+        // First check for daily patterns (most important)
+        if (frequency.toLowerCase().includes('once') && frequency.toLowerCase().includes('daily')) {
+          nextDoseTime = new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
+        } else if (frequency.toLowerCase().includes('daily')) {
+          nextDoseTime = new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
+        } else if (frequency.toLowerCase().includes('hour')) {
+          const hours = parseInt(frequency.match(/\d+/)?.[0] || '24')
+          nextDoseTime = new Date(lastDoseTime.getTime() + hours * 60 * 60 * 1000)
+        } else {
+          // Default to 24 hours for unknown frequencies to be safe
+          nextDoseTime = new Date(lastDoseTime.getTime() + 24 * 60 * 60 * 1000)
         }
-        return now
     }
+    
+    console.log('calculateNextDoseTime result:', {
+      frequency: frequency,
+      nextDoseTime: nextDoseTime.toString(),
+      nextDoseTimeLocal: nextDoseTime.toLocaleString(),
+      hoursAdded: (nextDoseTime.getTime() - lastDoseTime.getTime()) / (1000 * 60 * 60)
+    })
+    
+    return nextDoseTime
   }
 
   const getNextDoseInfo = (medicine: any) => {
@@ -678,6 +904,11 @@ export default function MedicinePage() {
         console.log('Frontend: Refreshing medicine list...')
         await loadMedicines()
         console.log('Frontend: Medicine list refreshed')
+        
+        // Clear service worker cache to ensure fresh data
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' })
+        }
       } else {
         const errorData = await response.json()
         console.error('Frontend: Failed to delete medicine:', errorData)
@@ -808,6 +1039,11 @@ export default function MedicinePage() {
       
       if (response.ok) {
         loadDoses()
+        
+        // Clear service worker cache to ensure fresh data
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' })
+        }
       }
     } catch (error) {
       console.error('Failed to delete dose:', error)
@@ -949,22 +1185,61 @@ export default function MedicinePage() {
 
   const getCurrentLocalTime = () => {
     const now = new Date()
+    
+    // Try a different approach - maybe the issue is with how we're calculating the time
+    // Let's try using the browser's built-in time formatting
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, '0')
     const day = String(now.getDate()).padStart(2, '0')
     const hours = String(now.getHours()).padStart(2, '0')
     const minutes = String(now.getMinutes()).padStart(2, '0')
-    return `${year}-${month}-${day}T${hours}:${minutes}`
+    
+    const result = `${year}-${month}-${day}T${hours}:${minutes}`
+    
+    // Debug logging to help identify timezone issues
+    console.log('getCurrentLocalTime debug:', {
+      now: now.toString(),
+      localTime: now.toLocaleString(),
+      toLocaleDateString: now.toLocaleDateString(),
+      toLocaleTimeString: now.toLocaleTimeString(),
+      hours: now.getHours(),
+      minutes: now.getMinutes(),
+      timezoneOffset: now.getTimezoneOffset(),
+      result: result,
+      // Check if there's a timezone issue
+      utcHours: now.getUTCHours(),
+      utcMinutes: now.getUTCMinutes(),
+      // Test what the datetime-local input actually receives
+      testInput: (document.querySelector('input[type="datetime-local"]') as HTMLInputElement)?.value,
+      // Check browser timezone
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    })
+    
+    return result
   }
 
   // Helper function to convert stored date to local datetime-local format
   const dateToLocalDatetimeString = (dateString: string) => {
+    // Parse the date string and create a new Date object
     const date = new Date(dateString)
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
+    
+    // The issue is that when we store a local time (e.g., 20:15), it gets stored as UTC in the database
+    // When we retrieve it, we need to convert it back to the original local time
+    // We do this by adjusting for the timezone offset
+    
+    // Get the timezone offset in minutes (positive means behind UTC, negative means ahead)
+    const timezoneOffset = date.getTimezoneOffset()
+    
+    // Create a new date adjusted for the timezone offset
+    // This gives us the original local time that was entered
+    const localDate = new Date(date.getTime() - (timezoneOffset * 60000))
+    
+    const year = localDate.getUTCFullYear()
+    const month = String(localDate.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(localDate.getUTCDate()).padStart(2, '0')
+    const hours = String(localDate.getUTCHours()).padStart(2, '0')
+    const minutes = String(localDate.getUTCMinutes()).padStart(2, '0')
+    
     return `${year}-${month}-${day}T${hours}:${minutes}`
   }
 
@@ -1258,8 +1533,15 @@ export default function MedicinePage() {
   ]
 
   return (
-    <ModernAppShell title="Medicine">
-      <div className="min-h-screen bg-cozy-bg">
+    <>
+      <SEO 
+        title="Family Medicine Tracking & Health Management"
+        description="Track family medications, set reminders, monitor health data, and manage your family's wellness with HouseFlow's comprehensive medicine tracking system."
+        keywords="medicine tracking, family health, medication reminders, health management, family wellness, medicine schedule, health tracking"
+        url="/medicine"
+      />
+      <ModernAppShell title="Medicine">
+        <div className="min-h-screen bg-cozy-bg">
         {/* Hero Header Section */}
         <div className="relative overflow-hidden bg-cozy-warm border-b border-cozy-gray-200/60">
           <div className="absolute inset-0 bg-gradient-to-br from-cozy-primary/5 via-transparent to-cozy-sage/5"></div>
@@ -1879,7 +2161,7 @@ export default function MedicinePage() {
                                           medicineId: medicine.id,
                                           dosage: medicine.dosage,
                                           notes: '',
-                                          takenAt: new Date().toISOString().slice(0, 16)
+                                          takenAt: getCurrentLocalTime()
                                         })
                                         setShowDoseModal(true)
                                       }}
@@ -1911,7 +2193,7 @@ export default function MedicinePage() {
                                           medicineId: medicine.id,
                                           dosage: medicine.dosage,
                                           notes: '',
-                                          takenAt: new Date().toISOString().slice(0, 16)
+                                          takenAt: getCurrentLocalTime()
                                         })
                                         setShowDoseModal(true)
                                       }}
@@ -2171,7 +2453,7 @@ export default function MedicinePage() {
                                           medicineId: medicine.id,
                                           dosage: medicine.dosage,
                                           notes: '',
-                                          takenAt: new Date().toISOString().slice(0, 16)
+                                          takenAt: getCurrentLocalTime()
                                         })
                                         setShowDoseModal(true)
                                       }}
@@ -2192,7 +2474,7 @@ export default function MedicinePage() {
                                           medicineId: medicine.id,
                                           dosage: medicine.dosage,
                                           notes: '',
-                                          takenAt: new Date().toISOString().slice(0, 16)
+                                          takenAt: getCurrentLocalTime()
                                         })
                                         setShowDoseModal(true)
                                       }}
@@ -2213,7 +2495,7 @@ export default function MedicinePage() {
                                           medicineId: medicine.id,
                                           dosage: medicine.dosage,
                                           notes: '',
-                                          takenAt: new Date().toISOString().slice(0, 16)
+                                          takenAt: getCurrentLocalTime()
                                         })
                                         setShowDoseModal(true)
                                       }}
@@ -3207,6 +3489,7 @@ export default function MedicinePage() {
         onClose={() => setShowSetupWizard(false)}
         onComplete={handleWizardComplete}
       />
-    </ModernAppShell>
+      </ModernAppShell>
+    </>
   )
 }

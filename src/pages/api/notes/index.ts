@@ -20,13 +20,52 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === 'GET') {
     try {
       // Get user's active household
-      const user = await prisma.user.findUnique({
+      let user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { activeHouseholdId: true }
+        select: { activeHouseholdId: true, email: true, name: true }
       });
 
       if (!user?.activeHouseholdId) {
-        return res.status(400).json({ error: 'No active household' });
+        console.log('User has no active household, creating default household...');
+        
+        // Check if user has any household membership
+        const membership = await prisma.membership.findFirst({
+          where: { userId },
+          select: { householdId: true }
+        });
+
+        if (membership) {
+          // Set existing household as active
+          await prisma.user.update({
+            where: { id: userId },
+            data: { activeHouseholdId: membership.householdId }
+          });
+          user = { ...user, activeHouseholdId: membership.householdId };
+        } else {
+          // Create a default household
+          const defaultName = (user.name?.split(' ')[0] || user.email?.split('@')[0] || 'My') + "'s Household";
+          
+          const household = await prisma.$transaction(async (tx) => {
+            const h = await tx.household.create({
+              data: { name: defaultName, ownerId: userId },
+              select: { id: true }
+            });
+
+            await tx.membership.create({
+              data: { userId, householdId: h.id, role: 'OWNER' }
+            });
+
+            await tx.user.update({
+              where: { id: userId },
+              data: { activeHouseholdId: h.id }
+            });
+
+            return h;
+          });
+
+          user = { ...user, activeHouseholdId: household.id };
+          console.log('Created default household:', household.id);
+        }
       }
 
       // Get notes for the household
@@ -70,14 +109,53 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ error: 'Title is required' });
       }
 
-      // Get user's active household
-      const user = await prisma.user.findUnique({
+      // Get user's active household (reuse the same logic as GET)
+      let user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { activeHouseholdId: true }
+        select: { activeHouseholdId: true, email: true, name: true }
       });
 
       if (!user?.activeHouseholdId) {
-        return res.status(400).json({ error: 'No active household' });
+        console.log('User has no active household for POST, creating default household...');
+        
+        // Check if user has any household membership
+        const membership = await prisma.membership.findFirst({
+          where: { userId },
+          select: { householdId: true }
+        });
+
+        if (membership) {
+          // Set existing household as active
+          await prisma.user.update({
+            where: { id: userId },
+            data: { activeHouseholdId: membership.householdId }
+          });
+          user = { ...user, activeHouseholdId: membership.householdId };
+        } else {
+          // Create a default household
+          const defaultName = (user.name?.split(' ')[0] || user.email?.split('@')[0] || 'My') + "'s Household";
+          
+          const household = await prisma.$transaction(async (tx) => {
+            const h = await tx.household.create({
+              data: { name: defaultName, ownerId: userId },
+              select: { id: true }
+            });
+
+            await tx.membership.create({
+              data: { userId, householdId: h.id, role: 'OWNER' }
+            });
+
+            await tx.user.update({
+              where: { id: userId },
+              data: { activeHouseholdId: h.id }
+            });
+
+            return h;
+          });
+
+          user = { ...user, activeHouseholdId: household.id };
+          console.log('Created default household for POST:', household.id);
+        }
       }
 
       // Create the note

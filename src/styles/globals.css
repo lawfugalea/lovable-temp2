@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Modern notes styles are now integrated into this file */
+
 /* Hide scrollbar utility for mobile tabs */
 .scrollbar-hide {
   -ms-overflow-style: none;  /* Internet Explorer 10+ */
@@ -148,34 +150,80 @@
 
 /* Task List Styles */
 .ProseMirror ul[data-type="taskList"] {
-  list-style: none;
-  padding: 0;
+  list-style: none !important;
+  padding: 0 !important;
 }
 
 .ProseMirror ul[data-type="taskList"] li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 0.5rem !important;
 }
 
 .ProseMirror ul[data-type="taskList"] li > label {
-  flex: 0 0 auto;
-  margin-right: 0.5rem;
-  user-select: none;
+  flex: 0 0 auto !important;
+  margin-right: 0.5rem !important;
+  user-select: none !important;
 }
 
 .ProseMirror ul[data-type="taskList"] li > div {
-  flex: 1 1 auto;
+  flex: 1 1 auto !important;
 }
 
-.ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
-  cursor: pointer;
-  margin: 0;
+/* Force small checkbox size with maximum specificity - Target actual Tiptap structure */
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"],
+.ProseMirror li[data-type="taskItem"] input[type="checkbox"],
+.ProseMirror [data-type="taskItem"] input[type="checkbox"],
+.ProseMirror .flex.items-start.gap-2 input[type="checkbox"] {
+  cursor: pointer !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 10px !important;
+  min-height: 10px !important;
+  max-width: 10px !important;
+  max-height: 10px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  border: 1px solid #9ca3af !important;
+  border-radius: 2px !important;
+  background: white !important;
+  background-color: white !important;
+  position: relative !important;
+  flex-shrink: 0 !important;
+  display: inline-block !important;
+  vertical-align: top !important;
+}
+
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked,
+.ProseMirror li[data-type="taskItem"] input[type="checkbox"]:checked,
+.ProseMirror [data-type="taskItem"] input[type="checkbox"]:checked,
+.ProseMirror .flex.items-start.gap-2 input[type="checkbox"]:checked {
+  background: #3b82f6 !important;
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked::after,
+.ProseMirror li[data-type="taskItem"] input[type="checkbox"]:checked::after,
+.ProseMirror [data-type="taskItem"] input[type="checkbox"]:checked::after,
+.ProseMirror .flex.items-start.gap-2 input[type="checkbox"]:checked::after {
+  content: '✓' !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  color: white !important;
+  font-size: 7px !important;
+  font-weight: bold !important;
+  line-height: 1 !important;
 }
 
 .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
-  opacity: 0.6;
-  text-decoration: line-through;
+  opacity: 0.6 !important;
+  text-decoration: line-through !important;
 }
 
 /* Mobile keyboard handling */
@@ -192,6 +240,134 @@
   .ProseMirror-container {
     -webkit-overflow-scrolling: touch !important;
     scroll-behavior: smooth !important;
+  }
+}
+
+/* Force ALL checkboxes to be small EVERYWHERE - ultra nuclear option */
+input[type="checkbox"] {
+  width: 10px !important;
+  height: 10px !important;
+  min-width: 10px !important;
+  min-height: 10px !important;
+  max-width: 10px !important;
+  max-height: 10px !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  /* Better touch targets - exclude checkboxes */
+  button, input:not([type="checkbox"]), select, textarea {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Ultra aggressive mobile checkbox sizing - multiple approaches */
+  * input[type="checkbox"],
+  input[type="checkbox"],
+  .ProseMirror * input[type="checkbox"] {
+    width: 10px !important;
+    height: 10px !important;
+    min-width: 10px !important;
+    min-height: 10px !important;
+    max-width: 10px !important;
+    max-height: 10px !important;
+    font-size: 10px !important;
+    zoom: 0.6 !important;
+    -webkit-transform: scale(0.6) !important;
+    -moz-transform: scale(0.6) !important;
+    transform: scale(0.6) !important;
+    transform-origin: left top !important;
+  }
+  
+  /* Try to override any Tailwind or framework styles */
+  @media screen and (max-width: 768px) {
+    input[type="checkbox"] {
+      width: 8px !important;
+      height: 8px !important;
+      zoom: 0.5 !important;
+    }
+  }
+  
+  /* Override for note editor checkboxes - force small size on mobile with touch targets */
+  .ProseMirror ul[data-type="taskList"] input[type="checkbox"],
+  .ProseMirror li[data-type="taskItem"] input[type="checkbox"],
+  .ProseMirror [data-type="taskItem"] input[type="checkbox"],
+  .ProseMirror .flex.items-start.gap-2 input[type="checkbox"],
+  .ProseMirror input[type="checkbox"] {
+    min-height: 10px !important;
+    min-width: 10px !important;
+    width: 10px !important;
+    height: 10px !important;
+    max-width: 10px !important;
+    max-height: 10px !important;
+    /* Add padding around the small checkbox for better touch target */
+    padding: 17px !important;
+    margin: -17px !important;
+    /* Ensure the visual box stays small */
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    border: 1px solid #9ca3af !important;
+    border-radius: 2px !important;
+    background: white !important;
+    background-color: white !important;
+    position: relative !important;
+    flex-shrink: 0 !important;
+    cursor: pointer !important;
+    display: inline-block !important;
+    vertical-align: top !important;
+  }
+  
+  /* Style the checkmark on mobile */
+  .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked,
+  .ProseMirror li[data-type="taskItem"] input[type="checkbox"]:checked,
+  .ProseMirror [data-type="taskItem"] input[type="checkbox"]:checked,
+  .ProseMirror .flex.items-start.gap-2 input[type="checkbox"]:checked,
+  .ProseMirror input[type="checkbox"]:checked {
+    background: #3b82f6 !important;
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+  }
+  
+  .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked::after,
+  .ProseMirror li[data-type="taskItem"] input[type="checkbox"]:checked::after,
+  .ProseMirror [data-type="taskItem"] input[type="checkbox"]:checked::after,
+  .ProseMirror .flex.items-start.gap-2 input[type="checkbox"]:checked::after,
+  .ProseMirror input[type="checkbox"]:checked::after {
+    content: '✓' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    color: white !important;
+    font-size: 7px !important;
+    font-weight: bold !important;
+    line-height: 1 !important;
+  }
+  
+  /* Improve button spacing */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Better modal spacing on mobile */
+  .modal-mobile {
+    margin: 1rem;
+    max-height: calc(100vh - 2rem);
+  }
+  
+  /* Improve text readability */
+  body {
+    font-size: 16px; /* Prevent zoom on iOS */
+  }
+  
+  /* Better input handling */
+  input, textarea {
+    font-size: 16px; /* Prevent zoom on iOS */
   }
 }
 
@@ -547,4 +723,193 @@ html, body {
   color: #6b7280;
   text-align: center;
   font-size: 0.875rem;
+}
+
+/* Line clamp utilities for note cards */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* FINAL OVERRIDE - Target the actual button checkboxes */
+@media screen and (max-width: 900px) {
+  /* Force the button checkboxes to be reasonably sized on mobile */
+  .ProseMirror .flex.items-center.gap-2 button.w-2.h-2,
+  .ProseMirror button.w-2.h-2,
+  .ProseMirror .group button.w-2.h-2,
+  button.w-2.h-2.rounded-sm.border.flex.items-center.justify-center {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+    max-width: 20px !important;
+    max-height: 20px !important;
+    padding: 0 !important;
+  }
+}
+
+/* Also target on desktop for consistency */
+.ProseMirror .flex.items-center.gap-2 button.w-2.h-2,
+.ProseMirror button.w-2.h-2,
+.ProseMirror .group button.w-2.h-2,
+button.w-2.h-2.rounded-sm.border.flex.items-center.justify-center {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
+  padding: 0 !important;
+}
+
+/* Ultra-specific targeting based on your HTML */
+button.w-2.h-2.rounded-sm.border.flex.items-center.justify-center.transition-all.touch-manipulation {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  min-height: 20px !important;
+  max-width: 20px !important;
+  max-height: 20px !important;
+  padding: 0 !important;
+}
+
+/* Target the Tailwind w-2 and h-2 classes directly */
+.w-2.h-2 {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.line-clamp-4 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+/* BlockNote Editor Styles */
+.bn-editor {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.bn-editor .bn-block-content {
+  line-height: 1.6;
+}
+
+.bn-editor .bn-block-content p {
+  margin: 0.5rem 0;
+}
+
+.bn-editor .bn-block-content h1 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin: 1rem 0 0.5rem 0;
+  line-height: 1.2;
+}
+
+.bn-editor .bn-block-content h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0.75rem 0 0.5rem 0;
+  line-height: 1.3;
+}
+
+.bn-editor .bn-block-content h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin: 0.5rem 0 0.25rem 0;
+  line-height: 1.4;
+}
+
+.bn-editor .bn-block-content ul,
+.bn-editor .bn-block-content ol {
+  padding-left: 1.5rem;
+  margin: 0.5rem 0;
+}
+
+.bn-editor .bn-block-content li {
+  margin: 0.25rem 0;
+}
+
+.bn-editor .bn-block-content blockquote {
+  border-left: 4px solid #e5e7eb;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: #6b7280;
+}
+
+.bn-editor .bn-block-content code {
+  background-color: #f1f5f9;
+  color: #e11d48;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-family: 'Courier New', monospace;
+  font-size: 0.875em;
+}
+
+.bn-editor .bn-block-content mark {
+  background-color: #fef3c7;
+  color: #92400e;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+}
+
+/* BlockNote Toolbar */
+.bn-toolbar {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.bn-toolbar button {
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.bn-toolbar button:hover {
+  background-color: #f3f4f6;
+}
+
+.bn-toolbar button[data-state="on"] {
+  background-color: #fed7aa;
+  color: #ea580c;
+}
+
+/* BlockNote Slash Menu */
+.bn-slash-menu {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.bn-slash-menu-item {
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.bn-slash-menu-item:hover {
+  background-color: #f3f4f6;
+}
+
+.bn-slash-menu-item[data-state="selected"] {
+  background-color: #fed7aa;
+  color: #ea580c;
 }

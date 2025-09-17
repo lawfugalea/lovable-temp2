@@ -1,0 +1,393 @@
+#!/usr/bin/env ts-node
+
+import { PrismaClient } from '@prisma/client'
+import fs from 'fs'
+import path from 'path'
+
+const prisma = new PrismaClient()
+
+interface MigrationStats {
+  totalNotes: number
+  migratedNotes: number
+  failedNotes: number
+  errors: string[]
+  startTime: Date
+  endTime?: Date
+}
+
+class NotesMigrator {
+  private stats: MigrationStats = {
+    totalNotes: 0,
+    migratedNotes: 0,
+    failedNotes: 0,
+    errors: [],
+    startTime: new Date()
+  }
+
+  async migrate(): Promise<void> {
+    console.log('🚀 Starting Notes V2 migration...')
+    this.stats.startTime = new Date()
+
+    try {
+      // Step 1: Backup existing notes
+      await this.backupExistingNotes()
+
+      // Step 2: Create default labels
+      await this.createDefaultLabels()
+
+      // Step 3: Migrate notes
+      await this.migrateNotes()
+
+      // Step 4: Migrate collaborators to shares
+      await this.migrateCollaborators()
+
+      // Step 5: Generate summary
+      this.generateSummary()
+
+    } catch (error) {
+      console.error('❌ Migration failed:', error)
+      this.stats.errors.push(`Migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      throw error
+    } finally {
+      await prisma.$disconnect()
+    }
+  }
+
+  private async backupExistingNotes(): Promise<void> {
+    console.log('📦 Backing up existing notes...')
+    
+    const notes = await prisma.note.findMany({
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true }
+        },
+        collaborators: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        },
+        household: {
+          select: { id: true, name: true }
+        }
+      }
+    })
+
+    const backupPath = path.join(process.cwd(), 'backups', `notes-backup-${new Date().toISOString().split('T')[0]}.json`)
+    
+    // Ensure backups directory exists
+    fs.mkdirSync(path.dirname(backupPath), { recursive: true })
+    
+    fs.writeFileSync(backupPath, JSON.stringify(notes, null, 2))
+    console.log(`✅ Backup saved to: ${backupPath}`)
+  }
+
+  private async createDefaultLabels(): Promise<void> {
+    console.log('🏷️ Creating default labels...')
+    
+    const defaultLabels = [
+      { name: 'Important', color: 'red' },
+      { name: 'Work', color: 'blue' },
+      { name: 'Personal', color: 'green' },
+      { name: 'Ideas', color: 'yellow' },
+      { name: 'Shopping', color: 'purple' },
+      { name: 'Travel', color: 'orange' }
+    ]
+
+    for (const labelData of defaultLabels) {
+      // Check if label already exists
+      const existingLabel = await prisma.label.findFirst({
+        where: { name: labelData.name }
+      })
+      
+      if (!existingLabel) {
+        await prisma.label.create({
+          data: labelData
+        })
+      }
+    }
+
+    console.log('✅ Default labels created')
+  }
+
+  private async migrateNotes(): Promise<void> {
+    console.log('📝 Migrating notes...')
+    
+    const notes = await prisma.note.findMany({
+      include: {
+        createdBy: true,
+        collaborators: {
+          include: {
+            user: true
+          }
+        }
+      }
+    })
+
+    this.stats.totalNotes = notes.length
+
+    for (const note of notes) {
+      try {
+        // Determine note type based on content
+        const hasChecklist = note.contentText?.includes('☑') || note.contentText?.includes('☐') || 
+                           JSON.stringify(note.contentJson || '').includes('taskItem')
+        
+        const noteType = hasChecklist ? 'CHECKLIST' : 'TEXT'
+        
+        // Extract checklist items if it's a checklist
+        let checklistData: any = undefined
+        if (noteType === 'CHECKLIST' && note.contentJson) {
+          checklistData = this.extractChecklistItems(note.contentJson)
+        }
+
+        // Migrate the note
+        await prisma.note.update({
+          where: { id: note.id },
+          data: {
+            // New fields
+            type: noteType,
+            body: note.contentJson ? JSON.stringify(note.contentJson) : note.content || '',
+            checklist: checklistData || undefined,
+            pinned: note.isPinned || false,
+            archived: note.isArchived || false,
+            ownerId: note.createdById,
+            
+            // Keep legacy fields for backward compatibility
+            content: note.content,
+            contentJson: note.contentJson as any,
+            contentText: note.contentText,
+            isShared: note.isShared,
+            isPinned: note.isPinned,
+            isArchived: note.isArchived,
+            createdById: note.createdById,
+            householdId: note.householdId
+          }
+        })
+
+        // Add default label based on content or sharing
+        if (note.isShared) {
+          await this.addLabelToNote(note.id, 'Work')
+        } else if (note.isPinned) {
+          await this.addLabelToNote(note.id, 'Important')
+        }
+
+        this.stats.migratedNotes++
+        
+        if (this.stats.migratedNotes % 10 === 0) {
+          console.log(`📝 Migrated ${this.stats.migratedNotes}/${this.stats.totalNotes} notes...`)
+        }
+
+      } catch (error) {
+        this.stats.failedNotes++
+        const errorMsg = `Failed to migrate note ${note.id}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        this.stats.errors.push(errorMsg)
+        console.error(`❌ ${errorMsg}`)
+      }
+    }
+
+    console.log(`✅ Notes migration complete: ${this.stats.migratedNotes} migrated, ${this.stats.failedNotes} failed`)
+  }
+
+  private async migrateCollaborators(): Promise<void> {
+    console.log('👥 Migrating collaborators to shares...')
+    
+    const collaborators = await prisma.noteCollaborator.findMany({
+      include: {
+        note: true,
+        user: true
+      }
+    })
+
+    for (const collab of collaborators) {
+      try {
+        await prisma.share.upsert({
+          where: {
+            noteId_userId: {
+              noteId: collab.noteId,
+              userId: collab.userId
+            }
+          },
+          update: {
+            role: collab.role === 'EDITOR' ? 'EDITOR' : 'VIEWER'
+          },
+          create: {
+            noteId: collab.noteId,
+            userId: collab.userId,
+            role: collab.role === 'EDITOR' ? 'EDITOR' : 'VIEWER'
+          }
+        })
+      } catch (error) {
+        const errorMsg = `Failed to migrate collaborator ${collab.id}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        this.stats.errors.push(errorMsg)
+        console.error(`❌ ${errorMsg}`)
+      }
+    }
+
+    console.log('✅ Collaborators migration complete')
+  }
+
+  private async addLabelToNote(noteId: string, labelName: string): Promise<void> {
+    const label = await prisma.label.findFirst({
+      where: { name: labelName }
+    })
+
+    if (label) {
+      await prisma.noteLabel.upsert({
+        where: {
+          noteId_labelId: {
+            noteId,
+            labelId: label.id
+          }
+        },
+        update: {},
+        create: {
+          noteId,
+          labelId: label.id
+        }
+      })
+    }
+  }
+
+  private extractChecklistItems(contentJson: any): any[] {
+    if (!contentJson || !contentJson.content) return []
+
+    const checklistItems: any[] = []
+
+    const extractItems = (nodes: any[]) => {
+      for (const node of nodes) {
+        if (node.type === 'taskItem') {
+          checklistItems.push({
+            id: `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            text: node.content ? node.content.map((n: any) => n.text || '').join('') : '',
+            checked: node.attrs?.checked || false,
+            createdAt: new Date().toISOString()
+          })
+        }
+        
+        if (node.content && Array.isArray(node.content)) {
+          extractItems(node.content)
+        }
+      }
+    }
+
+    extractItems(contentJson.content)
+    return checklistItems
+  }
+
+  private generateSummary(): void {
+    this.stats.endTime = new Date()
+    const duration = this.stats.endTime.getTime() - this.stats.startTime.getTime()
+
+    console.log('\n📊 Migration Summary:')
+    console.log('====================')
+    console.log(`Total notes processed: ${this.stats.totalNotes}`)
+    console.log(`Successfully migrated: ${this.stats.migratedNotes}`)
+    console.log(`Failed migrations: ${this.stats.failedNotes}`)
+    console.log(`Duration: ${Math.round(duration / 1000)}s`)
+    
+    if (this.stats.errors.length > 0) {
+      console.log('\n❌ Errors encountered:')
+      this.stats.errors.forEach(error => console.log(`  - ${error}`))
+    }
+
+    // Save summary to file
+    const summaryPath = path.join(process.cwd(), 'backups', `migration-summary-${new Date().toISOString().split('T')[0]}.json`)
+    fs.writeFileSync(summaryPath, JSON.stringify(this.stats, null, 2))
+    console.log(`\n📄 Summary saved to: ${summaryPath}`)
+  }
+
+  async rollback(): Promise<void> {
+    console.log('🔄 Starting rollback...')
+    
+    try {
+      // Read the latest backup
+      const backupDir = path.join(process.cwd(), 'backups')
+      const backupFiles = fs.readdirSync(backupDir)
+        .filter(file => file.startsWith('notes-backup-') && file.endsWith('.json'))
+        .sort()
+        .reverse()
+
+      if (backupFiles.length === 0) {
+        throw new Error('No backup files found')
+      }
+
+      const latestBackup = path.join(backupDir, backupFiles[0])
+      console.log(`📦 Restoring from backup: ${latestBackup}`)
+
+      const backupData = JSON.parse(fs.readFileSync(latestBackup, 'utf-8'))
+
+      // Clear new tables
+      await prisma.noteLabel.deleteMany()
+      await prisma.share.deleteMany()
+      await prisma.reminder.deleteMany()
+      await prisma.attachment.deleteMany()
+      await prisma.label.deleteMany()
+
+      // Restore notes to legacy format
+      for (const note of backupData) {
+        await prisma.note.update({
+          where: { id: note.id },
+          data: {
+            // Restore legacy fields
+            content: note.content,
+            contentJson: note.contentJson,
+            contentText: note.contentText,
+            isShared: note.isShared,
+            isPinned: note.isPinned,
+            isArchived: note.isArchived,
+            createdById: note.createdById,
+            householdId: note.householdId,
+            
+            // Clear new fields
+            type: 'TEXT',
+            body: '',
+            checklist: undefined,
+            pinned: false,
+            archived: false,
+            ownerId: note.createdById,
+            ocrText: undefined
+          }
+        })
+      }
+
+      console.log('✅ Rollback complete')
+
+    } catch (error) {
+      console.error('❌ Rollback failed:', error)
+      throw error
+    } finally {
+      await prisma.$disconnect()
+    }
+  }
+}
+
+// CLI interface
+async function main() {
+  const migrator = new NotesMigrator()
+  const command = process.argv[2]
+
+  try {
+    if (command === 'migrate') {
+      await migrator.migrate()
+      console.log('\n🎉 Migration completed successfully!')
+    } else if (command === 'rollback') {
+      await migrator.rollback()
+      console.log('\n🎉 Rollback completed successfully!')
+    } else {
+      console.log('Usage:')
+      console.log('  npm run notes:migrate   - Run migration')
+      console.log('  npm run notes:rollback  - Rollback migration')
+      process.exit(1)
+    }
+  } catch (error) {
+    console.error('❌ Operation failed:', error)
+    process.exit(1)
+  }
+}
+
+if (require.main === module) {
+  main()
+}
+
+export { NotesMigrator }

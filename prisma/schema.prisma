@@ -20,38 +20,36 @@ model PageState {
 }
 
 model User {
-  id                     String         @id @default(cuid())
-  name                   String?
-  email                  String         @unique
-  password               String
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
-  activeHouseholdId      String?
-  ownedHouseholds        Household[]    @relation("OwnerHouseholds")
-  memberships            Membership[]
-  shoppingItemsCreated   ShoppingItem[] @relation("ShoppingItemCreatedBy")
-  shoppingItemsCompleted ShoppingItem[] @relation("ShoppingItemDoneBy")
-  activeHousehold        Household?     @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id])
-  notesCreated           Note[]         @relation("NoteCreatedBy")
-  noteCollaborations     NoteCollaborator[] @relation("NoteCollaborator")
-  noteCollaborationsAdded NoteCollaborator[] @relation("NoteCollaboratorAddedBy")
-  pushSubscriptions      PushSubscription[]
+  id                      String             @id @default(cuid())
+  name                    String?
+  email                   String             @unique
+  password                String
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  activeHouseholdId       String?
+  ownedHouseholds         Household[]        @relation("OwnerHouseholds")
+  memberships             Membership[]
+  pushSubscriptions       PushSubscription[]
+  shoppingItemsCreated    ShoppingItem[]     @relation("ShoppingItemCreatedBy")
+  shoppingItemsCompleted  ShoppingItem[]     @relation("ShoppingItemDoneBy")
+  activeHousehold         Household?         @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id])
+  notes                   Note[]
 }
 
 model Household {
-  id             String         @id @default(cuid())
-  name           String
-  ownerId        String?        // Made nullable to support multiple owners
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  owner          User?          @relation("OwnerHouseholds", fields: [ownerId], references: [id])
-  invites        Invite[]
-  members        Membership[]
-  shoppingLists  ShoppingList[]
-  activeForUsers User[]         @relation("ActiveHousehold")
-  children       Child[]
-  notes          Note[]
+  id                String             @id @default(cuid())
+  name              String
+  ownerId           String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  children          Child[]
+  owner             User?              @relation("OwnerHouseholds", fields: [ownerId], references: [id])
+  invites           Invite[]
+  members           Membership[]
   pushSubscriptions PushSubscription[]
+  shoppingLists     ShoppingList[]
+  activeForUsers    User[]             @relation("ActiveHousehold")
+  notes             Note[]
 }
 
 model Membership {
@@ -162,6 +160,175 @@ model PriceOffer {
   @@index([productId, scrapedAt])
 }
 
+model ShoppingTemplate {
+  id          String                 @id @default(cuid())
+  householdId String
+  name        String
+  createdAt   DateTime               @default(now())
+  items       ShoppingTemplateItem[]
+
+  @@index([householdId])
+}
+
+model ShoppingTemplateItem {
+  id         String           @id @default(cuid())
+  templateId String
+  productId  String?
+  name       String
+  quantity   Decimal          @default(1)
+  unitId     String?
+  categoryId String?
+  note       String?
+  template   ShoppingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([unitId])
+  @@index([categoryId])
+}
+
+model Child {
+  id            String             @id @default(cuid())
+  householdId   String
+  name          String
+  dateOfBirth   DateTime
+  notes         String?
+  isActive      Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  household     Household          @relation(fields: [householdId], references: [id])
+  feverReadings FeverReading[]
+  medicines     Medicine[]
+  doses         MedicineDose[]
+  reactions     MedicineReaction[]
+  reminders     MedicineReminder[]
+
+  @@index([householdId])
+}
+
+model Medicine {
+  id                 String             @id @default(cuid())
+  childId            String?
+  name               String
+  description        String?
+  dosage             String
+  frequency          String
+  startDate          DateTime
+  endDate            DateTime?
+  isActive           Boolean            @default(true)
+  notes              String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  nextDoseOverride   DateTime?
+  overrideReason     String?
+  isTemplate         Boolean            @default(false)
+  currentQuantity    Int?
+  doctorName         String?
+  expiryDate         DateTime?
+  lowStockThreshold  Int?
+  medicineType       String?
+  pharmacyName       String?
+  prescriptionDate   DateTime?
+  prescriptionNumber String?
+  totalQuantity      Int?
+  unit               String?
+  child              Child?             @relation(fields: [childId], references: [id])
+  doses              MedicineDose[]
+  reactions          MedicineReaction[]
+  reminders          MedicineReminder[]
+
+  @@index([childId])
+  @@index([isActive])
+  @@index([isTemplate])
+}
+
+model MedicineDose {
+  id         String   @id @default(cuid())
+  childId    String
+  medicineId String
+  takenAt    DateTime
+  dosage     String
+  notes      String?
+  takenBy    String?
+  createdAt  DateTime @default(now())
+  child      Child    @relation(fields: [childId], references: [id])
+  medicine   Medicine @relation(fields: [medicineId], references: [id])
+
+  @@index([childId, takenAt])
+  @@index([medicineId])
+  @@index([takenAt])
+}
+
+model MedicineReminder {
+  id           String       @id @default(cuid())
+  childId      String
+  medicineId   String
+  scheduledAt  DateTime
+  reminderType ReminderType
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  child        Child        @relation(fields: [childId], references: [id])
+  medicine     Medicine     @relation(fields: [medicineId], references: [id])
+
+  @@index([childId, scheduledAt])
+  @@index([medicineId])
+  @@index([scheduledAt, isActive])
+}
+
+model MedicineReaction {
+  id           String   @id @default(cuid())
+  childId      String
+  medicineId   String
+  reactionType String
+  severity     String
+  description  String
+  symptoms     String?
+  occurredAt   DateTime
+  duration     String?
+  actionTaken  String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  child        Child    @relation(fields: [childId], references: [id])
+  medicine     Medicine @relation(fields: [medicineId], references: [id])
+
+  @@index([childId, occurredAt])
+  @@index([medicineId])
+  @@index([reactionType])
+}
+
+model PushSubscription {
+  id          String    @id @default(cuid())
+  userId      String
+  householdId String
+  endpoint    String
+  p256dhKey   String
+  authKey     String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  household   Household @relation(fields: [householdId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, householdId])
+  @@index([userId])
+  @@index([householdId])
+}
+
+model FeverReading {
+  id          String   @id @default(cuid())
+  childId     String
+  temperature Float
+  unit        String   @default("C")
+  method      String   @default("oral")
+  takenAt     DateTime @default(now())
+  notes       String?
+  takenBy     String?
+  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, takenAt])
+  @@index([takenAt])
+}
+
+
 enum MemberRole {
   OWNER
   MEMBER
@@ -179,159 +346,61 @@ enum ShoppingItemStatus {
   DONE
 }
 
-model ShoppingTemplate {
-  id          String                 @id @default(cuid())
+model Note {
+  id          String      @id @default(cuid())
   householdId String
-  name        String
-  createdAt   DateTime               @default(now())
-  items       ShoppingTemplateItem[] // <-- one-to-many
-
-  @@index([householdId])
-}
-
-model ShoppingTemplateItem {
-  id String @id @default(cuid())
-
-  // FK column
-  templateId String
-
-  // RELATION field (this is what Prisma was missing)
-  template ShoppingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  // optional link to catalogue product
-  productId String?
-
-  name       String
-  quantity   Decimal @default(1)
-  unitId     String?
-  categoryId String?
-  note       String?
-
-  @@index([templateId])
-  @@index([unitId])
-  @@index([categoryId])
-}
-
-// Kids Medicine Control Models
-model Child {
-  id          String   @id @default(cuid())
-  householdId String
-  name        String
-  dateOfBirth DateTime
-  notes       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  ownerId     String
+  title       String
+  content     String?     // Simple text content
+  type        NoteType    @default(TEXT) // TEXT or CHECKLIST
+  color       String      @default("yellow")
+  isPinned    Boolean     @default(false)
+  visibility  NoteVisibility @default(HOUSEHOLD)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   
-  household     Household @relation(fields: [householdId], references: [id])
-  medicines     Medicine[]
-  doses         MedicineDose[]
-  reminders     MedicineReminder[]
-  reactions     MedicineReaction[]
-  feverReadings FeverReading[]
+  household   Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  owner       User        @relation(fields: [ownerId], references: [id])
+  checklistItems ChecklistItem[]
+  images      NoteImage[]
   
   @@index([householdId])
+  @@index([ownerId])
+  @@index([isPinned])
+  @@index([visibility])
+  @@index([updatedAt])
 }
 
-model Medicine {
-  id          String   @id @default(cuid())
-  childId     String?  // Optional for templates, required for active courses
-  name        String
-  description String?
-  dosage      String   // e.g., "5ml", "1 tablet", "2 drops"
-  medicineType String? // e.g., "one-time", "course", "as-needed"
-  frequency   String   // e.g., "every 6 hours", "twice daily", "as needed"
-  startDate   DateTime
-  endDate     DateTime?
-  isActive    Boolean  @default(true)
-  isTemplate  Boolean  @default(false) // True for reusable templates, false for active courses
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  noteId    String
+  text      String
+  isChecked Boolean  @default(false)
+  order     Int      @default(0)
+  category  String?  // Optional category for grouping items
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
-  // Next dose override fields
-  nextDoseOverride DateTime? // When parent manually sets next dose time
-  overrideReason   String?   // Reason for override (e.g., "sleep schedule", "meal timing")
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
   
-  // Inventory tracking
-  currentQuantity    Int?     // Current amount in stock
-  totalQuantity      Int?     // Total amount when full
-  unit               String?  // Unit of measurement (ml, tablets, etc.)
-  lowStockThreshold  Int?     // Alert when quantity drops below this
-  expiryDate         DateTime? // Medicine expiry date
-  
-  // Prescription information
-  prescriptionNumber String?  // Prescription reference number
-  doctorName         String?  // Prescribing doctor
-  pharmacyName       String?  // Pharmacy where purchased
-  prescriptionDate   DateTime? // Date prescription was issued
-  
-  child       Child?        @relation(fields: [childId], references: [id])
-  doses       MedicineDose[]
-  reminders   MedicineReminder[]
-  reactions   MedicineReaction[]
-  
-  @@index([childId])
-  @@index([isActive])
-  @@index([isTemplate])
+  @@index([noteId])
+  @@index([order])
+  @@index([category])
 }
 
-model MedicineDose {
-  id         String   @id @default(cuid())
-  childId    String
-  medicineId String
-  takenAt    DateTime
-  dosage     String   // Actual dosage taken (might differ from prescribed)
-  notes      String?
-  takenBy    String?  // User ID who administered the dose
-  createdAt  DateTime @default(now())
+model NoteImage {
+  id        String   @id @default(cuid())
+  noteId    String
+  filename  String
+  originalName String
+  mimeType  String
+  size      Int
+  url       String
+  createdAt DateTime @default(now())
   
-  child      Child    @relation(fields: [childId], references: [id])
-  medicine   Medicine @relation(fields: [medicineId], references: [id])
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
   
-  @@index([childId, takenAt])
-  @@index([medicineId])
-  @@index([takenAt])
-}
-
-model MedicineReminder {
-  id         String   @id @default(cuid())
-  childId    String
-  medicineId String
-  scheduledAt DateTime
-  reminderType ReminderType
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  child      Child    @relation(fields: [childId], references: [id])
-  medicine   Medicine @relation(fields: [medicineId], references: [id])
-  
-  @@index([childId, scheduledAt])
-  @@index([medicineId])
-  @@index([scheduledAt, isActive])
-}
-
-model MedicineReaction {
-  id         String   @id @default(cuid())
-  childId    String
-  medicineId String
-  reactionType String // e.g., "side_effect", "allergy", "adverse_reaction"
-  severity   String   // e.g., "mild", "moderate", "severe"
-  description String
-  symptoms   String?  // Specific symptoms observed
-  occurredAt DateTime
-  duration   String?  // How long the reaction lasted
-  actionTaken String? // What was done in response
-  notes      String?
-  createdAt  DateTime @default(now())
-  
-  child      Child    @relation(fields: [childId], references: [id])
-  medicine   Medicine @relation(fields: [medicineId], references: [id])
-  
-  @@index([childId, occurredAt])
-  @@index([medicineId])
-  @@index([reactionType])
+  @@index([noteId])
 }
 
 enum ReminderType {
@@ -340,89 +409,14 @@ enum ReminderType {
   DUE_NOW
 }
 
-model PushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  householdId String
-  endpoint  String
-  p256dhKey String
-  authKey   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  user      User     @relation(fields: [userId], references: [id])
-  household Household @relation(fields: [householdId], references: [id])
-  
-  @@unique([userId, householdId])
-  @@index([userId])
-  @@index([householdId])
+enum NoteType {
+  TEXT
+  CHECKLIST
 }
 
-model FeverReading {
-  id          String   @id @default(cuid())
-  childId     String
-  temperature Float    // Temperature in Celsius
-  unit        String   @default("C") // C or F
-  method      String   @default("oral") // oral, rectal, axillary, ear, forehead
-  takenAt     DateTime @default(now())
-  notes       String?
-  takenBy     String?  // Who took the reading
-  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
-
-  @@index([childId, takenAt])
-  @@index([takenAt])
+enum NoteVisibility {
+  PRIVATE
+  HOUSEHOLD
+  READ_ONLY
 }
 
-// Notes System Models
-model Note {
-  id          String   @id @default(cuid())
-  title       String
-  content     String   // Legacy rich text content (HTML or Markdown) - kept for backward compatibility
-  contentJson Json?    // TipTap JSON content
-  contentText String?  // Plain text content for search
-  isShared    Boolean  @default(false) // true = shared with household, false = personal
-  color       String   @default("yellow") // Note color theme
-  isPinned    Boolean  @default(false) // Pin important notes
-  isArchived  Boolean  @default(false) // Archive old notes
-  createdById String
-  householdId String?  // null for personal notes, set for shared notes
-  // collabDocId String?  // Yjs document ID for real-time collaboration
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relations
-  createdBy   User     @relation("NoteCreatedBy", fields: [createdById], references: [id])
-  household   Household? @relation(fields: [householdId], references: [id])
-  collaborators NoteCollaborator[] // Users who can edit shared notes
-  
-  @@index([createdById])
-  @@index([householdId])
-  @@index([isShared])
-  @@index([isPinned])
-  @@index([isArchived])
-  @@index([updatedAt])
-  // @@index([collabDocId])
-}
-
-model NoteCollaborator {
-  id        String   @id @default(cuid())
-  noteId    String
-  userId    String
-  role      NoteRole @default(VIEWER) // VIEWER, EDITOR
-  addedAt   DateTime @default(now())
-  addedById String   // Who added this collaborator
-  
-  // Relations
-  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  user      User     @relation("NoteCollaborator", fields: [userId], references: [id])
-  addedBy   User     @relation("NoteCollaboratorAddedBy", fields: [addedById], references: [id])
-  
-  @@unique([noteId, userId])
-  @@index([noteId])
-  @@index([userId])
-}
-
-enum NoteRole {
-  VIEWER
-  EDITOR
-}

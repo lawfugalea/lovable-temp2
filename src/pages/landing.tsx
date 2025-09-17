@@ -338,14 +338,14 @@ export default function LandingPage() {
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 bg-cozy-primary">
+        <section className="py-20 bg-cozy-primary">y 
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-4xl font-bold text-cozy-surface mb-6">
               Ready to Transform Your Family Life?
             </h2>
             <p className="text-xl text-cozy-surface/90 mb-8">
               Join th
-              ose families who have found their perfect home management solution.
+              t ose families who have found their perfect home management solution.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
@@ -354,7 +354,7 @@ export default function LandingPage() {
               >
                 Start Free Today
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
+              </button>devill on
               <button
                 onClick={handleLogin}
                 className="border-2 border-cozy-surface text-cozy-surface px-8 py-4 rounded-cozy-lg font-semibold text-lg hover:bg-cozy-surface hover:text-cozy-primary transition-all"

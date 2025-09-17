@@ -44,14 +44,14 @@ interface Note {
 }
 
 const colorOptions = [
-  { name: 'yellow', label: 'Yellow', bg: 'bg-yellow-100', border: 'border-yellow-300', cardBg: 'bg-yellow-50/90', modalBg: 'bg-yellow-50' },
-  { name: 'green', label: 'Green', bg: 'bg-green-100', border: 'border-green-300', cardBg: 'bg-green-50/90', modalBg: 'bg-green-50' },
-  { name: 'blue', label: 'Blue', bg: 'bg-blue-100', border: 'border-blue-300', cardBg: 'bg-blue-50/90', modalBg: 'bg-blue-50' },
-  { name: 'purple', label: 'Purple', bg: 'bg-purple-100', border: 'border-purple-300', cardBg: 'bg-purple-50/90', modalBg: 'bg-purple-50' },
-  { name: 'pink', label: 'Pink', bg: 'bg-pink-100', border: 'border-pink-300', cardBg: 'bg-pink-50/90', modalBg: 'bg-pink-50' },
-  { name: 'red', label: 'Red', bg: 'bg-red-100', border: 'border-red-300', cardBg: 'bg-red-50/90', modalBg: 'bg-red-50' },
-  { name: 'orange', label: 'Orange', bg: 'bg-orange-100', border: 'border-orange-300', cardBg: 'bg-orange-50/90', modalBg: 'bg-orange-50' },
-  { name: 'gray', label: 'Gray', bg: 'bg-gray-100', border: 'border-gray-300', cardBg: 'bg-gray-50/90', modalBg: 'bg-gray-50' },
+  { name: 'cream', label: 'Cream', bg: 'bg-cozy-cream', border: 'border-cozy-sand', cardBg: 'bg-cozy-cream/90', modalBg: 'bg-cozy-cream' },
+  { name: 'sage', label: 'Sage', bg: 'bg-cozy-sage-soft', border: 'border-cozy-sage', cardBg: 'bg-cozy-sage-soft/90', modalBg: 'bg-cozy-sage-soft' },
+  { name: 'terracotta', label: 'Terracotta', bg: 'bg-orange-100', border: 'border-cozy-terracotta', cardBg: 'bg-orange-50/90', modalBg: 'bg-orange-50' },
+  { name: 'sand', label: 'Sand', bg: 'bg-cozy-sand', border: 'border-cozy-gray-300', cardBg: 'bg-cozy-sand/90', modalBg: 'bg-cozy-sand' },
+  { name: 'primary', label: 'Coral', bg: 'bg-cozy-primary-soft', border: 'border-cozy-primary', cardBg: 'bg-cozy-primary-soft/90', modalBg: 'bg-cozy-primary-soft' },
+  { name: 'warm', label: 'Warm Gray', bg: 'bg-cozy-gray-100', border: 'border-cozy-gray-300', cardBg: 'bg-cozy-gray-100/90', modalBg: 'bg-cozy-gray-100' },
+  { name: 'yellow', label: 'Sunny', bg: 'bg-yellow-100', border: 'border-yellow-300', cardBg: 'bg-yellow-50/90', modalBg: 'bg-yellow-50' },
+  { name: 'lavender', label: 'Lavender', bg: 'bg-purple-100', border: 'border-purple-300', cardBg: 'bg-purple-50/90', modalBg: 'bg-purple-50' },
 ];
 
 const getColorClasses = (color: string, type: 'card' | 'modal' | 'picker' = 'card') => {
@@ -304,8 +304,8 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
             
             <div className="flex items-center gap-2">
               {saving ? (
-                <div className="flex items-center gap-2 text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <div className="flex items-center gap-2 text-sm bg-cozy-sage-soft text-cozy-text px-3 py-1 rounded-full">
+                  <div className="w-2 h-2 bg-cozy-primary rounded-full animate-pulse"></div>
                   <span>Saving</span>
                 </div>
               ) : (
@@ -417,17 +417,17 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                   placeholder="Start writing your note...
 
 💡 Your note auto-saves as you type!"
-                  className="w-full h-full p-4 md:p-6 bg-gray-50 border border-gray-200 rounded-2xl outline-none resize-none text-base md:text-lg leading-relaxed placeholder-gray-500 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-100 transition-all"
+                  className="w-full h-full p-4 md:p-6 bg-cozy-surface border border-cozy-gray-200 rounded-2xl outline-none resize-none text-base md:text-lg leading-relaxed placeholder-cozy-text-muted text-cozy-text focus:bg-cozy-surface focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all"
                   autoFocus
                 />
               </div>
               
               {/* Bottom Toolbar */}
-              <div className="bg-gray-50 border-t border-gray-200 p-4 flex items-center justify-center">
+              <div className="bg-cozy-surface border-t border-cozy-gray-200 p-4 flex items-center justify-center">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingImage}
-                  className="flex items-center gap-2 bg-blue-500 text-white px-6 py-3 rounded-xl hover:bg-blue-600 disabled:opacity-50 transition-all font-medium"
+                  className="flex items-center gap-2 bg-cozy-primary text-white px-6 py-3 rounded-xl hover:bg-cozy-primary-deep disabled:opacity-50 transition-all font-medium"
                 >
                   {uploadingImage ? (
                     <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
@@ -469,9 +469,9 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                 {!currentNote.checklistItems || currentNote.checklistItems.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8">
                     <div className="text-6xl mb-4">✅</div>
-                    <h3 className="text-2xl font-bold mb-3 text-gray-800">Start Your Checklist</h3>
-                    <p className="text-gray-600 mb-6">Add items below and organize with categories</p>
-                    <div className="bg-blue-50 rounded-xl p-4 text-sm text-blue-700 border border-blue-200 max-w-md">
+                    <h3 className="text-2xl font-bold mb-3 text-cozy-text">Start Your Checklist</h3>
+                    <p className="text-cozy-text-muted mb-6">Add items below and organize with categories</p>
+                    <div className="bg-cozy-sage-soft rounded-xl p-4 text-sm text-cozy-text border border-cozy-sage max-w-md">
                       <p className="font-semibold mb-2">💡 Tips:</p>
                       <p>• Press Enter to add items</p>
                       <p>• Use 📁 for categories</p>
@@ -491,32 +491,32 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                       return Object.entries(groupedItems)
                         .sort(([a], [b]) => a === 'General' ? 1 : b === 'General' ? -1 : a.localeCompare(b))
                         .map(([category, items]) => (
-                          <div key={category} className="bg-gray-50 rounded-2xl border border-gray-200 p-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <h4 className="font-bold text-gray-800 flex items-center gap-2">
-                                <span>{category === 'General' ? '📋' : '📁'}</span>
+                          <div key={category} className="bg-gray-50 rounded-lg border border-gray-200 p-2">
+                            <div className="flex items-center justify-between mb-2">
+                              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                                <span className="text-xs">{category === 'General' ? '📋' : '📁'}</span>
                                 {category}
                               </h4>
-                              <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-lg">
+                              <span className="text-xs text-gray-500 bg-white px-1.5 py-0.5 rounded">
                                 {items.filter(item => item.isChecked).length}/{items.length}
                               </span>
                             </div>
                             
-                            <div className="space-y-2">
+                            <div className="space-y-0">
                               {items.map((item) => (
-                                <div key={item.id} className="flex items-center gap-3 p-3 bg-white rounded-xl hover:bg-gray-50 transition-all group">
+                                <div key={item.id} className="flex items-center gap-2 py-1 px-1 bg-white rounded hover:bg-gray-50 transition-all group">
                                   <button
                                     onClick={() => toggleChecklistItem(item.id, item.isChecked)}
-                                    className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                                    className={`w-2 h-2 rounded-sm border flex items-center justify-center transition-all touch-manipulation ${
                                       item.isChecked 
                                         ? 'bg-green-500 border-green-500 text-white' 
-                                        : 'border-gray-300 hover:border-green-400'
+                                        : 'border-gray-400 hover:border-green-400'
                                     }`}
                                   >
-                                    {item.isChecked && <span className="text-sm font-bold">✓</span>}
+                                    {item.isChecked && <span className="text-[8px] leading-none font-bold">✓</span>}
                                   </button>
                                   
-                                  <span className={`flex-1 text-base cursor-pointer ${item.isChecked ? 'line-through text-gray-500' : 'text-gray-900'}`}
+                                  <span className={`flex-1 text-xs leading-tight cursor-pointer ${item.isChecked ? 'line-through text-gray-500' : 'text-gray-900'}`}
                                     onClick={() => toggleChecklistItem(item.id, item.isChecked)}
                                   >
                                     {item.text}
@@ -524,9 +524,9 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                                   
                                   <button
                                     onClick={() => deleteChecklistItem(item.id)}
-                                    className="opacity-0 group-hover:opacity-100 p-2 rounded-lg hover:bg-red-100 text-red-500 transition-all"
+                                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-100 text-red-500 transition-all touch-manipulation"
                                   >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-2.5 h-2.5" />
                                   </button>
                                 </div>
                               ))}
@@ -548,7 +548,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                       value={newItemCategory}
                       onChange={(e) => setNewItemCategory(e.target.value)}
                       placeholder="Category name..."
-                      className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary"
                       autoFocus
                     />
                     <button
@@ -575,7 +575,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                       }
                     }}
                     placeholder="What do you need to do? (Press Enter)"
-                    className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl text-base placeholder-gray-500 focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-4 py-3 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-base placeholder-cozy-text-muted text-cozy-text focus:ring-2 focus:ring-cozy-primary"
                   />
                   
                   {!showCategoryInput && (
@@ -590,15 +590,15 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                   <button
                     onClick={addChecklistItem}
                     disabled={!newChecklistItem.trim() || isAddingItem}
-                    className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-50 font-medium transition-all"
+                    className="px-6 py-3 bg-cozy-primary text-white rounded-xl hover:bg-cozy-primary-deep disabled:opacity-50 font-medium transition-all"
                   >
                     {isAddingItem ? 'Adding...' : 'Add'}
                   </button>
                 </div>
                 
                 {newItemCategory && (
-                  <div className="mt-2 text-sm text-gray-600">
-                    Adding to: <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">📁 {newItemCategory}</span>
+                  <div className="mt-2 text-sm text-cozy-text-muted">
+                    Adding to: <span className="bg-cozy-sage-soft text-cozy-text px-2 py-1 rounded font-medium">📁 {newItemCategory}</span>
                   </div>
                 )}
               </div>
@@ -881,7 +881,9 @@ export default function NotesPage() {
     <ModernAppShell title="Notes">
       <SEO title="Family Notes - HouseFlow" description="Create and manage your family notes" />
       
-      <div className="space-y-6">
+      {/* Cozy Background */}
+      <div className="min-h-screen bg-cozy-warm">
+        <div className="space-y-6 p-4 md:p-6">
         {/* Debug Info - only show if there are errors */}
         {process.env.NODE_ENV === 'development' && debugInfo && debugInfo.includes('Error') && (
           <div className="bg-red-100 border border-red-300 rounded-lg p-3 text-sm">
@@ -896,8 +898,8 @@ export default function NotesPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Family Notes</h1>
-            <p className="text-gray-600 mt-1 text-sm sm:text-base">Share notes and checklists with your family</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-cozy-text">Family Notes</h1>
+            <p className="text-cozy-text-muted mt-1 text-sm sm:text-base">Share notes and checklists with your family</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
             {process.env.NODE_ENV === 'development' && (
@@ -906,7 +908,7 @@ export default function NotesPage() {
                   setLoading(true);
                   fetchNotes();
                 }}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors"
+                className="bg-cozy-primary hover:bg-cozy-primary-deep text-white px-4 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors shadow-cozy-sm hover:shadow-cozy-glow"
                 disabled={loading}
               >
                 🔄 {loading ? 'Refreshing...' : 'Refresh'}
@@ -914,7 +916,7 @@ export default function NotesPage() {
             )}
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-4 sm:px-6 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors w-full sm:w-auto"
+              className="bg-cozy-primary hover:bg-cozy-primary-deep text-white px-4 sm:px-6 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors w-full sm:w-auto shadow-cozy-sm hover:shadow-cozy-glow"
               disabled={isCreating}
             >
               <Plus className="w-5 h-5" />
@@ -926,18 +928,18 @@ export default function NotesPage() {
         {/* Search and Filters */}
         <div className="mb-6 sm:mb-8 space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cozy-text-muted w-5 h-5" />
             <input
               type="text"
               placeholder="Search notes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white/80 backdrop-blur-sm text-base"
+              className="w-full pl-10 pr-4 py-3 border border-cozy-gray-200 rounded-2xl focus:ring-2 focus:ring-cozy-primary focus:border-transparent bg-cozy-surface/90 backdrop-blur-sm text-base text-cozy-text placeholder-cozy-text-muted"
             />
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 text-sm text-gray-600 shrink-0">
+            <div className="flex items-center gap-2 text-sm text-cozy-text-muted shrink-0">
               <Filter className="w-4 h-4" />
               <span className="hidden sm:inline">Filter by color:</span>
               <span className="sm:hidden">Filter:</span>
@@ -1213,6 +1215,7 @@ export default function NotesPage() {
             </div>
           </div>
         )}
+        </div>
       </div>
     </ModernAppShell>
   );

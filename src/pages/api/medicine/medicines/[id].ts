@@ -55,6 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'GET') {
+    res.setHeader('Cache-Control', 'no-store');
     return res.json(existingMedicine)
   }
 
@@ -91,9 +92,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
 
+      res.setHeader('Cache-Control', 'no-store');
       return res.json(updatedMedicine)
     } catch (error) {
       console.error('Failed to update medicine:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to update medicine' })
     }
   }
@@ -110,6 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await prisma.medicine.delete({
           where: { id }
         })
+        res.setHeader('Cache-Control', 'no-store');
         return res.json({ message: 'Template deleted' })
       }
       
@@ -127,6 +131,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           where: { id },
           data: { isActive: false }
         })
+        res.setHeader('Cache-Control', 'no-store');
         return res.json({ message: 'Medicine deactivated (has associated doses)' })
       } else {
         // Hard delete if no doses
@@ -134,10 +139,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await prisma.medicine.delete({
           where: { id }
         })
+        res.setHeader('Cache-Control', 'no-store');
         return res.json({ message: 'Medicine deleted' })
       }
     } catch (error) {
       console.error('Failed to delete medicine:', error)
+      res.setHeader('Cache-Control', 'no-store');
       return res.status(500).json({ error: 'Failed to delete medicine' })
     }
   }

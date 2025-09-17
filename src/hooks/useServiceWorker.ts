@@ -50,8 +50,9 @@ export function useServiceWorker(): ServiceWorkerUpdate {
       }
     };
 
-    // Register service worker
-    navigator.serviceWorker.register('/sw.js')
+    // Register service worker (disabled in development to prevent Fast Refresh issues)
+    if (process.env.NODE_ENV === 'production') {
+      navigator.serviceWorker.register('/sw.js')
       .then((reg) => {
         registration = reg;
         
@@ -70,6 +71,7 @@ export function useServiceWorker(): ServiceWorkerUpdate {
       .catch((error) => {
         console.error('Service worker registration failed:', error);
       });
+    }
 
     return () => {
       if (registration) {

@@ -100,6 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       message: 'Household created successfully!'
     };
 
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(201).json(response);
   } catch (e: any) {
     console.error('Failed to create household:', e);

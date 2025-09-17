@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import ModernAppShell from '../components/ModernAppShell'
+import SEO from '../components/SEO'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
@@ -205,7 +206,14 @@ export default function ShoppingPage() {
   // Load templates
   useEffect(() => {
     if (status === 'authenticated') {
-      fetch('/api/shopping/templates')
+      const cacheBuster = Date.now()
+      fetch(`/api/shopping/templates?_t=${cacheBuster}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
         .then(res => res.json())
         .then(data => {
           if (data.templates) {
@@ -219,7 +227,14 @@ export default function ShoppingPage() {
   // Load items for selected list
   useEffect(() => {
     if (selectedListId) {
-      fetch(`/api/shopping/items?listId=${selectedListId}`)
+      const cacheBuster = Date.now()
+      fetch(`/api/shopping/items?listId=${selectedListId}&_t=${cacheBuster}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
         .then(res => res.json())
         .then(data => {
           if (data.items) {
@@ -289,6 +304,11 @@ export default function ShoppingPage() {
 
       if (response.ok) {
         setItems(prev => prev.filter(item => item.id !== itemId))
+        
+        // Clear service worker cache to ensure fresh data
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' })
+        }
       }
     } catch (error) {
       console.error('Failed to delete item:', error)
@@ -735,8 +755,15 @@ export default function ShoppingPage() {
   ]
 
   return (
-    <ModernAppShell title="Shopping">
-    <div className="space-y-6">
+    <>
+      <SEO 
+        title="Smart Shopping Lists & Price Tracking"
+        description="Create and manage family shopping lists with smart price tracking. Compare prices, set budgets, and organize your household shopping with HouseFlow."
+        keywords="shopping lists, family shopping, price tracking, household shopping, grocery lists, family budget, shopping organization"
+        url="/shopping"
+      />
+      <ModernAppShell title="Shopping">
+        <div className="space-y-6">
         {/* Header */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-cozy-text mb-2 flex items-center gap-2 sm:gap-3">
@@ -1020,7 +1047,8 @@ export default function ShoppingPage() {
           </TabPanel>
         )}
 
-      </div>
-    </ModernAppShell>
+        </div>
+      </ModernAppShell>
+    </>
   )
 }

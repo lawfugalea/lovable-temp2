@@ -38,5 +38,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await reconcileActiveHousehold(userId, { write: true, db: tx });
   });
 
+  res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json({ ok: true });
 }

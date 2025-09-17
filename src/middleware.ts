@@ -6,11 +6,8 @@ export default withAuth(
     const token = req.nextauth.token;
     const isAdmin = token?.email === 'lawfinuu@gmail.com';
     
-    // Protect admin routes
+    // Protect admin routes with special admin-only logic
     if (req.nextUrl.pathname.startsWith('/admin')) {
-      if (!token) {
-        return NextResponse.redirect(new URL('/', req.url));
-      }
       if (!isAdmin) {
         return NextResponse.redirect(new URL('/dashboard', req.url));
       }
@@ -29,6 +26,9 @@ export default withAuth(
         return !!token;
       },
     },
+    pages: {
+      signIn: '/login', // Redirect to login page when unauthorized
+    },
   }
 );
 
@@ -41,5 +41,6 @@ export const config = {
     '/medicine/:path*',
     '/settings/:path*',
     '/household/:path*',
+    '/notes/:path*',
   ]
 };

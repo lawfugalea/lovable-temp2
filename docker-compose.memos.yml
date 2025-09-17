@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  memos:
+    image: neosmemo/memos:latest
+    container_name: houseflow-memos
+    restart: unless-stopped
+    ports:
+      - "5230:5230"
+    volumes:
+      - ./memos-data:/var/opt/memos
+    environment:
+      - MEMOS_DATA_DIR=/var/opt/memos
+      - MEMOS_PORT=5230
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5230/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - houseflow-network
+
+networks:
+  houseflow-network:
+    driver: bridge
+
