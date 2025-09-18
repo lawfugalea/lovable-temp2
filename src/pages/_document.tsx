@@ -41,8 +41,8 @@ export default function Document() {
         <link rel="manifest" href="/manifest.json" />
         
         {/* Theme color for mobile browsers */}
-        <meta name="theme-color" content="#3b82f6" />
-        <meta name="msapplication-TileColor" content="#3b82f6" />
+        <meta name="theme-color" content="#e07c52" />
+        <meta name="msapplication-TileColor" content="#e07c52" />
       </Head>
       <body>
         <Main />
