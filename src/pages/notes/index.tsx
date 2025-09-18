@@ -1753,7 +1753,7 @@ export default function NotesPage() {
                             if (!activeItem) return;
 
                             // If dropped on a category
-                            let newCategory = undefined;
+                            let newCategory: string | undefined = undefined;
                             if (overId.startsWith('create-category-')) {
                               newCategory = overId.replace('create-category-', '');
                               if (newCategory === 'General') newCategory = undefined;

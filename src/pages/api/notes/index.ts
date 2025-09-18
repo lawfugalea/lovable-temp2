@@ -40,10 +40,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             where: { id: userId },
             data: { activeHouseholdId: membership.householdId }
           });
-          user = { ...user, activeHouseholdId: membership.householdId };
+          user = { 
+            activeHouseholdId: membership.householdId,
+            name: user?.name ?? null,
+            email: user?.email ?? ''
+          };
         } else {
           // Create a default household
-          const defaultName = (user.name?.split(' ')[0] || user.email?.split('@')[0] || 'My') + "'s Household";
+          const defaultName = (user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'My') + "'s Household";
           
           const household = await prisma.$transaction(async (tx) => {
             const h = await tx.household.create({
@@ -63,12 +67,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return h;
           });
 
-          user = { ...user, activeHouseholdId: household.id };
+          user = { 
+            activeHouseholdId: household.id,
+            name: user?.name ?? null,
+            email: user?.email ?? ''
+          };
           console.log('Created default household:', household.id);
         }
       }
 
       // Get notes for the household
+      if (!user.activeHouseholdId) {
+        return res.status(400).json({ error: 'No active household found' });
+      }
+
       const notes = await prisma.note.findMany({
         where: {
           householdId: user.activeHouseholdId,
@@ -130,10 +142,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             where: { id: userId },
             data: { activeHouseholdId: membership.householdId }
           });
-          user = { ...user, activeHouseholdId: membership.householdId };
+          user = { 
+            activeHouseholdId: membership.householdId,
+            name: user?.name ?? null,
+            email: user?.email ?? ''
+          };
         } else {
           // Create a default household
-          const defaultName = (user.name?.split(' ')[0] || user.email?.split('@')[0] || 'My') + "'s Household";
+          const defaultName = (user?.name?.split(' ')[0] || user?.email?.split('@')[0] || 'My') + "'s Household";
           
           const household = await prisma.$transaction(async (tx) => {
             const h = await tx.household.create({
@@ -153,9 +169,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return h;
           });
 
-          user = { ...user, activeHouseholdId: household.id };
+          user = { 
+            activeHouseholdId: household.id,
+            name: user?.name ?? null,
+            email: user?.email ?? ''
+          };
           console.log('Created default household for POST:', household.id);
         }
+      }
+
+      // Ensure we have an active household
+      if (!user.activeHouseholdId) {
+        return res.status(400).json({ error: 'No active household found' });
       }
 
       // Create the note
