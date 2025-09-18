@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import { GetServerSideProps } from 'next';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../api/auth/[...nextauth]';
 import Head from 'next/head';
 import ModernAppShell from '../../components/ModernAppShell';
 import SEO from '../../components/SEO';
@@ -1220,3 +1223,24 @@ export default function NotesPage() {
     </ModernAppShell>
   );
 }
+
+// Server-side authentication check
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const session = await getServerSession(context.req, context.res, authOptions);
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    };
+  }
+
+  // Return minimal session data to avoid serialization issues
+  return {
+    props: {
+      // Don't pass session directly as it may contain non-serializable data
+    },
+  };
+};

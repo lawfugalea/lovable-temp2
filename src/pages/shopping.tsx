@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { GetServerSideProps } from 'next'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from './api/auth/[...nextauth]'
 import ModernAppShell from '../components/ModernAppShell'
 import SEO from '../components/SEO'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
@@ -1052,3 +1055,23 @@ export default function ShoppingPage() {
     </>
   )
 }
+
+// Server-side authentication check
+export const getServerSideProps: GetServerSideProps = async (context) => {
+  const session = await getServerSession(context.req, context.res, authOptions);
+
+  if (!session) {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    };
+  }
+
+  return {
+    props: {
+      // Don't pass session directly as it may contain non-serializable data
+    },
+  };
+};
