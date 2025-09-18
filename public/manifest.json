@@ -2,7 +2,7 @@
   "name": "Houseflow Notes",
   "short_name": "Houseflow",
   "description": "Modern notes app with real-time collaboration for your household",
-  "version": "20250918095521",
+  "version": "20250918105113",
   "start_url": "/notes?source=pwa",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -177,7 +177,11 @@ export default function ShoppingPage() {
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showItemModal, setShowItemModal] = useState(false)
   const [itemLoading, setItemLoading] = useState(false)
-  // Modal search query removed with search modal
+  // Search modal state
+  const [showSearchModal, setShowSearchModal] = useState(false)
+  const [searchModalQuery, setSearchModalQuery] = useState('')
+  const [searchModalResults, setSearchModalResults] = useState<any[]>([])
+  const [searchModalLoading, setSearchModalLoading] = useState(false)
   const [templates, setTemplates] = useState<ShoppingTemplate[]>([])
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
@@ -354,7 +358,7 @@ export default function ShoppingPage() {
     setShowPopularItems(false)
     setSelectedIndex(-1)
 
-    // Increased debounce time for better performance
+    // Optimized debounce time for better responsiveness
     const timeout = setTimeout(async () => {
       try {
         // Clean the query for better results
@@ -462,7 +466,7 @@ export default function ShoppingPage() {
         
         // Store all results and show initial batch
         setAllSearchResults(sortedItems)
-        setSuggestions(sortedItems.slice(0, 30)) // Show first 30 results
+        setSuggestions(sortedItems.slice(0, 50)) // Show first 50 results
         setShowAllResults(false) // Reset show all state
         setShowSuggestions(true)
         
@@ -479,7 +483,7 @@ export default function ShoppingPage() {
       } finally {
         setSearchLoading(false)
       }
-    }, 500) // 500ms debounce for better performance
+    }, 300) // 300ms debounce for better responsiveness
 
     setSearchTimeout(timeout)
   }
@@ -588,11 +592,114 @@ export default function ShoppingPage() {
   }
 
   const showLessResults = () => {
-    setSuggestions(allSearchResults.slice(0, 30))
+    setSuggestions(allSearchResults.slice(0, 50))
     setShowAllResults(false)
   }
 
-  // Search modal functions removed for simplified UX
+  // Search modal functions
+  const openSearchModal = (query: string = '') => {
+    setSearchModalQuery(query || newItemTitle)
+    setShowSearchModal(true)
+    if (query || newItemTitle) {
+      performModalSearch(query || newItemTitle)
+    }
+  }
+
+  const performModalSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchModalResults([])
+      return
+    }
+
+    setSearchModalLoading(true)
+    try {
+      // Clean the query for better results
+      const cleanQuery = query.trim().toLowerCase()
+      
+      // Try multiple search strategies for comprehensive results
+      const searchPromises = []
+      
+      // Main search
+      searchPromises.push(fetch(`/api/prices/suggest?q=${encodeURIComponent(cleanQuery)}`))
+      
+      // Search for partial matches
+      if (cleanQuery.length > 3) {
+        const partialQuery = cleanQuery.substring(0, cleanQuery.length - 1)
+        searchPromises.push(fetch(`/api/prices/suggest?q=${encodeURIComponent(partialQuery)}`))
+      }
+      
+      // If query has multiple words, also search for individual words
+      const words = cleanQuery.split(' ').filter(word => word.length > 2)
+      if (words.length > 1) {
+        words.forEach(word => {
+          searchPromises.push(fetch(`/api/prices/suggest?q=${encodeURIComponent(word)}`))
+        })
+      }
+      
+      // Search for common variations
+      if (cleanQuery.length > 4) {
+        const shortQuery = cleanQuery.substring(0, 4)
+        searchPromises.push(fetch(`/api/prices/suggest?q=${encodeURIComponent(shortQuery)}`))
+      }
+      
+      const responses = await Promise.all(searchPromises)
+      const allItems = []
+      
+      for (const response of responses) {
+        if (response.ok) {
+          const data = await response.json()
+          allItems.push(...(data.items || []))
+        }
+      }
+      
+      // Remove duplicates based on ID
+      const uniqueItems = allItems.filter((item, index, self) => 
+        index === self.findIndex(t => t.id === item.id)
+      )
+      
+      // Enhanced sorting for better relevance
+      const sortedItems = uniqueItems.sort((a: any, b: any) => {
+        const aTitle = a.title.toLowerCase()
+        const bTitle = b.title.toLowerCase()
+        const queryLower = cleanQuery.toLowerCase()
+        
+        // Exact match gets highest priority
+        if (aTitle === queryLower) return -1
+        if (bTitle === queryLower) return 1
+        
+        // Starts with query gets second priority
+        if (aTitle.startsWith(queryLower) && !bTitle.startsWith(queryLower)) return -1
+        if (bTitle.startsWith(queryLower) && !aTitle.startsWith(queryLower)) return 1
+        
+        // Contains query as whole word gets third priority
+        const aWordMatch = aTitle.includes(` ${queryLower} `) || aTitle.startsWith(`${queryLower} `) || aTitle.endsWith(` ${queryLower}`)
+        const bWordMatch = bTitle.includes(` ${queryLower} `) || bTitle.startsWith(`${queryLower} `) || bTitle.endsWith(` ${queryLower}`)
+        if (aWordMatch && !bWordMatch) return -1
+        if (bWordMatch && !aWordMatch) return 1
+        
+        // Contains query anywhere gets fourth priority
+        if (aTitle.includes(queryLower) && !bTitle.includes(queryLower)) return -1
+        if (bTitle.includes(queryLower) && !aTitle.includes(queryLower)) return 1
+        
+        // Then by price (lower price first)
+        return a.nowCents - b.nowCents
+      })
+      
+      setSearchModalResults(sortedItems)
+    } catch (error) {
+      console.error('Failed to fetch modal search results:', error)
+      setSearchModalResults([])
+    } finally {
+      setSearchModalLoading(false)
+    }
+  }
+
+  const closeSearchModal = () => {
+    setShowSearchModal(false)
+    setSearchModalQuery('')
+    setSearchModalResults([])
+    setSearchModalLoading(false)
+  }
 
   // Template functions
   const createTemplate = async () => {
@@ -841,50 +948,21 @@ export default function ShoppingPage() {
                               value={newItemTitle}
                               onChange={(e) => {
                                 setNewItemTitle(e.target.value)
-                                if (e.target.value.trim()) {
-                                  searchSuggestions(e.target.value)
-                                } else {
-                                  setSuggestions([])
-                                  setShowSuggestions(false)
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newItemTitle.trim()) {
+                                  openSearchModal(newItemTitle)
                                 }
                               }}
-                              onKeyDown={handleKeyDown}
-                              onFocus={() => setShowSuggestions(true)}
                               className="w-full text-sm sm:text-base"
                             />
-                            {showSuggestions && suggestions.length > 0 && (
-                              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-cozy-gray-200 rounded-lg shadow-lg z-50 max-h-48 sm:max-h-60 overflow-y-auto">
-                                {suggestions.slice(0, 5).map((suggestion, index) => (
-                                  <button
-                                    key={index}
-                                    className={`w-full px-3 py-2 sm:px-4 text-left hover:bg-cozy-cream transition-colors touch-manipulation ${
-                                      selectedIndex === index ? 'bg-cozy-cream' : ''
-                                    }`}
-                                    onClick={() => selectSuggestion(suggestion)}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-xs sm:text-sm font-medium truncate">{suggestion.title}</span>
-                                      {suggestion.nowCents && (
-                                        <span className="text-xs text-cozy-text-muted flex-shrink-0">
-                                          €{(suggestion.nowCents / 100).toFixed(2)}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
                           </div>
                           <Button
-                            onClick={() => searchSuggestions(newItemTitle)}
-                            disabled={!newItemTitle.trim() || searchLoading}
+                            onClick={() => openSearchModal(newItemTitle)}
+                            disabled={!newItemTitle.trim()}
                             className="px-3 sm:px-4 flex-shrink-0"
                           >
-                            {searchLoading ? (
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <Search className="w-4 h-4" />
-                            )}
+                            <Search className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
@@ -1051,6 +1129,169 @@ export default function ShoppingPage() {
         )}
 
         </div>
+
+        {/* Search Modal */}
+        {showSearchModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+              {/* Modal Header */}
+              <div className="p-4 border-b border-cozy-gray-200">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-cozy-text">Search Products</h2>
+                  <button
+                    onClick={closeSearchModal}
+                    className="p-2 hover:bg-cozy-cream rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                {/* Search Input */}
+                <div className="mt-3 flex gap-2">
+                  <Input
+                    placeholder="🛒 Search products..."
+                    value={searchModalQuery}
+                    onChange={(e) => {
+                      setSearchModalQuery(e.target.value)
+                      if (e.target.value.trim()) {
+                        performModalSearch(e.target.value)
+                      } else {
+                        setSearchModalResults([])
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && searchModalQuery.trim()) {
+                        performModalSearch(searchModalQuery)
+                      }
+                    }}
+                    className="flex-1"
+                    autoFocus
+                  />
+                  <Button
+                    onClick={() => performModalSearch(searchModalQuery)}
+                    disabled={!searchModalQuery.trim() || searchModalLoading}
+                    className="px-4"
+                  >
+                    {searchModalLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Search className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-200px)]">
+                {searchModalLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className="text-cozy-text-muted">Searching products...</p>
+                    </div>
+                  </div>
+                ) : searchModalResults.length === 0 && searchModalQuery.trim() ? (
+                  <div className="text-center py-12">
+                    <p className="text-cozy-text-muted">No products found for "{searchModalQuery}"</p>
+                    <p className="text-sm text-cozy-text-muted mt-2">Try a different search term</p>
+                  </div>
+                ) : searchModalResults.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-cozy-text-muted">Enter a search term to find products</p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="mb-4 flex items-center justify-between">
+                      <p className="text-sm text-cozy-text-muted">
+                        Found {searchModalResults.length} products for "{searchModalQuery}"
+                      </p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {searchModalResults.map((item, index) => (
+                        <div key={index} className="border border-cozy-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                          {/* Product Image */}
+                          <div className="w-full h-32 bg-cozy-cream rounded-md overflow-hidden mb-3 flex items-center justify-center">
+                            {item.imageUrl ? (
+                              <img 
+                                src={item.imageUrl} 
+                                alt={item.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                  const parent = target.parentElement;
+                                  if (parent && !parent.querySelector('.emoji-fallback')) {
+                                    const emoji = document.createElement('span');
+                                    emoji.className = 'emoji-fallback text-3xl';
+                                    emoji.textContent = getProductIcon(item.title);
+                                    parent.appendChild(emoji);
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <span className="text-3xl">{getProductIcon(item.title)}</span>
+                            )}
+                          </div>
+                          
+                          {/* Product Info */}
+                          <div className="space-y-2">
+                            <h3 className="font-medium text-sm text-cozy-text line-clamp-2">{item.title}</h3>
+                            
+                            {/* Store Badge */}
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="text-xs">
+                                {item.store || 'Smart Supermarket'}
+                              </Badge>
+                            </div>
+                            
+                            {/* Price */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg font-bold text-cozy-primary">
+                                  €{(item.nowCents / 100).toFixed(2)}
+                                </span>
+                                {item.wasCents && (
+                                  <span className="text-sm line-through text-red-500">
+                                    €{(item.wasCents / 100).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {item.wasCents && (
+                                <Badge variant="destructive" className="text-xs">
+                                  -{Math.round(((item.wasCents - item.nowCents) / item.wasCents) * 100)}%
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {/* Add to Cart Button */}
+                            <Button
+                              onClick={() => {
+                                handleAddToCart(item)
+                                closeSearchModal()
+                              }}
+                              disabled={!selectedListId || itemLoading}
+                              className="w-full text-xs h-8"
+                              size="sm"
+                            >
+                              {itemLoading ? (
+                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-1" />
+                              ) : (
+                                <ShoppingCart className="w-3 h-3 mr-1" />
+                              )}
+                              Add to List
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </ModernAppShell>
     </>
   )
