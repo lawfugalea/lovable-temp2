@@ -7,7 +7,26 @@ import { authOptions } from '../api/auth/[...nextauth]';
 import Head from 'next/head';
 import ModernAppShell from '../../components/ModernAppShell';
 import SEO from '../../components/SEO';
-import { Plus, Pin, PinOff, Search, Filter, Eye, EyeOff, Lock, Save, Trash2, X, Palette } from 'lucide-react';
+import { Plus, Pin, PinOff, Search, Filter, Eye, EyeOff, Lock, Save, Trash2, X, Palette, FolderPlus, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ChecklistItem {
   id: string;
@@ -68,6 +87,221 @@ const getColorClasses = (color: string, type: 'card' | 'modal' | 'picker' = 'car
   }
 };
 
+// Sortable Task Item Component
+function SortableTaskItem({ 
+  item, 
+  onToggle, 
+  onDelete, 
+  onCategoryChange,
+  onEdit
+}: { 
+  item: ChecklistItem;
+  onToggle: (id: string, checked: boolean) => void;
+  onDelete: (id: string) => void;
+  onCategoryChange: (id: string, category: string) => void;
+  onEdit: (id: string, newText: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(item.text);
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditText(item.text);
+  };
+
+  const handleSaveEdit = () => {
+    if (editText.trim() && editText.trim() !== item.text) {
+      onEdit(item.id, editText.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditText(item.text);
+  };
+
+  useEffect(() => {
+    if (isEditing && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [isEditing]);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-2 py-2 px-2 bg-cozy-surface rounded-lg hover:bg-cozy-cream transition-all group ${
+        isDragging ? 'shadow-cozy-lg' : 'shadow-cozy-sm'
+      }`}
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab active:cursor-grabbing p-1 hover:bg-cozy-gray-100 rounded"
+      >
+        <GripVertical className="w-3 h-3 text-cozy-text-muted" />
+      </div>
+      
+      <button
+        onClick={() => onToggle(item.id, item.isChecked)}
+        className={`w-4 h-4 md:w-5 md:h-5 rounded border-2 flex items-center justify-center transition-all ${
+          item.isChecked 
+            ? 'bg-cozy-primary border-cozy-primary text-white' 
+            : 'border-cozy-gray-300 hover:border-cozy-primary'
+        }`}
+      >
+        {item.isChecked && <span className="text-[10px] md:text-xs leading-none font-bold">✓</span>}
+      </button>
+      
+      {isEditing ? (
+        <input
+          ref={editInputRef}
+          type="text"
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              handleSaveEdit();
+            } else if (e.key === 'Escape') {
+              handleCancelEdit();
+            }
+          }}
+          onBlur={handleSaveEdit}
+          className="flex-1 text-sm bg-white border border-cozy-primary rounded px-2 py-1 text-cozy-text focus:outline-none focus:ring-1 focus:ring-cozy-primary"
+        />
+      ) : (
+        <span 
+          className={`flex-1 text-sm cursor-pointer ${
+            item.isChecked ? 'line-through text-cozy-text-soft' : 'text-cozy-text'
+          }`}
+          onClick={handleEdit}
+          title="Click to edit"
+        >
+          {item.text}
+        </span>
+      )}
+      
+      <button
+        onClick={() => onDelete(item.id)}
+        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 text-red-500 transition-all"
+      >
+        <Trash2 className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+// Droppable Category Component
+function DroppableCategory({
+  category,
+  items,
+  onToggle,
+  onDelete,
+  onCategoryChange,
+  onDeleteCategory,
+  onEdit
+}: {
+  category: string;
+  items: ChecklistItem[];
+  onToggle: (id: string, checked: boolean) => void;
+  onDelete: (id: string) => void;
+  onCategoryChange: (id: string, category: string) => void;
+  onDeleteCategory: (category: string) => void;
+  onEdit: (id: string, newText: string) => void;
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const completedCount = items.filter(item => item.isChecked).length;
+  const totalCount = items.length;
+  
+  return (
+    <div className="bg-cozy-cream/50 rounded-lg border border-cozy-gray-200 p-3">
+      <div 
+        className="flex items-center justify-between mb-3 cursor-pointer hover:bg-cozy-cream/70 -m-1 p-1 rounded transition-all"
+        onClick={() => setIsCollapsed(!isCollapsed)}
+      >
+        <h4 className="text-sm font-semibold text-cozy-text flex items-center gap-2">
+          <span className="text-base">{category === 'General' ? '📋' : '📁'}</span>
+          <span>{category === 'General' ? 'Items' : category}</span>
+          <button className="text-cozy-text-muted hover:text-cozy-text transition-colors">
+            {isCollapsed ? '▶️' : '🔽'}
+          </button>
+        </h4>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-cozy-text bg-cozy-primary-soft px-2 py-0.5 rounded-full font-medium">
+            {items.filter(item => item.isChecked).length}/{items.length}
+          </span>
+          {category !== 'General' && (
+            <button
+              onClick={() => onDeleteCategory(category)}
+              className="p-1 rounded hover:bg-red-100 text-red-500 transition-all"
+              title="Delete category"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      </div>
+      
+      {/* Collapsible Content */}
+      <div className={`transition-all duration-300 overflow-hidden ${
+        isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[1000px] opacity-100'
+      }`}>
+        <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {items.map((item) => (
+              <SortableTaskItem
+                key={item.id}
+                item={item}
+                onToggle={onToggle}
+                onDelete={onDelete}
+                onCategoryChange={onCategoryChange}
+                onEdit={onEdit}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </div>
+      
+      {/* Collapsed Summary */}
+      {isCollapsed && (
+        <div className="mt-2 text-xs text-cozy-text-muted">
+          {completedCount > 0 && (
+            <span className="text-cozy-primary font-medium">
+              {completedCount} completed
+            </span>
+          )}
+          {completedCount > 0 && totalCount - completedCount > 0 && (
+            <span className="mx-1">•</span>
+          )}
+          {totalCount - completedCount > 0 && (
+            <span>
+              {totalCount - completedCount} remaining
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface NoteEditModalProps {
   note: Note;
   onClose: () => void;
@@ -91,9 +325,20 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Update local state when note prop changes
   useEffect(() => {
@@ -251,6 +496,123 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
     }
   };
 
+  // Drag and drop handlers
+  const handleDragStart = (event: any) => {
+    setActiveId(event.active.id);
+  };
+
+  const handleDragEnd = async (event: any) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over) return;
+
+    const activeItem = currentNote.checklistItems.find(item => item.id === active.id);
+    if (!activeItem) return;
+
+    // If dropped on a category header or category container
+    let newCategory = 'General';
+    if (over.id.startsWith('category-')) {
+      newCategory = over.id.replace('category-', '');
+    } else {
+      // If dropped on another item, use that item's category
+      const overItem = currentNote.checklistItems.find(item => item.id === over.id);
+      if (overItem) {
+        newCategory = overItem.category || 'General';
+      }
+    }
+
+    // Update the item's category
+    if (activeItem.category !== newCategory) {
+      await updateChecklistItemCategory(activeItem.id, newCategory);
+    }
+  };
+
+  const updateChecklistItemCategory = async (itemId: string, newCategory: string) => {
+    try {
+      const response = await fetch(`/api/checklist-items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: newCategory === 'General' ? null : newCategory })
+      });
+
+      if (response.ok) {
+        const noteResponse = await fetch(`/api/notes/${currentNote.id}`);
+        if (noteResponse.ok) {
+          const updatedNote = await noteResponse.json();
+          setCurrentNote(updatedNote);
+          onUpdate(currentNote.id, updatedNote);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update item category:', error);
+    }
+  };
+
+  const createNewCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    
+    // Create a placeholder item in the new category to make it visible as a drop zone
+    const placeholderText = `📁 ${newCategoryName.trim()} (drag items here)`;
+    
+    try {
+      const response = await fetch(`/api/notes/${currentNote.id}/checklist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: placeholderText,
+          category: newCategoryName.trim()
+        })
+      });
+
+      if (response.ok) {
+        const noteResponse = await fetch(`/api/notes/${currentNote.id}`);
+        if (noteResponse.ok) {
+          const updatedNote = await noteResponse.json();
+          setCurrentNote(updatedNote);
+          onUpdate(currentNote.id, updatedNote);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to create category:', error);
+    }
+    
+    setShowNewCategoryInput(false);
+    setNewCategoryName('');
+  };
+
+  const deleteCategory = async (categoryName: string) => {
+    if (categoryName === 'General') return;
+    
+    // Move all items in this category to General
+    const itemsInCategory = currentNote.checklistItems.filter(item => item.category === categoryName);
+    
+    for (const item of itemsInCategory) {
+      await updateChecklistItemCategory(item.id, 'General');
+    }
+  };
+
+  const editChecklistItem = async (itemId: string, newText: string) => {
+    try {
+      const response = await fetch(`/api/checklist-items/${itemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: newText })
+      });
+
+      if (response.ok) {
+        const noteResponse = await fetch(`/api/notes/${currentNote.id}`);
+        if (noteResponse.ok) {
+          const updatedNote = await noteResponse.json();
+          setCurrentNote(updatedNote);
+          onUpdate(currentNote.id, updatedNote);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to edit checklist item:', error);
+    }
+  };
+
   const changeNoteType = async (newType: 'TEXT' | 'CHECKLIST') => {
     if (saving) return;
     setSaving(true);
@@ -312,8 +674,8 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                   <span>Saving</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="flex items-center gap-2 text-sm bg-cozy-sage-soft text-cozy-text px-3 py-1 rounded-full">
+                  <div className="w-2 h-2 bg-cozy-sage rounded-full"></div>
                   <span>Saved</span>
                 </div>
               )}
@@ -338,30 +700,44 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
           
           {/* Simple Controls */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            {/* Type Toggle */}
-            <div className="flex bg-gray-100 rounded-xl p-1">
-              <button
-                onClick={() => changeNoteType('TEXT')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                  currentNote.type === 'TEXT' 
-                    ? 'bg-white text-gray-900 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <span>📝</span>
-                <span>Text</span>
-              </button>
-              <button
-                onClick={() => changeNoteType('CHECKLIST')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                  currentNote.type === 'CHECKLIST' 
-                    ? 'bg-white text-gray-900 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <span>✅</span>
-                <span>List</span>
-              </button>
+            {/* Type Toggle with Add Category */}
+            <div className="flex items-center gap-2">
+              <div className="flex bg-gray-100 rounded-xl p-1">
+                <button
+                  onClick={() => changeNoteType('TEXT')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    currentNote.type === 'TEXT' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <span>📝</span>
+                  <span>Text</span>
+                </button>
+                <button
+                  onClick={() => changeNoteType('CHECKLIST')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                    currentNote.type === 'CHECKLIST' 
+                      ? 'bg-white text-gray-900 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <span>✅</span>
+                  <span>List</span>
+                </button>
+              </div>
+              
+              {/* Add Category Button - Next to toggle */}
+              {currentNote.type === 'CHECKLIST' && (
+                <button
+                  onClick={() => setShowNewCategoryInput(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-cozy-sage-soft border border-cozy-sage rounded-xl text-cozy-text hover:bg-cozy-sage hover:text-white transition-all"
+                  title="Add new category"
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  <span className="hidden sm:inline text-sm font-medium">Add Category</span>
+                </button>
+              )}
             </div>
             
             {/* Colors */}
@@ -447,18 +823,18 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
             <>
               {/* Simple Progress */}
               {currentNote.checklistItems && currentNote.checklistItems.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mx-4 md:mx-6 mt-4 md:mt-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-gray-800">
+                <div className="bg-cozy-sage-soft/50 border border-cozy-sage rounded-lg p-2 mx-4 md:mx-6 mt-3 md:mt-4">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="font-medium text-cozy-text text-xs">
                       {currentNote.checklistItems.filter(item => item.isChecked).length} of {currentNote.checklistItems.length} done
                     </span>
-                    <span className="text-sm text-green-600 font-bold">
+                    <span className="text-xs text-cozy-primary font-bold bg-cozy-primary-soft px-1.5 py-0.5 rounded-full">
                       {Math.round((currentNote.checklistItems.filter(item => item.isChecked).length / currentNote.checklistItems.length) * 100)}%
                     </span>
                   </div>
-                  <div className="w-full bg-green-200 rounded-full h-2">
+                  <div className="w-full bg-cozy-gray-200 rounded-full h-1.5">
                     <div 
-                      className="bg-green-500 h-full rounded-full transition-all duration-500"
+                      className="bg-cozy-primary h-full rounded-full transition-all duration-500"
                       style={{ 
                         width: `${(currentNote.checklistItems.filter(item => item.isChecked).length / currentNote.checklistItems.length) * 100}%`
                       }}
@@ -482,70 +858,100 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {(() => {
-                      const groupedItems = currentNote.checklistItems.reduce((groups: Record<string, ChecklistItem[]>, item) => {
-                        const category = item.category || 'General';
-                        if (!groups[category]) groups[category] = [];
-                        groups[category].push(item);
-                        return groups;
-                      }, {});
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <div className="space-y-4">
+                      {(() => {
+                        const groupedItems = currentNote.checklistItems.reduce((groups: Record<string, ChecklistItem[]>, item) => {
+                          const category = item.category || 'General';
+                          if (!groups[category]) groups[category] = [];
+                          groups[category].push(item);
+                          return groups;
+                        }, {});
 
-                      return Object.entries(groupedItems)
-                        .sort(([a], [b]) => a === 'General' ? 1 : b === 'General' ? -1 : a.localeCompare(b))
-                        .map(([category, items]) => (
-                          <div key={category} className="bg-gray-50 rounded-lg border border-gray-200 p-2">
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                                <span className="text-xs">{category === 'General' ? '📋' : '📁'}</span>
-                                {category}
-                              </h4>
-                              <span className="text-xs text-gray-500 bg-white px-1.5 py-0.5 rounded">
-                                {items.filter(item => item.isChecked).length}/{items.length}
-                              </span>
-                            </div>
-                            
-                            <div className="space-y-0">
-                              {items.map((item) => (
-                                <div key={item.id} className="flex items-center gap-2 py-1 px-1 bg-white rounded hover:bg-gray-50 transition-all group">
-                                  <button
-                                    onClick={() => toggleChecklistItem(item.id, item.isChecked)}
-                                    className={`w-2 h-2 rounded-sm border flex items-center justify-center transition-all touch-manipulation ${
-                                      item.isChecked 
-                                        ? 'bg-green-500 border-green-500 text-white' 
-                                        : 'border-gray-400 hover:border-green-400'
-                                    }`}
-                                  >
-                                    {item.isChecked && <span className="text-[8px] leading-none font-bold">✓</span>}
-                                  </button>
-                                  
-                                  <span className={`flex-1 text-xs leading-tight cursor-pointer ${item.isChecked ? 'line-through text-gray-500' : 'text-gray-900'}`}
-                                    onClick={() => toggleChecklistItem(item.id, item.isChecked)}
-                                  >
-                                    {item.text}
-                                  </span>
-                                  
-                                  <button
-                                    onClick={() => deleteChecklistItem(item.id)}
-                                    className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-red-100 text-red-500 transition-all touch-manipulation"
-                                  >
-                                    <Trash2 className="w-2.5 h-2.5" />
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
+                        const categories = Object.entries(groupedItems)
+                          .sort(([a], [b]) => a === 'General' ? 1 : b === 'General' ? -1 : a.localeCompare(b));
+
+                        return (
+                          <>
+                            {categories.map(([category, items]) => (
+                              <div key={category} id={`category-${category}`}>
+                                <DroppableCategory
+                                  category={category}
+                                  items={items}
+                                  onToggle={toggleChecklistItem}
+                                  onDelete={deleteChecklistItem}
+                                  onCategoryChange={updateChecklistItemCategory}
+                                  onDeleteCategory={deleteCategory}
+                                  onEdit={editChecklistItem}
+                                />
+                              </div>
+                            ))}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    
+                    <DragOverlay>
+                      {activeId ? (
+                        <div className="bg-cozy-surface border border-cozy-primary rounded-lg p-2 shadow-cozy-lg">
+                          <div className="text-sm text-cozy-text">
+                            {currentNote.checklistItems.find(item => item.id === activeId)?.text}
                           </div>
-                        ));
-                    })()}
-                  </div>
+                        </div>
+                      ) : null}
+                    </DragOverlay>
+                  </DndContext>
                 )}
               </div>
               
-              {/* Simple Add Bar */}
-              <div className="bg-gray-50 border-t border-gray-200 p-4">
+              {/* Enhanced Add Bar */}
+              <div className="bg-cozy-surface border-t border-cozy-gray-200 p-4">
+                {/* New Category Input */}
+                {showNewCategoryInput && (
+                  <div className="mb-3 flex items-center gap-2 p-3 bg-cozy-sage-soft border border-cozy-sage rounded-lg">
+                    <FolderPlus className="w-4 h-4 text-cozy-text" />
+                    <input
+                      type="text"
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          createNewCategory();
+                        }
+                      }}
+                      placeholder="New category name..."
+                      className="flex-1 px-3 py-2 bg-cozy-surface border border-cozy-gray-200 rounded-lg text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary"
+                      autoFocus
+                    />
+                    <button
+                      onClick={createNewCategory}
+                      disabled={!newCategoryName.trim()}
+                      className="px-3 py-2 bg-cozy-primary text-white rounded-lg hover:bg-cozy-primary-deep disabled:opacity-50 text-sm font-medium"
+                    >
+                      Create
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowNewCategoryInput(false);
+                        setNewCategoryName('');
+                      }}
+                      className="p-2 rounded-lg hover:bg-cozy-gray-100 text-cozy-text-muted"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Existing Category Input */}
                 {showCategoryInput && (
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">📁</span>
+                    <span className="text-sm font-medium text-cozy-text">📁</span>
                     <input
                       type="text"
                       value={newItemCategory}
@@ -559,7 +965,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                         setShowCategoryInput(false);
                         setNewItemCategory('');
                       }}
-                      className="p-2 rounded-lg hover:bg-gray-200 text-gray-500"
+                      className="p-2 rounded-lg hover:bg-cozy-gray-100 text-cozy-text-muted"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -661,7 +1067,7 @@ export default function NotesPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedColor, setSelectedColor] = useState<string>('all');
+  const [selectedFilter, setSelectedFilter] = useState<string>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newNote, setNewNote] = useState({
     title: '',
@@ -671,10 +1077,25 @@ export default function NotesPage() {
     visibility: 'HOUSEHOLD' as 'PRIVATE' | 'HOUSEHOLD' | 'READ_ONLY'
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [createNewChecklistItem, setCreateNewChecklistItem] = useState('');
+  const [createNewItemCategory, setCreateNewItemCategory] = useState('');
+  const [createShowCategoryInput, setCreateShowCategoryInput] = useState(false);
+  const [createShowNewCategoryInput, setCreateShowNewCategoryInput] = useState(false);
+  const [createNewCategoryName, setCreateNewCategoryName] = useState('');
+  const [createChecklistItems, setCreateChecklistItems] = useState<Array<{id: string, text: string, category?: string}>>([]);
+  const [createActiveId, setCreateActiveId] = useState<string | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState<NoteImage | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>('');
+
+  // Drag and drop sensors for create modal
+  const createSensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
@@ -731,24 +1152,48 @@ export default function NotesPage() {
 
     try {
       setIsCreating(true);
+      
+      // For checklists, convert createChecklistItems to content format
+      let noteContent = newNote.content;
+      if (newNote.type === 'CHECKLIST' && createChecklistItems.length > 0) {
+        noteContent = createChecklistItems.map(item => 
+          item.category ? `[${item.category}] ${item.text}` : item.text
+        ).join('\n');
+      }
+      
       const response = await fetch('/api/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newNote)
+        body: JSON.stringify({
+          ...newNote,
+          content: noteContent
+        })
       });
 
       if (response.ok) {
         const createdNote = await response.json();
         setNotes(prev => [createdNote, ...prev]);
+        
+        // Reset all state
         setNewNote({
           title: '',
           content: '',
           type: 'TEXT',
-          color: 'yellow',
+          color: 'cream',
           visibility: 'HOUSEHOLD'
         });
+        setCreateChecklistItems([]);
+        setCreateNewChecklistItem('');
+        setCreateNewItemCategory('');
+        setCreateShowCategoryInput(false);
+        setCreateShowNewCategoryInput(false);
+        setCreateNewCategoryName('');
+        
         setShowCreateModal(false);
-        router.push(`/notes/${createdNote.id}`);
+        
+        // Open the created note for editing
+        setEditingNote(createdNote);
+        setShowEditModal(true);
       }
     } catch (error) {
       console.error('Failed to create note:', error);
@@ -826,8 +1271,19 @@ export default function NotesPage() {
   const filteredNotes = notes.filter(note => {
     const matchesSearch = note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       note.content.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesColor = selectedColor === 'all' || note.color === selectedColor;
-    return matchesSearch && matchesColor;
+    
+    let matchesFilter = true;
+    if (selectedFilter === 'shared') {
+      matchesFilter = note.visibility === 'HOUSEHOLD' || note.visibility === 'READ_ONLY';
+    } else if (selectedFilter === 'private') {
+      matchesFilter = note.visibility === 'PRIVATE';
+    } else if (selectedFilter === 'mine') {
+      matchesFilter = note.owner.email === session?.user?.email;
+    } else if (selectedFilter === 'others') {
+      matchesFilter = note.owner.email !== session?.user?.email;
+    }
+    
+    return matchesSearch && matchesFilter;
   });
 
   const getVisibilityIcon = (visibility: string) => {
@@ -905,18 +1361,6 @@ export default function NotesPage() {
             <p className="text-cozy-text-muted mt-1 text-sm sm:text-base">Share notes and checklists with your family</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
-            {process.env.NODE_ENV === 'development' && (
-              <button
-                onClick={() => {
-                  setLoading(true);
-                  fetchNotes();
-                }}
-                className="bg-cozy-primary hover:bg-cozy-primary-deep text-white px-4 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors shadow-cozy-sm hover:shadow-cozy-glow"
-                disabled={loading}
-              >
-                🔄 {loading ? 'Refreshing...' : 'Refresh'}
-              </button>
-            )}
             <button
               onClick={() => setShowCreateModal(true)}
               className="bg-cozy-primary hover:bg-cozy-primary-deep text-white px-4 sm:px-6 py-3 rounded-2xl flex items-center justify-center gap-2 font-medium transition-colors w-full sm:w-auto shadow-cozy-sm hover:shadow-cozy-glow"
@@ -944,33 +1388,60 @@ export default function NotesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
             <div className="flex items-center gap-2 text-sm text-cozy-text-muted shrink-0">
               <Filter className="w-4 h-4" />
-              <span className="hidden sm:inline">Filter by color:</span>
+              <span className="hidden sm:inline">Filter by sharing:</span>
               <span className="sm:hidden">Filter:</span>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
               <button
-                onClick={() => setSelectedColor('all')}
+                onClick={() => setSelectedFilter('all')}
                 className={`px-3 py-2 rounded-full text-sm font-medium transition-colors shrink-0 ${
-                  selectedColor === 'all' 
-                    ? 'bg-orange-500 text-white' 
-                    : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                  selectedFilter === 'all' 
+                    ? 'bg-cozy-primary text-white shadow-cozy-sm' 
+                    : 'bg-cozy-surface text-cozy-text border border-cozy-gray-200 hover:bg-cozy-cream'
                 }`}
               >
-                All
+                📋 All Notes
               </button>
-              {colorOptions.map(color => (
-                <button
-                  key={color.name}
-                  onClick={() => setSelectedColor(color.name)}
-                  className={`px-3 py-2 rounded-full text-sm font-medium transition-colors shrink-0 border ${
-                    selectedColor === color.name 
-                      ? 'bg-orange-500 text-white border-orange-500' 
-                      : `${color.bg} text-gray-600 hover:opacity-80 border-gray-200`
-                  }`}
-                >
-                  {color.label}
-                </button>
-              ))}
+              <button
+                onClick={() => setSelectedFilter('shared')}
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-colors shrink-0 ${
+                  selectedFilter === 'shared' 
+                    ? 'bg-cozy-primary text-white shadow-cozy-sm' 
+                    : 'bg-cozy-surface text-cozy-text border border-cozy-gray-200 hover:bg-cozy-cream'
+                }`}
+              >
+                👥 Shared
+              </button>
+              <button
+                onClick={() => setSelectedFilter('private')}
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-colors shrink-0 ${
+                  selectedFilter === 'private' 
+                    ? 'bg-cozy-primary text-white shadow-cozy-sm' 
+                    : 'bg-cozy-surface text-cozy-text border border-cozy-gray-200 hover:bg-cozy-cream'
+                }`}
+              >
+                🔒 Private
+              </button>
+              <button
+                onClick={() => setSelectedFilter('mine')}
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-colors shrink-0 ${
+                  selectedFilter === 'mine' 
+                    ? 'bg-cozy-primary text-white shadow-cozy-sm' 
+                    : 'bg-cozy-surface text-cozy-text border border-cozy-gray-200 hover:bg-cozy-cream'
+                }`}
+              >
+                ✏️ My Notes
+              </button>
+              <button
+                onClick={() => setSelectedFilter('others')}
+                className={`px-3 py-2 rounded-full text-sm font-medium transition-colors shrink-0 ${
+                  selectedFilter === 'others' 
+                    ? 'bg-cozy-primary text-white shadow-cozy-sm' 
+                    : 'bg-cozy-surface text-cozy-text border border-cozy-gray-200 hover:bg-cozy-cream'
+                }`}
+              >
+                👤 Others' Notes
+              </button>
             </div>
           </div>
         </div>
@@ -981,12 +1452,12 @@ export default function NotesPage() {
             <div className="text-6xl mb-4">📝</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No notes found</h3>
             <p className="text-gray-600 mb-6">
-              {searchQuery || selectedColor !== 'all' 
+              {searchQuery || selectedFilter !== 'all' 
                 ? 'Try adjusting your search or filters'
                 : 'Create your first note to get started'
               }
             </p>
-            {!searchQuery && selectedColor === 'all' && (
+            {!searchQuery && selectedFilter === 'all' && (
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-2xl font-medium transition-colors"
@@ -1056,12 +1527,12 @@ export default function NotesPage() {
                     <div className="space-y-1">
                       {note.checklistItems.slice(0, 3).map(item => (
                         <div key={item.id} className="flex items-center gap-2 text-sm">
-                          <div className={`w-3 h-3 rounded border ${item.isChecked ? 'bg-green-500 border-green-500' : 'border-gray-300'}`}>
-                            {item.isChecked && <div className="w-full h-full flex items-center justify-center text-white text-xs">✓</div>}
+                          <div className={`w-3 h-3 rounded border ${item.isChecked ? 'bg-cozy-primary border-cozy-primary' : 'border-cozy-gray-300'}`}>
+                            {item.isChecked && <div className="w-full h-full flex items-center justify-center text-white text-[8px]">✓</div>}
                           </div>
                           <div className="flex-1">
                             {item.category && (
-                              <span className="text-xs text-gray-500 bg-gray-100 px-1 rounded mr-2">
+                              <span className="text-xs text-cozy-text-muted bg-cozy-cream px-1.5 py-0.5 rounded mr-2">
                                 {item.category}
                               </span>
                             )}
@@ -1098,85 +1569,434 @@ export default function NotesPage() {
 
         {/* Create Note Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-2xl">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Create New Note</h2>
-              
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Note title..."
-                  value={newNote.title}
-                  onChange={(e) => setNewNote(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                />
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Type</label>
-                    <select
-                      value={newNote.type}
-                      onChange={(e) => setNewNote(prev => ({ ...prev, type: e.target.value as 'TEXT' | 'CHECKLIST' }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    >
-                      <option value="TEXT">Text Note</option>
-                      <option value="CHECKLIST">Checklist</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Visibility</label>
-                    <select
-                      value={newNote.visibility}
-                      onChange={(e) => setNewNote(prev => ({ ...prev, visibility: e.target.value as 'PRIVATE' | 'HOUSEHOLD' | 'READ_ONLY' }))}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    >
-                      <option value="HOUSEHOLD">Family Shared</option>
-                      <option value="PRIVATE">Private</option>
-                      <option value="READ_ONLY">Read Only</option>
-                    </select>
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-2 md:p-8 z-50">
+            <div className="w-full h-full md:w-[90vw] md:h-[85vh] md:max-w-4xl bg-white shadow-2xl rounded-2xl md:rounded-3xl flex flex-col overflow-hidden">
+              {/* Header */}
+              <div className="bg-white border-b border-gray-200 p-4 md:p-6 shrink-0">
+                <div className="flex items-center gap-4 mb-4">
+                  <button
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setNewNote({
+                        title: '',
+                        content: '',
+                        type: 'TEXT',
+                        color: 'cream',
+                        visibility: 'HOUSEHOLD'
+                      });
+                      // Reset category state
+                      setCreateNewChecklistItem('');
+                      setCreateNewItemCategory('');
+                      setCreateShowCategoryInput(false);
+                      setCreateShowNewCategoryInput(false);
+                      setCreateNewCategoryName('');
+                    }}
+                    className="p-2 rounded-xl hover:bg-gray-100 transition-all"
+                  >
+                    <X className="w-5 h-5 text-gray-600" />
+                  </button>
+                  
+                  <input
+                    type="text"
+                    value={newNote.title}
+                    onChange={(e) => setNewNote(prev => ({ ...prev, title: e.target.value }))}
+                    className="flex-1 text-xl md:text-2xl font-bold bg-transparent border-0 outline-none text-gray-900 placeholder-gray-400"
+                    placeholder="Note title..."
+                    autoFocus
+                  />
+                  
+                  <div className="flex items-center gap-2">
+                    {isCreating ? (
+                      <div className="flex items-center gap-2 text-sm bg-cozy-sage-soft text-cozy-text px-3 py-1 rounded-full">
+                        <div className="w-2 h-2 bg-cozy-primary rounded-full animate-pulse"></div>
+                        <span>Creating</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={createNote}
+                        disabled={!newNote.title.trim()}
+                        className="px-4 py-2 bg-cozy-primary text-white rounded-xl hover:bg-cozy-primary-deep disabled:opacity-50 font-medium transition-all"
+                      >
+                        Create
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
-                  <div className="flex gap-2">
-                    {colorOptions.map(color => (
+                {/* Controls */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  {/* Type Toggle with Add Category */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex bg-gray-100 rounded-xl p-1">
                       <button
-                        key={color.name}
-                        onClick={() => setNewNote(prev => ({ ...prev, color: color.name }))}
-                        className={`w-8 h-8 rounded-full border-2 ${
-                          newNote.color === color.name ? 'border-gray-800' : 'border-gray-300'
-                        } ${color.bg}`}
+                        onClick={() => setNewNote(prev => ({ ...prev, type: 'TEXT' }))}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                          newNote.type === 'TEXT' 
+                            ? 'bg-white text-gray-900 shadow-sm' 
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <span>📝</span>
+                        <span>Text</span>
+                      </button>
+                      <button
+                        onClick={() => setNewNote(prev => ({ ...prev, type: 'CHECKLIST' }))}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                          newNote.type === 'CHECKLIST' 
+                            ? 'bg-white text-gray-900 shadow-sm' 
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <span>✅</span>
+                        <span>List</span>
+                      </button>
+                    </div>
+                    
+                    {/* Add Category Button - Only show for checklists */}
+                    {newNote.type === 'CHECKLIST' && (
+                      <button
+                        onClick={() => setCreateShowNewCategoryInput(true)}
+                        className="flex items-center gap-2 px-3 py-2 bg-cozy-sage-soft border border-cozy-sage rounded-xl text-cozy-text hover:bg-cozy-sage hover:text-white transition-all"
+                        title="Add category for items"
+                      >
+                        <FolderPlus className="w-4 h-4" />
+                        <span className="hidden sm:inline text-sm font-medium">Add Category</span>
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Colors */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Color:</span>
+                    {colorOptions.slice(0, 6).map(colorOption => (
+                      <button
+                        key={colorOption.name}
+                        onClick={() => setNewNote(prev => ({ ...prev, color: colorOption.name }))}
+                        className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                          newNote.color === colorOption.name 
+                            ? 'border-gray-800 scale-110' 
+                            : 'border-gray-300 hover:scale-105'
+                        } ${colorOption.bg}`}
                       />
                     ))}
                   </div>
+                  
+                  {/* Visibility */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Share:</span>
+                    <div className="flex bg-gray-100 rounded-xl p-1">
+                      {[
+                        { value: 'PRIVATE', label: 'Private', icon: '🔒' },
+                        { value: 'HOUSEHOLD', label: 'Family', icon: '👥' },
+                        { value: 'READ_ONLY', label: 'View Only', icon: '👁️' }
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => setNewNote(prev => ({ ...prev, visibility: option.value as 'PRIVATE' | 'HOUSEHOLD' | 'READ_ONLY' }))}
+                          className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                            newNote.visibility === option.value
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <span>{option.icon}</span>
+                          <span className="hidden sm:inline">{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+              </div>
 
-                {newNote.type === 'TEXT' && (
-                  <textarea
-                    placeholder="Note content..."
-                    value={newNote.content}
-                    onChange={(e) => setNewNote(prev => ({ ...prev, content: e.target.value }))}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-orange-500 focus:border-transparent h-32 resize-none"
-                  />
+              {/* Content Area */}
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {newNote.type === 'TEXT' ? (
+                  <div className="flex-1 p-4 md:p-6">
+                    <textarea
+                      value={newNote.content}
+                      onChange={(e) => setNewNote(prev => ({ ...prev, content: e.target.value }))}
+                      placeholder="Start writing your note...
+
+💡 Your note will be saved when you click Create!"
+                      className="w-full h-full p-4 md:p-6 bg-cozy-surface border border-cozy-gray-200 rounded-2xl outline-none resize-none text-base md:text-lg leading-relaxed placeholder-cozy-text-muted text-cozy-text focus:bg-cozy-surface focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col">
+                    <div className="flex-1 overflow-y-auto p-4 md:p-6">
+                      {createChecklistItems.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center">
+                          <div className="text-6xl mb-4">✅</div>
+                          <h3 className="text-2xl font-bold mb-3 text-cozy-text">Start Your Checklist</h3>
+                          <p className="text-cozy-text-muted mb-6">Add items below, then create categories to organize them</p>
+                          <div className="bg-cozy-sage-soft rounded-xl p-4 text-sm text-cozy-text border border-cozy-sage max-w-md">
+                            <p className="font-semibold mb-2">💡 Workflow:</p>
+                            <p>• Add items first</p>
+                            <p>• Create categories</p>
+                            <p>• Drag items into categories</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <DndContext
+                          sensors={createSensors}
+                          collisionDetection={closestCenter}
+                          onDragStart={(event) => setCreateActiveId(String(event.active.id))}
+                          onDragEnd={(event) => {
+                            const { active, over } = event;
+                            setCreateActiveId(null);
+
+                            if (!over) return;
+
+                            const activeId = String(active.id);
+                            const overId = String(over.id);
+                            const activeItem = createChecklistItems.find(item => item.id === activeId);
+                            if (!activeItem) return;
+
+                            // If dropped on a category
+                            let newCategory = undefined;
+                            if (overId.startsWith('create-category-')) {
+                              newCategory = overId.replace('create-category-', '');
+                              if (newCategory === 'General') newCategory = undefined;
+                            } else {
+                              // If dropped on another item, use that item's category
+                              const overItem = createChecklistItems.find(item => item.id === overId);
+                              if (overItem) {
+                                newCategory = overItem.category;
+                              }
+                            }
+
+                            // Update the item's category
+                            setCreateChecklistItems(items => 
+                              items.map(item => 
+                                item.id === activeId 
+                                  ? { ...item, category: newCategory }
+                                  : item
+                              )
+                            );
+                          }}
+                        >
+                          <div className="space-y-4">
+                            {(() => {
+                              const groupedItems = createChecklistItems.reduce((groups: Record<string, typeof createChecklistItems>, item) => {
+                                const category = item.category || 'General';
+                                if (!groups[category]) groups[category] = [];
+                                groups[category].push(item);
+                                return groups;
+                              }, {});
+
+                              const categories = Object.entries(groupedItems)
+                                .sort(([a], [b]) => a === 'General' ? 1 : b === 'General' ? -1 : a.localeCompare(b));
+
+                              return (
+                                <>
+                                  {categories.map(([category, items]) => (
+                                    <div key={category} id={`create-category-${category}`} className="bg-cozy-cream/50 rounded-lg border border-cozy-gray-200 p-3">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-sm font-semibold text-cozy-text flex items-center gap-2">
+                                          <span className="text-base">{category === 'General' ? '📋' : '📁'}</span>
+                                          <span>{category === 'General' ? 'Items' : category}</span>
+                                        </h4>
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-xs text-cozy-text bg-cozy-primary-soft px-2 py-0.5 rounded-full font-medium">
+                                            {items.length}
+                                          </span>
+                                          {category !== 'General' && (
+                                            <button
+                                              onClick={() => {
+                                                // Move items back to General
+                                                setCreateChecklistItems(prevItems => 
+                                                  prevItems.map(item => 
+                                                    item.category === category 
+                                                      ? { ...item, category: undefined }
+                                                      : item
+                                                  )
+                                                );
+                                              }}
+                                              className="p-1 rounded hover:bg-red-100 text-red-500 transition-all"
+                                              title="Delete category"
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                      
+                                      <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
+                                        <div className="space-y-2">
+                                          {items.map((item) => (
+                                            <div
+                                              key={item.id}
+                                              className="flex items-center gap-2 py-2 px-2 bg-cozy-surface rounded-lg hover:bg-cozy-cream transition-all group"
+                                            >
+                                              <div className="cursor-grab active:cursor-grabbing p-1 hover:bg-cozy-gray-100 rounded">
+                                                <GripVertical className="w-3 h-3 text-cozy-text-muted" />
+                                              </div>
+                                              
+                                              <span className="flex-1 text-sm text-cozy-text">
+                                                {item.text}
+                                              </span>
+                                              
+                                              <button
+                                                onClick={() => {
+                                                  setCreateChecklistItems(items => items.filter(i => i.id !== item.id));
+                                                }}
+                                                className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-100 text-red-500 transition-all"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </SortableContext>
+                                    </div>
+                                  ))}
+                                </>
+                              );
+                            })()}
+                          </div>
+                          
+                          <DragOverlay>
+                            {createActiveId ? (
+                              <div className="bg-cozy-surface border border-cozy-primary rounded-lg p-2 shadow-cozy-lg">
+                                <div className="text-sm text-cozy-text">
+                                  {createChecklistItems.find(item => item.id === createActiveId)?.text}
+                                </div>
+                              </div>
+                            ) : null}
+                          </DragOverlay>
+                        </DndContext>
+                      )}
+                    </div>
+                    
+                    {/* Add items input for checklist */}
+                    <div className="bg-cozy-surface border-t border-cozy-gray-200 p-4">
+                      {/* New Category Input */}
+                      {createShowNewCategoryInput && (
+                        <div className="mb-3 flex items-center gap-2 p-3 bg-cozy-sage-soft border border-cozy-sage rounded-lg">
+                          <FolderPlus className="w-4 h-4 text-cozy-text" />
+                          <input
+                            type="text"
+                            value={createNewCategoryName}
+                            onChange={(e) => setCreateNewCategoryName(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                if (createNewCategoryName.trim()) {
+                                  setCreateNewItemCategory(createNewCategoryName.trim());
+                                  setCreateShowCategoryInput(true);
+                                  setCreateShowNewCategoryInput(false);
+                                  setCreateNewCategoryName('');
+                                }
+                              }
+                            }}
+                            placeholder="New category name..."
+                            className="flex-1 px-3 py-2 bg-cozy-surface border border-cozy-gray-200 rounded-lg text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary"
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => {
+                              if (createNewCategoryName.trim()) {
+                                setCreateNewItemCategory(createNewCategoryName.trim());
+                                setCreateShowCategoryInput(true);
+                                setCreateShowNewCategoryInput(false);
+                                setCreateNewCategoryName('');
+                              }
+                            }}
+                            disabled={!createNewCategoryName.trim()}
+                            className="px-3 py-2 bg-cozy-primary text-white rounded-lg hover:bg-cozy-primary-deep disabled:opacity-50 text-sm font-medium"
+                          >
+                            Create
+                          </button>
+                          <button
+                            onClick={() => {
+                              setCreateShowNewCategoryInput(false);
+                              setCreateNewCategoryName('');
+                            }}
+                            className="p-2 rounded-lg hover:bg-cozy-gray-100 text-cozy-text-muted"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Category Input */}
+                      {createShowCategoryInput && (
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="text-sm font-medium text-cozy-text">📁</span>
+                          <input
+                            type="text"
+                            value={createNewItemCategory}
+                            onChange={(e) => setCreateNewItemCategory(e.target.value)}
+                            placeholder="Category name..."
+                            className="flex-1 px-3 py-2 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary"
+                          />
+                          <button
+                            onClick={() => {
+                              setCreateShowCategoryInput(false);
+                              setCreateNewItemCategory('');
+                            }}
+                            className="p-2 rounded-lg hover:bg-cozy-gray-100 text-cozy-text-muted"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                      
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={createNewChecklistItem}
+                          onChange={(e) => setCreateNewChecklistItem(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (createNewChecklistItem.trim()) {
+                                const newItem = {
+                                  id: `temp-${Date.now()}`,
+                                  text: createNewChecklistItem.trim(),
+                                  category: createNewItemCategory || undefined
+                                };
+                                setCreateChecklistItems(prev => [...prev, newItem]);
+                                setCreateNewChecklistItem('');
+                              }
+                            }
+                          }}
+                          placeholder="Add checklist item (Press Enter to add)"
+                          className="flex-1 px-4 py-3 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-base placeholder-cozy-text-muted text-cozy-text focus:ring-2 focus:ring-cozy-primary"
+                        />
+                        
+                        <button
+                          onClick={() => {
+                            if (createNewChecklistItem.trim()) {
+                              const newItem = {
+                                id: `temp-${Date.now()}`,
+                                text: createNewChecklistItem.trim(),
+                                category: createNewItemCategory || undefined
+                              };
+                              setCreateChecklistItems(prev => [...prev, newItem]);
+                              setCreateNewChecklistItem('');
+                            }
+                          }}
+                          disabled={!createNewChecklistItem.trim()}
+                          className="px-4 py-3 bg-cozy-primary text-white rounded-xl hover:bg-cozy-primary-deep disabled:opacity-50 font-medium transition-all"
+                        >
+                          Add
+                        </button>
+                      </div>
+                      
+                      {createNewItemCategory && (
+                        <div className="mt-2 text-sm text-cozy-text-muted">
+                          Adding to: <span className="bg-cozy-sage-soft text-cozy-text px-2 py-1 rounded font-medium">📁 {createNewItemCategory}</span>
+                        </div>
+                      )}
+                      
+                      
+                      <p className="text-xs text-cozy-text-muted mt-2">
+                        💡 Add items now or create empty and add them later with full editing features
+                      </p>
+                    </div>
+                  </div>
                 )}
-
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-6 py-3 border border-gray-200 text-gray-600 rounded-2xl hover:bg-gray-50 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={createNote}
-                    disabled={!newNote.title.trim() || isCreating}
-                    className="px-6 py-3 bg-orange-500 text-white rounded-2xl hover:bg-orange-600 disabled:opacity-50 transition-colors"
-                  >
-                    {isCreating ? 'Creating...' : 'Create Note'}
-                  </button>
-                </div>
               </div>
             </div>
           </div>

@@ -795,6 +795,22 @@ button.w-2.h-2.rounded-sm.border.flex.items-center.justify-center.transition-all
   height: 20px !important;
 }
 
+/* Mobile-specific checkbox sizing for note editor */
+@media (max-width: 768px) {
+  /* Force smaller checkboxes in notes on mobile */
+  .w-4.h-4.rounded.border-2 {
+    width: 14px !important;
+    height: 14px !important;
+    min-width: 14px !important;
+    min-height: 14px !important;
+  }
+  
+  /* Smaller checkmarks on mobile */
+  .w-4.h-4.rounded.border-2 span {
+    font-size: 8px !important;
+  }
+}
+
 .line-clamp-4 {
   overflow: hidden;
   display: -webkit-box;

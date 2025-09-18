@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PUT') {
     try {
-      const { text, isChecked } = req.body;
+      const { text, isChecked, category } = req.body;
 
       // Check if user can edit this checklist item
       const item = await prisma.checklistItem.findFirst({
@@ -65,7 +65,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where: { id },
         data: {
           ...(text !== undefined && { text: text.trim() }),
-          ...(isChecked !== undefined && { isChecked })
+          ...(isChecked !== undefined && { isChecked }),
+          ...(category !== undefined && { category: category === 'General' ? null : category })
         }
       });
 
