@@ -3,7 +3,13 @@ import { ReactNodeViewRenderer } from '@tiptap/react'
 import { NodeViewWrapper } from '@tiptap/react'
 
 // Custom React component for task item
-function TaskItemComponent({ node, updateAttributes, editor }) {
+interface TaskItemProps {
+  node: any;
+  updateAttributes: (attrs: any) => void;
+  editor: any;
+}
+
+function TaskItemComponent({ node, updateAttributes, editor }: TaskItemProps) {
   const handleChange = () => {
     updateAttributes({ checked: !node.attrs.checked })
   }
@@ -42,8 +48,8 @@ function TaskItemComponent({ node, updateAttributes, editor }) {
             MozAppearance: 'none',
             border: '1px solid #9ca3af',
             borderRadius: '2px',
-            backgroundColor: node.attrs.checked ? '#3b82f6' : 'white',
-            borderColor: node.attrs.checked ? '#3b82f6' : '#9ca3af',
+            backgroundColor: node.attrs.checked ? '#e07c52' : 'white',
+            borderColor: node.attrs.checked ? '#e07c52' : '#9ca3af',
             position: 'relative',
             flexShrink: '0',
             cursor: 'pointer'
