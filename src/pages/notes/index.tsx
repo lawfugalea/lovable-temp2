@@ -13,6 +13,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragOverlay,
@@ -319,6 +320,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
   const [isPinned, setIsPinned] = useState(note.isPinned);
   const [saving, setSaving] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [newItemCategory, setNewItemCategory] = useState('');
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -331,9 +333,19 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Drag and drop sensors
+  // Drag and drop sensors with mobile support
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -433,7 +445,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           text: newChecklistItem.trim(),
-          category: null // Context-aware: add to current note's default category
+          category: newItemCategory.trim() || null
         })
       });
 
@@ -445,6 +457,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
           onUpdate(currentNote.id, updatedNote);
         }
         setNewChecklistItem('');
+        setNewItemCategory('');
       }
     } catch (error) {
       console.error('Failed to add checklist item:', error);
@@ -1014,6 +1027,23 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                     className="flex-1 px-4 py-3 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-base placeholder-cozy-text-muted text-cozy-text focus:ring-2 focus:ring-cozy-primary"
                   />
                   
+                  {/* Smart Category Selector - Only shows when categories exist */}
+                  {(() => {
+                    const existingCategories = [...new Set(currentNote.checklistItems.map(item => item.category).filter(Boolean))];
+                    return existingCategories.length > 0 ? (
+                      <select
+                        value={newItemCategory}
+                        onChange={(e) => setNewItemCategory(e.target.value)}
+                        className="px-3 py-3 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary min-w-[120px]"
+                      >
+                        <option value="">📋 Items</option>
+                        {existingCategories.map(category => (
+                          <option key={category} value={category}>📁 {category}</option>
+                        ))}
+                      </select>
+                    ) : null;
+                  })()}
+                  
                   <button
                     onClick={addChecklistItem}
                     disabled={!newChecklistItem.trim() || isAddingItem}
@@ -1027,6 +1057,9 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                 <div className="mt-2 text-sm text-cozy-text-muted flex items-center gap-2">
                   <span>📝</span>
                   <span>Adding to: <span className="font-medium text-cozy-text">{title || 'Untitled Note'}</span></span>
+                  {newItemCategory && (
+                    <span className="bg-cozy-sage-soft text-cozy-text px-2 py-1 rounded font-medium">📁 {newItemCategory}</span>
+                  )}
                   {currentNote.checklistItems.length > 0 && (
                     <span className="text-cozy-primary">• {currentNote.checklistItems.length} items</span>
                   )}
@@ -1099,6 +1132,7 @@ export default function NotesPage() {
   });
   const [isCreating, setIsCreating] = useState(false);
   const [createNewChecklistItem, setCreateNewChecklistItem] = useState('');
+  const [createNewItemCategory, setCreateNewItemCategory] = useState('');
   const [createShowNewCategoryInput, setCreateShowNewCategoryInput] = useState(false);
   const [createNewCategoryName, setCreateNewCategoryName] = useState('');
   const [createChecklistItems, setCreateChecklistItems] = useState<Array<{id: string, text: string, category?: string}>>([]);
@@ -1108,9 +1142,19 @@ export default function NotesPage() {
   const [selectedImage, setSelectedImage] = useState<NoteImage | null>(null);
   const [debugInfo, setDebugInfo] = useState<string>('');
 
-  // Drag and drop sensors for create modal
+  // Drag and drop sensors for create modal with mobile support
   const createSensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -1203,6 +1247,7 @@ export default function NotesPage() {
         });
         setCreateChecklistItems([]);
         setCreateNewChecklistItem('');
+        setCreateNewItemCategory('');
         setCreateShowNewCategoryInput(false);
         setCreateNewCategoryName('');
         
@@ -1944,7 +1989,7 @@ export default function NotesPage() {
                                 const newItem = {
                                   id: `temp-${Date.now()}`,
                                   text: createNewChecklistItem.trim(),
-                                  category: undefined // Context-aware: add to default category
+                                  category: createNewItemCategory || undefined
                                 };
                                 setCreateChecklistItems(prev => [...prev, newItem]);
                                 setCreateNewChecklistItem('');
@@ -1955,13 +2000,30 @@ export default function NotesPage() {
                           className="flex-1 px-4 py-3 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-base placeholder-cozy-text-muted text-cozy-text focus:ring-2 focus:ring-cozy-primary"
                         />
                         
+                        {/* Smart Category Selector - Only shows when categories exist */}
+                        {(() => {
+                          const existingCategories = [...new Set(createChecklistItems.map(item => item.category).filter(Boolean))];
+                          return existingCategories.length > 0 ? (
+                            <select
+                              value={createNewItemCategory}
+                              onChange={(e) => setCreateNewItemCategory(e.target.value)}
+                              className="px-3 py-3 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary min-w-[120px]"
+                            >
+                              <option value="">📋 Items</option>
+                              {existingCategories.map(category => (
+                                <option key={category} value={category}>📁 {category}</option>
+                              ))}
+                            </select>
+                          ) : null;
+                        })()}
+                        
                         <button
                           onClick={() => {
                             if (createNewChecklistItem.trim()) {
                               const newItem = {
                                 id: `temp-${Date.now()}`,
                                 text: createNewChecklistItem.trim(),
-                                category: undefined // Context-aware: add to default category
+                                category: createNewItemCategory || undefined
                               };
                               setCreateChecklistItems(prev => [...prev, newItem]);
                               setCreateNewChecklistItem('');
@@ -1978,6 +2040,9 @@ export default function NotesPage() {
                       <div className="mt-2 text-sm text-cozy-text-muted flex items-center gap-2">
                         <span>📝</span>
                         <span>Adding to: <span className="font-medium text-cozy-text">{newNote.title || 'New Note'}</span></span>
+                        {createNewItemCategory && (
+                          <span className="bg-cozy-sage-soft text-cozy-text px-2 py-1 rounded font-medium">📁 {createNewItemCategory}</span>
+                        )}
                         {createChecklistItems.length > 0 && (
                           <span className="text-cozy-primary">• {createChecklistItems.length} items</span>
                         )}
