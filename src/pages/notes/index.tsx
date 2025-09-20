@@ -7,7 +7,7 @@ import { authOptions } from '../api/auth/[...nextauth]';
 import Head from 'next/head';
 import ModernAppShell from '../../components/ModernAppShell';
 import SEO from '../../components/SEO';
-import { Plus, Pin, PinOff, Search, Filter, Eye, EyeOff, Lock, Save, Trash2, X, Palette, FolderPlus, GripVertical } from 'lucide-react';
+import { Plus, Pin, PinOff, Search, Filter, Eye, EyeOff, Lock, Save, Trash2, X, Palette, FolderPlus, GripVertical, Settings, FileText, Users } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -319,12 +319,11 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
   const [isPinned, setIsPinned] = useState(note.isPinned);
   const [saving, setSaving] = useState(false);
   const [newChecklistItem, setNewChecklistItem] = useState('');
-  const [newItemCategory, setNewItemCategory] = useState('');
   const [isAddingItem, setIsAddingItem] = useState(false);
-  const [showCategoryInput, setShowCategoryInput] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showSettingsMenu, setShowSettingsMenu] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [showNewCategoryInput, setShowNewCategoryInput] = useState(false);
@@ -434,7 +433,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           text: newChecklistItem.trim(),
-          category: newItemCategory.trim() || null
+          category: null // Context-aware: add to current note's default category
         })
       });
 
@@ -446,8 +445,6 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
           onUpdate(currentNote.id, updatedNote);
         }
         setNewChecklistItem('');
-        setNewItemCategory('');
-        setShowCategoryInput(false);
       }
     } catch (error) {
       console.error('Failed to add checklist item:', error);
@@ -649,16 +646,18 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-2 md:p-8 z-50">
       <div className="w-full h-full md:w-[90vw] md:h-[85vh] md:max-w-4xl bg-white shadow-2xl rounded-2xl md:rounded-3xl flex flex-col overflow-hidden">
         
-        {/* Simple Clean Header */}
+        {/* Minimalist Header */}
         <div className="bg-white border-b border-gray-200 p-4 md:p-6 shrink-0">
           <div className="flex items-center gap-4 mb-4">
+            {/* Back Button */}
             <button
               onClick={onClose}
-              className="p-2 rounded-xl hover:bg-gray-100 transition-all"
+              className="p-3 rounded-xl hover:bg-gray-100 transition-all"
             >
               <X className="w-5 h-5 text-gray-600" />
             </button>
             
+            {/* Title Input */}
             <input
               type="text"
               value={title}
@@ -667,120 +666,170 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
               placeholder="Note title..."
             />
             
-            <div className="flex items-center gap-2">
-              {saving ? (
-                <div className="flex items-center gap-2 text-sm bg-cozy-sage-soft text-cozy-text px-3 py-1 rounded-full">
-                  <div className="w-2 h-2 bg-cozy-primary rounded-full animate-pulse"></div>
-                  <span>Saving</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 text-sm bg-cozy-sage-soft text-cozy-text px-3 py-1 rounded-full">
-                  <div className="w-2 h-2 bg-cozy-sage rounded-full"></div>
-                  <span>Saved</span>
+            {/* Status Indicator */}
+            {saving ? (
+              <div className="flex items-center gap-2 text-sm bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span>Saving</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm bg-green-100 text-green-700 px-3 py-1.5 rounded-full">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>Saved</span>
+              </div>
+            )}
+            
+            {/* Settings Menu Button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                className="p-3 rounded-xl hover:bg-gray-100 text-gray-600 transition-all"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              
+              {/* Settings Dropdown Menu */}
+              {showSettingsMenu && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-900">Note Settings</h3>
+                  </div>
+                  
+                  {/* Pin/Unpin */}
+                  <button
+                    onClick={() => {
+                      setIsPinned(!isPinned);
+                      setShowSettingsMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                  >
+                    {isPinned ? <PinOff className="w-4 h-4 text-gray-500" /> : <Pin className="w-4 h-4 text-gray-500" />}
+                    <span className="text-sm text-gray-700">{isPinned ? 'Unpin Note' : 'Pin Note'}</span>
+                  </button>
+                  
+                  {/* Color Picker */}
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Palette className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">Color</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {colorOptions.slice(0, 6).map(colorOption => (
+                        <button
+                          key={colorOption.name}
+                          onClick={() => {
+                            setColor(colorOption.name);
+                            setShowSettingsMenu(false);
+                          }}
+                          className={`w-8 h-8 rounded-lg border-2 transition-all ${
+                            color === colorOption.name 
+                              ? 'border-gray-400 scale-110' 
+                              : 'border-gray-200 hover:border-gray-300'
+                          } ${colorOption.bg}`}
+                          title={colorOption.label}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Note Type */}
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <FileText className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">Type</span>
+                    </div>
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                      <button
+                        onClick={() => {
+                          changeNoteType('TEXT');
+                          setShowSettingsMenu(false);
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md font-medium transition-all ${
+                          currentNote.type === 'TEXT' 
+                            ? 'bg-white text-gray-900 shadow-sm' 
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <span>📝</span>
+                        <span className="text-sm">Text</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          changeNoteType('CHECKLIST');
+                          setShowSettingsMenu(false);
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md font-medium transition-all ${
+                          currentNote.type === 'CHECKLIST' 
+                            ? 'bg-white text-gray-900 shadow-sm' 
+                            : 'text-gray-600 hover:text-gray-900'
+                        }`}
+                      >
+                        <span>✅</span>
+                        <span className="text-sm">List</span>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Share Options */}
+                  <div className="px-4 py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Users className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-700">Share</span>
+                    </div>
+                    <div className="flex bg-gray-100 rounded-lg p-1">
+                      {[
+                        { value: 'PRIVATE', label: 'Private', icon: '🔒' },
+                        { value: 'HOUSEHOLD', label: 'Family', icon: '👥' },
+                        { value: 'READ_ONLY', label: 'View Only', icon: '👁️' }
+                      ].map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setVisibility(option.value as 'PRIVATE' | 'HOUSEHOLD' | 'READ_ONLY');
+                            setShowSettingsMenu(false);
+                          }}
+                          className={`flex-1 flex items-center justify-center gap-1 px-2 py-2 rounded-md text-sm font-medium transition-all ${
+                            visibility === option.value
+                              ? 'bg-white text-gray-900 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900'
+                          }`}
+                        >
+                          <span>{option.icon}</span>
+                          <span className="text-xs">{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Delete Note */}
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirm(true);
+                      setShowSettingsMenu(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-red-50 text-red-600 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="text-sm font-medium">Delete Note</span>
+                  </button>
                 </div>
               )}
-              
-              <button
-                onClick={() => setIsPinned(!isPinned)}
-                className={`p-2 rounded-xl transition-all ${
-                  isPinned ? 'bg-orange-100 text-orange-600' : 'hover:bg-gray-100 text-gray-600'
-                }`}
-              >
-                {isPinned ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
-              </button>
-              
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="p-2 rounded-xl hover:bg-red-100 text-red-500 transition-all"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
             </div>
           </div>
           
-          {/* Simple Controls */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            {/* Type Toggle with Add Category */}
+          {/* Context-Aware Add Category Button (only for checklists) */}
+          {currentNote.type === 'CHECKLIST' && (
             <div className="flex items-center gap-2">
-              <div className="flex bg-gray-100 rounded-xl p-1">
-                <button
-                  onClick={() => changeNoteType('TEXT')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                    currentNote.type === 'TEXT' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <span>📝</span>
-                  <span>Text</span>
-                </button>
-                <button
-                  onClick={() => changeNoteType('CHECKLIST')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                    currentNote.type === 'CHECKLIST' 
-                      ? 'bg-white text-gray-900 shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  <span>✅</span>
-                  <span>List</span>
-                </button>
-              </div>
-              
-              {/* Add Category Button - Next to toggle */}
-              {currentNote.type === 'CHECKLIST' && (
-                <button
-                  onClick={() => setShowNewCategoryInput(true)}
-                  className="flex items-center gap-2 px-3 py-2 bg-cozy-sage-soft border border-cozy-sage rounded-xl text-cozy-text hover:bg-cozy-sage hover:text-white transition-all"
-                  title="Add new category"
-                >
-                  <FolderPlus className="w-4 h-4" />
-                  <span className="hidden sm:inline text-sm font-medium">Add Category</span>
-                </button>
-              )}
+              <button
+                onClick={() => setShowNewCategoryInput(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-cozy-sage-soft border border-cozy-sage rounded-xl text-cozy-text hover:bg-cozy-sage hover:text-white transition-all"
+                title="Add new category"
+              >
+                <FolderPlus className="w-4 h-4" />
+                <span className="text-sm font-medium">Add Category</span>
+              </button>
             </div>
-            
-            {/* Colors */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Color:</span>
-              {colorOptions.slice(0, 6).map(colorOption => (
-                <button
-                  key={colorOption.name}
-                  onClick={() => setColor(colorOption.name)}
-                  className={`w-8 h-8 rounded-lg border-2 transition-all ${
-                    color === colorOption.name 
-                      ? 'border-gray-800 scale-110' 
-                      : 'border-gray-300 hover:scale-105'
-                  } ${colorOption.bg}`}
-                />
-              ))}
-            </div>
-            
-            {/* Visibility */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Share:</span>
-              <div className="flex bg-gray-100 rounded-xl p-1">
-                {[
-                  { value: 'PRIVATE', label: 'Private', icon: '🔒' },
-                  { value: 'HOUSEHOLD', label: 'Family', icon: '👥' },
-                  { value: 'READ_ONLY', label: 'View Only', icon: '👁️' }
-                ].map(option => (
-                  <button
-                    key={option.value}
-                    onClick={() => setVisibility(option.value as 'PRIVATE' | 'HOUSEHOLD' | 'READ_ONLY')}
-                    className={`flex items-center gap-1 px-3 py-1 rounded-lg text-sm font-medium transition-all ${
-                      visibility === option.value
-                        ? 'bg-white text-gray-900 shadow-sm'
-                        : 'text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    <span>{option.icon}</span>
-                    <span className="hidden sm:inline">{option.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Main Content */}
@@ -867,7 +916,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                     <div className="space-y-4">
                       {(() => {
                         const groupedItems = currentNote.checklistItems.reduce((groups: Record<string, ChecklistItem[]>, item) => {
-                          const category = item.category || 'General';
+                          const category = item.category || 'Items';
                           if (!groups[category]) groups[category] = [];
                           groups[category].push(item);
                           return groups;
@@ -948,30 +997,8 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                   </div>
                 )}
 
-                {/* Existing Category Input */}
-                {showCategoryInput && (
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="text-sm font-medium text-cozy-text">📁</span>
-                    <input
-                      type="text"
-                      value={newItemCategory}
-                      onChange={(e) => setNewItemCategory(e.target.value)}
-                      placeholder="Category name..."
-                      className="flex-1 px-3 py-2 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary"
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => {
-                        setShowCategoryInput(false);
-                        setNewItemCategory('');
-                      }}
-                      className="p-2 rounded-lg hover:bg-cozy-gray-100 text-cozy-text-muted"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
                 
+                {/* Context-Aware Task Addition */}
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -983,18 +1010,9 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                         addChecklistItem();
                       }
                     }}
-                    placeholder="What do you need to do? (Press Enter)"
+                    placeholder={`Add to ${title || 'this note'}... (Press Enter)`}
                     className="flex-1 px-4 py-3 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-base placeholder-cozy-text-muted text-cozy-text focus:ring-2 focus:ring-cozy-primary"
                   />
-                  
-                  {!showCategoryInput && (
-                    <button
-                      onClick={() => setShowCategoryInput(true)}
-                      className="p-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all"
-                    >
-                      📁
-                    </button>
-                  )}
                   
                   <button
                     onClick={addChecklistItem}
@@ -1005,11 +1023,14 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                   </button>
                 </div>
                 
-                {newItemCategory && (
-                  <div className="mt-2 text-sm text-cozy-text-muted">
-                    Adding to: <span className="bg-cozy-sage-soft text-cozy-text px-2 py-1 rounded font-medium">📁 {newItemCategory}</span>
-                  </div>
-                )}
+                {/* Context Info */}
+                <div className="mt-2 text-sm text-cozy-text-muted flex items-center gap-2">
+                  <span>📝</span>
+                  <span>Adding to: <span className="font-medium text-cozy-text">{title || 'Untitled Note'}</span></span>
+                  {currentNote.checklistItems.length > 0 && (
+                    <span className="text-cozy-primary">• {currentNote.checklistItems.length} items</span>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -1078,8 +1099,6 @@ export default function NotesPage() {
   });
   const [isCreating, setIsCreating] = useState(false);
   const [createNewChecklistItem, setCreateNewChecklistItem] = useState('');
-  const [createNewItemCategory, setCreateNewItemCategory] = useState('');
-  const [createShowCategoryInput, setCreateShowCategoryInput] = useState(false);
   const [createShowNewCategoryInput, setCreateShowNewCategoryInput] = useState(false);
   const [createNewCategoryName, setCreateNewCategoryName] = useState('');
   const [createChecklistItems, setCreateChecklistItems] = useState<Array<{id: string, text: string, category?: string}>>([]);
@@ -1184,8 +1203,6 @@ export default function NotesPage() {
         });
         setCreateChecklistItems([]);
         setCreateNewChecklistItem('');
-        setCreateNewItemCategory('');
-        setCreateShowCategoryInput(false);
         setCreateShowNewCategoryInput(false);
         setCreateNewCategoryName('');
         
@@ -1586,8 +1603,6 @@ export default function NotesPage() {
                       });
                       // Reset category state
                       setCreateNewChecklistItem('');
-                      setCreateNewItemCategory('');
-                      setCreateShowCategoryInput(false);
                       setCreateShowNewCategoryInput(false);
                       setCreateNewCategoryName('');
                     }}
@@ -1778,14 +1793,14 @@ export default function NotesPage() {
                           <div className="space-y-4">
                             {(() => {
                               const groupedItems = createChecklistItems.reduce((groups: Record<string, typeof createChecklistItems>, item) => {
-                                const category = item.category || 'General';
+                                const category = item.category || 'Items';
                                 if (!groups[category]) groups[category] = [];
                                 groups[category].push(item);
                                 return groups;
                               }, {});
 
                               const categories = Object.entries(groupedItems)
-                                .sort(([a], [b]) => a === 'General' ? 1 : b === 'General' ? -1 : a.localeCompare(b));
+                                .sort(([a], [b]) => a === 'Items' ? 1 : b === 'Items' ? -1 : a.localeCompare(b));
 
                               return (
                                 <>
@@ -1793,17 +1808,17 @@ export default function NotesPage() {
                                     <div key={category} id={`create-category-${category}`} className="bg-cozy-cream/50 rounded-lg border border-cozy-gray-200 p-3">
                                       <div className="flex items-center justify-between mb-3">
                                         <h4 className="text-sm font-semibold text-cozy-text flex items-center gap-2">
-                                          <span className="text-base">{category === 'General' ? '📋' : '📁'}</span>
-                                          <span>{category === 'General' ? 'Items' : category}</span>
+                                          <span className="text-base">{category === 'Items' ? '📋' : '📁'}</span>
+                                          <span>{category === 'Items' ? 'Items' : category}</span>
                                         </h4>
                                         <div className="flex items-center gap-2">
                                           <span className="text-xs text-cozy-text bg-cozy-primary-soft px-2 py-0.5 rounded-full font-medium">
                                             {items.length}
                                           </span>
-                                          {category !== 'General' && (
+                                          {category !== 'Items' && (
                                             <button
                                               onClick={() => {
-                                                // Move items back to General
+                                                // Move items back to Items
                                                 setCreateChecklistItems(prevItems => 
                                                   prevItems.map(item => 
                                                     item.category === category 
@@ -1882,8 +1897,6 @@ export default function NotesPage() {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
                                 if (createNewCategoryName.trim()) {
-                                  setCreateNewItemCategory(createNewCategoryName.trim());
-                                  setCreateShowCategoryInput(true);
                                   setCreateShowNewCategoryInput(false);
                                   setCreateNewCategoryName('');
                                 }
@@ -1896,8 +1909,6 @@ export default function NotesPage() {
                           <button
                             onClick={() => {
                               if (createNewCategoryName.trim()) {
-                                setCreateNewItemCategory(createNewCategoryName.trim());
-                                setCreateShowCategoryInput(true);
                                 setCreateShowNewCategoryInput(false);
                                 setCreateNewCategoryName('');
                               }
@@ -1919,29 +1930,8 @@ export default function NotesPage() {
                         </div>
                       )}
 
-                      {/* Category Input */}
-                      {createShowCategoryInput && (
-                        <div className="mb-3 flex items-center gap-2">
-                          <span className="text-sm font-medium text-cozy-text">📁</span>
-                          <input
-                            type="text"
-                            value={createNewItemCategory}
-                            onChange={(e) => setCreateNewItemCategory(e.target.value)}
-                            placeholder="Category name..."
-                            className="flex-1 px-3 py-2 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary"
-                          />
-                          <button
-                            onClick={() => {
-                              setCreateShowCategoryInput(false);
-                              setCreateNewItemCategory('');
-                            }}
-                            className="p-2 rounded-lg hover:bg-cozy-gray-100 text-cozy-text-muted"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
                       
+                      {/* Context-Aware Task Addition */}
                       <div className="flex gap-2">
                         <input
                           type="text"
@@ -1954,14 +1944,14 @@ export default function NotesPage() {
                                 const newItem = {
                                   id: `temp-${Date.now()}`,
                                   text: createNewChecklistItem.trim(),
-                                  category: createNewItemCategory || undefined
+                                  category: undefined // Context-aware: add to default category
                                 };
                                 setCreateChecklistItems(prev => [...prev, newItem]);
                                 setCreateNewChecklistItem('');
                               }
                             }
                           }}
-                          placeholder="Add checklist item (Press Enter to add)"
+                          placeholder={`Add to ${newNote.title || 'new note'}... (Press Enter)`}
                           className="flex-1 px-4 py-3 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-base placeholder-cozy-text-muted text-cozy-text focus:ring-2 focus:ring-cozy-primary"
                         />
                         
@@ -1971,7 +1961,7 @@ export default function NotesPage() {
                               const newItem = {
                                 id: `temp-${Date.now()}`,
                                 text: createNewChecklistItem.trim(),
-                                category: createNewItemCategory || undefined
+                                category: undefined // Context-aware: add to default category
                               };
                               setCreateChecklistItems(prev => [...prev, newItem]);
                               setCreateNewChecklistItem('');
@@ -1984,11 +1974,14 @@ export default function NotesPage() {
                         </button>
                       </div>
                       
-                      {createNewItemCategory && (
-                        <div className="mt-2 text-sm text-cozy-text-muted">
-                          Adding to: <span className="bg-cozy-sage-soft text-cozy-text px-2 py-1 rounded font-medium">📁 {createNewItemCategory}</span>
-                        </div>
-                      )}
+                      {/* Context Info */}
+                      <div className="mt-2 text-sm text-cozy-text-muted flex items-center gap-2">
+                        <span>📝</span>
+                        <span>Adding to: <span className="font-medium text-cozy-text">{newNote.title || 'New Note'}</span></span>
+                        {createChecklistItems.length > 0 && (
+                          <span className="text-cozy-primary">• {createChecklistItems.length} items</span>
+                        )}
+                      </div>
                       
                       
                       <p className="text-xs text-cozy-text-muted mt-2">

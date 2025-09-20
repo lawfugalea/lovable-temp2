@@ -14,16 +14,18 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
       Notification.requestPermission()
     }
 
-    // Register service worker for PWA functionality
-    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+    // Register service worker for PWA functionality (allow in development for testing)
+    if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
         .then((registration) => {
           console.log('SW registered: ', registration);
           
-          // Check for updates every 30 minutes
-          setInterval(() => {
-            registration.update();
-          }, 30 * 60 * 1000);
+          // Check for updates every 30 minutes (only in production)
+          if (process.env.NODE_ENV === 'production') {
+            setInterval(() => {
+              registration.update();
+            }, 30 * 60 * 1000);
+          }
         })
         .catch((registrationError) => {
           console.log('SW registration failed: ', registrationError);

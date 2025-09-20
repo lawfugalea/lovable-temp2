@@ -19,8 +19,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     try {
       const now = new Date()
-      const fifteenMinutesFromNow = new Date(now.getTime() + 15 * 60 * 1000)
-      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000)
 
       // Get all active medicines for the household
       const medicines = await prisma.medicine.findMany({
@@ -37,49 +35,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       })
 
-      const dueMedicines = medicines.filter(medicine => {
+      // Only return medicines due in 15 minutes (with 5-minute window)
+      const dueIn15Minutes = medicines.filter(medicine => {
         const lastDose = medicine.doses[0]
         
         if (!lastDose) {
-          // No doses taken yet, check if it's time to start
-          return now >= new Date(medicine.startDate)
+          // No doses taken yet, check if it's time to start in 15 minutes
+          const startTime = new Date(medicine.startDate)
+          const timeUntilStart = startTime.getTime() - now.getTime()
+          return timeUntilStart <= 15 * 60 * 1000 && timeUntilStart > 10 * 60 * 1000
         }
 
         // Calculate next dose time based on frequency
         const nextDoseTime = calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
+        const timeUntilNext = nextDoseTime.getTime() - now.getTime()
         
-        // Check if medicine is due now, in 5 minutes, or in 15 minutes
-        const timeUntilNext = nextDoseTime.getTime() - now.getTime()
-        return now >= nextDoseTime || 
-               (timeUntilNext <= 5 * 60 * 1000 && timeUntilNext > 0) ||
-               (timeUntilNext <= 15 * 60 * 1000 && timeUntilNext > 5 * 60 * 1000)
+        // Only show notification 15 minutes before due time (with 5-minute window)
+        return timeUntilNext <= 15 * 60 * 1000 && timeUntilNext > 10 * 60 * 1000
       })
 
-      // Group by reminder type
-      const reminders = {
-        dueNow: [] as any[],
-        dueIn5Minutes: [] as any[],
-        dueIn15Minutes: [] as any[]
-      }
-
-      dueMedicines.forEach(medicine => {
-        const lastDose = medicine.doses[0]
-        const nextDoseTime = lastDose 
-          ? calculateNextDoseTime(medicine.frequency, new Date(lastDose.takenAt))
-          : new Date(medicine.startDate)
-
-        const timeUntilNext = nextDoseTime.getTime() - now.getTime()
-
-        if (now >= nextDoseTime) {
-          reminders.dueNow.push(medicine)
-        } else if (timeUntilNext <= 5 * 60 * 1000 && timeUntilNext > 0) {
-          reminders.dueIn5Minutes.push(medicine)
-        } else if (timeUntilNext <= 15 * 60 * 1000 && timeUntilNext > 5 * 60 * 1000) {
-          reminders.dueIn15Minutes.push(medicine)
-        }
-      })
-
-      return res.json(reminders)
+      return res.json({ dueIn15Minutes })
     } catch (error) {
       console.error('Failed to fetch medicine notifications:', error)
       return res.status(500).json({ error: 'Failed to fetch medicine notifications' })

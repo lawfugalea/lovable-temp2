@@ -18,7 +18,8 @@
     "notes:setup": "node scripts/setup-notes.js",
     "notes:migrate": "ts-node scripts/notes-migrate.ts migrate",
     "notes:rollback": "ts-node scripts/notes-migrate.ts rollback",
-    "yjs:server": "ts-node scripts/y-websocket.ts"
+    "yjs:server": "ts-node scripts/y-websocket.ts",
+    "generate-vapid": "node scripts/generate-vapid-keys.js"
   },
   "dependencies": {
     "@blocknote/core": "^0.38.0",

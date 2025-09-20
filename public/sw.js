@@ -3,17 +3,17 @@ const CACHE_NAME = `houseflow-cache-${new Date().toISOString().split('T')[0]}`;
 
 // Notification tracking to prevent spam
 const notificationHistory = new Map();
-const NOTIFICATION_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown between same notifications
+const NOTIFICATION_COOLDOWN = 60 * 60 * 1000; // 1 hour cooldown between same notifications
 
 // Function to check if notification should be shown (anti-spam)
 function shouldShowNotification(notificationKey) {
   const now = Date.now();
   const lastShown = notificationHistory.get(notificationKey);
   
-  // Clean up old entries (older than 1 hour) to prevent memory leaks
+  // Clean up old entries (older than 2 hours) to prevent memory leaks
   if (notificationHistory.size > 100) {
     for (const [key, timestamp] of notificationHistory.entries()) {
-      if (now - timestamp > 60 * 60 * 1000) { // 1 hour
+      if (now - timestamp > 2 * 60 * 60 * 1000) { // 2 hours
         notificationHistory.delete(key);
       }
     }
@@ -221,18 +221,18 @@ async function checkMedicineReminders() {
 
     const data = await response.json();
     
-    // Show notifications for due medicines (with anti-spam)
-    if (data.dueNow && data.dueNow.length > 0) {
-      const medicineIds = data.dueNow.map(m => m.id);
-      const notificationKey = createNotificationKey('due-now', medicineIds);
+    // Show notifications for medicines due in 15 minutes (with anti-spam)
+    if (data.dueIn15Minutes && data.dueIn15Minutes.length > 0) {
+      const medicineIds = data.dueIn15Minutes.map(m => m.id);
+      const notificationKey = createNotificationKey('due-15min', medicineIds);
       
       if (shouldShowNotification(notificationKey)) {
-        const medicineNames = data.dueNow.map(m => `${m.name} (${m.child?.name || 'Unknown'})`).join(', ');
+        const medicineNames = data.dueIn15Minutes.map(m => `${m.name} (${m.child?.name || 'Unknown'})`).join(', ');
         
-        await self.registration.showNotification('Medicine Reminder', {
-          body: `${data.dueNow.length} medicine(s) are due: ${medicineNames}`,
+        await self.registration.showNotification('💊 Medicine Reminder', {
+          body: `${data.dueIn15Minutes.length} medicine(s) due in 15 minutes: ${medicineNames}`,
           icon: '/logo.png',
-          tag: 'medicine-reminder-due',
+          tag: 'medicine-reminder-15min',
           requireInteraction: true,
           silent: false,
           vibrate: [200, 100, 200],
@@ -243,44 +243,6 @@ async function checkMedicineReminders() {
               icon: '/logo.png'
             }
           ]
-        });
-      }
-    }
-
-    // Show notifications for medicines due in 5 minutes (with anti-spam)
-    if (data.dueIn5Minutes && data.dueIn5Minutes.length > 0) {
-      const medicineIds = data.dueIn5Minutes.map(m => m.id);
-      const notificationKey = createNotificationKey('due-5min', medicineIds);
-      
-      if (shouldShowNotification(notificationKey)) {
-        const medicineNames = data.dueIn5Minutes.map(m => `${m.name} (${m.child?.name || 'Unknown'})`).join(', ');
-        
-        await self.registration.showNotification('Medicine Reminder (5 min)', {
-          body: `${data.dueIn5Minutes.length} medicine(s) due in 5 minutes: ${medicineNames}`,
-          icon: '/logo.png',
-          tag: 'medicine-reminder-5min',
-          requireInteraction: false,
-          silent: false,
-          vibrate: [200, 100, 200]
-        });
-      }
-    }
-
-    // Show notifications for medicines due in 15 minutes (with anti-spam)
-    if (data.dueIn15Minutes && data.dueIn15Minutes.length > 0) {
-      const medicineIds = data.dueIn15Minutes.map(m => m.id);
-      const notificationKey = createNotificationKey('due-15min', medicineIds);
-      
-      if (shouldShowNotification(notificationKey)) {
-        const medicineNames = data.dueIn15Minutes.map(m => `${m.name} (${m.child?.name || 'Unknown'})`).join(', ');
-        
-        await self.registration.showNotification('Medicine Reminder (15 min)', {
-          body: `${data.dueIn15Minutes.length} medicine(s) due in 15 minutes: ${medicineNames}`,
-          icon: '/logo.png',
-          tag: 'medicine-reminder-15min',
-          requireInteraction: false,
-          silent: false,
-          vibrate: [200, 100, 200]
         });
       }
     }

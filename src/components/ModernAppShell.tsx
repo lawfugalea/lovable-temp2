@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import CommandPalette from './CommandPalette'
-import MedicineNotifications from './MedicineNotifications'
+import MedicineNotificationManager from './MedicineNotificationManager'
 // import PWAInstall from './PWAInstall'
 // import MobileOptimizedLayout from './MobileOptimizedLayout'
 
@@ -248,7 +248,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       />
 
       {/* Medicine Notifications */}
-      <MedicineNotifications />
+      <MedicineNotificationManager />
       
       {/* PWA Install Prompt */}
       {/* <PWAInstall /> */}

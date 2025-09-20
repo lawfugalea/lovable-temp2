@@ -50,8 +50,8 @@ export function useServiceWorker(): ServiceWorkerUpdate {
       }
     };
 
-    // Register service worker (disabled in development to prevent Fast Refresh issues)
-    if (process.env.NODE_ENV === 'production') {
+    // Register service worker (allow in development for notification testing)
+    if (true) { // Always register for notification testing
       navigator.serviceWorker.register('/sw.js')
       .then((reg) => {
         registration = reg;

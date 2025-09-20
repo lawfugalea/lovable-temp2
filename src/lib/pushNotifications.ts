@@ -26,6 +26,11 @@ export function isPushNotificationSupported(): boolean {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
 
+// Check if VAPID keys are configured
+export function isVapidConfigured(): boolean {
+  return !!(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY !== '');
+}
+
 // Request notification permission
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!isPushNotificationSupported()) {
@@ -40,6 +45,12 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 export async function subscribeToPushNotifications(): Promise<PushSubscriptionData | null> {
   if (!isPushNotificationSupported()) {
     console.log('Push notifications not supported');
+    return null;
+  }
+
+  // Check if VAPID keys are configured
+  if (!isVapidConfigured()) {
+    console.log('VAPID keys not configured, falling back to basic notifications');
     return null;
   }
 
@@ -112,7 +123,7 @@ export async function isSubscribedToPushNotifications(): Promise<boolean> {
   }
 }
 
-// Send medicine reminder notification
+// Send medicine reminder notification (with fallback)
 export async function sendMedicineReminderNotification(payload: NotificationPayload): Promise<void> {
   if (!isPushNotificationSupported()) {
     console.log('Push notifications not supported');
@@ -130,20 +141,48 @@ export async function sendMedicineReminderNotification(payload: NotificationPayl
   }
 
   try {
-    const registration = await navigator.serviceWorker.ready;
-    await registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: payload.icon || '/logo.png',
-      badge: payload.badge || '/logo.png',
-      tag: payload.tag || 'medicine-reminder',
-      data: payload.data || {},
-      actions: payload.actions || [],
-      requireInteraction: true,
-      silent: false,
-      vibrate: [200, 100, 200],
-    });
+    // Try to use service worker if available
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: payload.icon || '/logo.png',
+        badge: payload.badge || '/logo.png',
+        tag: payload.tag || 'medicine-reminder',
+        data: payload.data || {},
+        actions: payload.actions || [],
+        requireInteraction: true,
+        silent: false,
+        vibrate: [200, 100, 200],
+      });
+    } else {
+      // Fallback to basic browser notifications
+      const notification = new Notification(payload.title, {
+        body: payload.body,
+        icon: payload.icon || '/logo.png',
+        tag: payload.tag || 'medicine-reminder',
+        requireInteraction: true,
+        silent: false,
+      });
+      
+      // Auto-close after 10 seconds
+      setTimeout(() => {
+        notification.close();
+      }, 10000);
+      
+      // Handle click to focus window
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
   } catch (error) {
     console.error('Failed to show notification:', error);
+    
+    // Final fallback - show a browser alert (not recommended for production)
+    if (process.env.NODE_ENV === 'development') {
+      alert(`${payload.title}: ${payload.body}`);
+    }
   }
 }
 

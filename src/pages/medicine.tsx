@@ -157,6 +157,7 @@ export default function MedicinePage() {
     childId: '',
     medicineId: ''
   })
+  const [showAllDoses, setShowAllDoses] = useState(false)
   
   // Onboarding state
   const [showWelcomeModal, setShowWelcomeModal] = useState(false)
@@ -1378,6 +1379,47 @@ export default function MedicinePage() {
       filtered = filtered.filter(dose => dose.medicineId === doseFilters.medicineId)
     }
 
+    // Sort by takenAt date (most recent first)
+    filtered = filtered.sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())
+
+    // Limit to 5 most recent doses if showAllDoses is false
+    if (!showAllDoses) {
+      filtered = filtered.slice(0, 5)
+    }
+
+    return filtered
+  }
+
+  const getTotalFilteredDoses = () => {
+    let filtered = doses
+
+    // Filter by child
+    if (doseFilters.childId) {
+      filtered = filtered.filter(dose => dose.childId === doseFilters.childId)
+    }
+
+    // Filter by medicine
+    if (doseFilters.medicineId) {
+      filtered = filtered.filter(dose => dose.medicineId === doseFilters.medicineId)
+    }
+
+    return filtered.length
+  }
+
+  const getAllFilteredDoses = () => {
+    let filtered = doses
+
+    // Filter by child
+    if (doseFilters.childId) {
+      filtered = filtered.filter(dose => dose.childId === doseFilters.childId)
+    }
+
+    // Filter by medicine
+    if (doseFilters.medicineId) {
+      filtered = filtered.filter(dose => dose.medicineId === doseFilters.medicineId)
+    }
+
+    // Sort by takenAt date (most recent first)
     return filtered.sort((a, b) => new Date(b.takenAt).getTime() - new Date(a.takenAt).getTime())
   }
 
@@ -1947,6 +1989,23 @@ export default function MedicinePage() {
                           )}
                         </div>
 
+                        {/* View All / Show Less Button */}
+                        {getTotalFilteredDoses() > 5 && (
+                          <div className="mt-4 pt-4 border-t border-cozy-gray-200">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowAllDoses(!showAllDoses)}
+                              className="w-full text-cozy-primary border-cozy-primary hover:bg-cozy-primary hover:text-white"
+                            >
+                              {showAllDoses 
+                                ? `Show Less (5 most recent)` 
+                                : `View All ${getTotalFilteredDoses()} Doses`
+                              }
+                            </Button>
+                          </div>
+                        )}
+
                         {/* Summary */}
                         <div className="mt-6 p-4 bg-cozy-cream rounded-lg">
                           <h4 className="font-medium text-cozy-text mb-2">
@@ -1955,12 +2014,15 @@ export default function MedicinePage() {
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                             <div>
                               <span className="text-cozy-text-muted">Showing:</span>
-                              <span className="ml-2 font-medium">{getFilteredDoses().length} doses</span>
+                              <span className="ml-2 font-medium">
+                                {showAllDoses ? getTotalFilteredDoses() : getFilteredDoses().length} doses
+                                {!showAllDoses && getTotalFilteredDoses() > 5 && ` of ${getTotalFilteredDoses()}`}
+                              </span>
                             </div>
                             <div>
                               <span className="text-cozy-text-muted">This Week:</span>
                               <span className="ml-2 font-medium">
-                                {getFilteredDoses().filter(d => {
+                                {getAllFilteredDoses().filter(d => {
                                   const weekAgo = new Date()
                                   weekAgo.setDate(weekAgo.getDate() - 7)
                                   return new Date(d.takenAt) >= weekAgo
@@ -1970,7 +2032,7 @@ export default function MedicinePage() {
                             <div>
                               <span className="text-cozy-text-muted">Today:</span>
                               <span className="ml-2 font-medium">
-                                {getFilteredDoses().filter(d => {
+                                {getAllFilteredDoses().filter(d => {
                                   const today = new Date().toISOString().split('T')[0]
                                   return d.takenAt.startsWith(today)
                                 }).length}
@@ -1979,7 +2041,7 @@ export default function MedicinePage() {
                             <div>
                               <span className="text-cozy-text-muted">Children:</span>
                               <span className="ml-2 font-medium">
-                                {new Set(getFilteredDoses().map(d => d.childId)).size}
+                                {new Set(getAllFilteredDoses().map(d => d.childId)).size}
                               </span>
                             </div>
                           </div>
