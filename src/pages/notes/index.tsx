@@ -1160,23 +1160,6 @@ export default function NotesPage() {
     })
   );
 
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Notes page useEffect - status:', status, 'session:', !!session);
-    }
-    if (status === 'loading') return;
-    if (!session) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('No session found - middleware should handle redirect');
-      }
-      return;
-    }
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Session found, fetching notes...');
-    }
-    fetchNotes();
-  }, [session, status, router]);
-
   const fetchNotes = async () => {
     try {
       setDebugInfo('');
@@ -1206,6 +1189,23 @@ export default function NotesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Notes page useEffect - status:', status, 'session:', !!session);
+    }
+    if (status === 'loading') return;
+    if (!session) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('No session found - middleware should handle redirect');
+      }
+      return;
+    }
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Session found, fetching notes...');
+    }
+    fetchNotes();
+  }, [session, status, router]);
 
   const createNote = async () => {
     if (!newNote.title.trim()) {
