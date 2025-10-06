@@ -1034,11 +1034,11 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                       <select
                         value={newItemCategory}
                         onChange={(e) => setNewItemCategory(e.target.value)}
-                        className="px-3 py-4 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary min-h-[48px] min-w-[100px] sm:min-w-[120px]"
+                        className="px-2 py-4 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary min-h-[48px] w-[90px] sm:w-[110px] flex-shrink-0"
                       >
-                        <option value="">📋 Items</option>
+                        <option value="">📋</option>
                         {existingCategories.map(category => (
-                          <option key={category} value={category}>📁 {category}</option>
+                          <option key={category} value={category}>📁 {category && category.length > 8 ? category.substring(0, 8) + '...' : category}</option>
                         ))}
                       </select>
                     ) : null;
@@ -1047,7 +1047,7 @@ function NoteEditModal({ note, onClose, onUpdate, onDelete, onImageClick }: Note
                   <button
                     onClick={addChecklistItem}
                     disabled={!newChecklistItem.trim() || isAddingItem}
-                    className="px-4 py-4 bg-cozy-primary text-white rounded-xl hover:bg-cozy-primary-deep disabled:opacity-50 font-medium transition-all min-h-[48px] min-w-[70px] sm:min-w-[80px]"
+                    className="px-3 py-4 bg-cozy-primary text-white rounded-xl hover:bg-cozy-primary-deep disabled:opacity-50 font-medium transition-all min-h-[48px] w-[60px] sm:w-[70px] flex-shrink-0"
                   >
                     <span className="hidden sm:inline">{isAddingItem ? 'Adding...' : 'Add'}</span>
                     <span className="sm:hidden">+</span>
@@ -2008,11 +2008,11 @@ export default function NotesPage() {
                             <select
                               value={createNewItemCategory}
                               onChange={(e) => setCreateNewItemCategory(e.target.value)}
-                              className="px-3 py-4 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary min-h-[48px] min-w-[100px] sm:min-w-[120px]"
+                              className="px-2 py-4 bg-cozy-surface border border-cozy-gray-200 rounded-xl text-sm text-cozy-text focus:ring-2 focus:ring-cozy-primary min-h-[48px] w-[90px] sm:w-[110px] flex-shrink-0"
                             >
-                              <option value="">📋 Items</option>
+                              <option value="">📋</option>
                               {existingCategories.map(category => (
-                                <option key={category} value={category}>📁 {category}</option>
+                                <option key={category} value={category}>📁 {category && category.length > 8 ? category.substring(0, 8) + '...' : category}</option>
                               ))}
                             </select>
                           ) : null;
@@ -2031,7 +2031,7 @@ export default function NotesPage() {
                             }
                           }}
                           disabled={!createNewChecklistItem.trim()}
-                          className="px-4 py-4 bg-cozy-primary text-white rounded-xl hover:bg-cozy-primary-deep disabled:opacity-50 font-medium transition-all min-h-[48px] min-w-[70px] sm:min-w-[80px]"
+                          className="px-3 py-4 bg-cozy-primary text-white rounded-xl hover:bg-cozy-primary-deep disabled:opacity-50 font-medium transition-all min-h-[48px] w-[60px] sm:w-[70px] flex-shrink-0"
                         >
                           <span className="hidden sm:inline">Add</span>
                           <span className="sm:hidden">+</span>
