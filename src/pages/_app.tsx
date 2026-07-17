@@ -1,6 +1,7 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
 import "../styles/globals.css";
+import "../components/ui/minimal-tiptap/styles/index.css";
 import AuthApp from "@/components/AuthApp";
 import { Toaster } from "@/components/ui/Toaster";
 import { installBasePathFetch, withBasePath } from "@/lib/base-path";
