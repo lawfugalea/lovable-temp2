@@ -82,6 +82,10 @@ test('retailer source links reject foreign hosts and executable protocols', () =
     'https://www.greens.com.mt/products',
   )
   assert.equal(safeRetailerSourceUrl('https://welbees.mt/shop?id=1', 'welbees'), 'https://welbees.mt/shop?id=1')
+  assert.equal(
+    safeRetailerSourceUrl('https://hs.mt/shop/product-117011', 'happyshopper'),
+    'https://hs.mt/shop/product-117011',
+  )
 })
 
 test('basket comparison multiplies structured counts and ranks only complete stores', () => {

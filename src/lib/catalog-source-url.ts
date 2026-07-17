@@ -15,6 +15,10 @@ const RETAILER_SOURCES: Record<string, { fallback: string; hosts: Set<string> }>
     fallback: 'https://pavipama.com.mt/',
     hosts: new Set(['pavipama.com.mt', 'www.pavipama.com.mt']),
   },
+  happyshopper: {
+    fallback: 'https://hs.mt/shop',
+    hosts: new Set(['hs.mt', 'www.hs.mt']),
+  },
 }
 
 export function safeRetailerSourceUrl(value: string | null, storeSlug: string): string | null {

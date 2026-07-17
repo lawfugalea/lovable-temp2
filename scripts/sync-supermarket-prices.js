@@ -10,11 +10,21 @@ const STORE_FILTER = new Set(
     .filter(Boolean)
 );
 
+function isStorePermitted(slug, env = process.env) {
+  if (slug !== 'pavipama') return true;
+  return String(env.PAVIPAMA_PERMISSION_CONFIRMED || '').toLowerCase() === 'true';
+}
+
+function mayUseGreensImages(env = process.env) {
+  return String(env.GREENS_IMAGE_USE_CONFIRMED || '').toLowerCase() === 'true';
+}
+
 const stores = [
   { slug: 'smart', name: 'Smart Supermarket', domain: 'www.smart.com.mt', sourceType: 'PUBLIC_HTML' },
   { slug: 'greens', name: 'Greens Supermarket', domain: 'www.greens.com.mt', sourceType: 'PUBLIC_API' },
   { slug: 'welbees', name: "Welbee's", domain: 'welbees.mt', sourceType: 'PUBLIC_HTML' },
   { slug: 'pavipama', name: 'PAVI/PAMA', domain: 'pavipama.com.mt', sourceType: 'PUBLIC_API' },
+  { slug: 'happyshopper', name: 'Happy Shopper', domain: 'hs.mt', sourceType: 'PUBLIC_HTML' },
 ];
 
 function sleep(ms) {
@@ -366,7 +376,7 @@ async function fetchPaviPama() {
         packCount: 1,
         category: item.categoryDescription || null,
         available: item.available !== false && item.enabled !== false,
-        imageUrl: item.imageUrl || item.imageThumbnailUrl || null,
+        imageUrl: item.imageUrl || item.imageThumbnailUrl || item.image || null,
         sourceUrl: `https://www.pavipama.com.mt/app/product/${encodeURIComponent(item.barcode || item.id)}`,
       });
     }
@@ -381,6 +391,7 @@ async function fetchGreens() {
   const token = landing.match(/getProductList\('([^']+)'/)?.[1];
   if (!token) throw new Error('Greens catalogue token was not found');
   const products = [];
+  const maxPages = Math.max(0, Number(process.env.GREENS_MAX_PAGES || 0));
   const pageSize = 250;
   let page = 1;
   let totalPages = 1;
@@ -414,16 +425,18 @@ async function fetchGreens() {
         packCount: 1,
         category: [item.GROUP_1, item.GROUP_2, item.GROUP_3].filter(Boolean).join(' / '),
         available: item.SYSTEM_STATUS !== 'I',
-        imageUrl: `https://www.greens.com.mt/mediaproducts/webp/${encodeURIComponent(item.PART_NUMBER)}.webp`,
+        imageUrl: mayUseGreensImages()
+          ? `https://www.greens.com.mt/mediaproducts/webp/${encodeURIComponent(item.PART_NUMBER)}.webp`
+          : null,
         sourceUrl: `https://www.greens.com.mt/productdetails?pid=${encodeURIComponent(item.PART_NUMBER)}`,
       });
       const total = Number(item.TOTAL_RECORDS || 0);
       if (total) totalPages = Math.ceil(total / pageSize);
     }
     page += 1;
-    if (page <= totalPages) await sleep(Math.max(REQUEST_DELAY_MS, 500));
-  } while (page <= totalPages);
-  return { products, complete: true };
+    if (page <= totalPages && (!maxPages || page <= maxPages)) await sleep(Math.max(REQUEST_DELAY_MS, 500));
+  } while (page <= totalPages && (!maxPages || page <= maxPages));
+  return { products, complete: !maxPages || page > totalPages };
 }
 
 function parseWelbeesProducts(html) {
@@ -474,6 +487,70 @@ async function fetchWelbees() {
   }
   if (!byId.size) throw new Error('Welbee\'s catalogue contained no products');
   return { products: Array.from(byId.values()), complete: true };
+}
+
+function parseHappyShopperProducts(html) {
+  const products = [];
+  const segments = String(html)
+    .split(/<form[^>]*class="[^"]*oe_product_cart[^"]*"[^>]*>/i)
+    .slice(1);
+  for (const raw of segments) {
+    const segment = raw.split('</form>', 1)[0];
+    const nameTag = segment.match(/<a[^>]*itemprop="name"[^>]*>[\s\S]*?<\/a>/i)?.[0];
+    const href = nameTag?.match(/href="([^"]+)"/i)?.[1];
+    const externalId = segment.match(/data-product-template-id="(\d+)"/i)?.[1]
+      || href?.match(/-(\d+)\/?(?:\?.*)?$/)?.[1];
+    const contentName = nameTag?.match(/content="([^"]+)"/i)?.[1];
+    const name = decodeHtml(contentName || nameTag?.replace(/<[^>]+>/g, '')).trim();
+    const price = segment.match(/<span[^>]*itemprop="price"[^>]*>([^<]+)<\/span>/i)?.[1];
+    const priceCents = eurosToCents(price);
+    const imageTag = segment.match(/<img[^>]*itemprop="image"[^>]*>/i)?.[0];
+    const imagePath = imageTag?.match(/src="([^"]+)"/i)?.[1] || null;
+    if (!externalId || !name || !href || priceCents == null) continue;
+    products.push({
+      externalId,
+      sku: externalId,
+      barcode: null,
+      name,
+      brand: null,
+      priceCents,
+      regularPriceCents: priceCents,
+      unit: null,
+      category: null,
+      available: true,
+      imageUrl: imagePath ? new URL(decodeHtml(imagePath), 'https://hs.mt').toString() : null,
+      sourceUrl: new URL(decodeHtml(href), 'https://hs.mt').toString(),
+    });
+  }
+  return products;
+}
+
+async function fetchHappyShopper() {
+  const byId = new Map();
+  const pageSize = 24;
+  const maxPages = Math.max(0, Number(process.env.HAPPYSHOPPER_MAX_PAGES || 0));
+  let page = 1;
+  let pagesFetched = 0;
+  let complete = false;
+  do {
+    const html = await fetchText(`https://hs.mt/shop?ppg=${pageSize}&page=${page}`);
+    const products = parseHappyShopperProducts(html);
+    if (!products.length) {
+      if (page === 1) throw new Error('Happy Shopper catalogue contained no products');
+      complete = true;
+      break;
+    }
+    const previousSize = byId.size;
+    for (const product of products) byId.set(product.externalId, product);
+    if (page > 0 && byId.size === previousSize) {
+      throw new Error(`Happy Shopper catalogue repeated page ${page}`);
+    }
+    complete = products.length < pageSize;
+    page += 1;
+    pagesFetched += 1;
+    if (!complete && (!maxPages || pagesFetched < maxPages)) await sleep(Math.max(REQUEST_DELAY_MS, 1000));
+  } while (!complete && (!maxPages || pagesFetched < maxPages));
+  return { products: Array.from(byId.values()), complete };
 }
 
 function runSmartScraper() {
@@ -582,7 +659,9 @@ async function syncOne(config) {
         ? await fetchGreens()
         : config.slug === 'welbees'
           ? await fetchWelbees()
-          : await fetchPaviPama();
+          : config.slug === 'pavipama'
+            ? await fetchPaviPama()
+            : await fetchHappyShopper();
       productsSeen = catalogue.products.length;
       offersChanged = await ingestCatalogue(store, catalogue.products, startedAt, catalogue.complete);
     }
@@ -617,16 +696,22 @@ async function syncOne(config) {
 
 async function main() {
   let failed = false;
+  const requestedStores = stores.filter(store => STORE_FILTER.has(store.slug));
+  const selectedStores = requestedStores.filter(store => isStorePermitted(store.slug));
+  for (const store of requestedStores.filter(store => !isStorePermitted(store.slug))) {
+    console.warn(`${store.name} sync skipped: set PAVIPAMA_PERMISSION_CONFIRMED=true only after obtaining written permission`);
+  }
+  const selectedSlugs = new Set(selectedStores.map(store => store.slug));
   const disabledSlugs = stores
     .map(store => store.slug)
-    .filter(slug => !STORE_FILTER.has(slug));
+    .filter(slug => !selectedSlugs.has(slug));
   if (disabledSlugs.length) {
     await prisma.store.updateMany({
       where: { slug: { in: disabledSlugs }, enabled: true },
       data: { enabled: false },
     });
   }
-  for (const config of stores.filter(store => STORE_FILTER.has(store.slug))) {
+  for (const config of selectedStores) {
     try {
       await syncOne(config);
     } catch (error) {
@@ -645,8 +730,15 @@ module.exports = {
   canonicalKey,
   decodeHtml,
   eurosToCents,
+  fetchGreens,
+  fetchHappyShopper,
+  fetchPaviPama,
+  fetchWelbees,
+  isStorePermitted,
+  mayUseGreensImages,
   normalizeBarcode,
   normalizeText,
   parsePackage,
+  parseHappyShopperProducts,
   parseWelbeesProducts,
 };

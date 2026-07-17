@@ -54,6 +54,9 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV HOME=/tmp/priceworker
+ENV XDG_CONFIG_HOME=/tmp/priceworker/.config
+ENV XDG_CACHE_HOME=/tmp/priceworker/.cache
 
 RUN apk add --no-cache ca-certificates chromium freetype harfbuzz nss ttf-freefont \
   && addgroup --system --gid 1002 priceworker \

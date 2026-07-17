@@ -1,7 +1,7 @@
 # Malta supermarket price comparison
 
 HouseFlow compares public online catalogue prices from Smart, Greens, Welbee's,
-and PAVI/PAMA. Results are estimates for planning a shop; delivery charges,
+PAVI/PAMA, and opt-in Happy Shopper. Results are estimates for planning a shop; delivery charges,
 loyalty-only discounts, physical-branch differences, and travel costs are not
 included. The Greens adapter uses the public Swieqi (`SM`) online catalogue
 location so its prices may differ from Mriehel or Gozo.
@@ -14,18 +14,31 @@ Run the default Smart and Welbee's adapters once:
 npm run prices:sync
 ```
 
-Smart and Welbee's are enabled by default. Use
-`CATALOG_SYNC_STORES=smart,welbees,greens,pavipama` to opt into the remaining
-adapters after their terms, access, and data quality have been checked. The
+Smart and Welbee's are enabled by default. Add `greens` after checking its
+terms, access, and data quality. PAVI/PAMA's published terms require prior
+written consent for automated extraction and price-comparison use, so its
+adapter also requires `PAVIPAMA_PERMISSION_CONFIRMED=true`. The
 production Compose stack includes `price-sync`, which runs immediately and then
 every 24 hours. Override the interval with
 `HOUSEFLOW_PRICE_SYNC_INTERVAL_SECONDS`.
 
-`PAVIPAMA_MAX_PAGES` can cap that large catalogue during diagnostics. A capped
-run does not mark unseen products unavailable. Production should leave the value
-at `0` for a complete import. `CATALOG_REQUEST_DELAY_MS` controls the minimum
-pause between public catalogue requests. Smart diagnostic runs using `CAT` or
-`MAX_PAGES` are also treated as partial and never mark unseen products unavailable.
+`GREENS_MAX_PAGES` and `PAVIPAMA_MAX_PAGES` can cap those large catalogues
+during diagnostics. A capped run does not mark unseen products unavailable.
+Production should leave both values at `0` for a complete import.
+`CATALOG_REQUEST_DELAY_MS` controls the minimum pause between public catalogue
+requests. Smart diagnostic runs using `CAT` or `MAX_PAGES` are also treated as
+partial and never mark unseen products unavailable.
+
+Greens publishes product image URLs, but its terms reserve reuse of site images
+without prior written approval. They are therefore omitted unless
+`GREENS_IMAGE_USE_CONFIRMED=true`. Smart, Welbee's, and Happy Shopper image URLs
+are imported when the source catalogue supplies them; products with no retailer
+image remain image-less rather than receiving a misleading substitute.
+
+Happy Shopper is available as the opt-in `happyshopper` adapter and reads only
+the public `/shop` HTML catalogue. Confirm permission before enabling it in a
+recurring production sync. `HAPPYSHOPPER_MAX_PAGES` caps diagnostic imports;
+leave it at `0` for complete production imports.
 
 The adapters only read public catalogue pages/endpoints and never log in, bypass
 access controls, or submit carts. Before enabling an adapter in a public or

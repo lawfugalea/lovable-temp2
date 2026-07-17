@@ -4,14 +4,54 @@ import test from 'node:test'
 const {
   canonicalKey,
   eurosToCents,
+  isStorePermitted,
+  mayUseGreensImages,
+  parseHappyShopperProducts,
   parsePackage,
   parseWelbeesProducts,
 } = require('../scripts/sync-supermarket-prices.js') as {
   canonicalKey: (product: Record<string, unknown>, pack: Record<string, unknown>, sourceKey?: string) => Record<string, unknown>
   eurosToCents: (value: unknown) => number | null
+  isStorePermitted: (slug: string, env?: Record<string, string>) => boolean
+  mayUseGreensImages: (env?: Record<string, string>) => boolean
+  parseHappyShopperProducts: (html: string) => Array<Record<string, unknown>>
   parsePackage: (value: string) => Record<string, unknown>
   parseWelbeesProducts: (html: string) => Array<Record<string, unknown>>
 }
+
+test('retailer permission gates default to the conservative setting', () => {
+  assert.equal(isStorePermitted('greens', {}), true)
+  assert.equal(isStorePermitted('pavipama', {}), false)
+  assert.equal(isStorePermitted('pavipama', { PAVIPAMA_PERMISSION_CONFIRMED: 'true' }), true)
+  assert.equal(mayUseGreensImages({}), false)
+  assert.equal(mayUseGreensImages({ GREENS_IMAGE_USE_CONFIRMED: 'true' }), true)
+})
+
+test('Happy Shopper fixture parses public Odoo product cards', () => {
+  const html = `
+    <form action="/shop/cart/update" class="oe_product_cart h-100 d-flex">
+      <a itemprop="url" href="/shop/orsini-water-pack-x-6-1-5l-117011">
+        <img src="/web/image/product.template/117011/image_512/water" itemprop="image" />
+      </a>
+      <a itemprop="name" href="/shop/orsini-water-pack-x-6-1-5l-117011" content="Orsini Water Pack x 6 1.5L">Water</a>
+      <button data-product-template-id="117011" data-product-product-id="114119"></button>
+      <span itemprop="price" style="display:none;">3.89</span>
+      <span itemprop="priceCurrency" style="display:none;">EUR</span>
+    </form>`
+  const products = parseHappyShopperProducts(html)
+  assert.equal(products.length, 1)
+  assert.deepEqual({
+    externalId: products[0].externalId,
+    name: products[0].name,
+    priceCents: products[0].priceCents,
+    sourceUrl: products[0].sourceUrl,
+  }, {
+    externalId: '117011',
+    name: 'Orsini Water Pack x 6 1.5L',
+    priceCents: 389,
+    sourceUrl: 'https://hs.mt/shop/orsini-water-pack-x-6-1-5l-117011',
+  })
+})
 
 test('Welbees fixture keeps the public price separate from RRP', () => {
   const html = `

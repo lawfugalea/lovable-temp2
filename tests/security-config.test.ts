@@ -25,3 +25,10 @@ test('production compose config supplies the verified invitation sender', () => 
   const compose = readFileSync(join(process.cwd(), 'docker-compose.yml'), 'utf8')
   assert.match(compose, /INVITES_FROM:.*no-reply@galeahub\.online/)
 })
+
+test('read-only price worker keeps Chromium state on its writable tmpfs', () => {
+  const compose = readFileSync(join(process.cwd(), 'docker-compose.yml'), 'utf8')
+  assert.match(compose, /price-sync:[\s\S]*?read_only: true[\s\S]*?HOME: \/tmp\/priceworker/)
+  assert.match(compose, /price-sync:[\s\S]*?XDG_CONFIG_HOME: \/tmp\/priceworker\/\.config/)
+  assert.match(compose, /price-sync:[\s\S]*?XDG_CACHE_HOME: \/tmp\/priceworker\/\.cache/)
+})
