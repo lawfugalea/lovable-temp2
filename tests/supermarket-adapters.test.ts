@@ -4,6 +4,7 @@ import test from 'node:test'
 const {
   canonicalKey,
   eurosToCents,
+  hasMoreGreensPages,
   isStorePermitted,
   mayUseGreensImages,
   parseHappyShopperProducts,
@@ -12,6 +13,7 @@ const {
 } = require('../scripts/sync-supermarket-prices.js') as {
   canonicalKey: (product: Record<string, unknown>, pack: Record<string, unknown>, sourceKey?: string) => Record<string, unknown>
   eurosToCents: (value: unknown) => number | null
+  hasMoreGreensPages: (rowCount: number, pageSize?: number) => boolean
   isStorePermitted: (slug: string, env?: Record<string, string>) => boolean
   mayUseGreensImages: (env?: Record<string, string>) => boolean
   parseHappyShopperProducts: (html: string) => Array<Record<string, unknown>>
@@ -25,6 +27,12 @@ test('retailer permission gates default to the conservative setting', () => {
   assert.equal(isStorePermitted('pavipama', { PAVIPAMA_PERMISSION_CONFIRMED: 'true' }), true)
   assert.equal(mayUseGreensImages({}), false)
   assert.equal(mayUseGreensImages({ GREENS_IMAGE_USE_CONFIRMED: 'true' }), true)
+})
+
+test('Greens pagination trusts the returned rows instead of its inaccurate advertised total', () => {
+  assert.equal(hasMoreGreensPages(250), true)
+  assert.equal(hasMoreGreensPages(230), false)
+  assert.equal(hasMoreGreensPages(0), false)
 })
 
 test('Happy Shopper fixture parses public Odoo product cards', () => {

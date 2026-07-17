@@ -19,6 +19,10 @@ function mayUseGreensImages(env = process.env) {
   return String(env.GREENS_IMAGE_USE_CONFIRMED || '').toLowerCase() === 'true';
 }
 
+function hasMoreGreensPages(rowCount, pageSize = 250) {
+  return rowCount >= pageSize;
+}
+
 const stores = [
   { slug: 'smart', name: 'Smart Supermarket', domain: 'www.smart.com.mt', sourceType: 'PUBLIC_HTML' },
   { slug: 'greens', name: 'Greens Supermarket', domain: 'www.greens.com.mt', sourceType: 'PUBLIC_API' },
@@ -394,7 +398,7 @@ async function fetchGreens() {
   const maxPages = Math.max(0, Number(process.env.GREENS_MAX_PAGES || 0));
   const pageSize = 250;
   let page = 1;
-  let totalPages = 1;
+  let complete = false;
   do {
     const url = new URL('https://www.greens.com.mt/apiservices/retail/sync/productlist');
     const params = {
@@ -406,6 +410,10 @@ async function fetchGreens() {
     Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, String(value)));
     const response = await fetchJson(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
     if (!Array.isArray(response.ProductList)) throw new Error('Unexpected Greens catalogue response');
+    if (!response.ProductList.length) {
+      complete = true;
+      break;
+    }
     for (const entry of response.ProductList) {
       const item = entry.ProductDetails || {};
       const priceCents = eurosToCents(item.SALES_PRICE);
@@ -430,13 +438,12 @@ async function fetchGreens() {
           : null,
         sourceUrl: `https://www.greens.com.mt/productdetails?pid=${encodeURIComponent(item.PART_NUMBER)}`,
       });
-      const total = Number(item.TOTAL_RECORDS || 0);
-      if (total) totalPages = Math.ceil(total / pageSize);
     }
+    complete = !hasMoreGreensPages(response.ProductList.length, pageSize);
     page += 1;
-    if (page <= totalPages && (!maxPages || page <= maxPages)) await sleep(Math.max(REQUEST_DELAY_MS, 500));
-  } while (page <= totalPages && (!maxPages || page <= maxPages));
-  return { products, complete: !maxPages || page > totalPages };
+    if (!complete && (!maxPages || page <= maxPages)) await sleep(Math.max(REQUEST_DELAY_MS, 500));
+  } while (!complete && (!maxPages || page <= maxPages));
+  return { products, complete };
 }
 
 function parseWelbeesProducts(html) {
@@ -734,6 +741,7 @@ module.exports = {
   fetchHappyShopper,
   fetchPaviPama,
   fetchWelbees,
+  hasMoreGreensPages,
   isStorePermitted,
   mayUseGreensImages,
   normalizeBarcode,
