@@ -1,6 +1,6 @@
 # HouseFlow supermarket expansion handoff
 
-Updated: 2026-07-17 17:09 Europe/Malta
+Updated: 2026-07-17 18:06 Europe/Malta
 
 ## User goal
 
@@ -13,11 +13,10 @@ was only valid barcodes in a capped 500-row Greens diagnostic sample.
 
 - Branch: `agent/houseflow-production-release`
 - Remote: `origin`
-- Latest pushed commit: `90aac79 Handle Greens catalogue pagination accurately`
+- Latest pushed commit before this completion update: `07ce33a Document supermarket sync handoff`
 - Earlier expansion commit: `9b1fe27 Expand supermarket catalogue coverage`
 - Draft PR: https://github.com/lawfugalea/lovable-temp2/pull/1
-- Worktree was clean immediately after `90aac79`; this handoff file is the only
-  expected new uncommitted file.
+- Worktree was clean at the start of the resumed session.
 
 ## Implemented and pushed
 
@@ -58,50 +57,49 @@ Official terms checked:
 - Greens: https://www.greens.com.mt/termsconditions?loc=SM
 - PAVI/PAMA: https://www.pavipama.com.mt/app/termsandconditions
 
-## Production state at handoff
+## Production state at completion
 
 - Main HouseFlow stack was deployed successfully earlier; app/db were healthy,
   `/houseflow/api/health` returned HTTP 200, and all 21 migrations were applied.
 - A verified database backup was taken before deployment and another before the
   expanded price-sync deployment. Do not inspect or expose backup/env secrets.
-- Current `price-sync` container uses the rebuilt image and was recreated with:
+- Current `price-sync` container uses the rebuilt image and was recreated with
   `HOUSEFLOW_CATALOG_SYNC_STORES=welbees,greens`.
-- At 2026-07-17 17:09 Europe/Malta, Greens run started at DB timestamp
-  `2026-07-17 15:07:44.479` UTC and was still `RUNNING` while fetching/ingesting
-  the uncapped 30,980-row catalogue. Welbee's will run after Greens because
-  adapter order is Smart, Greens, Welbee's, PAVI/PAMA, Happy Shopper.
-- Several Smart runs show stale `RUNNING` status because supervised container
-  restarts interrupted them at `14:50:59`, `14:57:29`, and `15:00:53` UTC.
-  After the active Greens/Welbee's run finishes, mark only those three old runs
-  failed with a clear "interrupted during deployment restart" error and finish
-  timestamp. Do not touch the active run.
+- The uncapped Greens run succeeded with 30,980 products and 30,980 changed
+  price states. The following Welbee's run succeeded with 137 products and no
+  changed price states.
+- Active catalogue coverage after the run: Greens 30,980 products (28,700 with
+  barcodes and zero images because image reuse remains unconfirmed), Smart
+  10,993 products (10,993 images), and Welbee's 137 products (137 images).
+- The three Smart runs interrupted by supervised deployment restarts at
+  `14:50:59`, `14:57:29`, and `15:00:53` UTC were marked `FAILED` with error
+  `Interrupted during deployment restart` and a finish timestamp. No sync runs
+  remain `RUNNING`.
+- The app container is healthy and `/houseflow/api/health` returned HTTP 200 on
+  the configured `10.77.0.1:8097` bind address.
 - The current Greens enablement is a container recreation override, not a
   modification to secret `.env.deploy`. On a future ordinary Compose recreate,
   it may revert to whatever `HOUSEFLOW_CATALOG_SYNC_STORES` is already set to.
   Never read or edit `.env.deploy`; ask the operator to persist `greens` there if
   desired.
 
-## Resume checks
+## Completed resume checks
 
-1. Check the latest runs:
+1. Checked the latest runs:
 
    ```bash
    docker compose --env-file .env.deploy exec -T db psql -U houseflow -d houseflow -P pager=off -c 'SELECT s.slug, r.status, r."productsSeen", r."offersChanged", r."startedAt", r."finishedAt" FROM "PriceSyncRun" r JOIN "Store" s ON s.id = r."storeId" ORDER BY r."startedAt" DESC LIMIT 10;'
    ```
 
-2. Check worker milestones/errors:
+2. Checked worker milestones/errors:
 
    ```bash
    docker compose --env-file .env.deploy logs --no-color price-sync | rg 'products observed|sync failed|catalogue safety' | tail -30
    ```
 
-3. Once Greens and Welbee's succeed, query active catalogue/image coverage by
-   store. Expect Greens images to be zero unless written image permission was
-   explicitly confirmed; do not fabricate replacement images.
-4. Clean only the three interrupted Smart run records described above.
-5. Confirm app health and `git status --short`.
-6. Decide whether to commit this handoff file. All implementation changes are
-   already pushed; if committed, push it to the existing branch/PR.
+3. Confirmed active catalogue, barcode, and image coverage by store.
+4. Cleaned only the three documented interrupted Smart run records.
+5. Confirmed app health and a clean worktree before this documentation update.
 
 ## Validation completed
 
