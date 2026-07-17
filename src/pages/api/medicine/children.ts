@@ -1,58 +1,37 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
-import { prisma } from '@/lib/prisma'
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '@/lib/prisma';
+import { requireMembershipIn } from '@/lib/api-guards';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
+  const householdId = String(req.method === 'GET' ? req.query.householdId || '' : req.body?.householdId || '');
+  const context = await requireMembershipIn(req, res, householdId);
+  if (!context) return;
 
   if (req.method === 'GET') {
-    const { householdId } = req.query
-    
-    if (!householdId) {
-      return res.status(400).json({ error: 'Household ID required' })
-    }
-
-    try {
-      const children = await prisma.child.findMany({
-        where: { householdId: householdId as string },
-        orderBy: { createdAt: 'desc' }
-      })
-      
-      return res.json(children)
-    } catch (error) {
-      console.error('Failed to fetch children:', error)
-      return res.status(500).json({ error: 'Failed to fetch children' })
-    }
+    const children = await prisma.child.findMany({
+      where: { householdId },
+      orderBy: { createdAt: 'desc' },
+    });
+    return res.status(200).json(children);
   }
 
   if (req.method === 'POST') {
-    const { householdId, name, dateOfBirth, notes } = req.body
-    
-    if (!householdId || !name || !dateOfBirth) {
-      return res.status(400).json({ error: 'Missing required fields' })
+    const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const dateOfBirth = new Date(req.body?.dateOfBirth);
+    const notes = typeof req.body?.notes === 'string' ? req.body.notes.trim() : null;
+    if (!name || Number.isNaN(dateOfBirth.getTime())) {
+      return res.status(400).json({ error: 'Valid name and date of birth are required' });
+    }
+    if (name.length > 80 || dateOfBirth > new Date() || (notes?.length || 0) > 2000) {
+      return res.status(400).json({ error: 'Invalid child details' });
     }
 
-    try {
-      const child = await prisma.child.create({
-        data: {
-          householdId,
-          name,
-          dateOfBirth: new Date(dateOfBirth),
-          notes
-        }
-      })
-      
-      return res.json(child)
-    } catch (error) {
-      console.error('Failed to create child:', error)
-      return res.status(500).json({ error: 'Failed to create child' })
-    }
+    const child = await prisma.child.create({
+      data: { householdId, name, dateOfBirth, notes },
+    });
+    return res.status(201).json(child);
   }
 
-  return res.status(405).json({ error: 'Method not allowed' })
+  res.setHeader('Allow', ['GET', 'POST']);
+  return res.status(405).json({ error: 'Method not allowed' });
 }

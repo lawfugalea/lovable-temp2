@@ -122,7 +122,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
-  const [invites, setInvites] = useState<Array<{ id: string; token: string; email: string | null; role: string; status: string; expiresAt: string; household: { id: string; name: string } }>>([]);
+  const [invites, setInvites] = useState<Array<{ id: string; email: string | null; role: string; status: string; expiresAt: string; household: { id: string; name: string } }>>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -151,7 +151,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (status === 'loading') return;
     
-    if (!session || session.user?.email !== 'lawfinuu@gmail.com') {
+    if (!session || (session.user as any)?.isAdmin !== true) {
       router.push('/dashboard');
       return;
     }
@@ -159,7 +159,7 @@ export default function AdminPage() {
 
   // Load data
   useEffect(() => {
-    if (session?.user?.email === 'lawfinuu@gmail.com') {
+    if ((session?.user as any)?.isAdmin === true) {
       loadData();
     }
   }, [session]);
@@ -292,17 +292,6 @@ export default function AdminPage() {
     }
   };
 
-  const getAcceptUrl = async (token: string) => {
-    const r = await fetch('/api/admin/invites', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'acceptLink', token }),
-    });
-    if (!r.ok) return null;
-    const j = await r.json();
-    return j.acceptUrl as string;
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -323,7 +312,7 @@ export default function AdminPage() {
     );
   }
 
-  if (!session || session.user?.email !== 'lawfinuu@gmail.com') {
+  if (!session || (session.user as any)?.isAdmin !== true) {
     return null;
   }
 
@@ -528,7 +517,7 @@ export default function AdminPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => deleteUser(user.id)}
-                        disabled={deleting === user.id || user.email === 'lawfinuu@gmail.com'}
+                        disabled={deleting === user.id || ((session.user as any)?.isAdmin === true && user.email === session.user?.email)}
                         className="text-red-600 hover:text-red-700"
                         title="Delete user"
                       >
@@ -601,7 +590,7 @@ export default function AdminPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => deleteHousehold(household.id)}
-                        disabled={deleting === household.id || household.owner?.email === 'lawfinuu@gmail.com'}
+                        disabled={deleting === household.id || ((session.user as any)?.isAdmin === true && household.owner?.email === session.user?.email)}
                         className="text-red-600 hover:text-red-700"
                       >
                         {deleting === household.id ? (
@@ -634,16 +623,6 @@ export default function AdminPage() {
                       <p className="text-xs text-cozy-text-muted">Role: {i.role} • Status: {i.status} • Expires: {formatDate(i.expiresAt)}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={async () => {
-                        const url = await getAcceptUrl(i.token);
-                        if (url) {
-                          try { await navigator.clipboard.writeText(url); alert('Accept URL copied'); } catch { alert(url); }
-                        } else {
-                          alert('Failed to get URL');
-                        }
-                      }} title="Copy accept link">
-                        <LinkIcon className="w-4 h-4" />
-                      </Button>
                       <Button variant="outline" size="sm" onClick={() => updateInvite(i.id, 'revoke')} disabled={i.status !== 'PENDING'} title="Revoke">Revoke</Button>
                       <Button variant="outline" size="sm" onClick={() => updateInvite(i.id, 'expire')} disabled={i.status !== 'PENDING'} title="Expire">Expire</Button>
                     </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Editor } from '@tiptap/react'
 import { 
   Heading1, 
@@ -15,6 +15,7 @@ import {
 
 interface SlashMenuProps {
   editor: Editor
+  noteId: string
   isOpen: boolean
   onClose: () => void
   position: { top: number; left: number }
@@ -27,11 +28,11 @@ interface SlashMenuItem {
   action: () => void
 }
 
-export default function SlashMenu({ editor, isOpen, onClose, position }: SlashMenuProps) {
+export default function SlashMenu({ editor, noteId, isOpen, onClose, position }: SlashMenuProps) {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const menuRef = useRef<HTMLDivElement>(null)
 
-  const menuItems: SlashMenuItem[] = [
+  const menuItems: SlashMenuItem[] = useMemo(() => [
     {
       title: 'Heading 1',
       description: 'Big section heading',
@@ -118,6 +119,7 @@ export default function SlashMenu({ editor, isOpen, onClose, position }: SlashMe
           if (file) {
             const formData = new FormData()
             formData.append('image', file)
+            formData.append('noteId', noteId)
 
             try {
               const response = await fetch('/api/uploads/note-image', {
@@ -147,7 +149,7 @@ export default function SlashMenu({ editor, isOpen, onClose, position }: SlashMe
         onClose()
       }
     }
-  ]
+  ], [editor, noteId, onClose])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

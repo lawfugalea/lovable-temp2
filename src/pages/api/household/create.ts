@@ -40,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
   if (!user && sessionEmail) {
-    user = await prisma.user.findUnique({
-      where: { email: sessionEmail },
+    user = await prisma.user.findFirst({
+      where: { email: { equals: sessionEmail, mode: 'insensitive' } },
       select: { id: true, name: true, email: true, activeHouseholdId: true },
     });
   }
@@ -70,9 +70,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // 5) Generate smart household name
   const householdName = generateSmartHouseholdName(user, name, type);
+  if (!householdName || householdName.length > 100) {
+    return res.status(400).json({ error: 'Household name must be 100 characters or fewer' });
+  }
 
   try {
     const household = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user!.id} FOR UPDATE`;
+      const concurrentMembership = await tx.membership.findFirst({
+        where: { userId: user!.id },
+        select: { householdId: true },
+      });
+      if (concurrentMembership) {
+        throw Object.assign(new Error('User already belongs to a household'), { status: 409 });
+      }
       const h = await tx.household.create({
         data: { 
           name: householdName, 
@@ -103,9 +114,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(201).json(response);
   } catch (e: any) {
     console.error('Failed to create household:', e);
-    return res.status(500).json({ 
-      error: 'Failed to create household', 
-      detail: e?.message || String(e) 
+    return res.status(e?.status || 500).json({
+      error: e?.status ? e.message : 'Failed to create household',
     });
   }
 }

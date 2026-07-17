@@ -27,6 +27,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'No active household selected' });
   }
 
+  const membership = await prisma.membership.findUnique({
+    where: { userId_householdId: { userId, householdId } },
+    select: { id: true },
+  });
+  if (!membership) {
+    return res.status(403).json({ error: 'Active household is no longer available' });
+  }
+
   if (req.method === 'GET') {
     const lists = await prisma.shoppingList.findMany({
       where: { householdId },
@@ -38,9 +46,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'POST') {
     const { name } = req.body as { name?: string };
-    if (!name || !name.trim()) {
+    if (!name || !name.trim() || name.trim().length > 100) {
       res.setHeader('Cache-Control', 'no-store');
-      return res.status(400).json({ error: 'Name is required' });
+      return res.status(400).json({ error: 'A list name of 100 characters or fewer is required' });
     }
     try {
       const list = await prisma.shoppingList.create({

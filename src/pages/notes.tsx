@@ -129,6 +129,44 @@ const initialState: NotesState = {
   error: null
 }
 
+// Extract text from TipTap JSON content, including checklist items.
+const extractTextFromJson = (contentJson: any): string => {
+  if (!contentJson?.content) return ''
+
+  const extractText = (node: any): string => {
+    if (!node) return ''
+    if (node.type === 'text') return node.text || ''
+
+    if (node.type === 'taskItem') {
+      const checkbox = node.attrs?.checked ? '☑' : '☐'
+      const text = node.content ? node.content.map(extractText).join('') : ''
+      return `${checkbox} ${text}`
+    }
+
+    if (node.type === 'taskList' || node.type === 'bulletList' || node.type === 'orderedList') {
+      return node.content ? node.content.map(extractText).join('\n') : ''
+    }
+
+    if (node.type === 'listItem') {
+      return node.content ? node.content.map(extractText).join('') : ''
+    }
+
+    if (node.type === 'paragraph' || node.type === 'heading') {
+      const text = node.content ? node.content.map(extractText).join('') : ''
+      return text ? `${text}\n` : '\n'
+    }
+
+    if (node.type === 'blockquote') {
+      const text = node.content ? node.content.map(extractText).join('') : ''
+      return text ? `> ${text}\n` : '\n'
+    }
+
+    return Array.isArray(node.content) ? node.content.map(extractText).join('') : ''
+  }
+
+  return contentJson.content.map(extractText).join('').trim()
+}
+
 export default function NotesPage() {
   const { data: session } = useSession()
   const [notesState, dispatch] = useReducer(notesReducer, initialState)
@@ -148,21 +186,23 @@ export default function NotesPage() {
   })
   const titleRef = useRef<HTMLTextAreaElement>(null)
   const loadingRef = useRef(false)
+  const isNoteOwner = useCallback((note: Note) => note.createdBy.id === session?.user?.id, [session?.user?.id])
+  const canEditNote = useCallback((note: Note) => (
+    isNoteOwner(note)
+    || note.collaborators.some(collaborator => collaborator.user.id === session?.user?.id && collaborator.role === 'EDITOR')
+  ), [isNoteOwner, session?.user?.id])
 
   // Load notes
   const loadNotes = useCallback(async () => {
     if (loadingRef.current || !session?.user?.id) {
-      console.log('Skipping loadNotes:', { loading: loadingRef.current, hasSession: !!session?.user?.id })
       return
     }
 
-    console.log('Loading notes for user:', session.user.id)
     loadingRef.current = true
     dispatch({ type: 'SET_LOADING', payload: true })
 
     try {
       const response = await fetch('/api/notes')
-      console.log('Notes API response status:', response.status)
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -170,7 +210,6 @@ export default function NotesPage() {
       }
       
       const data = await response.json()
-      console.log('Notes loaded:', data.notes?.length || 0, 'notes')
       
       // Ensure all notes have proper contentText and color
       const processedNotes = (data.notes || []).map((note: any) => {
@@ -321,7 +360,6 @@ export default function NotesPage() {
       // Close confirmation dialog
       setDeleteConfirm({ show: false, noteId: null, noteTitle: '' })
 
-      console.log('Note deleted successfully')
     } catch (error) {
       console.error('Error deleting note:', error)
       alert('Failed to delete note. Please try again.')
@@ -485,60 +523,6 @@ export default function NotesPage() {
     return preview + '...'
   }, [])
 
-  // Extract text from TipTap JSON content (including checklist items)
-  const extractTextFromJson = useCallback((contentJson: any): string => {
-    if (!contentJson || !contentJson.content) return ''
-    
-    const extractText = (node: any): string => {
-      if (!node) return ''
-      
-      if (node.type === 'text') {
-        return node.text || ''
-      }
-      
-      if (node.type === 'taskItem') {
-        const checkbox = node.attrs?.checked ? '☑' : '☐'
-        const text = node.content ? node.content.map(extractText).join('') : ''
-        return `${checkbox} ${text}`
-      }
-      
-      if (node.type === 'taskList') {
-        return node.content ? node.content.map(extractText).join('\n') : ''
-      }
-      
-      if (node.type === 'bulletList' || node.type === 'orderedList') {
-        return node.content ? node.content.map(extractText).join('\n') : ''
-      }
-      
-      if (node.type === 'listItem') {
-        return node.content ? node.content.map(extractText).join('') : ''
-      }
-      
-      if (node.type === 'paragraph') {
-        const text = node.content ? node.content.map(extractText).join('') : ''
-        return text ? `${text}\n` : '\n'
-      }
-      
-      if (node.type === 'heading') {
-        const text = node.content ? node.content.map(extractText).join('') : ''
-        return text ? `${text}\n` : '\n'
-      }
-      
-      if (node.type === 'blockquote') {
-        const text = node.content ? node.content.map(extractText).join('') : ''
-        return text ? `> ${text}\n` : '\n'
-      }
-      
-      if (node.content && Array.isArray(node.content)) {
-        return node.content.map(extractText).join('')
-      }
-      
-      return ''
-    }
-    
-    return contentJson.content.map(extractText).join('').trim()
-  }, [])
-
   // Handle rich text editor updates
   const handleContentUpdate = useCallback((contentJson: any, contentText: string) => {
     if (!selectedNote) return
@@ -556,7 +540,7 @@ export default function NotesPage() {
     setSelectedNote(updatedNote)
     dispatch({ type: 'UPDATE_NOTE', payload: updatedNote })
     autoSave(updatedNote)
-  }, [selectedNote, autoSave, extractTextFromJson])
+  }, [selectedNote, autoSave])
 
   // Auto-resize textarea
   const autoResize = useCallback((textarea: HTMLTextAreaElement) => {
@@ -880,7 +864,7 @@ export default function NotesPage() {
                           )}
                           <div className="flex items-center gap-1">
                             {/* Quick Color Picker */}
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity duration-200">
+                            <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity duration-200 ${canEditNote(note) ? '' : 'pointer-events-none invisible'}`}>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
@@ -924,11 +908,12 @@ export default function NotesPage() {
                             </div>
                             
                             <button
+                              disabled={!isNoteOwner(note)}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 handleNoteUpdateFromList(note.id, 'isShared', !note.isShared)
                               }}
-                              className={`p-1.5 sm:p-1 rounded-lg transition-colors touch-manipulation ${
+                              className={`p-1.5 sm:p-1 rounded-lg transition-colors touch-manipulation ${!isNoteOwner(note) ? 'invisible pointer-events-none' : ''} ${
                                 note.isShared
                                   ? 'text-cozy-primary hover:bg-cozy-primary/10 active:bg-cozy-primary/20'
                                   : 'text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-gray active:bg-cozy-gray-hover'
@@ -944,11 +929,12 @@ export default function NotesPage() {
                             
                             {/* Delete Button */}
                             <button
+                              disabled={!isNoteOwner(note)}
                               onClick={(e) => {
                                 e.stopPropagation()
                                 showDeleteConfirm(note.id, note.title || 'Untitled')
                               }}
-                              className="p-1.5 sm:p-1 rounded-lg transition-colors touch-manipulation text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-gray active:bg-cozy-gray-hover"
+                              className={`p-1.5 sm:p-1 rounded-lg transition-colors touch-manipulation text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-gray active:bg-cozy-gray-hover ${!isNoteOwner(note) ? 'invisible pointer-events-none' : ''}`}
                               title="Delete note"
                             >
                               <Trash2 className="w-3 h-3" />
@@ -1005,7 +991,7 @@ export default function NotesPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleNoteUpdate('isShared', !selectedNote.isShared)}
-                    className={`p-2 rounded transition-colors ${
+                    className={`p-2 rounded transition-colors ${!isNoteOwner(selectedNote) ? 'invisible pointer-events-none' : ''} ${
                       selectedNote.isShared
                         ? 'text-cozy-primary bg-cozy-primary/10 hover:bg-cozy-primary/20'
                         : 'text-gray-600 hover:bg-gray-100'
@@ -1035,6 +1021,7 @@ export default function NotesPage() {
                 <textarea
                   ref={titleRef}
                   value={selectedNote.title}
+                  readOnly={!canEditNote(selectedNote)}
                   onChange={(e) => {
                     handleNoteUpdate('title', e.target.value)
                     autoResize(e.target)
@@ -1072,7 +1059,7 @@ export default function NotesPage() {
                   {/* Share Toggle & Color Picker */}
                   <div className="flex items-center gap-2 md:gap-3">
                     {/* Color Picker */}
-                    <div className="flex items-center gap-1 md:gap-2">
+                    <div className={`flex items-center gap-1 md:gap-2 ${canEditNote(selectedNote) ? '' : 'pointer-events-none opacity-50'}`}>
                       <button
                         onClick={() => handleNoteUpdate('color', 'yellow')}
                         className={`w-6 h-6 md:w-5 md:h-5 rounded-full border-2 ${
@@ -1118,8 +1105,9 @@ export default function NotesPage() {
                     </div>
                     
                     <button
+                      disabled={!isNoteOwner(selectedNote)}
                       onClick={() => handleNoteUpdate('isShared', !selectedNote.isShared)}
-                      className={`flex items-center gap-1 px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-xs font-medium transition-colors touch-manipulation ${
+                      className={`flex items-center gap-1 px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-xs font-medium transition-colors touch-manipulation ${!isNoteOwner(selectedNote) ? 'hidden' : ''} ${
                         selectedNote.isShared
                           ? 'bg-cozy-primary text-white active:bg-cozy-primary-deep'
                           : 'bg-cozy-gray text-cozy-text hover:bg-cozy-gray-hover active:bg-cozy-gray-active'
@@ -1140,8 +1128,9 @@ export default function NotesPage() {
                     
                     {/* Delete Button */}
                     <button
+                      disabled={!isNoteOwner(selectedNote)}
                       onClick={() => showDeleteConfirm(selectedNote.id, selectedNote.title || 'Untitled')}
-                      className="flex items-center gap-1 px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-xs font-medium transition-colors touch-manipulation bg-cozy-gray text-cozy-text hover:bg-cozy-gray-hover active:bg-cozy-gray-active"
+                      className={`flex items-center gap-1 px-3 py-2 sm:px-2 sm:py-1 rounded-lg text-xs font-medium transition-colors touch-manipulation bg-cozy-gray text-cozy-text hover:bg-cozy-gray-hover active:bg-cozy-gray-active ${!isNoteOwner(selectedNote) ? 'hidden' : ''}`}
                       title="Delete note"
                     >
                       <Trash2 className="w-3 h-3" />
@@ -1159,10 +1148,11 @@ export default function NotesPage() {
                   </div>
                 }>
                   <RichTextEditor
+                    noteId={selectedNote.id}
                     content={selectedNote.contentJson || selectedNote.content}
                     onUpdate={handleContentUpdate}
                     placeholder="Start writing your note..."
-                    editable={true}
+                    editable={canEditNote(selectedNote)}
                     className="h-full"
                   />
                 </ClientOnly>

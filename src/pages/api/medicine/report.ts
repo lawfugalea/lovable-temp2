@@ -1,38 +1,45 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
+import { requireMembershipIn } from '@/lib/api-guards'
+import { parseRequiredDate } from '@/lib/medicine'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
   if (req.method === 'GET') {
     const { householdId, startDate, endDate } = req.query
-    
-    if (!householdId || !startDate || !endDate) {
+
+    const context = await requireMembershipIn(req, res, householdId as string)
+    if (!context) return
+    if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Missing required parameters' })
     }
+    const start = parseRequiredDate(startDate)
+    const end = parseRequiredDate(endDate)
+    if (!start || !end || start > end) return res.status(400).json({ error: 'Invalid date range' })
 
     try {
-      const doses = await prisma.medicineDose.findMany({
+      const [doses, temperatures] = await Promise.all([prisma.medicineDose.findMany({
         where: { 
           child: { householdId: householdId as string },
           takenAt: {
-            gte: new Date(startDate as string),
-            lte: new Date(endDate as string)
+            gte: start,
+            lte: end
           }
         },
         include: { 
           child: true,
-          medicine: true 
+          medicine: true,
+          episode: true,
         },
         orderBy: { takenAt: 'asc' }
-      })
+      }), prisma.feverReading.findMany({
+        where: {
+          child: { householdId: householdId as string },
+          takenAt: { gte: start, lte: end },
+        },
+        include: { child: true, episode: true },
+        orderBy: { takenAt: 'asc' },
+      })])
 
       // Generate simple text report
       let report = `Medicine Report\n`
@@ -49,12 +56,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       Object.entries(groupedByChild).forEach(([childName, childDoses]) => {
         report += `${childName}:\n`
         childDoses.forEach(dose => {
-          report += `  - ${dose.medicine.name}: ${dose.dosage} at ${format(new Date(dose.takenAt), 'MMM dd, yyyy HH:mm')}\n`
+          report += `  - ${dose.medicine.name}: ${dose.dosage} at ${format(new Date(dose.takenAt), 'MMM dd, yyyy HH:mm')} [${dose.episode.title || 'Illness episode'}]\n`
           if (dose.notes) {
             report += `    Notes: ${dose.notes}\n`
           }
         })
         report += `\n`
+      })
+
+      report += `Temperature readings:\n`
+      temperatures.forEach(reading => {
+        report += `  - ${reading.child.name}: ${reading.temperature}°${reading.unit} at ${format(new Date(reading.takenAt), 'MMM dd, yyyy HH:mm')} [${reading.episode.title || 'Illness episode'}]\n`
+        if (reading.notes) report += `    Notes: ${reading.notes}\n`
       })
 
       res.setHeader('Content-Type', 'text/plain')

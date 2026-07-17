@@ -1,37 +1,58 @@
-import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { useSession } from 'next-auth/react'
-import { 
-  Home, 
-  ShoppingCart, 
-  DollarSign, 
-  CreditCard,
-  Settings, 
-  Users,
-  Search,
-  Bell,
+import React, { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/router"
+import { signOut, useSession } from "next-auth/react"
+import {
+  ChevronsUpDown,
+  CircleDollarSign,
+  FileText,
+  HeartPulse,
+  Home,
+  LogOut,
   Menu,
-  X,
-  Command,
-  Pill,
-  Shield,
-  FileText
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import CommandPalette from './CommandPalette'
-import MedicineNotifications from './MedicineNotifications'
+  Search,
+  Settings,
+  ShieldCheck,
+  ShoppingBasket,
+  Sparkles,
+  Users,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { withBasePath } from "@/lib/base-path"
+import { Button } from "@/components/ui/Button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/Sheet"
+import CommandPalette from "./CommandPalette"
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Shopping', href: '/shopping', icon: ShoppingCart },
-  { name: 'Finance Planner', href: '/finances', icon: DollarSign },
-  { name: 'Medicine', href: '/medicine', icon: Pill },
-  { name: 'Notes', href: '/notes', icon: FileText },
-  { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Household', href: '/household', icon: Users },
+const navigationGroups = [
+  {
+    label: "Home",
+    items: [{ name: "Overview", href: "/dashboard", icon: Home }],
+  },
+  {
+    label: "Household tools",
+    items: [
+      { name: "Shopping", href: "/shopping", icon: ShoppingBasket },
+      { name: "Finances", href: "/finances", icon: CircleDollarSign },
+      { name: "Medicine", href: "/medicine", icon: HeartPulse },
+      { name: "Notes", href: "/notes", icon: FileText },
+    ],
+  },
+  {
+    label: "Manage",
+    items: [
+      { name: "Household", href: "/household", icon: Users },
+      { name: "Settings", href: "/settings", icon: Settings },
+    ],
+  },
 ]
 
 interface ModernAppShellProps {
@@ -39,192 +60,178 @@ interface ModernAppShellProps {
   title?: string
 }
 
+function getInitials(name?: string | null, email?: string | null) {
+  const source = name?.trim() || email?.trim() || "HouseFlow"
+  const parts = source.split(/\s+/).filter(Boolean)
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "HF"
+}
+
 export default function ModernAppShell({ children, title }: ModernAppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const router = useRouter()
   const { data: session } = useSession()
+  const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
 
-  const currentPath = router.pathname
+  const activeTitle = useMemo(() => {
+    if (title) return title
+    for (const group of navigationGroups) {
+      const match = group.items.find((item) => item.href === router.pathname)
+      if (match) return match.name
+    }
+    return router.pathname === "/admin" ? "Admin" : "HouseFlow"
+  }, [router.pathname, title])
 
-  // Keyboard shortcut for command palette
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
         setCommandPaletteOpen(true)
       }
     }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
   }, [])
 
-  return (
-    <div className="min-h-screen bg-cozy-bg lg:flex">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+  const navigation = (
+    <div className="flex h-full flex-col bg-card">
+      <div className="flex h-[72px] items-center border-b px-5">
+        <Link href="/dashboard" className="group flex items-center gap-3" onClick={() => setSidebarOpen(false)}>
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-cozy-glow transition-transform group-hover:scale-[1.03]">
+            <Home className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 text-base font-bold tracking-tight">
+              HouseFlow <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+            </span>
+            <span className="block text-xs text-muted-foreground">Home, in sync</span>
+          </span>
+        </Link>
+      </div>
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-cozy-surface border-r border-cozy-gray-200 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto",
-          "lg:flex lg:flex-col lg:flex-shrink-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        )}
-      >
-        {/* Sidebar header */}
-        <div className="flex items-center justify-between p-6 border-b border-cozy-gray-200">
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-cozy-primary rounded-lg flex items-center justify-center">
-              <Home className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-lg text-cozy-text">Houseflow</span>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          {navigation.map((item) => {
-            const isActive = currentPath === item.href
-            const Icon = item.icon
-            
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-cozy-primary text-white shadow-cozy-sm"
-                    : "text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-cream"
-                )}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.name}</span>
-              </Link>
-            )
-          })}
-          
-          {/* Admin Panel Link - Only for admin user */}
-          {session?.user?.email === 'lawfinuu@gmail.com' && (
-            <Link
-              href="/admin"
-              onClick={() => setSidebarOpen(false)}
-              className={cn(
-                "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                currentPath === '/admin'
-                  ? "bg-cozy-primary text-white shadow-cozy-sm"
-                  : "text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-cream"
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Main navigation">
+        {navigationGroups.map((group) => (
+          <div key={group.label}>
+            <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+              {group.label}
+            </p>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const active = router.pathname === item.href
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
+                    <Icon className={cn("h-[18px] w-[18px]", !active && "text-muted-foreground group-hover:text-accent-foreground")} aria-hidden="true" />
+                    <span>{item.name}</span>
+                  </Link>
+                )
+              })}
+              {group.label === "Manage" && isAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={() => setSidebarOpen(false)}
+                  aria-current={router.pathname === "/admin" ? "page" : undefined}
+                  className={cn(
+                    "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    router.pathname === "/admin"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <ShieldCheck className="h-[18px] w-[18px]" aria-hidden="true" />
+                  <span>Admin</span>
+                </Link>
               )}
-            >
-              <Shield className="w-5 h-5" />
-              <span>Admin Panel</span>
-            </Link>
-          )}
-        </nav>
-
-        {/* Sidebar footer */}
-        <div className="p-4 border-t border-cozy-gray-200">
-          <div className="flex items-center space-x-3 p-3 rounded-lg bg-cozy-cream">
-            <div className="w-8 h-8 bg-cozy-primary rounded-full flex items-center justify-center">
-              <span className="text-xs font-medium text-white">
-                {session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-cozy-text truncate">
-                {session?.user?.name || 'User'}
-              </p>
-              <p className="text-xs text-cozy-text-muted truncate">
-                {session?.user?.email || 'user@example.com'}
-              </p>
             </div>
           </div>
-        </div>
-      </aside>
+        ))}
+      </nav>
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0 lg:flex lg:flex-col">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-cozy-surface/80 backdrop-blur-xl border-b border-cozy-gray-200 w-full">
-          <div className="flex items-center justify-between px-4 py-3 sm:px-6 max-w-full">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-              {title && (
-                <h1 className="text-xl font-semibold text-cozy-text">
-                  {title}
-                </h1>
-              )}
-            </div>
+      <div className="border-t p-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-auto w-full justify-start gap-3 px-2 py-2 text-left">
+              <Avatar className="h-9 w-9 border border-primary/15">
+                {session?.user?.image && <AvatarImage src={session.user.image} alt="" />}
+                <AvatarFallback>{getInitials(session?.user?.name, session?.user?.email)}</AvatarFallback>
+              </Avatar>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-foreground">{session?.user?.name || "HouseFlow member"}</span>
+                <span className="block truncate text-xs font-normal text-muted-foreground">{session?.user?.email || "Account"}</span>
+              </span>
+              <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="top" align="start" className="w-64">
+            <DropdownMenuLabel>My account</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild><Link href="/settings"><Settings /> Settings</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild><Link href="/household"><Users /> Household</Link></DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              onSelect={() => void signOut({ callbackUrl: withBasePath("/login") })}
+            >
+              <LogOut /> Sign out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  )
 
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden sm:flex"
-                onClick={() => setCommandPaletteOpen(true)}
-              >
-                <Search className="w-4 h-4 mr-2" />
-                Search...
-                <kbd className="ml-2 inline-flex h-5 select-none items-center gap-1 rounded border bg-cozy-cream px-1.5 font-mono text-[10px] font-medium text-cozy-text-muted opacity-100">
-                  <span className="text-xs">⌘</span>K
-                </kbd>
-              </Button>
-              
-              <Button variant="ghost" size="icon">
-                <Bell className="w-5 h-5" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                className="sm:hidden"
-                onClick={() => setCommandPaletteOpen(true)}
-              >
-                <Search className="w-5 h-5" />
-              </Button>
+  return (
+    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen border-r bg-card lg:block">{navigation}</aside>
+
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-[min(88vw,320px)] p-0">
+          <SheetTitle className="sr-only">HouseFlow navigation</SheetTitle>
+          {navigation}
+        </SheetContent>
+      </Sheet>
+
+      <div className="min-w-0">
+        <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75">
+          <div className="flex h-[72px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+            <Button variant="outline" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-muted-foreground">Household workspace</p>
+              <h1 className="truncate text-lg font-semibold tracking-tight">{activeTitle}</h1>
             </div>
+            <Button
+              variant="outline"
+              className="hidden min-w-[210px] justify-between bg-card text-muted-foreground shadow-sm sm:flex"
+              onClick={() => setCommandPaletteOpen(true)}
+            >
+              <span className="flex items-center gap-2"><Search className="h-4 w-4" /> Search</span>
+              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
+            </Button>
+            <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search HouseFlow">
+              <Search className="h-4 w-4" />
+            </Button>
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 px-4 pt-2 pb-6 sm:px-6 max-w-full overflow-x-hidden lg:flex-1">
-          <div className="animate-cozy-fade-in w-full">
-            {children}
-          </div>
+        <main className="min-h-[calc(100vh-72px)] px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
+          <div className="mx-auto w-full max-w-[1520px] animate-cozy-fade-in">{children}</div>
         </main>
       </div>
 
-      {/* Command Palette */}
-      <CommandPalette 
-        isOpen={commandPaletteOpen} 
-        onClose={() => setCommandPaletteOpen(false)} 
-      />
-
-      {/* Medicine Notifications */}
-      <MedicineNotifications />
+      <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
     </div>
   )
 }

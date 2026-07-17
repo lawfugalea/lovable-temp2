@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 
+import { requireDebugAccess } from '@/lib/debug-guards';
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!(await requireDebugAccess(req, res))) return;
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });

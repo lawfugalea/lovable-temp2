@@ -48,6 +48,7 @@ export async function sendInviteEmail({
   }
 
   const subject = `You're invited to join ${householdName || 'a household'} on HouseFlow`;
+  const safeAcceptUrl = escapeHtml(acceptUrl);
 const text = [
     `Hello!`,
     '',
@@ -110,7 +111,7 @@ const text = [
                   
                   <!-- CTA Button -->
                   <div style="text-align: center; margin: 32px 0;">
-                    <a href="${acceptUrl}" style="display: inline-block; background-color: #c56a47; color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: -0.025em; box-shadow: 0 4px 6px -1px rgba(197, 106, 71, 0.3); transition: all 0.2s ease;">
+                    <a href="${safeAcceptUrl}" style="display: inline-block; background-color: #c56a47; color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: -0.025em; box-shadow: 0 4px 6px -1px rgba(197, 106, 71, 0.3); transition: all 0.2s ease;">
                       Accept Invitation
                     </a>
                   </div>
@@ -119,7 +120,7 @@ const text = [
                     <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #6b5544;">Having trouble with the button?</p>
                     <p style="margin: 0; font-size: 13px; color: #8b7355; word-break: break-all; line-height: 1.4;">
                       Copy and paste this link in your browser:<br>
-                      <span style="color: #c56a47;">${acceptUrl}</span>
+                      <span style="color: #c56a47;">${safeAcceptUrl}</span>
                     </p>
                   </div>
                 </td>

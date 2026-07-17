@@ -30,13 +30,13 @@ export async function requireMembershipIn(
   householdId: string | undefined,
   { ownerOnly = false }: { ownerOnly?: boolean } = {}
 ): Promise<{ userId: string } | null> {
+  const userId = await getUserIdOr401(req, res);
+  if (!userId) return null;
+
   if (!householdId) {
     res.status(400).json({ error: 'Missing householdId' });
     return null;
   }
-
-  const userId = await getUserIdOr401(req, res);
-  if (!userId) return null;
 
   const membership = await prisma.membership.findFirst({
     where: { userId, householdId },

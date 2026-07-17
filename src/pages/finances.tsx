@@ -1,799 +1,427 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
-import ModernAppShell from '../components/ModernAppShell'
-import { usePageState } from '../hooks/usePageState'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
-import { Button } from '../components/ui/Button'
-import { Input } from '../components/ui/Input'
-import { Badge } from '../components/ui/Badge'
-import { ContribTableDesktop, ContribCardsMobile } from '../components/ui/finance/ContribBlock'
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  CreditCard,
-  PiggyBank,
-  Target,
-  Plus,
-  Filter,
-  Calendar,
+import {
+  AlertCircle,
+  ArrowDownLeft,
   ArrowUpRight,
-  ArrowDownRight,
-  Users,
-  Calculator,
+  BarChart3,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  Eye,
+  EyeOff,
+  Link2,
+  LayoutDashboard,
+  Loader2,
+  Pencil,
+  RefreshCw,
+  Repeat2,
+  ReceiptText,
+  Search,
+  ShieldCheck,
+  Sparkles,
   Trash2,
-  CheckCircle,
-  AlertCircle
+  WalletCards,
+  X,
 } from 'lucide-react'
+import ModernAppShell from '@/components/ModernAppShell'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
+import { Input } from '@/components/ui/Input'
+import FinanceInsightsPanel, { FinanceStatisticsPanel } from '@/components/finance/FinanceInsightsPanel'
+import FinanceSubscriptionsPanel from '@/components/finance/FinanceSubscriptionsPanel'
+import FinanceCoachPanel from '@/components/finance/FinanceCoachPanel'
+import {
+  EditTransactionButton,
+  FinanceRulesPanel,
+  FinanceTransactionEditor,
+  type EditableFinanceTransaction,
+} from '@/components/finance/FinanceTransactionTools'
+import type { FinanceInsights } from '@/lib/finance/insights'
 
-interface Earner {
+type ConnectionStatus = 'PENDING' | 'ACTIVE' | 'REAUTH_REQUIRED' | 'ERROR'
+
+type Connection = {
   id: string
-  name: string
-  salary: number
-  keep: number
+  aspspName: string
+  status: ConnectionStatus
+  consentExpiresAt: string | null
+  lastSyncedAt: string | null
+  lastSyncAttemptAt: string | null
+  syncStartedAt: string | null
+  syncError: string | null
+  _count?: { accounts: number }
 }
 
-interface KnownExpense {
+type Account = {
   id: string
-  name: string
-  amount: number
-  frequency: 'monthly' | 'quarterly' | 'yearly' | 'one-time'
-  dueDate?: string
+  displayName: string
+  providerDisplayName: string
+  customName: string | null
+  maskedIdentifier: string | null
+  currency: string
+  cashAccountType: string | null
+  shared: boolean
+  owned: boolean
+  canRename: boolean
+  balance: { amount: string; currency: string; type: string; updatedAt: string } | null
+  availableBalance: { amount: string; currency: string } | null
+  bookedBalance: { amount: string; currency: string } | null
+  connection: Connection & { userId: string }
+}
+
+type Transaction = {
+  id: string
+  account: { id: string; displayName: string; maskedIdentifier: string | null }
+  amount: string
+  currency: string
+  status: 'BOOKED' | 'PENDING'
+  bookingDate: string | null
+  valueDate: string | null
+  counterparty: string | null
+  description: string | null
+  merchantName: string
+  detail: string | null
+  transactionType: string
   category: string
+  signedAmount: number
+  originalMerchantName: string
+  originalCategory: string
+  enrichmentSource: 'local' | 'rule' | 'override'
+  ruleId: string | null
+  canEdit: boolean
 }
 
-interface BankAccount {
-  id: string
-  name: string
-  type: 'checking' | 'savings' | 'credit' | 'investment'
-  target: number
-  knownExpenses: KnownExpense[]
+type Overview = {
+  canManage: boolean
+  ownerConfigured: boolean
+  providerConfigured: boolean
+  accounts: Account[]
+  connections: Connection[]
+  totals: Array<{ currency: string; amount: string }>
+  recentTransactions: Transaction[]
 }
 
-type SplitMethod = 'equal' | 'proportional' | 'custom'
+function currency(amount: string | number, code = 'EUR'): string {
+  const value = typeof amount === 'number' ? amount : Number(amount)
+  if (!Number.isFinite(value)) return `${amount} ${code}`
+  try {
+    return new Intl.NumberFormat('en-MT', { style: 'currency', currency: code }).format(value)
+  } catch {
+    return `${value.toFixed(2)} ${code}`
+  }
+}
 
-interface FinanceState {
-  earners: Earner[]
-  bankAccounts: BankAccount[]
-  splitMethod: SplitMethod
-  savingsPct: number
-  selectedTemplateKey: string
-  currentSavings: number
-  financialGoals?: Array<{
-    id: string
-    name: string
-    targetAmount: number
-    currentAmount: number
-    targetDate: string
-    category: 'emergency' | 'vacation' | 'home' | 'car' | 'education' | 'retirement' | 'other'
-    priority: 'low' | 'medium' | 'high'
-  }>
+function friendlyDate(value: string | null): string {
+  if (!value) return 'Date unavailable'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Date unavailable'
+  return new Intl.DateTimeFormat('en-MT', { day: 'numeric', month: 'short', year: 'numeric' }).format(parsed)
+}
+
+function relativeSync(value: string | null, now: number): string {
+  if (!value) return 'Not synced yet'
+  const elapsed = now - new Date(value).getTime()
+  if (elapsed < 60_000) return 'Synced just now'
+  if (elapsed < 60 * 60_000) return `Synced ${Math.floor(elapsed / 60_000)} min ago`
+  if (elapsed < 24 * 60 * 60_000) return `Synced ${Math.floor(elapsed / 3_600_000)} hr ago`
+  return `Synced ${friendlyDate(value)}`
+}
+
+function connectionTone(status: ConnectionStatus) {
+  if (status === 'ACTIVE') return { label: 'Connected', className: 'bg-green-50 text-green-700 border-green-200' }
+  if (status === 'REAUTH_REQUIRED') return { label: 'Reconnect required', className: 'bg-amber-50 text-amber-700 border-amber-200' }
+  if (status === 'ERROR') return { label: 'Sync problem', className: 'bg-red-50 text-red-700 border-red-200' }
+  return { label: 'Connecting', className: 'bg-blue-50 text-blue-700 border-blue-200' }
 }
 
 export default function FinancesPage() {
-  const { data: session, status } = useSession()
-  const [householdId, setHouseholdId] = useState<string>('')
+  const { status } = useSession()
+  const router = useRouter()
+  const [householdId, setHouseholdId] = useState('')
+  const [overview, setOverview] = useState<Overview | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  
-  // Financial planning state
-  const [earners, setEarners] = useState<Earner[]>([
-    { id: '1', name: 'You', salary: 0, keep: 0 },
-    { id: '2', name: 'Partner', salary: 0, keep: 0 },
-  ])
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([
-    { id: '1', name: 'Main Checking', type: 'checking', target: 0, knownExpenses: [] },
-    { id: '2', name: 'Emergency Fund', type: 'savings', target: 0, knownExpenses: [] },
-  ])
-  const [splitMethod, setSplitMethod] = useState<SplitMethod>('equal')
-  const [savingsPct, setSavingsPct] = useState(20)
-  const [selectedTemplateKey, setSelectedTemplateKey] = useState('fifty-thirty-twenty')
-  const [currentSavings, setCurrentSavings] = useState(0)
-  const [showShortcuts, setShowShortcuts] = useState(false)
-  const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error' | 'unsaved'>('saved')
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
-  const [showExportModal, setShowExportModal] = useState(false)
-  const [showImportModal, setShowImportModal] = useState(false)
-  const [financialGoals, setFinancialGoals] = useState<Array<{
-    id: string
-    name: string
-    targetAmount: number
-    currentAmount: number
-    targetDate: string
-    category: 'emergency' | 'vacation' | 'home' | 'car' | 'education' | 'retirement' | 'other'
-    priority: 'low' | 'medium' | 'high'
-  }>>([])
-  const [showGoalModal, setShowGoalModal] = useState(false)
+  const [transactionsLoading, setTransactionsLoading] = useState(false)
+  const [insights, setInsights] = useState<FinanceInsights | null>(null)
+  const [insightsLoading, setInsightsLoading] = useState(false)
+  const [insightDays, setInsightDays] = useState(90)
+  const [action, setAction] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [accountFilter, setAccountFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
+  const [transactionReload, setTransactionReload] = useState(0)
+  const [clock, setClock] = useState(0)
+  const [activeTab, setActiveTab] = useState<'overview' | 'statistics' | 'transactions' | 'subscriptions' | 'coach'>('overview')
+  const [renamingAccount, setRenamingAccount] = useState<string | null>(null)
+  const [accountName, setAccountName] = useState('')
+  const [editingTransaction, setEditingTransaction] = useState<EditableFinanceTransaction | null>(null)
+  const [rulesReload, setRulesReload] = useState(0)
+  const autoSyncAttempted = useRef(new Set<string>())
 
-  // Get household ID
   useEffect(() => {
-    if (status === 'authenticated') {
-      fetch('/api/household/active')
-        .then(res => res.json())
-        .then(data => {
-          if (data.householdId) {
-            setHouseholdId(data.householdId)
-          }
-          setLoading(false)
-        })
-        .catch(() => setLoading(false))
-    } else if (status === 'unauthenticated') {
-      setLoading(false)
-    }
-  }, [status])
+    const update = () => setClock(Date.now())
+    update()
+    const interval = setInterval(update, 60_000)
+    return () => clearInterval(interval)
+  }, [])
 
-  // Load financial data using the proper usePageState hook
-  const {
-    value: financeState,
-    setValue: setFinanceState,
-    loading: psLoading,
-    saving: psSaving,
-    error: psError,
-  } = usePageState<FinanceState>({
-    householdId,
-    page: 'finances',
-    initial: {
-      earners,
-      bankAccounts,
-      splitMethod,
-      savingsPct,
-      selectedTemplateKey,
-      currentSavings,
-    },
-    saveDelayMs: 700,
-  })
-
-  // Update local state when page state loads
   useEffect(() => {
-    if (financeState && !psLoading) {
-      setEarners(financeState.earners || earners)
-      setBankAccounts(financeState.bankAccounts || bankAccounts)
-      setSplitMethod(financeState.splitMethod || 'equal')
-      setSavingsPct(financeState.savingsPct || 20)
-      setSelectedTemplateKey(financeState.selectedTemplateKey || 'fifty-thirty-twenty')
-      setCurrentSavings(financeState.currentSavings || 0)
-      setFinancialGoals(financeState.financialGoals || [])
-    }
-  }, [financeState, psLoading])
+    const timeout = setTimeout(() => setSearch(searchInput.trim()), 300)
+    return () => clearTimeout(timeout)
+  }, [searchInput])
 
-  // Save financial data using usePageState
-  const saveFinancialData = (newState: Partial<FinanceState>) => {
-    setSaveStatus('saving')
-    setHasUnsavedChanges(false)
-    const state: FinanceState = {
-      earners,
-      bankAccounts,
-      splitMethod,
-      savingsPct,
-      selectedTemplateKey,
-      currentSavings,
-      financialGoals,
-      ...newState
-    }
-    setFinanceState(state)
-  }
-
-  // Track when user makes changes
-  const markAsChanged = () => {
-    setHasUnsavedChanges(true)
-    setSaveStatus('unsaved')
-  }
-
-  // Export financial plan
-  const exportFinancialPlan = () => {
-    const exportData = {
-      version: '1.0',
-      exportedAt: new Date().toISOString(),
-      data: {
-        earners,
-        bankAccounts,
-        splitMethod,
-        savingsPct,
-        selectedTemplateKey,
-        currentSavings,
-        financialGoals
-      }
-    }
-    
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `financial-plan-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-  }
-
-  // Import financial plan
-  const importFinancialPlan = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      try {
-        const importData = JSON.parse(e.target?.result as string)
-        
-        if (importData.version && importData.data) {
-          const { earners: importedEarners, bankAccounts: importedAccounts, splitMethod: importedSplitMethod, savingsPct: importedSavingsPct, selectedTemplateKey: importedTemplateKey, currentSavings: importedCurrentSavings, financialGoals: importedGoals } = importData.data
-          
-          // Validate imported data
-          if (Array.isArray(importedEarners) && Array.isArray(importedAccounts)) {
-            setEarners(importedEarners)
-            setBankAccounts(importedAccounts)
-            setSplitMethod(importedSplitMethod || 'equal')
-            setSavingsPct(importedSavingsPct || 20)
-            setSelectedTemplateKey(importedTemplateKey || 'fifty-thirty-twenty')
-            setCurrentSavings(importedCurrentSavings || 0)
-            setFinancialGoals(importedGoals || [])
-            
-            markAsChanged()
-            saveFinancialData({
-              earners: importedEarners,
-              bankAccounts: importedAccounts,
-              splitMethod: importedSplitMethod || 'equal',
-              savingsPct: importedSavingsPct || 20,
-              selectedTemplateKey: importedTemplateKey || 'fifty-thirty-twenty',
-              currentSavings: importedCurrentSavings || 0,
-              financialGoals: importedGoals || []
-            })
-            
-            alert('Financial plan imported successfully!')
-          } else {
-            alert('Invalid file format. Please select a valid financial plan file.')
-          }
-        } else {
-          alert('Invalid file format. Please select a valid financial plan file.')
-        }
-      } catch (error) {
-        alert('Error reading file. Please make sure it\'s a valid JSON file.')
-      }
-    }
-    reader.readAsText(file)
-    event.target.value = '' // Reset file input
-  }
-
-  // Goal management functions
-  const addGoal = (goal: Omit<typeof financialGoals[0], 'id'>) => {
-    const newGoal = {
-      ...goal,
-      id: Date.now().toString()
-    }
-    const newGoals = [...financialGoals, newGoal]
-    setFinancialGoals(newGoals)
-    markAsChanged()
-    saveFinancialData({ financialGoals: newGoals })
-  }
-
-  const updateGoal = (id: string, updates: Partial<typeof financialGoals[0]>) => {
-    const newGoals = financialGoals.map(goal => 
-      goal.id === id ? { ...goal, ...updates } : goal
-    )
-    setFinancialGoals(newGoals)
-    markAsChanged()
-    saveFinancialData({ financialGoals: newGoals })
-  }
-
-  const deleteGoal = (id: string) => {
-    const newGoals = financialGoals.filter(goal => goal.id !== id)
-    setFinancialGoals(newGoals)
-    markAsChanged()
-    saveFinancialData({ financialGoals: newGoals })
-  }
-
-  // Calculate goal progress
-  const getGoalProgress = (goal: typeof financialGoals[0]) => {
-    return Math.min((goal.currentAmount / goal.targetAmount) * 100, 100)
-  }
-
-  // Calculate monthly contribution needed for goal
-  const getMonthlyContribution = (goal: typeof financialGoals[0]) => {
-    const targetDate = new Date(goal.targetDate)
-    const now = new Date()
-    const monthsRemaining = Math.max(1, (targetDate.getFullYear() - now.getFullYear()) * 12 + (targetDate.getMonth() - now.getMonth()))
-    const remainingAmount = goal.targetAmount - goal.currentAmount
-    return Math.max(0, remainingAmount / monthsRemaining)
-  }
-
-  // Goal Form Component
-  const GoalForm = ({ onSubmit, onCancel }: {
-    onSubmit: (goal: Omit<typeof financialGoals[0], 'id'>) => void
-    onCancel: () => void
-  }) => {
-    const [formData, setFormData] = useState({
-      name: '',
-      targetAmount: 0,
-      currentAmount: 0,
-      targetDate: '',
-      category: 'other' as const,
-      priority: 'medium' as const
-    })
-
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault()
-      if (formData.name && formData.targetAmount > 0 && formData.targetDate) {
-        onSubmit(formData)
-      }
-    }
-
-    return (
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-cozy-text mb-1">Goal Name</label>
-          <Input
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="e.g., Emergency Fund, Vacation, New Car"
-            required
-          />
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-cozy-text mb-1">Target Amount</label>
-            <CurrencyInput
-              value={formData.targetAmount}
-              onChange={(value) => setFormData({ ...formData, targetAmount: value })}
-              placeholder="0"
-              showSuggestions={true}
-              suggestions={[1000, 2500, 5000, 10000, 15000, 25000, 50000]}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-cozy-text mb-1">Current Amount</label>
-            <CurrencyInput
-              value={formData.currentAmount}
-              onChange={(value) => setFormData({ ...formData, currentAmount: value })}
-              placeholder="0"
-              max={formData.targetAmount}
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label className="block text-sm font-medium text-cozy-text mb-1">Target Date</label>
-          <Input
-            type="date"
-            value={formData.targetDate}
-            onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
-            min={new Date().toISOString().split('T')[0]}
-            required
-          />
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-cozy-text mb-1">Category</label>
-            <select
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-              className="w-full px-3 py-2 border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
-            >
-              <option value="emergency">Emergency Fund</option>
-              <option value="vacation">Vacation</option>
-              <option value="home">Home</option>
-              <option value="car">Car</option>
-              <option value="education">Education</option>
-              <option value="retirement">Retirement</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-cozy-text mb-1">Priority</label>
-            <select
-              value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
-              className="w-full px-3 py-2 border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-        </div>
-        
-        <div className="flex gap-3 pt-4">
-          <Button type="submit" className="flex-1">
-            Create Goal
-          </Button>
-          <Button type="button" variant="outline" onClick={onCancel} className="flex-1">
-            Cancel
-          </Button>
-        </div>
-      </form>
-    )
-  }
-
-  // Section collapsing helpers
-  const toggleSection = (sectionId: string) => {
-    const newCollapsed = new Set(collapsedSections)
-    if (newCollapsed.has(sectionId)) {
-      newCollapsed.delete(sectionId)
-    } else {
-      newCollapsed.add(sectionId)
-    }
-    setCollapsedSections(newCollapsed)
-  }
-
-  const isSectionCollapsed = (sectionId: string) => collapsedSections.has(sectionId)
-
-  // Collapsible Section Component
-  const CollapsibleSection = ({ 
-    id, 
-    title, 
-    children, 
-    defaultCollapsed = false,
-    icon,
-    badge
-  }: {
-    id: string
-    title: string
-    children: React.ReactNode
-    defaultCollapsed?: boolean
-    icon?: React.ReactNode
-    badge?: string | number
-  }) => {
-    const isCollapsed = isSectionCollapsed(id)
-    
-    useEffect(() => {
-      if (defaultCollapsed && !collapsedSections.has(id)) {
-        setCollapsedSections(prev => new Set([...prev, id]))
-      }
-    }, [id, defaultCollapsed])
-
-    return (
-      <Card>
-        <CardHeader 
-          className="cursor-pointer hover:bg-cozy-gray-50 transition-colors"
-          onClick={() => toggleSection(id)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {icon}
-              <CardTitle className="text-lg">{title}</CardTitle>
-              {badge && (
-                <Badge variant="secondary" className="text-xs">
-                  {badge}
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-cozy-text-muted">
-                {isCollapsed ? 'Click to expand' : 'Click to collapse'}
-              </span>
-              <div className={`transform transition-transform ${isCollapsed ? 'rotate-180' : ''}`}>
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-        {!isCollapsed && (
-          <CardContent>
-            {children}
-          </CardContent>
-        )}
-      </Card>
-    )
-  }
-
-  // Track save status changes
   useEffect(() => {
-    if (psSaving) {
-      setSaveStatus('saving')
-    } else if (psError) {
-      setSaveStatus('error')
-    } else if (financeState) {
-      setSaveStatus('saved')
-      setLastSaved(new Date())
+    if (!router.isReady) return
+    if (router.query.bankConnected === '1') {
+      setNotice(router.query.syncWarning === '1'
+        ? 'Bank connected. The first sync needs another try.'
+        : 'Bank of Valletta connected successfully.')
+    } else if (router.query.bankError) {
+      const messages: Record<string, string> = {
+        authorization_cancelled: 'Bank connection was cancelled.',
+        session_expired: 'Your HouseFlow session expired. Sign in and connect again.',
+        invalid_or_expired_state: 'That bank connection link expired. Please start again.',
+      }
+      setError(messages[String(router.query.bankError)] || 'The bank connection could not be completed.')
     }
-  }, [psSaving, psError, financeState])
+    if (router.query.bankConnected || router.query.bankError || router.query.syncWarning) {
+      void router.replace('/finances', undefined, { shallow: true })
+    }
+  }, [router.isReady, router.query.bankConnected, router.query.bankError, router.query.syncWarning, router])
 
-  // Keyboard shortcuts handler
-  const handleKeyboardShortcuts = useCallback((event: KeyboardEvent) => {
-    // Only handle shortcuts when not in input fields
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+  const loadOverview = useCallback(async (id: string, showLoader = false) => {
+    if (showLoader) setLoading(true)
+    const response = await fetch(`/api/finance/overview?householdId=${encodeURIComponent(id)}`)
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(payload?.error || 'Unable to load finances')
+    setOverview(payload as Overview)
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    if (status !== 'authenticated') {
+      if (status === 'unauthenticated') setLoading(false)
       return
     }
+    let active = true
+    ;(async () => {
+      try {
+        const response = await fetch('/api/household/active')
+        const payload = await response.json().catch(() => null)
+        if (!response.ok) throw new Error(payload?.error || 'Unable to load household')
+        if (!active) return
+        const id = typeof payload?.householdId === 'string' ? payload.householdId : ''
+        setHouseholdId(id)
+        if (id) await loadOverview(id, true)
+        else setLoading(false)
+      } catch (loadError) {
+        if (active) {
+          setError(loadError instanceof Error ? loadError.message : 'Unable to load finances')
+          setLoading(false)
+        }
+      }
+    })()
+    return () => { active = false }
+  }, [status, loadOverview])
 
-    const { key, ctrlKey, metaKey } = event
-    const isCtrlOrCmd = ctrlKey || metaKey
-
-    // Ctrl/Cmd + ? - Show shortcuts help
-    if (isCtrlOrCmd && key === '?') {
-      event.preventDefault()
-      setShowShortcuts(true)
+  const loadTransactions = useCallback(async (append = false) => {
+    if (!householdId || !overview) return
+    setTransactionsLoading(true)
+    try {
+      const query = new URLSearchParams({ householdId })
+      if (accountFilter) query.set('accountId', accountFilter)
+      if (statusFilter) query.set('status', statusFilter)
+      if (dateFrom) query.set('dateFrom', dateFrom)
+      if (dateTo) query.set('dateTo', dateTo)
+      if (search) query.set('search', search)
+      if (append && nextCursor) query.set('cursor', nextCursor)
+      const response = await fetch(`/api/finance/transactions?${query.toString()}`)
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'Unable to load transactions')
+      setTransactions(current => append ? [...current, ...(payload.transactions || [])] : payload.transactions || [])
+      setNextCursor(payload.nextCursor || null)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load transactions')
+    } finally {
+      setTransactionsLoading(false)
     }
+  }, [accountFilter, dateFrom, dateTo, householdId, nextCursor, overview, search, statusFilter])
 
-    // Ctrl/Cmd + S - Save (prevent default browser save)
-    if (isCtrlOrCmd && key === 's') {
-      event.preventDefault()
-      // Trigger save by updating a dummy state
-      saveFinancialData({})
-    }
-
-    // Ctrl/Cmd + A - Auto balance
-    if (isCtrlOrCmd && key === 'a') {
-      event.preventDefault()
-      // Trigger auto balance
-      setSelectedTemplateKey('auto-balance')
-    }
-
-    // Escape - Close shortcuts help
-    if (key === 'Escape') {
-      setShowShortcuts(false)
-    }
-  }, [saveFinancialData])
-
-  // Add keyboard event listeners
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyboardShortcuts)
-    return () => {
-      document.removeEventListener('keydown', handleKeyboardShortcuts)
+    if (!overview || !householdId) return
+    void loadTransactions(false)
+    // nextCursor intentionally excluded; changing it must not reload page one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountFilter, dateFrom, dateTo, householdId, overview?.accounts.length, search, statusFilter, transactionReload])
+
+  const loadInsights = useCallback(async () => {
+    if (!householdId || !overview?.accounts.length) return
+    setInsightsLoading(true)
+    try {
+      const query = new URLSearchParams({ householdId, days: String(insightDays) })
+      if (accountFilter) query.set('accountId', accountFilter)
+      const response = await fetch(`/api/finance/insights?${query.toString()}`)
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'Unable to load finance insights')
+      setInsights(payload as FinanceInsights)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load finance insights')
+    } finally {
+      setInsightsLoading(false)
     }
-  }, [handleKeyboardShortcuts])
+  }, [accountFilter, householdId, insightDays, overview?.accounts.length])
 
-  // Calculate totals
-  const totalSalary = earners.reduce((sum, earner) => sum + earner.salary, 0)
-  const totalTargets = bankAccounts.reduce((sum, account) => sum + account.target, 0)
-  const autoSavingsTarget = (totalSalary * savingsPct) / 100
-  const totalPersonalKeep = earners.reduce((sum, earner) => sum + earner.keep, 0)
-  
-  // Calculate if the whole pool is accounted for
-  const totalAllocated = autoSavingsTarget + totalTargets + totalPersonalKeep
-  const unallocatedAmount = totalSalary - totalAllocated
-  const isFullyAllocated = Math.abs(unallocatedAmount) < 0.01 // Account for floating point precision
-  const allocationPercentage = totalSalary > 0 ? (totalAllocated / totalSalary) * 100 : 0
-  const totalMonthly = totalTargets + autoSavingsTarget
-  const remaining = totalSalary - totalMonthly
+  useEffect(() => {
+    void loadInsights()
+  }, [loadInsights, transactionReload])
 
-  // Split calculation
-  const calculateSplit = (target: number, earner: Earner) => {
-    switch (splitMethod) {
-      case 'equal':
-        return target / earners.length
-      case 'proportional':
-        return earner.salary > 0 ? (target * earner.salary) / totalSalary : 0
-      case 'custom':
-        return earner.keep
-      default:
-        return target / earners.length
+  const syncConnection = useCallback(async (connectionId: string, automatic = false) => {
+    if (!householdId) return
+    setAction(`sync:${connectionId}`)
+    if (!automatic) {
+      setError(null)
+      setNotice(null)
     }
-  }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-    }).format(amount)
-  }
-
-  // Format currency for input (removes currency symbols)
-  const formatCurrencyForInput = (value: string) => {
-    // Remove all non-numeric characters except decimal point
-    const numericValue = value.replace(/[^\d.-]/g, '')
-    return numericValue
-  }
-
-  // Parse currency from input
-  const parseCurrency = (value: string) => {
-    const numericValue = parseFloat(value.replace(/[^\d.-]/g, ''))
-    return isNaN(numericValue) ? 0 : numericValue
-  }
-
-  // Format currency for display in input
-  const formatCurrencyInput = (value: number) => {
-    if (value === 0) return ''
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 2,
-    }).format(value)
-  }
-
-  // Currency Input Component with validation
-  const CurrencyInput = ({ 
-    value, 
-    onChange, 
-    placeholder, 
-    className = "",
-    max,
-    min = 0,
-    showSuggestions = false,
-    suggestions = []
-  }: {
-    value: number
-    onChange: (value: number) => void
-    placeholder?: string
-    className?: string
-    max?: number
-    min?: number
-    showSuggestions?: boolean
-    suggestions?: number[]
-  }) => {
-    const [displayValue, setDisplayValue] = useState(formatCurrencyInput(value))
-    const [showSuggestionDropdown, setShowSuggestionDropdown] = useState(false)
-    const [isValid, setIsValid] = useState(true)
-    const [validationMessage, setValidationMessage] = useState('')
-
-    useEffect(() => {
-      setDisplayValue(formatCurrencyInput(value))
-    }, [value])
-
-    const validateValue = (val: number) => {
-      if (max !== undefined && val > max) {
-        setIsValid(false)
-        setValidationMessage(`Maximum allowed: ${formatCurrency(max)}`)
-        return false
-      }
-      if (val < min) {
-        setIsValid(false)
-        setValidationMessage(`Minimum allowed: ${formatCurrency(min)}`)
-        return false
-      }
-      setIsValid(true)
-      setValidationMessage('')
-      return true
+    try {
+      const response = await fetch(`/api/finance/connections/${encodeURIComponent(connectionId)}/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'Bank sync failed')
+      await loadOverview(householdId)
+      setTransactionReload(value => value + 1)
+      if (!automatic) setNotice('Bank data refreshed.')
+    } catch (syncError) {
+      if (!automatic) setError(syncError instanceof Error ? syncError.message : 'Bank sync failed')
+      await loadOverview(householdId).catch(() => undefined)
+    } finally {
+      setAction(null)
     }
+  }, [householdId, loadOverview])
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const inputValue = e.target.value
-      const numericValue = parseCurrency(inputValue)
-      
-      setDisplayValue(inputValue)
-      validateValue(numericValue)
-      onChange(numericValue)
-    }
-
-    const handleBlur = () => {
-      setDisplayValue(formatCurrencyInput(value))
-      setShowSuggestionDropdown(false)
-    }
-
-    const handleFocus = () => {
-      if (showSuggestions && suggestions.length > 0) {
-        setShowSuggestionDropdown(true)
+  useEffect(() => {
+    if (!overview?.canManage) return
+    for (const connection of overview.connections) {
+      const stale = !connection.lastSyncedAt
+        || Date.now() - new Date(connection.lastSyncedAt).getTime() > 15 * 60_000
+      if (connection.status === 'ACTIVE' && stale && !autoSyncAttempted.current.has(connection.id)) {
+        autoSyncAttempted.current.add(connection.id)
+        void syncConnection(connection.id, true)
       }
     }
+  }, [overview, syncConnection])
 
-    const handleSuggestionClick = (suggestion: number) => {
-      setDisplayValue(formatCurrencyInput(suggestion))
-      onChange(suggestion)
-      setShowSuggestionDropdown(false)
+  const startConnection = async (connectionId?: string) => {
+    if (!householdId) return
+    setError(null)
+    setNotice(null)
+    setAction(connectionId ? `reconnect:${connectionId}` : 'connect')
+    try {
+      const response = await fetch('/api/finance/connections/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId, ...(connectionId ? { connectionId } : {}) }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'Unable to start bank connection')
+      window.location.assign(payload.authorizationUrl)
+    } catch (connectionError) {
+      setError(connectionError instanceof Error ? connectionError.message : 'Unable to start bank connection')
+      setAction(null)
     }
-
-    return (
-      <div className="relative">
-        <Input
-          type="text"
-          value={displayValue}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          onFocus={handleFocus}
-          placeholder={placeholder || "0"}
-          className={`${className} ${!isValid ? 'border-red-300 bg-red-50' : ''}`}
-        />
-        {!isValid && (
-          <p className="text-xs text-red-600 mt-1">{validationMessage}</p>
-        )}
-        {showSuggestionDropdown && suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 bg-white border border-cozy-gray-200 rounded-md shadow-lg z-10 mt-1">
-            <div className="p-2">
-              <p className="text-xs text-cozy-text-muted mb-2">Suggestions:</p>
-              {suggestions.map((suggestion, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSuggestionClick(suggestion)}
-                  className="w-full text-left px-2 py-1 text-sm hover:bg-cozy-gray-50 rounded"
-                >
-                  {formatCurrency(suggestion)}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )
   }
 
-  if (status === 'loading' || loading) {
-    return (
-      <ModernAppShell title="Finances">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-cozy-text-muted">Loading your financial plan...</p>
-            <div className="mt-4 space-y-2">
-              <div className="h-2 bg-cozy-gray-200 rounded-full w-48 mx-auto">
-                <div className="h-2 bg-cozy-primary rounded-full animate-pulse" style={{ width: '60%' }}></div>
-              </div>
-              <p className="text-xs text-cozy-text-muted">Setting up your financial planning workspace</p>
-            </div>
-          </div>
-        </div>
-      </ModernAppShell>
-    )
+  const changeSharing = async (account: Account) => {
+    if (!householdId) return
+    setAction(`share:${account.id}`)
+    setError(null)
+    try {
+      const response = await fetch(`/api/finance/accounts/${encodeURIComponent(account.id)}/sharing`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId, shared: !account.shared }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'Unable to change sharing')
+      await loadOverview(householdId)
+      setNotice(account.shared ? 'Account is now private.' : 'Account is now visible to your household.')
+    } catch (shareError) {
+      setError(shareError instanceof Error ? shareError.message : 'Unable to change sharing')
+    } finally {
+      setAction(null)
+    }
   }
 
-  if (status === 'unauthenticated') {
-    return (
-      <ModernAppShell title="Finances">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-red-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-cozy-text mb-2">Authentication Required</h2>
-            <p className="text-cozy-text-muted mb-4">
-              You need to be logged in to access your financial planning tools. This ensures your financial data remains secure and private.
-            </p>
-            <Button 
-              onClick={() => window.location.href = '/api/auth/signin'}
-              className="bg-cozy-primary hover:bg-cozy-primary/90 text-white"
-            >
-              Sign In to Continue
-            </Button>
-          </div>
-        </div>
-      </ModernAppShell>
-    )
+  const disconnect = async (connection: Connection) => {
+    if (!householdId || !window.confirm(
+      'Disconnect Bank of Valletta? This revokes consent and permanently removes every imported balance and transaction from HouseFlow.',
+    )) return
+    setAction(`disconnect:${connection.id}`)
+    setError(null)
+    try {
+      const response = await fetch(`/api/finance/connections/${encodeURIComponent(connection.id)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'Unable to disconnect bank')
+      setAccountFilter('')
+      await loadOverview(householdId)
+      setTransactionReload(value => value + 1)
+      setNotice('Bank disconnected and imported data deleted.')
+    } catch (disconnectError) {
+      setError(disconnectError instanceof Error ? disconnectError.message : 'Unable to disconnect bank')
+    } finally {
+      setAction(null)
+    }
   }
 
-  if (!householdId) {
-    return (
-      <ModernAppShell title="Finances">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-blue-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-cozy-text mb-2">Setting Up Your Household</h2>
-            <p className="text-cozy-text-muted mb-4">
-              We&apos;re creating or locating your household workspace. This may take a moment while we set up your financial planning environment.
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-cozy-text-muted">
-              <div className="w-3 h-3 border border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-              <span>Initializing...</span>
-            </div>
-          </div>
-        </div>
-      </ModernAppShell>
-    )
+  const renameAccount = async (account: Account, reset = false) => {
+    if (!householdId) return
+    setAction(`rename:${account.id}`)
+    setError(null)
+    try {
+      const response = await fetch(`/api/finance/accounts/${encodeURIComponent(account.id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId, customName: reset ? null : accountName }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error || 'Unable to rename account')
+      setRenamingAccount(null)
+      await loadOverview(householdId)
+      setTransactionReload(value => value + 1)
+      setNotice(reset ? 'Account name reset to the bank name.' : 'Friendly account name saved.')
+    } catch (renameError) {
+      setError(renameError instanceof Error ? renameError.message : 'Unable to rename account')
+    } finally { setAction(null) }
   }
 
-  // Handle page state errors
-  if (psError) {
+  const selectedAccountIds = useMemo(() => new Set(overview?.accounts.map(account => account.id) || []), [overview])
+  useEffect(() => {
+    if (accountFilter && !selectedAccountIds.has(accountFilter)) setAccountFilter('')
+  }, [accountFilter, selectedAccountIds])
+
+  if (loading || status === 'loading') {
     return (
-      <ModernAppShell title="Finances">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center max-w-md">
-            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <AlertCircle className="w-8 h-8 text-red-600" />
-            </div>
-            <h2 className="text-xl font-semibold text-cozy-text mb-2">Unable to Load Financial Data</h2>
-            <p className="text-cozy-text-muted mb-4">
-              We encountered an issue while loading your financial planning data. This might be a temporary network issue.
-            </p>
-            <div className="space-y-2">
-              <Button 
-                onClick={() => window.location.reload()}
-                className="bg-cozy-primary hover:bg-cozy-primary/90 text-white mr-2"
-              >
-                Try Again
-              </Button>
-              <Button 
-                onClick={() => window.location.href = '/dashboard'}
-                variant="outline"
-              >
-                Go to Dashboard
-              </Button>
-            </div>
-            <p className="text-xs text-cozy-text-muted mt-4">
-              If this problem persists, please contact support.
-            </p>
+      <ModernAppShell title="Finance">
+        <div className="min-h-[420px] flex items-center justify-center">
+          <div className="text-center text-cozy-text-muted">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-cozy-primary" />
+            Loading your finances…
           </div>
         </div>
       </ModernAppShell>
@@ -801,1370 +429,447 @@ export default function FinancesPage() {
   }
 
   return (
-    <ModernAppShell title="Finances">
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-cozy-text mb-2 flex items-center gap-3">
-            <span className="animate-cozy-wiggle">💰</span>Financial Planning
-            <div className="flex items-center gap-2 text-sm">
-              {saveStatus === 'saving' && (
-                <div className="flex items-center gap-2 text-cozy-text-muted">
-                  <div className="w-3 h-3 border border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
-                  <span>Saving...</span>
-                </div>
-              )}
-              {saveStatus === 'saved' && lastSaved && (
-                <div className="flex items-center gap-2 text-green-600">
-                  <CheckCircle className="w-3 h-3" />
-                  <span className="hidden sm:inline">Saved {lastSaved.toLocaleTimeString()}</span>
-                  <span className="sm:hidden">Saved</span>
-                </div>
-              )}
-              {saveStatus === 'error' && (
-                <div className="flex items-center gap-2 text-red-600">
-                  <AlertCircle className="w-3 h-3" />
-                  <span>Save failed</span>
-                </div>
-              )}
-              {saveStatus === 'unsaved' && (
-                <div className="flex items-center gap-2 text-orange-600">
-                  <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
-                  <span className="hidden sm:inline">Unsaved changes</span>
-                  <span className="sm:hidden">Unsaved</span>
-                </div>
-              )}
+    <ModernAppShell title="Finance">
+      <div className="space-y-6 max-w-7xl mx-auto">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-2 text-sm font-medium text-cozy-primary">
+              <ShieldCheck className="w-4 h-4" />
+              Read-only open banking
             </div>
-          </h1>
-          <div className="flex items-center justify-between">
-            <p className="text-cozy-text-muted">Plan your household finances with love and care</p>
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={exportFinancialPlan}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <span className="hidden sm:inline">Export Plan</span>
-                <span className="sm:hidden">📤</span>
-              </Button>
-              <Button
-                onClick={() => setShowImportModal(true)}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <span className="hidden sm:inline">Import Plan</span>
-                <span className="sm:hidden">📥</span>
-              </Button>
-              <Button
-                onClick={() => setShowShortcuts(true)}
-                variant="outline"
-                size="sm"
-                className="text-xs"
-              >
-                <span className="hidden sm:inline">Keyboard Shortcuts</span>
-                <span className="sm:hidden">⌨️</span>
-              </Button>
-            </div>
+            <h1 className="text-3xl font-bold text-cozy-text">Your money, in one calm view</h1>
+            <p className="text-cozy-text-muted mt-1">Balances and activity from Bank of Valletta.</p>
           </div>
+          {overview?.canManage && overview.connections.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => syncConnection(overview.connections[0].id)}
+              disabled={Boolean(action)}
+            >
+              {action === `sync:${overview.connections[0].id}`
+                ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                : <RefreshCw className="w-4 h-4 mr-2" />}
+              Refresh
+            </Button>
+          )}
         </div>
 
-        {/* Keyboard Shortcuts Modal */}
-        {showShortcuts && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-cozy-text">Keyboard Shortcuts</h2>
-                <Button
-                  onClick={() => setShowShortcuts(false)}
-                  variant="outline"
-                  size="sm"
-                >
-                  ✕
-                </Button>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-cozy-text-muted">Show shortcuts help</span>
-                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + ?</kbd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-cozy-text-muted">Save changes</span>
-                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + S</kbd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-cozy-text-muted">Auto balance budget</span>
-                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Ctrl + A</kbd>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-cozy-text-muted">Close this dialog</span>
-                  <kbd className="px-2 py-1 bg-cozy-gray-100 rounded text-xs">Esc</kbd>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-cozy-gray-200">
-                <p className="text-xs text-cozy-text-muted">
-                  💡 Tip: Use <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs">Cmd</kbd> instead of <kbd className="px-1 py-0.5 bg-cozy-gray-100 rounded text-xs">Ctrl</kbd> on Mac
-                </p>
-              </div>
-            </div>
+        {notice && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 flex gap-3">
+            <CheckCircle2 className="w-5 h-5 shrink-0" />
+            <span>{notice}</span>
+          </div>
+        )}
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex gap-3">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Import Modal */}
-        {showImportModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-cozy-text">Import Financial Plan</h2>
-                <Button
-                  onClick={() => setShowImportModal(false)}
-                  variant="outline"
-                  size="sm"
+        {overview && overview.accounts.length > 0 && (
+          <div className="flex flex-col gap-3 rounded-xl border border-cozy-gray-200 bg-cozy-surface p-2 lg:flex-row lg:items-center lg:justify-between">
+            <nav className="grid grid-cols-2 gap-1 sm:flex" aria-label="Finance sections">
+              {([
+                ['overview', 'Overview', LayoutDashboard],
+                ['statistics', 'Statistics', BarChart3],
+                ['transactions', 'Transactions', ReceiptText],
+                ['subscriptions', 'Subscriptions', Repeat2],
+                ['coach', 'Spending coach', Sparkles],
+              ] as const).map(([id, label, Icon]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setActiveTab(id)}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${activeTab === id ? 'bg-cozy-primary text-white shadow-sm' : 'text-cozy-text-muted hover:bg-cozy-cream hover:text-cozy-text'}`}
                 >
-                  ✕
-                </Button>
-              </div>
-              <div className="space-y-4">
-                <p className="text-sm text-cozy-text-muted">
-                  Select a financial plan file (.json) to import. This will replace your current plan.
-                </p>
-                <div className="border-2 border-dashed border-cozy-gray-300 rounded-lg p-6 text-center">
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={importFinancialPlan}
-                    className="hidden"
-                    id="import-file"
-                  />
-                  <label
-                    htmlFor="import-file"
-                    className="cursor-pointer flex flex-col items-center gap-2"
-                  >
-                    <div className="w-12 h-12 bg-cozy-gray-100 rounded-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-cozy-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                    </div>
-                    <span className="text-sm font-medium text-cozy-text">Choose File</span>
-                    <span className="text-xs text-cozy-text-muted">or drag and drop</span>
-                  </label>
-                </div>
-                <div className="text-xs text-cozy-text-muted">
-                  <p className="font-medium mb-1">Supported formats:</p>
-                  <p>• JSON files exported from this app</p>
-                  <p>• Files must contain valid financial plan data</p>
-                </div>
-              </div>
-            </div>
+                  <Icon className="h-4 w-4" />{label}
+                </button>
+              ))}
+            </nav>
+            <select
+              className="h-10 rounded-lg border border-cozy-gray-300 bg-white px-3 text-sm lg:min-w-52"
+              value={accountFilter}
+              onChange={event => setAccountFilter(event.target.value)}
+              aria-label="Focus finance page on one account"
+            >
+              <option value="">All visible accounts</option>
+              {overview.accounts.map(account => <option key={account.id} value={account.id}>{account.displayName}</option>)}
+            </select>
           </div>
         )}
 
-        {/* Goal Creation Modal */}
-        {showGoalModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-md w-full p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-cozy-text">Create Financial Goal</h2>
-                <Button
-                  onClick={() => setShowGoalModal(false)}
-                  variant="outline"
-                  size="sm"
-                >
-                  ✕
-                </Button>
-              </div>
-              <GoalForm
-                onSubmit={(goal) => {
-                  addGoal(goal)
-                  setShowGoalModal(false)
-                }}
-                onCancel={() => setShowGoalModal(false)}
-              />
-            </div>
-          </div>
+        {!householdId && (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <WalletCards className="w-10 h-10 mx-auto mb-3 text-cozy-text-muted" />
+              <h2 className="font-semibold text-lg">Create or join a household first</h2>
+              <p className="text-sm text-cozy-text-muted mt-1">Finance visibility follows your active household.</p>
+            </CardContent>
+          </Card>
         )}
 
-        {/* Financial Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="border-l-4 border-l-green-500">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Total Income</p>
-                  <p className="text-2xl font-bold text-green-600">{formatCurrency(totalSalary)}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-600" />
-              </div>
+        {householdId && overview && !overview.ownerConfigured && (
+          <Card className="border-amber-200">
+            <CardContent className="py-8">
+              <h2 className="font-semibold">Set the finance owner</h2>
+              <p className="text-sm text-cozy-text-muted mt-1">
+                Configure <code className="px-1 py-0.5 rounded bg-cozy-cream">FINANCE_OWNER_EMAIL</code> with your HouseFlow email and restart the app.
+              </p>
             </CardContent>
           </Card>
+        )}
 
-          <Card className="border-l-4 border-l-blue-500">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Monthly Budget</p>
-                  <p className="text-2xl font-bold text-blue-600">{formatCurrency(totalMonthly)}</p>
-                </div>
-                <Target className="h-8 w-8 text-blue-600" />
-              </div>
+        {householdId && overview?.canManage && !overview.providerConfigured && (
+          <Card className="border-amber-200">
+            <CardContent className="py-8">
+              <h2 className="font-semibold">Enable Banking setup needed</h2>
+              <p className="text-sm text-cozy-text-muted mt-1 max-w-2xl">
+                Register a restricted-production application, pre-link your BOV accounts, then configure its application ID and base64-encoded private key in HouseFlow.
+              </p>
             </CardContent>
           </Card>
+        )}
 
-          <Card className="border-l-4 border-l-cozy-primary">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Savings Rate</p>
-                  <p className="text-2xl font-bold text-cozy-primary">{savingsPct}%</p>
-                </div>
-                <PiggyBank className="h-8 w-8 text-cozy-primary" />
+        {householdId && overview?.ownerConfigured && overview.accounts.length === 0 && (
+          <Card className="overflow-hidden">
+            <CardContent className="py-14 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-cozy-primary-soft mx-auto mb-4 flex items-center justify-center">
+                <Building2 className="w-7 h-7 text-cozy-primary" />
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`border-l-4 ${isFullyAllocated ? 'border-l-green-500' : 'border-l-orange-500'}`}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-cozy-text-muted">Allocation</p>
-                  <p className={`text-2xl font-bold ${isFullyAllocated ? 'text-green-600' : 'text-orange-600'}`}>
-                    {allocationPercentage.toFixed(0)}%
+              {overview.canManage ? (
+                <>
+                  <h2 className="text-xl font-semibold">Connect Bank of Valletta</h2>
+                  <p className="text-sm text-cozy-text-muted mt-2 max-w-lg mx-auto">
+                    You will continue to BOV to approve read-only access. HouseFlow never receives your bank password or permission to make payments.
                   </p>
-                </div>
-                {isFullyAllocated ? (
-                  <CheckCircle className="h-8 w-8 text-green-600" />
-                ) : (
-                  <AlertCircle className="h-8 w-8 text-orange-600" />
-                )}
-              </div>
+                  <Button
+                    className="mt-6"
+                    onClick={() => startConnection()}
+                    disabled={!overview.providerConfigured || Boolean(action)}
+                  >
+                    {action === 'connect' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Link2 className="w-4 h-4 mr-2" />}
+                    Connect BOV
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-xl font-semibold">No accounts are shared yet</h2>
+                  <p className="text-sm text-cozy-text-muted mt-2">The finance owner controls which accounts the household can view.</p>
+                </>
+              )}
             </CardContent>
           </Card>
-        </div>
+        )}
 
-        {/* Allocation Status */}
-        <Card className={isFullyAllocated ? 'border-green-200 bg-green-50/50' : 'border-orange-200 bg-orange-50/50'}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {isFullyAllocated ? (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              ) : (
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-              )}
-              Income Allocation Status
-            </CardTitle>
-            <CardDescription>
-              {isFullyAllocated 
-                ? 'Perfect! All income is properly allocated across savings, expenses, and personal allowances.'
-                : 'Your income allocation needs attention. Some money is not yet assigned to specific purposes.'
-              }
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Allocation Breakdown */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-cozy-text-muted">Total Income:</span>
-                    <span className="font-semibold">{formatCurrency(totalSalary)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-cozy-text-muted">Auto Savings ({savingsPct}%):</span>
-                    <span className="font-semibold text-green-600">{formatCurrency(autoSavingsTarget)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-cozy-text-muted">Bank Account Targets:</span>
-                    <span className="font-semibold text-blue-600">{formatCurrency(totalTargets)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-cozy-text-muted">Personal Allowances:</span>
-                    <span className="font-semibold text-purple-600">{formatCurrency(totalPersonalKeep)}</span>
-                  </div>
-                  <hr className="my-2" />
-                  <div className="flex justify-between text-sm font-semibold">
-                    <span>Total Allocated:</span>
-                    <span className={isFullyAllocated ? 'text-green-600' : 'text-orange-600'}>
-                      {formatCurrency(totalAllocated)}
-                    </span>
-                  </div>
-                  {!isFullyAllocated && (
-                    <div className="flex justify-between text-sm font-semibold">
-                      <span>Unallocated:</span>
-                      <span className="text-red-600">{formatCurrency(unallocatedAmount)}</span>
-                    </div>
-                  )}
-                  
-                  {/* Smart Suggestions */}
-                  {!isFullyAllocated && totalSalary > 0 && (
-                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <div className="text-sm font-semibold text-blue-800 mb-2">💡 Smart Suggestions:</div>
-                      <div className="space-y-1 text-xs text-blue-700">
-                        {unallocatedAmount > 0 ? (
-                          <>
-                            <div>• Max savings rate: {Math.min(50, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(1)}%</div>
-                            <div>• Max per account: {formatCurrency((totalTargets + unallocatedAmount) / bankAccounts.length)}</div>
-                            <div>• Max per earner: {formatCurrency((totalPersonalKeep + unallocatedAmount) / earners.length)}</div>
-                          </>
-                        ) : (
-                          <>
-                            <div>• Min savings rate: {Math.max(5, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(1)}%</div>
-                            <div>• Max per account: {formatCurrency(Math.max(0, (totalTargets + unallocatedAmount) / bankAccounts.length))}</div>
-                            <div>• Max per earner: {formatCurrency(Math.max(0, (totalPersonalKeep + unallocatedAmount) / earners.length))}</div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Visual Progress Bar */}
-                <div className="space-y-2">
-                  <div className="text-sm font-medium text-cozy-text">Allocation Progress</div>
-                  <div className="w-full bg-cozy-gray-200 rounded-full h-4">
-                    <div
-                      className={`h-4 rounded-full transition-all duration-500 ${
-                        isFullyAllocated 
-                          ? 'bg-gradient-to-r from-green-500 to-green-600' 
-                          : 'bg-gradient-to-r from-orange-500 to-orange-600'
-                      }`}
-                      style={{ width: `${Math.min(allocationPercentage, 100)}%` }}
-                    />
-                  </div>
-                  <div className="text-xs text-cozy-text-muted">
-                    {allocationPercentage.toFixed(1)}% of income allocated
-                  </div>
-                </div>
-              </div>
-
-              {/* Smart Allocation Actions */}
-              {!isFullyAllocated && (
-                <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                  <h5 className="font-semibold text-orange-800 mb-3">Smart Allocation Options:</h5>
-                  
-                  {unallocatedAmount > 0 ? (
-                    <div className="space-y-3">
-                      <div className="text-sm text-orange-700 mb-3">
-                        You have {formatCurrency(unallocatedAmount)} unallocated. Choose how to distribute it:
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {/* Auto-distribute to savings */}
-                        <Button
-                          onClick={() => {
-                            const newSavingsPct = Math.min(50, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100)
-                            setSavingsPct(newSavingsPct)
-                            setSelectedTemplateKey('custom')
-                            saveFinancialData({ 
-                              savingsPct: newSavingsPct,
-                              selectedTemplateKey: 'custom'
-                            })
-                          }}
-                          variant="outline"
-                          className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
-                        >
-                          <div>
-                            <div className="font-semibold text-orange-800">Add to Savings</div>
-                            <div className="text-xs text-orange-600">Increase savings rate to {Math.min(50, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(1)}%</div>
-                          </div>
-                        </Button>
-
-                        {/* Auto-distribute to bank accounts */}
-                        <Button
-                          onClick={() => {
-                            const newAccounts = bankAccounts.map(account => ({
-                              ...account,
-                              target: account.target + (unallocatedAmount / bankAccounts.length)
-                            }))
-                            setBankAccounts(newAccounts)
-                            saveFinancialData({ bankAccounts: newAccounts })
-                          }}
-                          variant="outline"
-                          className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
-                        >
-                          <div>
-                            <div className="font-semibold text-orange-800">Split Between Accounts</div>
-                            <div className="text-xs text-orange-600">Add {formatCurrency(unallocatedAmount / bankAccounts.length)} to each account</div>
-                          </div>
-                        </Button>
-
-                        {/* Auto-distribute to personal allowances */}
-                        <Button
-                          onClick={() => {
-                            const newEarners = earners.map(earner => ({
-                              ...earner,
-                              keep: earner.keep + (unallocatedAmount / earners.length)
-                            }))
-                            setEarners(newEarners)
-                            saveFinancialData({ earners: newEarners })
-                          }}
-                          variant="outline"
-                          className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
-                        >
-                          <div>
-                            <div className="font-semibold text-orange-800">Add to Personal Allowances</div>
-                            <div className="text-xs text-orange-600">Add {formatCurrency(unallocatedAmount / earners.length)} to each earner</div>
-                          </div>
-                        </Button>
-
-                        {/* Smart proportional distribution */}
-                        <Button
-                          onClick={() => {
-                            const currentAllocation = autoSavingsTarget + totalTargets + totalPersonalKeep
-                            const savingsRatio = autoSavingsTarget / currentAllocation
-                            const accountsRatio = totalTargets / currentAllocation
-                            const personalRatio = totalPersonalKeep / currentAllocation
-
-                            const newSavingsPct = Math.min(50, ((autoSavingsTarget + unallocatedAmount * savingsRatio) / totalSalary) * 100)
-                            const newAccounts = bankAccounts.map(account => ({
-                              ...account,
-                              target: account.target + (unallocatedAmount * accountsRatio / bankAccounts.length)
-                            }))
-                            const newEarners = earners.map(earner => ({
-                              ...earner,
-                              keep: earner.keep + (unallocatedAmount * personalRatio / earners.length)
-                            }))
-
-                            setSavingsPct(newSavingsPct)
-                            setSelectedTemplateKey('custom')
-                            setBankAccounts(newAccounts)
-                            setEarners(newEarners)
-                            saveFinancialData({ 
-                              savingsPct: newSavingsPct,
-                              selectedTemplateKey: 'custom',
-                              bankAccounts: newAccounts,
-                              earners: newEarners
-                            })
-                          }}
-                          variant="outline"
-                          className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
-                        >
-                          <div>
-                            <div className="font-semibold text-orange-800">Smart Proportional</div>
-                            <div className="text-xs text-orange-600">Distribute proportionally based on current allocation</div>
-                          </div>
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="text-sm text-orange-700 mb-3">
-                        You&apos;re over-allocated by {formatCurrency(Math.abs(unallocatedAmount))}. Choose how to reduce:
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {/* Reduce savings */}
-                        <Button
-                          onClick={() => {
-                            const newSavingsPct = Math.max(5, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100)
-                            setSavingsPct(newSavingsPct)
-                            setSelectedTemplateKey('custom')
-                            saveFinancialData({ 
-                              savingsPct: newSavingsPct,
-                              selectedTemplateKey: 'custom'
-                            })
-                          }}
-                          variant="outline"
-                          className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
-                        >
-                          <div>
-                            <div className="font-semibold text-orange-800">Reduce Savings</div>
-                            <div className="text-xs text-orange-600">Lower savings rate to {Math.max(5, ((autoSavingsTarget + unallocatedAmount) / totalSalary) * 100).toFixed(1)}%</div>
-                          </div>
-                        </Button>
-
-                        {/* Reduce bank accounts proportionally */}
-                        <Button
-                          onClick={() => {
-                            const reductionPerAccount = Math.abs(unallocatedAmount) / bankAccounts.length
-                            const newAccounts = bankAccounts.map(account => ({
-                              ...account,
-                              target: Math.max(0, account.target - reductionPerAccount)
-                            }))
-                            setBankAccounts(newAccounts)
-                            saveFinancialData({ bankAccounts: newAccounts })
-                          }}
-                          variant="outline"
-                          className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
-                        >
-                          <div>
-                            <div className="font-semibold text-orange-800">Reduce Account Targets</div>
-                            <div className="text-xs text-orange-600">Reduce each account by {formatCurrency(Math.abs(unallocatedAmount) / bankAccounts.length)}</div>
-                          </div>
-                        </Button>
-
-                        {/* Reduce personal allowances */}
-                        <Button
-                          onClick={() => {
-                            const reductionPerEarner = Math.abs(unallocatedAmount) / earners.length
-                            const newEarners = earners.map(earner => ({
-                              ...earner,
-                              keep: Math.max(0, earner.keep - reductionPerEarner)
-                            }))
-                            setEarners(newEarners)
-                            saveFinancialData({ earners: newEarners })
-                          }}
-                          variant="outline"
-                          className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
-                        >
-                          <div>
-                            <div className="font-semibold text-orange-800">Reduce Personal Allowances</div>
-                            <div className="text-xs text-orange-600">Reduce each earner by {formatCurrency(Math.abs(unallocatedAmount) / earners.length)}</div>
-                          </div>
-                        </Button>
-
-                        {/* Smart proportional reduction */}
-                        <Button
-                          onClick={() => {
-                            const currentAllocation = autoSavingsTarget + totalTargets + totalPersonalKeep
-                            const savingsRatio = autoSavingsTarget / currentAllocation
-                            const accountsRatio = totalTargets / currentAllocation
-                            const personalRatio = totalPersonalKeep / currentAllocation
-
-                            const newSavingsPct = Math.max(5, ((autoSavingsTarget + unallocatedAmount * savingsRatio) / totalSalary) * 100)
-                            const newAccounts = bankAccounts.map(account => ({
-                              ...account,
-                              target: Math.max(0, account.target + (unallocatedAmount * accountsRatio / bankAccounts.length))
-                            }))
-                            const newEarners = earners.map(earner => ({
-                              ...earner,
-                              keep: Math.max(0, earner.keep + (unallocatedAmount * personalRatio / earners.length))
-                            }))
-
-                            setSavingsPct(newSavingsPct)
-                            setSelectedTemplateKey('custom')
-                            setBankAccounts(newAccounts)
-                            setEarners(newEarners)
-                            saveFinancialData({ 
-                              savingsPct: newSavingsPct,
-                              selectedTemplateKey: 'custom',
-                              bankAccounts: newAccounts,
-                              earners: newEarners
-                            })
-                          }}
-                          variant="outline"
-                          className="text-left justify-start h-auto p-3 border-orange-300 hover:bg-orange-100"
-                        >
-                          <div>
-                            <div className="font-semibold text-orange-800">Smart Proportional</div>
-                            <div className="text-xs text-orange-600">Reduce proportionally based on current allocation</div>
-                          </div>
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-
-              {isFullyAllocated && (
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h5 className="font-semibold text-green-800 mb-2">Great job! 🎉</h5>
-                  <div className="text-sm text-green-700">
-                    Your budget is perfectly balanced. Every euro has a purpose and your financial plan is complete.
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Earners Section */}
-        <CollapsibleSection
-          id="income-earners"
-          title="Income Earners"
-          icon={<Users className="h-5 w-5" />}
-          badge={earners.length}
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-cozy-text-muted">
-                Define who contributes to the household income
-              </p>
-              <Button
-                onClick={() => {
-                  const newEarner = {
-                    id: Date.now().toString(),
-                    name: `Earner ${earners.length + 1}`,
-                    salary: 0,
-                    keep: 0
-                  }
-                  const newEarners = [...earners, newEarner]
-                  setEarners(newEarners)
-                  markAsChanged()
-                  saveFinancialData({ earners: newEarners })
-                }}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add Earner
-              </Button>
-            </div>
-            <div className="space-y-4">
-              {earners.map((earner, index) => (
-                <div key={earner.id} className="p-4 border rounded-lg">
-                  {/* Mobile-first responsive layout */}
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-center">
-                    {/* Name field - full width on mobile, 1 column on desktop */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
-                        Name
-                      </label>
-                      <Input
-                        value={earner.name}
-                        onChange={(e) => {
-                          const newEarners = [...earners]
-                          newEarners[index].name = e.target.value
-                          setEarners(newEarners)
-                          markAsChanged()
-                        }}
-                        className="font-medium w-full"
-                        placeholder="Earner name"
-                      />
-                    </div>
-                    
-                    {/* Salary field */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
-                        Salary (€)
-                      </label>
-                      <CurrencyInput
-                        value={earner.salary || 0}
-                        onChange={(value) => {
-                          const newEarners = [...earners]
-                          newEarners[index].salary = value
-                          setEarners(newEarners)
-                          markAsChanged()
-                        }}
-                        placeholder="Salary"
-                        className="w-full"
-                        showSuggestions={true}
-                        suggestions={[2500, 3000, 3500, 4000, 5000, 6000, 7500, 10000]}
-                        max={50000}
-                      />
-                    </div>
-                    
-                    {/* Keep field */}
-                    <div className="sm:col-span-1">
-                      <label className="block text-sm font-medium text-gray-700 mb-1 sm:hidden">
-                        Personal Keep (€)
-                      </label>
-                      <CurrencyInput
-                        value={earner.keep || 0}
-                        onChange={(value) => {
-                          const newEarners = [...earners]
-                          newEarners[index].keep = value
-                          setEarners(newEarners)
-                          markAsChanged()
-                        }}
-                        placeholder="Keep"
-                        className={(() => {
-                          const newTotalPersonalKeep = earners.reduce((sum, ear, i) => 
-                            sum + (i === index ? (ear.keep || 0) : ear.keep), 0
-                          )
-                          const newTotalAllocated = autoSavingsTarget + totalTargets + newTotalPersonalKeep
-                          const newUnallocated = totalSalary - newTotalAllocated
-                          return newUnallocated < 0 ? 'border-red-300 bg-red-50' : ''
-                        })()}
-                        showSuggestions={true}
-                        suggestions={[
-                          Math.round(earner.salary * 0.1), // 10% of salary
-                          Math.round(earner.salary * 0.15), // 15% of salary
-                          Math.round(earner.salary * 0.2), // 20% of salary
-                          Math.round(earner.salary * 0.25), // 25% of salary
-                          500, 1000, 1500, 2000
-                        ].filter((val, index, arr) => val > 0 && arr.indexOf(val) === index)}
-                        max={earner.salary * 0.5} // Max 50% of salary
-                      />
-                    </div>
-                    
-                    {/* Remove button */}
-                    <div className="sm:col-span-1 flex justify-end">
-                      {earners.length > 1 && (
-                        <Button
-                          onClick={() => {
-                            const newEarners = earners.filter((_, i) => i !== index)
-                            setEarners(newEarners)
-                            saveFinancialData({ earners: newEarners })
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="hidden sm:inline ml-1">Remove</span>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* Savings Templates */}
-        <CollapsibleSection
-          id="savings-methods"
-          title="Popular Savings Methods"
-          icon={<Target className="h-5 w-5" />}
-          badge={6}
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-cozy-text-muted">
-              Choose from proven savings strategies
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                {
-                  key: 'fifty-thirty-twenty',
-                  name: '50/30/20 Rule',
-                  description: '50% needs, 30% wants, 20% savings',
-                  savingsPct: 20,
-                  tip: 'Allocate 50% for needs, 30% for wants, and 20% for savings and debt repayment.'
-                },
-                {
-                  key: 'pay-yourself-first',
-                  name: 'Pay Yourself First',
-                  description: 'Set aside savings before any expenses',
-                  savingsPct: 15,
-                  tip: 'Automatically transfer a fixed percentage to savings before paying other bills.'
-                },
-                {
-                  key: 'envelope-method',
-                  name: 'Envelope Method',
-                  description: 'Allocate specific amounts to categories',
-                  savingsPct: 10,
-                  tip: 'Use separate accounts or virtual envelopes for different spending categories.'
-                },
-                {
-                  key: 'zero-based',
-                  name: 'Zero-Based Budgeting',
-                  description: 'Every euro has a purpose',
-                  savingsPct: 25,
-                  tip: 'Plan every euro before the month starts. Income minus expenses should equal zero.'
-                },
-                {
-                  key: 'eighty-twenty',
-                  name: '80/20 Rule',
-                  description: '80% living, 20% savings',
-                  savingsPct: 20,
-                  tip: 'Simple rule: 80% for living expenses, 20% for savings and investments.'
-                },
-                {
-                  key: 'auto-balance',
-                  name: 'Smart Auto Balance',
-                  description: 'Automatically balance your entire budget',
-                  savingsPct: 'auto',
-                  tip: 'Intelligently distributes all income across savings, accounts, and personal allowances to achieve perfect balance.'
-                }
-              ].map((template) => (
-                <div
-                  key={template.key}
-                  className={`p-4 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
-                    template.key === 'auto-balance'
-                      ? 'border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100'
-                      : selectedTemplateKey === template.key
-                      ? 'border-cozy-primary bg-cozy-primary/5'
-                      : 'border-cozy-gray-200 hover:border-cozy-primary/50'
-                  }`}
-                  onClick={() => {
-                    setSelectedTemplateKey(template.key)
-                    
-                    if (template.key === 'auto-balance') {
-                      // Auto-balance logic
-                      if (unallocatedAmount > 0) {
-                        // Distribute unallocated amount proportionally
-                        const currentAllocation = autoSavingsTarget + totalTargets + totalPersonalKeep
-                        const savingsRatio = autoSavingsTarget / currentAllocation
-                        const accountsRatio = totalTargets / currentAllocation
-                        const personalRatio = totalPersonalKeep / currentAllocation
-
-                        const newSavingsPct = Math.min(50, ((autoSavingsTarget + unallocatedAmount * savingsRatio) / totalSalary) * 100)
-                        const newAccounts = bankAccounts.map(account => ({
-                          ...account,
-                          target: account.target + (unallocatedAmount * accountsRatio / bankAccounts.length)
-                        }))
-                        const newEarners = earners.map(earner => ({
-                          ...earner,
-                          keep: earner.keep + (unallocatedAmount * personalRatio / earners.length)
-                        }))
-
-                        setSavingsPct(newSavingsPct)
-                        setBankAccounts(newAccounts)
-                        setEarners(newEarners)
-                        saveFinancialData({ 
-                          selectedTemplateKey: template.key,
-                          savingsPct: newSavingsPct,
-                          bankAccounts: newAccounts,
-                          earners: newEarners
-                        })
-                      } else if (unallocatedAmount < 0) {
-                        // Reduce over-allocation proportionally
-                        const currentAllocation = autoSavingsTarget + totalTargets + totalPersonalKeep
-                        const savingsRatio = autoSavingsTarget / currentAllocation
-                        const accountsRatio = totalTargets / currentAllocation
-                        const personalRatio = totalPersonalKeep / currentAllocation
-
-                        const newSavingsPct = Math.max(5, ((autoSavingsTarget + unallocatedAmount * savingsRatio) / totalSalary) * 100)
-                        const newAccounts = bankAccounts.map(account => ({
-                          ...account,
-                          target: Math.max(0, account.target + (unallocatedAmount * accountsRatio / bankAccounts.length))
-                        }))
-                        const newEarners = earners.map(earner => ({
-                          ...earner,
-                          keep: Math.max(0, earner.keep + (unallocatedAmount * personalRatio / earners.length))
-                        }))
-
-                        setSavingsPct(newSavingsPct)
-                        setBankAccounts(newAccounts)
-                        setEarners(newEarners)
-                        saveFinancialData({ 
-                          selectedTemplateKey: template.key,
-                          savingsPct: newSavingsPct,
-                          bankAccounts: newAccounts,
-                          earners: newEarners
-                        })
-                      } else {
-                        // Already balanced, just set the template
-                        setSavingsPct(savingsPct)
-                        saveFinancialData({ 
-                          selectedTemplateKey: template.key,
-                          savingsPct: savingsPct
-                        })
-                      }
-                    } else {
-                      // Regular template logic
-                      setSavingsPct(template.savingsPct as number)
-                      saveFinancialData({ 
-                        selectedTemplateKey: template.key,
-                        savingsPct: template.savingsPct as number
-                      })
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      {template.key === 'auto-balance' && (
-                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                          <Target className="w-3 h-3 text-blue-600" />
-                        </div>
-                      )}
-                      <h3 className="font-semibold text-cozy-text">{template.name}</h3>
-                    </div>
-                    <Badge variant={selectedTemplateKey === template.key ? 'default' : 'outline'}>
-                      {template.savingsPct === 'auto' ? 'Auto' : `${template.savingsPct}%`}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-cozy-text-muted mb-2">{template.description}</p>
-                  <p className="text-xs text-cozy-text-muted">{template.tip}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* Savings Projections */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Savings Projections
-            </CardTitle>
-            <CardDescription>See how your savings will grow over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Current Savings Input */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-cozy-text mb-2">
-                    Current Savings Balance
-                  </label>
-                  <CurrencyInput
-                    value={currentSavings || 0}
-                    onChange={(value) => {
-                      setCurrentSavings(value)
-                      markAsChanged()
-                    }}
-                    placeholder="Enter your current savings"
-                    className="text-lg font-semibold"
-                  />
-                </div>
-                <div className="text-sm text-cozy-text-muted">
-                  <div>Monthly Savings: €{autoSavingsTarget.toFixed(0)}</div>
-                  <div>Annual Savings: €{(autoSavingsTarget * 12).toFixed(0)}</div>
-                </div>
-              </div>
-
-              {/* Projections Chart */}
-              {currentSavings > 0 && autoSavingsTarget > 0 && (
-                <div className="space-y-4">
-                  <h4 className="font-semibold text-cozy-text">5-Year Projection</h4>
-                  
-                  {/* Simple Bar Chart */}
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map((year) => {
-                      const projectedSavings = currentSavings + (autoSavingsTarget * 12 * year)
-                      const maxSavings = currentSavings + (autoSavingsTarget * 12 * 5)
-                      const percentage = (projectedSavings / maxSavings) * 100
-                      
-                      return (
-                        <div key={year} className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="font-medium">Year {year}</span>
-                            <span className="text-cozy-primary font-semibold">
-                              €{projectedSavings.toLocaleString()}
-                            </span>
-                          </div>
-                          <div className="w-full bg-cozy-gray-200 rounded-full h-3">
-                            <div
-                              className="bg-gradient-to-r from-cozy-primary to-cozy-accent h-3 rounded-full transition-all duration-500"
-                              style={{ width: `${percentage}%` }}
-                            />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  {/* Key Milestones */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                    <div className="p-4 bg-cozy-cream rounded-lg">
-                      <div className="text-2xl font-bold text-cozy-primary">
-                        €{(currentSavings + autoSavingsTarget * 12).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-cozy-text-muted">After 1 Year</div>
-                    </div>
-                    <div className="p-4 bg-cozy-cream rounded-lg">
-                      <div className="text-2xl font-bold text-cozy-primary">
-                        €{(currentSavings + autoSavingsTarget * 12 * 3).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-cozy-text-muted">After 3 Years</div>
-                    </div>
-                    <div className="p-4 bg-cozy-cream rounded-lg">
-                      <div className="text-2xl font-bold text-cozy-primary">
-                        €{(currentSavings + autoSavingsTarget * 12 * 5).toLocaleString()}
-                      </div>
-                      <div className="text-sm text-cozy-text-muted">After 5 Years</div>
-                    </div>
-                  </div>
-
-                  {/* Growth Insights */}
-                  <div className="p-4 bg-gradient-to-r from-cozy-primary/10 to-cozy-accent/10 rounded-lg">
-                    <h5 className="font-semibold text-cozy-text mb-2">Growth Insights</h5>
-                    <div className="space-y-1 text-sm text-cozy-text-muted">
-                      <div>• You&apos;ll save €{(autoSavingsTarget * 12).toLocaleString()} per year</div>
-                      <div>• Total growth over 5 years: €{(autoSavingsTarget * 12 * 5).toLocaleString()}</div>
-                      <div>• Your savings will {currentSavings > 0 ? 'grow by' : 'reach'} {((autoSavingsTarget * 12 * 5) / currentSavings * 100).toFixed(0)}%</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {(!currentSavings || !autoSavingsTarget) && (
-                <div className="text-center py-8 text-cozy-text-muted">
-                  <TrendingUp className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Enter your current savings balance to see projections</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Financial Goals Section */}
-        <CollapsibleSection
-          id="financial-goals"
-          title="Financial Goals"
-          icon={<Target className="h-5 w-5" />}
-          badge={financialGoals.length}
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-cozy-text-muted">
-                Set and track your specific financial goals
-              </p>
-              <Button
-                onClick={() => setShowGoalModal(true)}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add Goal
-              </Button>
-            </div>
-            
-            {financialGoals.length === 0 ? (
-              <div className="text-center py-8 text-cozy-text-muted">
-                <Target className="w-12 h-12 mx-auto mb-4 text-cozy-gray-400" />
-                <p className="text-lg font-medium mb-2">No goals set yet</p>
-                <p className="text-sm">Create your first financial goal to start tracking your progress</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {financialGoals.map((goal) => {
-                  const progress = getGoalProgress(goal)
-                  const monthlyContribution = getMonthlyContribution(goal)
-                  const priorityColors = {
-                    low: 'border-green-200 bg-green-50',
-                    medium: 'border-yellow-200 bg-yellow-50',
-                    high: 'border-red-200 bg-red-50'
-                  }
-                  
-                  return (
-                    <Card key={goal.id} className={`border-l-4 ${priorityColors[goal.priority]}`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h3 className="font-semibold text-cozy-text">{goal.name}</h3>
-                            <p className="text-sm text-cozy-text-muted capitalize">{goal.category}</p>
-                          </div>
-                          <Button
-                            onClick={() => deleteGoal(goal.id)}
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          <div>
-                            <div className="flex justify-between text-sm mb-1">
-                              <span>Progress</span>
-                              <span>{progress.toFixed(1)}%</span>
-                            </div>
-                            <div className="w-full bg-cozy-gray-200 rounded-full h-2">
-                              <div 
-                                className="bg-cozy-primary h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${progress}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-cozy-text-muted">Current</p>
-                              <p className="font-semibold">{formatCurrency(goal.currentAmount)}</p>
-                            </div>
-                            <div>
-                              <p className="text-cozy-text-muted">Target</p>
-                              <p className="font-semibold">{formatCurrency(goal.targetAmount)}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-cozy-text-muted">Target Date</p>
-                              <p className="font-semibold">{new Date(goal.targetDate).toLocaleDateString()}</p>
-                            </div>
-                            <div>
-                              <p className="text-cozy-text-muted">Monthly Need</p>
-                              <p className="font-semibold text-green-600">{formatCurrency(monthlyContribution)}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => {
-                                const newAmount = goal.currentAmount + 100
-                                updateGoal(goal.id, { currentAmount: newAmount })
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                            >
-                              +€100
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                const newAmount = Math.max(0, goal.currentAmount - 100)
-                                updateGoal(goal.id, { currentAmount: newAmount })
-                              }}
-                              variant="outline"
-                              size="sm"
-                              className="flex-1"
-                            >
-                              -€100
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </CollapsibleSection>
-
-        {/* Bank Accounts Section */}
-        <CollapsibleSection
-          id="bank-accounts"
-          title="Bank Accounts"
-          icon={<CreditCard className="h-5 w-5" />}
-          badge={bankAccounts.length}
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-cozy-text-muted">
-                Manage your bank accounts and known expenses
-              </p>
-              <Button
-                onClick={() => {
-                  const newAccount: BankAccount = {
-                    id: Date.now().toString(),
-                    name: `Account ${bankAccounts.length + 1}`,
-                    type: 'checking',
-                    target: 0,
-                    knownExpenses: []
-                  }
-                  const newAccounts = [...bankAccounts, newAccount]
-                  setBankAccounts(newAccounts)
-                  markAsChanged()
-                  saveFinancialData({ bankAccounts: newAccounts })
-                }}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1"
-              >
-                <Plus className="w-4 h-4" />
-                Add Account
-              </Button>
-            </div>
-            <div className="space-y-6">
-              {bankAccounts.map((account, index) => (
-                <div key={account.id} className="p-4 border rounded-lg space-y-4">
-                  {/* Account Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex-1 min-w-0">
-                      <Input
-                        value={account.name}
-                        onChange={(e) => {
-                          const newAccounts = [...bankAccounts]
-                          newAccounts[index].name = e.target.value
-                          setBankAccounts(newAccounts)
-                          markAsChanged()
-                        }}
-                        className="font-medium w-full"
-                        placeholder="Account name"
-                      />
-                    </div>
-                    <div className="w-full sm:w-32">
-                      <select
-                        value={account.type}
-                        onChange={(e) => {
-                          const newAccounts = [...bankAccounts]
-                          newAccounts[index].type = e.target.value as BankAccount['type']
-                          setBankAccounts(newAccounts)
-                          markAsChanged()
-                        }}
-                        className="w-full px-3 py-2 border border-cozy-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cozy-primary"
-                      >
-                        <option value="checking">Checking</option>
-                        <option value="savings">Savings</option>
-                        <option value="credit">Credit</option>
-                        <option value="investment">Investment</option>
-                      </select>
-                    </div>
-                    <div className="w-full sm:w-32">
-                      <CurrencyInput
-                        value={account.target || 0}
-                        onChange={(value) => {
-                          const newAccounts = [...bankAccounts]
-                          newAccounts[index].target = value
-                          setBankAccounts(newAccounts)
-                          markAsChanged()
-                        }}
-                        placeholder="Target"
-                        className={(() => {
-                          const newTotalTargets = bankAccounts.reduce((sum, acc, i) => 
-                            sum + (i === index ? (acc.target || 0) : acc.target), 0
-                          )
-                          const newTotalAllocated = autoSavingsTarget + newTotalTargets + totalPersonalKeep
-                          const newUnallocated = totalSalary - newTotalAllocated
-                          return newUnallocated < 0 ? 'border-red-300 bg-red-50' : ''
-                        })()}
-                        showSuggestions={true}
-                        suggestions={[
-                          Math.round(totalSalary * 0.1), // 10% of total income
-                          Math.round(totalSalary * 0.15), // 15% of total income
-                          Math.round(totalSalary * 0.2), // 20% of total income
-                          Math.round(totalSalary * 0.25), // 25% of total income
-                          1000, 1500, 2000, 3000, 5000
-                        ].filter((val, index, arr) => val > 0 && arr.indexOf(val) === index)}
-                        max={totalSalary * 0.8} // Max 80% of total income
-                      />
-                    </div>
-                    {bankAccounts.length > 1 && (
-                      <Button
-                        onClick={() => {
-                          const newAccounts = bankAccounts.filter((_, i) => i !== index)
-                          setBankAccounts(newAccounts)
-                          saveFinancialData({ bankAccounts: newAccounts })
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-
-                  {/* Known Expenses */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-medium text-cozy-text">Known Expenses</h4>
-                      <Button
-                        onClick={() => {
-                          const newExpense: KnownExpense = {
-                            id: Date.now().toString(),
-                            name: '',
-                            amount: 0,
-                            frequency: 'monthly',
-                            category: 'Other'
-                          }
-                          const newAccounts = [...bankAccounts]
-                          newAccounts[index].knownExpenses.push(newExpense)
-                          setBankAccounts(newAccounts)
-                          saveFinancialData({ bankAccounts: newAccounts })
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                      >
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add Expense
-                      </Button>
-                    </div>
-                    
-                    {account.knownExpenses.map((expense, expenseIndex) => (
-                      <div key={expense.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 bg-cozy-cream rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <Input
-                            value={expense.name}
-                            onChange={(e) => {
-                              const newAccounts = [...bankAccounts]
-                              newAccounts[index].knownExpenses[expenseIndex].name = e.target.value
-                              setBankAccounts(newAccounts)
-                              markAsChanged()
-                            }}
-                            placeholder="Expense name"
-                            className="text-sm w-full"
-                          />
-                        </div>
-                        <div className="w-full sm:w-24">
-                          <CurrencyInput
-                            value={expense.amount || 0}
-                            onChange={(value) => {
-                              const newAccounts = [...bankAccounts]
-                              newAccounts[index].knownExpenses[expenseIndex].amount = value
-                              setBankAccounts(newAccounts)
-                              markAsChanged()
-                            }}
-                            placeholder="Amount"
-                            className="text-sm w-full"
-                          />
-                        </div>
-                        <div className="w-full sm:w-28">
-                          <select
-                            value={expense.frequency}
-                            onChange={(e) => {
-                              const newAccounts = [...bankAccounts]
-                              newAccounts[index].knownExpenses[expenseIndex].frequency = e.target.value as KnownExpense['frequency']
-                              setBankAccounts(newAccounts)
-                              markAsChanged()
-                            }}
-                            className="w-full px-2 py-1 text-sm border border-cozy-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-cozy-primary"
-                          >
-                            <option value="monthly">Monthly</option>
-                            <option value="quarterly">Quarterly</option>
-                            <option value="yearly">Yearly</option>
-                            <option value="one-time">One-time</option>
-                          </select>
-                        </div>
-                        <Button
-                          onClick={() => {
-                            const newAccounts = [...bankAccounts]
-                            newAccounts[index].knownExpenses = newAccounts[index].knownExpenses.filter((_, i) => i !== expenseIndex)
-                            setBankAccounts(newAccounts)
-                            markAsChanged()
-                          }}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full sm:w-auto"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+        {overview && overview.accounts.length > 0 && (
+          <>
+            {activeTab === 'overview' && <>
+            <div className="grid gap-4 lg:grid-cols-[1.15fr_2fr]">
+              <Card className="bg-gradient-to-br from-cozy-primary to-cozy-primary-deep text-white border-0">
+                <CardContent className="p-6">
+                  <p className="text-sm text-white/75">Total visible balance</p>
+                  <div className="mt-3 space-y-1">
+                    {overview.totals.map(total => (
+                      <div key={total.currency} className="text-3xl font-bold tracking-tight">
+                        {currency(total.amount, total.currency)}
                       </div>
                     ))}
+                    {!overview.totals.length && <div className="text-2xl font-semibold">Balance unavailable</div>}
                   </div>
+                  <div className="mt-5 text-sm text-white/75 flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4" /> No payment access
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {overview.accounts.map(account => (
+                  <Card key={account.id} className="hover:-translate-y-0">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-cozy-primary shrink-0" />
+                            {renamingAccount === account.id ? (
+                              <div className="flex min-w-0 items-center gap-1">
+                                <Input
+                                  className="h-8 min-w-0"
+                                  autoFocus
+                                  value={accountName}
+                                  onChange={event => setAccountName(event.target.value)}
+                                  onKeyDown={event => {
+                                    if (event.key === 'Enter') void renameAccount(account)
+                                    if (event.key === 'Escape') setRenamingAccount(null)
+                                  }}
+                                  maxLength={80}
+                                  aria-label="Friendly account name"
+                                />
+                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => renameAccount(account)} disabled={!accountName.trim() || action === `rename:${account.id}`}>
+                                  {action === `rename:${account.id}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-green-700" />}
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setRenamingAccount(null)}><X className="h-4 w-4" /></Button>
+                              </div>
+                            ) : (
+                              <>
+                                <h3 className="font-semibold truncate">{account.displayName}</h3>
+                                {account.canRename && (
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 shrink-0"
+                                    aria-label={`Rename ${account.displayName}`}
+                                    onClick={() => { setRenamingAccount(account.id); setAccountName(account.customName || account.displayName) }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                          <p className="text-xs text-cozy-text-muted mt-1">
+                            {[account.maskedIdentifier, account.cashAccountType].filter(Boolean).join(' · ') || 'Bank of Valletta'}
+                          </p>
+                          {account.customName && <p className="mt-1 text-[11px] text-cozy-text-muted">Bank name: {account.providerDisplayName}</p>}
+                        </div>
+                        <Badge variant="outline" className={account.shared ? 'border-green-200 text-green-700' : ''}>
+                          {account.shared ? <Eye className="w-3 h-3 mr-1" /> : <EyeOff className="w-3 h-3 mr-1" />}
+                          {account.shared ? 'Shared' : 'Private'}
+                        </Badge>
+                      </div>
+                      <div className="mt-5 text-2xl font-bold">
+                        {account.balance ? currency(account.balance.amount, account.balance.currency) : '—'}
+                      </div>
+                      <div className="mt-4 flex items-center justify-between gap-2">
+                        <span className="text-xs text-cozy-text-muted">{relativeSync(account.connection.lastSyncedAt, clock)}</span>
+                        {overview.canManage && account.owned && (
+                          <div className="flex items-center gap-1">
+                            {account.customName && <Button size="sm" variant="ghost" disabled={Boolean(action)} onClick={() => renameAccount(account, true)}>Reset name</Button>}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={Boolean(action)}
+                              onClick={() => changeSharing(account)}
+                            >
+                              {action === `share:${account.id}` && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+                              {account.shared ? 'Make private' : 'Share'}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            <FinanceInsightsPanel
+              insights={insights}
+              loading={insightsLoading}
+              periodDays={insightDays}
+              onPeriodChange={setInsightDays}
+            />
+
+            {overview.canManage && overview.connections.map(connection => {
+              const tone = connectionTone(connection.status)
+              const expiry = connection.consentExpiresAt ? new Date(connection.consentExpiresAt) : null
+              const expiringSoon = expiry && expiry.getTime() - clock < 14 * 24 * 60 * 60_000
+              return (
+                <Card key={connection.id} className={connection.status === 'ACTIVE' ? '' : 'border-amber-200'}>
+                  <CardContent className="p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="flex gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-cozy-primary-soft flex items-center justify-center shrink-0">
+                        <Link2 className="w-5 h-5 text-cozy-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-semibold">{connection.aspspName}</h3>
+                          <Badge variant="outline" className={tone.className}>{tone.label}</Badge>
+                        </div>
+                        <div className="text-xs text-cozy-text-muted mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                          <span>{relativeSync(connection.lastSyncedAt, clock)}</span>
+                          {expiry && (
+                            <span className={expiringSoon ? 'text-amber-700 font-medium' : ''}>
+                              Consent until {friendlyDate(connection.consentExpiresAt)}
+                            </span>
+                          )}
+                        </div>
+                        {connection.syncError && <p className="text-sm text-red-700 mt-2">{connection.syncError}</p>}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(connection.status === 'REAUTH_REQUIRED' || connection.status === 'ERROR' || expiringSoon) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={Boolean(action)}
+                          onClick={() => startConnection(connection.id)}
+                        >
+                          {action === `reconnect:${connection.id}` && <Loader2 className="w-3 h-3 mr-1 animate-spin" />}
+                          Reconnect
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-red-600 hover:text-red-700"
+                        disabled={Boolean(action)}
+                        onClick={() => disconnect(connection)}
+                      >
+                        {action === `disconnect:${connection.id}` ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Trash2 className="w-3 h-3 mr-1" />}
+                        Disconnect
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+            </>}
+
+            {activeTab === 'statistics' && (
+              <FinanceStatisticsPanel
+                insights={insights}
+                loading={insightsLoading}
+                periodDays={insightDays}
+                onPeriodChange={setInsightDays}
+              />
+            )}
+
+            {activeTab === 'transactions' && <>
+            <Card className="hover:-translate-y-0">
+              <CardHeader>
+                <CardTitle className="text-xl">Transaction activity</CardTitle>
+                <CardDescription>Merchant-enriched BOV activity with account and date filters.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 w-4 h-4 text-cozy-text-muted" />
+                    <Input
+                      className="pl-9"
+                      value={searchInput}
+                      onChange={event => setSearchInput(event.target.value)}
+                      placeholder="Search merchant or description"
+                    />
+                  </div>
+                  <select
+                    className="h-10 rounded-lg border border-cozy-gray-300 bg-cozy-surface px-3 text-sm"
+                    value={accountFilter}
+                    onChange={event => setAccountFilter(event.target.value)}
+                    aria-label="Filter by account"
+                  >
+                    <option value="">All accounts</option>
+                    {overview.accounts.map(account => <option key={account.id} value={account.id}>{account.displayName}</option>)}
+                  </select>
+                  <select
+                    className="h-10 rounded-lg border border-cozy-gray-300 bg-cozy-surface px-3 text-sm"
+                    value={statusFilter}
+                    onChange={event => setStatusFilter(event.target.value)}
+                    aria-label="Filter by status"
+                  >
+                    <option value="">All statuses</option>
+                    <option value="BOOKED">Booked</option>
+                    <option value="PENDING">Pending</option>
+                  </select>
+                  <Input type="date" value={dateFrom} onChange={event => setDateFrom(event.target.value)} aria-label="From date" />
+                  <Input type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} aria-label="To date" />
                 </div>
-              ))}
-            </div>
-          </div>
-        </CollapsibleSection>
 
-        {/* Split Method */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calculator className="w-5 h-5" />
-              Split Method
-            </CardTitle>
-            <CardDescription>How should expenses be divided between earners?</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2">
-              {[
-                { key: 'equal', label: 'Equal Split' },
-                { key: 'proportional', label: 'Proportional' },
-                { key: 'custom', label: 'Custom' }
-              ].map((method) => (
-                <Button
-                  key={method.key}
-                  variant={splitMethod === method.key ? 'default' : 'outline'}
-                  onClick={() => {
-                    setSplitMethod(method.key as SplitMethod)
-                    saveFinancialData({ splitMethod: method.key as SplitMethod })
-                  }}
-                >
-                  {method.label}
-                </Button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="mt-5 divide-y divide-cozy-gray-200">
+                  {transactions.map(transaction => {
+                    const amount = Number(transaction.amount)
+                    const incoming = amount >= 0
+                    return (
+                      <div key={transaction.id} className="py-4 flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${incoming ? 'bg-green-50 text-green-700' : 'bg-cozy-primary-soft text-cozy-primary'}`}>
+                          {incoming ? <ArrowDownLeft className="w-4 h-4" /> : transaction.transactionType === 'Card purchase' ? <ReceiptText className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-semibold truncate" title={transaction.merchantName}>{transaction.merchantName || transaction.counterparty || 'Bank transaction'}</p>
+                              <p className="text-sm text-cozy-text-muted truncate mt-0.5">
+                                {transaction.detail || transaction.transactionType}
+                              </p>
+                            </div>
+                            <p className={`font-semibold whitespace-nowrap ${incoming ? 'text-green-700' : 'text-cozy-text'}`}>
+                              {incoming ? '+' : ''}{currency(transaction.amount, transaction.currency)}
+                            </p>
+                          </div>
+                          <div className="mt-2 text-xs text-cozy-text-muted flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{friendlyDate(transaction.bookingDate || transaction.valueDate)}</span>
+                            <span>{transaction.account.displayName}</span>
+                            <Badge variant="outline" className="font-normal">{transaction.category}</Badge>
+                            <span>{transaction.transactionType}</span>
+                            {transaction.enrichmentSource !== 'local' && <Badge variant="outline" className="font-normal">{transaction.enrichmentSource === 'rule' ? 'Learned rule' : 'Edited'}</Badge>}
+                            {transaction.status === 'PENDING' && <Badge variant="outline"><Clock3 className="w-3 h-3 mr-1" />Pending</Badge>}
+                            {transaction.canEdit && <EditTransactionButton onClick={() => setEditingTransaction(transaction)} />}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {!transactions.length && !transactionsLoading && (
+                    <div className="py-12 text-center text-sm text-cozy-text-muted">No transactions match these filters.</div>
+                  )}
+                  {transactionsLoading && (
+                    <div className="py-8 flex items-center justify-center text-sm text-cozy-text-muted">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading activity…
+                    </div>
+                  )}
+                </div>
+                {nextCursor && !transactionsLoading && (
+                  <div className="pt-5 flex justify-center">
+                    <Button variant="outline" onClick={() => loadTransactions(true)}>Load more</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            {overview.canManage && (
+              <FinanceRulesPanel
+                householdId={householdId}
+                reloadKey={rulesReload}
+                onChanged={() => setTransactionReload(value => value + 1)}
+                onError={setError}
+                onNotice={setNotice}
+              />
+            )}
+            </>}
 
-        {/* Contribution Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Contribution Breakdown</CardTitle>
-            <CardDescription>See how expenses are split between earners</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ContribTableDesktop
-              accounts={bankAccounts}
-              earners={earners}
-              split={calculateSplit}
-              autoSavingsTarget={autoSavingsTarget}
-              savingsPct={savingsPct}
-            />
-            <ContribCardsMobile
-              accounts={bankAccounts}
-              earners={earners}
-              split={calculateSplit}
-              autoSavingsTarget={autoSavingsTarget}
-              savingsPct={savingsPct}
-            />
-          </CardContent>
-        </Card>
+            {activeTab === 'subscriptions' && (
+              <FinanceSubscriptionsPanel
+                householdId={householdId}
+                accountId={accountFilter}
+                accounts={overview.accounts.map(account => ({ id: account.id, displayName: account.displayName, currency: account.currency }))}
+                canManage={overview.canManage}
+                reloadKey={transactionReload}
+                onError={setError}
+                onNotice={setNotice}
+              />
+            )}
 
+            {activeTab === 'coach' && (
+              <FinanceCoachPanel
+                householdId={householdId}
+                accountId={accountFilter}
+                accounts={overview.accounts.map(account => ({ id: account.id, displayName: account.displayName, currency: account.currency }))}
+                canManage={overview.canManage}
+                reloadKey={transactionReload}
+                onError={setError}
+                onNotice={setNotice}
+              />
+            )}
+          </>
+        )}
+
+        <FinanceTransactionEditor
+          householdId={householdId}
+          transaction={editingTransaction}
+          onClose={() => setEditingTransaction(null)}
+          onSaved={() => { setTransactionReload(value => value + 1); setRulesReload(value => value + 1) }}
+          onError={setError}
+          onNotice={setNotice}
+        />
       </div>
     </ModernAppShell>
   )

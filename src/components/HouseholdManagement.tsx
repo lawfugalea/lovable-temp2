@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { withBasePath } from '@/lib/base-path';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -10,9 +11,12 @@ import {
   LogOut, 
   RefreshCw, 
   AlertCircle, 
-  Check,
   X,
-  Clock
+  Clock,
+  ShieldCheck,
+  ShieldOff,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface Invite {
@@ -48,10 +52,12 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({});
+  const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
 
   const currentUserId = (session as any)?.user?.id;
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -80,13 +86,13 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
     } finally {
       setLoading(false);
     }
-  };
+  }, [householdId]);
 
   useEffect(() => {
     if (householdId) {
-      loadData();
+      void loadData();
     }
-  }, [householdId]);
+  }, [householdId, loadData]);
 
   const handleRevokeInvite = async (inviteId: string) => {
     if (!confirm('Are you sure you want to revoke this invite?')) return;
@@ -104,10 +110,47 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
       }
       
       setInvites(prev => prev.filter(invite => invite.id !== inviteId));
+      setInviteLinks(prev => {
+        const next = { ...prev };
+        delete next[inviteId];
+        return next;
+      });
     } catch (error: any) {
       alert(`Failed to revoke invite: ${error.message}`);
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleResendInvite = async (inviteId: string) => {
+    setActionLoading(`resend-${inviteId}`);
+    try {
+      const response = await fetch(`/api/household/invites/${inviteId}/resend`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (typeof data.acceptUrl === 'string') {
+        setInviteLinks(prev => ({ ...prev, [inviteId]: data.acceptUrl }));
+      }
+      if (!response.ok) throw new Error(data.error || 'Failed to resend invite');
+      await loadData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to resend invite');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const copyInviteLink = async (inviteId: string) => {
+    const link = inviteLinks[inviteId];
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedInviteId(inviteId);
+      setTimeout(() => setCopiedInviteId(current => current === inviteId ? null : current), 2000);
+    } catch {
+      alert('Could not copy the invite link');
     }
   };
 
@@ -134,6 +177,28 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
     }
   };
 
+  const handleRoleChange = async (member: Member, role: 'OWNER' | 'MEMBER') => {
+    const action = role === 'OWNER' ? 'promote' : 'demote';
+    if (!confirm(`Are you sure you want to ${action} ${member.user.name || member.user.email}?`)) return;
+
+    setActionLoading(`role-${member.id}`);
+    try {
+      const response = await fetch(`/api/household/members/${member.id}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+        credentials: 'include',
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `Failed to ${action} member`);
+      await loadData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : `Failed to ${action} member`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleLeaveHousehold = async () => {
     if (!confirm('Are you sure you want to leave this household? You will lose access to all household data.')) return;
     
@@ -152,7 +217,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
       }
       
       // Redirect to home page after leaving
-      window.location.href = '/';
+      window.location.href = withBasePath('/');
     } catch (error: any) {
       alert(`Failed to leave household: ${error.message}`);
     } finally {
@@ -188,7 +253,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
   }
 
   const isOwner = viewerRole === 'OWNER';
-  const currentUserMember = members.find(m => m.user.id === currentUserId);
+  const ownerCount = members.filter(member => member.role === 'OWNER').length;
 
   return (
     <div className="space-y-6">
@@ -213,41 +278,70 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
             ) : (
               <div className="space-y-3">
                 {invites.map((invite) => (
-                  <div key={invite.id} className="flex items-center justify-between p-3 border rounded-lg bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-cozy-primary/20 rounded-full flex items-center justify-center">
-                        <Mail className="w-4 h-4 text-cozy-primary" />
+                  <div key={invite.id} className="space-y-2 p-3 border rounded-lg bg-gray-50">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-cozy-primary/20 rounded-full flex items-center justify-center">
+                          <Mail className="w-4 h-4 text-cozy-primary" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-cozy-text">
+                            {invite.email || 'Link-only invite'}
+                          </div>
+                          <div className="text-sm text-cozy-text-muted flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {invite.role}
+                            </Badge>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              Expires {new Date(invite.expiresAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium text-cozy-text">
-                          {invite.email || 'Link-only invite'}
-                        </div>
-                        <div className="text-sm text-cozy-text-muted flex items-center gap-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {invite.role}
-                          </Badge>
-                          <span>•</span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            Expires {new Date(invite.expiresAt).toLocaleDateString()}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-2">
+                        {invite.email && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendInvite(invite.id)}
+                            disabled={actionLoading === `resend-${invite.id}`}
+                          >
+                            <RefreshCw className={`w-4 h-4 ${actionLoading === `resend-${invite.id}` ? 'animate-spin' : ''}`} />
+                            Resend
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRevokeInvite(invite.id)}
+                          disabled={actionLoading === invite.id}
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          {actionLoading === invite.id ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <X className="w-4 h-4" />
+                          )}
+                          Revoke
+                        </Button>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRevokeInvite(invite.id)}
-                      disabled={actionLoading === invite.id}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
-                    >
-                      {actionLoading === invite.id ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <X className="w-4 h-4" />
-                      )}
-                      Revoke
-                    </Button>
+                    {inviteLinks[invite.id] && (
+                      <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-2">
+                        <input
+                          value={inviteLinks[invite.id]}
+                          readOnly
+                          aria-label="New invite link"
+                          className="min-w-0 flex-1 bg-transparent text-xs text-amber-900 outline-none"
+                        />
+                        <Button variant="outline" size="sm" onClick={() => copyInviteLink(invite.id)}>
+                          {copiedInviteId === invite.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          Copy
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -296,24 +390,47 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
                   
                   {/* Action buttons */}
                   {member.role !== 'OWNER' && isOwner && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRoleChange(member, 'OWNER')}
+                        disabled={actionLoading === `role-${member.id}`}
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        Promote
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemoveMember(member.id, member.user.name || 'this member')}
+                        disabled={actionLoading === member.id}
+                        className="text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        {actionLoading === member.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <UserMinus className="w-4 h-4" />
+                        )}
+                        Remove
+                      </Button>
+                    </>
+                  )}
+
+                  {member.role === 'OWNER' && isOwner && ownerCount > 1 && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleRemoveMember(member.id, member.user.name || 'this member')}
-                      disabled={actionLoading === member.id}
-                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => handleRoleChange(member, 'MEMBER')}
+                      disabled={actionLoading === `role-${member.id}`}
                     >
-                      {actionLoading === member.id ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <UserMinus className="w-4 h-4" />
-                      )}
-                      Remove
+                      <ShieldOff className="w-4 h-4" />
+                      Demote
                     </Button>
                   )}
                   
-                  {/* Leave button for non-owners */}
-                  {member.user.id === currentUserId && member.role !== 'OWNER' && (
+                  {/* Members may leave; owners may leave once another owner remains. */}
+                  {member.user.id === currentUserId && (member.role !== 'OWNER' || ownerCount > 1) && (
                     <Button
                       variant="outline"
                       size="sm"

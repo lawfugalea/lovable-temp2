@@ -1,15 +1,9 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { parseRequiredDate } from '@/lib/medicine'
+import { requireMembershipIn } from '@/lib/api-guards'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session?.user?.id) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
   const { householdId: queryHouseholdId } = req.query
   const { householdId: bodyHouseholdId } = req.body || {}
   
@@ -21,24 +15,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Household ID is required' })
   }
 
+  const membership = await requireMembershipIn(req, res, householdId)
+  if (!membership) return
+
   try {
-    // Verify user has access to this household
-    const household = await prisma.household.findFirst({
-      where: {
-        id: householdId,
-        OR: [
-          { ownerId: session.user.id },
-          { members: { some: { userId: session.user.id } } }
-        ]
-      }
-    })
-
-    if (!household) {
-      return res.status(403).json({ error: 'Access denied' })
-    }
-
     if (req.method === 'GET') {
       const { childId, startDate, endDate } = req.query
+      const parsedStartDate = startDate && typeof startDate === 'string' ? parseRequiredDate(startDate) : null
+      const parsedEndDate = endDate && typeof endDate === 'string' ? parseRequiredDate(endDate) : null
+      if ((startDate && !parsedStartDate) || (endDate && !parsedEndDate)) {
+        return res.status(400).json({ error: 'Invalid date range' })
+      }
+      if (parsedStartDate && parsedEndDate && parsedStartDate > parsedEndDate) {
+        return res.status(400).json({ error: 'Start date must be before end date' })
+      }
       
       const where: any = {
         child: {
@@ -50,12 +40,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         where.childId = childId
       }
 
-      if (startDate && typeof startDate === 'string') {
-        where.takenAt = { ...where.takenAt, gte: new Date(startDate) }
+      if (parsedStartDate) {
+        where.takenAt = { ...where.takenAt, gte: parsedStartDate }
       }
 
-      if (endDate && typeof endDate === 'string') {
-        where.takenAt = { ...where.takenAt, lte: new Date(endDate) }
+      if (parsedEndDate) {
+        where.takenAt = { ...where.takenAt, lte: parsedEndDate }
       }
 
       const readings = await prisma.feverReading.findMany({
@@ -78,14 +68,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'POST') {
-      console.log('POST /api/medicine/fever-readings - Request body:', req.body)
-      console.log('POST /api/medicine/fever-readings - Query params:', req.query)
       
-      const { childId, temperature, unit = 'C', method = 'oral', notes, takenBy, takenAt } = req.body
+      const { childId, episodeId, temperature, unit = 'C', method = 'oral', notes, takenAt } = req.body
 
-      if (!childId || temperature === undefined) {
-        console.log('Validation failed:', { childId, temperature })
-        return res.status(400).json({ error: 'Child ID and temperature are required' })
+      if (!childId || !episodeId || temperature === undefined) {
+        return res.status(400).json({ error: 'Episode, child, and temperature are required' })
       }
 
       // Verify child belongs to household
@@ -97,31 +84,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       if (!child) {
-        console.log('Child not found:', { childId, householdId })
         return res.status(404).json({ error: 'Child not found' })
       }
+      const episode = await prisma.healthEpisode.findFirst({ where: { id: episodeId, householdId, childId }, select: { id: true } })
+      if (!episode) return res.status(400).json({ error: 'Episode does not belong to the selected child and household' })
 
-      // Handle datetime-local input which comes as "2024-01-15T14:30"
-      // This is local time, so we need to treat it as such
-      let takenAtDate
-      if (takenAt && takenAt.includes('T') && !takenAt.includes('Z') && !takenAt.includes('+')) {
-        // This is a datetime-local format, treat as local time
-        const [datePart, timePart] = takenAt.split('T')
-        const [year, month, day] = datePart.split('-')
-        const [hour, minute] = timePart.split(':')
-        takenAtDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
-      } else {
-        takenAtDate = takenAt ? new Date(takenAt) : new Date()
+      const numericTemperature = Number(temperature)
+      const takenAtDate = takenAt ? parseRequiredDate(takenAt) : new Date()
+      const normalizedNotes = typeof notes === 'string' ? notes.trim() : null
+      const validRange = unit === 'F'
+        ? numericTemperature >= 86 && numericTemperature <= 113
+        : unit === 'C' && numericTemperature >= 30 && numericTemperature <= 45
+      const validMethods = new Set(['oral', 'rectal', 'axillary', 'ear', 'forehead'])
+      if (!takenAtDate || !validRange || !validMethods.has(method)
+        || (normalizedNotes?.length || 0) > 2000) {
+        return res.status(400).json({ error: 'Invalid temperature, unit, method, or time' })
       }
 
       const reading = await prisma.feverReading.create({
         data: {
           childId,
-          temperature: parseFloat(temperature),
+          episodeId,
+          temperature: numericTemperature,
           unit,
           method,
-          notes,
-          takenBy,
+          notes: normalizedNotes,
+          takenBy: membership.userId,
           takenAt: takenAtDate
         },
         include: {
@@ -139,13 +127,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === 'PUT') {
-      console.log('PUT /api/medicine/fever-readings - Request body:', req.body)
       
-      const { id, childId, temperature, unit = 'C', method = 'oral', notes, takenBy, takenAt } = req.body
+      const { id, childId, episodeId, temperature, unit = 'C', method = 'oral', notes, takenAt } = req.body
 
-      if (!id || !childId || temperature === undefined) {
-        console.log('Validation failed:', { id, childId, temperature })
-        return res.status(400).json({ error: 'Reading ID, child ID and temperature are required' })
+      if (!id || !childId || !episodeId || temperature === undefined) {
+        return res.status(400).json({ error: 'Reading ID, episode, child, and temperature are required' })
       }
 
       // Verify reading belongs to household
@@ -159,7 +145,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       if (!existingReading) {
-        console.log('Reading not found:', { id, householdId })
         return res.status(404).json({ error: 'Reading not found' })
       }
 
@@ -172,32 +157,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
 
       if (!child) {
-        console.log('Child not found:', { childId, householdId })
         return res.status(404).json({ error: 'Child not found' })
       }
+      const episode = await prisma.healthEpisode.findFirst({ where: { id: episodeId, householdId, childId }, select: { id: true } })
+      if (!episode) return res.status(400).json({ error: 'Episode does not belong to the selected child and household' })
 
-      // Handle datetime-local input which comes as "2024-01-15T14:30"
-      // This is local time, so we need to treat it as such
-      let takenAtDate
-      if (takenAt && takenAt.includes('T') && !takenAt.includes('Z') && !takenAt.includes('+')) {
-        // This is a datetime-local format, treat as local time
-        const [datePart, timePart] = takenAt.split('T')
-        const [year, month, day] = datePart.split('-')
-        const [hour, minute] = timePart.split(':')
-        takenAtDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hour), parseInt(minute))
-      } else {
-        takenAtDate = takenAt ? new Date(takenAt) : existingReading.takenAt
+      const numericTemperature = Number(temperature)
+      const takenAtDate = takenAt ? parseRequiredDate(takenAt) : existingReading.takenAt
+      const normalizedNotes = typeof notes === 'string' ? notes.trim() : null
+      const validRange = unit === 'F'
+        ? numericTemperature >= 86 && numericTemperature <= 113
+        : unit === 'C' && numericTemperature >= 30 && numericTemperature <= 45
+      const validMethods = new Set(['oral', 'rectal', 'axillary', 'ear', 'forehead'])
+      if (!takenAtDate || !validRange || !validMethods.has(method)
+        || (normalizedNotes?.length || 0) > 2000) {
+        return res.status(400).json({ error: 'Invalid temperature, unit, method, or time' })
       }
 
       const updatedReading = await prisma.feverReading.update({
         where: { id },
         data: {
           childId,
-          temperature: parseFloat(temperature),
+          episodeId,
+          temperature: numericTemperature,
           unit,
           method,
-          notes,
-          takenBy,
+          notes: normalizedNotes,
+          takenBy: membership.userId,
           takenAt: takenAtDate
         },
         include: {

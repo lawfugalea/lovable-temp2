@@ -1,10 +1,13 @@
 import React, { useState } from 'react'
-import { useRouter } from 'next/router'
 import Head from 'next/head'
-import FunButton from '../components/ui/FunButton'
-import FunCard from '../components/ui/FunCard'
-import PasswordInput from '../components/ui/PasswordInput'
-import MathCaptcha from '../components/ui/MathCaptcha'
+import { useRouter } from 'next/router'
+import { AlertCircle, ArrowRight, CheckCircle2, Mail, UserRound } from 'lucide-react'
+import AuthLayout from '@/components/AuthLayout'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import MathCaptcha from '@/components/ui/MathCaptcha'
+import { Spinner } from '@/components/ui/spinner'
+import PasswordInput from '@/components/ui/PasswordInput'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -18,197 +21,189 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!isCaptchaVerified) {
       setError('Please complete the security check')
       return
     }
-    
+
     setIsLoading(true)
     setError('')
     setSuccess(false)
-    
+
     try {
-      const res = await fetch('/api/register', { 
-        method: 'POST', 
-        headers: { 'content-type': 'application/json' }, 
-        body: JSON.stringify({ name, email, password }) 
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
       })
-      
+
       const data = await res.json()
-      
+
       if (!res.ok) {
         throw new Error(data.error || 'Could not register')
       }
-      
+
       setSuccess(true)
-      // Redirect to login page after successful registration
       setTimeout(() => {
-        // Check if there's an invite token to handle
         const inviteToken = router.query.invite as string
         if (inviteToken) {
-          // Redirect to login with invite token preserved
-          router.replace(`/login?registered=1&invite=${encodeURIComponent(inviteToken)}`)
+          const next = `/invites/accept?token=${encodeURIComponent(inviteToken)}`
+          router.replace(`/login?registered=1&invite=${encodeURIComponent(inviteToken)}&next=${encodeURIComponent(next)}`)
         } else {
-          // Redirect to login page with a success message
           router.replace('/login?registered=1')
         }
       }, 1500)
-    } catch (e: any) { 
+    } catch (e: any) {
       setError(e?.message || 'Could not register')
     } finally {
       setIsLoading(false)
     }
   }
 
+  const goToSignIn = () => {
+    const inviteToken = typeof router.query.invite === 'string' ? router.query.invite : ''
+    if (!inviteToken) {
+      void router.push('/login')
+      return
+    }
+
+    const next = `/invites/accept?token=${encodeURIComponent(inviteToken)}`
+    void router.push(`/login?invite=${encodeURIComponent(inviteToken)}&next=${encodeURIComponent(next)}`)
+  }
+
   return (
     <>
-      <Head><title>Register – Houseflow</title></Head>
-      <main className="min-h-screen bg-cozy-warm flex items-center justify-center p-6">
-        <div className="w-full max-w-md animate-cozy-bounce-in">
-          <FunCard className="overflow-hidden" hover bounce>
-            {/* Header with personality */}
-            <div className="bg-cozy-header border-b border-cozy-gray-200 flex flex-col items-center py-8">
-              <div className="h-16 w-16 rounded-cozy-lg bg-cozy-surface shadow-cozy-md grid place-items-center text-2xl border border-cozy-primary-soft mb-3 animate-cozy-float cozy-emoji">
-                🏡
-              </div>
-              <h1 className="text-2xl font-bold text-cozy-text mb-1 flex items-center gap-2">
-                <span>Join HouseFlow</span>
-                <span className="animate-cozy-pulse-gentle">✨</span>
-              </h1>
-              <p className="text-cozy-text-muted text-sm text-center">
-                Create your cozy home hub
-                <br />
-                <span className="animate-cozy-wiggle inline-block">🫖</span> Where your family story begins
-              </p>
-            </div>
+      <Head>
+        <title>Create an account – HouseFlow</title>
+        <meta
+          name="description"
+          content="Create a HouseFlow account for your shared household workspace."
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
 
-            <div className="bg-cozy-surface px-8 py-8">
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
-                    <span>👤</span>
-                    Full Name
-                  </label>
-                  <input 
-                    type="text" 
-                    className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
-                    placeholder="Your name" 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)} 
-                    autoComplete="name" 
-                    required 
-                  />
-                </div>
+      <AuthLayout
+        eyebrow={router.query.invite ? 'Household invitation' : 'Get started'}
+        title={router.query.invite ? 'Create your account to join' : 'Create your HouseFlow account'}
+        description={
+          router.query.invite
+            ? 'Your invitation will be waiting after you create your account and sign in.'
+            : 'Set up your account, then bring the people and routines of your home together.'
+        }
+      >
+        {error && (
+          <div
+            role="alert"
+            className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm leading-5 text-red-800"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{error}</span>
+          </div>
+        )}
 
-                <div>
-                  <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
-                    <span>📧</span>
-                    Email
-                  </label>
-                  <input 
-                    type="email" 
-                    className="w-full border border-cozy-gray-300 rounded-lg bg-cozy-surface px-4 py-3 text-cozy-text focus:outline-none focus:border-cozy-primary focus:ring-2 focus:ring-cozy-primary/20 transition-all" 
-                    placeholder="you@home.com" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    autoComplete="email" 
-                    required 
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
-                    <span>🔒</span>
-                    Password
-                  </label>
-                  <PasswordInput
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete="new-password"
-                    required
-                    minLength={8}
-                    maxLength={128}
-                  />
-                  <p className="text-xs text-cozy-text-muted mt-1">
-                    Must contain uppercase, lowercase, and numbers
-                  </p>
-                </div>
+        {success && (
+          <div
+            role="status"
+            className="mb-5 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-5 text-emerald-800"
+          >
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>Account created. Redirecting you to sign in…</span>
+          </div>
+        )}
 
-                {/* Math CAPTCHA */}
-                <MathCaptcha 
-                  onVerify={setIsCaptchaVerified}
-                  className="animate-cozy-bounce-in animation-delay-300"
-                />
-                
-                {error && (
-                  <div className="animate-cozy-bounce-in animation-delay-400">
-                    <div className="bg-red-50 border border-red-200 rounded-cozy px-4 py-3 text-red-700 text-sm flex items-center gap-2">
-                      <span>⚠️</span>
-                      {error}
-                    </div>
-                  </div>
-                )}
-
-                {success && (
-                  <div className="animate-cozy-bounce-in animation-delay-400">
-                    <div className="bg-green-50 border border-green-200 rounded-cozy px-4 py-3 text-green-700 text-sm flex items-center gap-2">
-                      <span>🎉</span>
-                      Account created! Redirecting to your home...
-                    </div>
-                  </div>
-                )}
-                
-                <div className="animate-cozy-bounce-in animation-delay-400">
-                  <FunButton 
-                    type="submit"
-                    disabled={isLoading || !isCaptchaVerified} 
-                    className="w-full"
-                    variant={isLoading ? "secondary" : "primary"}
-                    emoji={isLoading ? "🏡" : "✨"}
-                    celebration={!isLoading}
-                  >
-                    {isLoading ? 'Creating your home…' : 'Create your household'}
-                  </FunButton>
-                </div>
-              </form>
-
-              <div className="mt-6 pt-6 border-t border-cozy-gray-200 text-center animate-cozy-bounce-in animation-delay-500">
-                <p className="text-sm text-cozy-text-muted flex items-center justify-center gap-2">
-                  <span>Already have a home?</span>
-                  <button 
-                    onClick={() => router.push('/')}
-                    className="font-medium text-cozy-primary hover:text-cozy-primary-deep underline hover:animate-cozy-wiggle transition-all"
-                  >
-                    Sign in
-                  </button>
-                  <span className="animate-cozy-pulse-gentle">🏠</span>
-                </p>
-              </div>
-            </div>
-          </FunCard>
-
-          <div className="text-center text-xs text-cozy-text-soft mt-6 bg-cozy-surface/60 rounded-cozy px-4 py-2 backdrop-blur-sm animate-cozy-bounce-in animation-delay-600">
-            <div className="flex items-center justify-center gap-2">
-              <span className="animate-cozy-pulse-gentle">☕</span>
-              <span>By creating an account, you agree to keep our home cozy and welcoming</span>
-              <span className="animate-cozy-pulse-gentle animation-delay-300">💝</span>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <label htmlFor="name" className="text-sm font-medium">
+              Full name
+            </label>
+            <div className="relative">
+              <UserRound
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                id="name"
+                name="name"
+                type="text"
+                className="h-11 border-border bg-background pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+                placeholder="Your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
+                required
+              />
             </div>
           </div>
 
-          {/* Fun floating elements */}
-          <div className="fixed top-10 left-10 text-2xl animate-cozy-float animation-delay-1000 opacity-20 pointer-events-none">
-            🌸
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-sm font-medium">
+              Email address
+            </label>
+            <div className="relative">
+              <Mail
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                className="h-11 border-border bg-background pl-10 text-foreground placeholder:text-muted-foreground focus-visible:ring-ring"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
+                required
+              />
+            </div>
           </div>
-          <div className="fixed top-20 right-20 text-xl animate-cozy-pulse-gentle animation-delay-1500 opacity-30 pointer-events-none">
-            ✨
+
+          <div className="space-y-2">
+            <label htmlFor="new-password" className="text-sm font-medium">
+              Password
+            </label>
+            <PasswordInput
+              id="new-password"
+              name="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-11 border-border bg-background text-foreground focus:border-primary focus:ring-ring"
+              placeholder="Create a strong password"
+              autoComplete="new-password"
+              required
+              minLength={12}
+              maxLength={128}
+            />
+            <p className="text-xs leading-5 text-muted-foreground">
+              Use 12–128 characters with uppercase, lowercase, and numbers.
+            </p>
           </div>
-          <div className="fixed bottom-32 left-20 text-lg animate-cozy-wiggle animation-delay-2000 opacity-25 pointer-events-none">
-            🫖
-          </div>
+
+          <MathCaptcha onVerify={setIsCaptchaVerified} />
+
+          <Button
+            type="submit"
+            disabled={isLoading || !isCaptchaVerified}
+            className="h-11 w-full gap-2"
+          >
+            {isLoading ? <><Spinner /> Creating account…</> : <>Create account <ArrowRight className="h-4 w-4" aria-hidden="true" /></>}
+          </Button>
+        </form>
+
+        <div className="mt-6 border-t border-border pt-6 text-center">
+          <p className="text-sm text-muted-foreground">
+            Already have an account?{' '}
+            <button
+              type="button"
+              onClick={goToSignIn}
+              className="font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Sign in
+            </button>
+          </p>
         </div>
-      </main>
+      </AuthLayout>
     </>
   )
 }

@@ -25,7 +25,7 @@ export default function FunLoading({
   }
 
   const loadingEmojis = ['🏠', '🫖', '✨', '🌸', '🎀', '🧸', '🍯', '🌺']
-  const randomEmoji = loadingEmojis[Math.floor(Math.random() * loadingEmojis.length)]
+  const randomEmoji = loadingEmojis[message.length % loadingEmojis.length]
 
   return (
     <div className="min-h-[50vh] grid place-items-center text-center p-6">

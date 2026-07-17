@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
+import { withBasePath } from "@/lib/base-path";
 
 type DebugPayload = {
   when: string;
@@ -117,7 +118,7 @@ export default function DebugLab() {
           </button>
 
           <Link
-            href="/api/auth/signout"
+            href={withBasePath("/api/auth/signout")}
             className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
           >
             Sign out
@@ -153,7 +154,7 @@ export default function DebugLab() {
             Simulate invite landing (?joined=1&household=...)
           </button>
           <Link
-            href="/"
+            href={withBasePath("/")}
             className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
           >
             Go Home

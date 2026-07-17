@@ -1,20 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { requireMembershipIn } from '@/lib/api-guards'
+import { parseRequiredDate } from '@/lib/medicine'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
   const householdId = req.query.householdId as string
 
-  if (!householdId) {
-    return res.status(400).json({ error: 'Household ID required' })
-  }
+  const context = await requireMembershipIn(req, res, householdId)
+  if (!context) return
 
   if (req.method === 'POST') {
     try {
@@ -23,14 +16,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (!medicineId || !nextDoseOverride) {
         return res.status(400).json({ error: 'Missing required fields: medicineId, nextDoseOverride' })
       }
+      const overrideDate = parseRequiredDate(nextDoseOverride)
+      if (!overrideDate) return res.status(400).json({ error: 'Invalid next dose time' })
+      const normalizedReason = typeof overrideReason === 'string' ? overrideReason.trim() : ''
+      if (normalizedReason.length > 500) {
+        return res.status(400).json({ error: 'Override reason is too long' })
+      }
 
       // Verify the medicine belongs to the household
       const medicine = await prisma.medicine.findFirst({
         where: {
           id: medicineId,
-          child: {
-            householdId
-          }
+          householdId,
+          isTemplate: false,
+          isActive: true,
         }
       })
 
@@ -41,8 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const updatedMedicine = await prisma.medicine.update({
         where: { id: medicineId },
         data: {
-          nextDoseOverride: new Date(nextDoseOverride),
-          overrideReason: overrideReason || null
+          nextDoseOverride: overrideDate,
+          overrideReason: normalizedReason || null
         },
         include: {
           child: true
@@ -68,9 +67,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const medicine = await prisma.medicine.findFirst({
         where: {
           id: medicineId,
-          child: {
-            householdId
-          }
+          householdId,
+          isTemplate: false,
         }
       })
 

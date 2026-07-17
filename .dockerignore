@@ -1,0 +1,12 @@
+.git
+node_modules
+.next
+.env
+.env.*
+keys/
+Dockerfile*
+docker-compose*.yml
+npm-debug.log*
+smart_debug/*.zip
+smart_debug/*.rar
+public/uploads

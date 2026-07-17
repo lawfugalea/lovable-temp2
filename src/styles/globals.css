@@ -2,15 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fix for contentEditable text direction */
-[contenteditable] {
-  direction: ltr !important;
-  text-align: left !important;
-  unicode-bidi: normal !important;
-  writing-mode: horizontal-tb !important;
+@layer base {
+  :root {
+    --background: 36 33% 97%;
+    --foreground: 24 18% 13%;
+    --card: 36 30% 99%;
+    --card-foreground: 24 18% 13%;
+    --popover: 36 30% 99%;
+    --popover-foreground: 24 18% 13%;
+    --primary: 15 62% 43%;
+    --primary-foreground: 36 33% 98%;
+    --secondary: 38 32% 91%;
+    --secondary-foreground: 25 24% 20%;
+    --muted: 32 20% 92%;
+    --muted-foreground: 24 10% 40%;
+    --accent: 95 18% 88%;
+    --accent-foreground: 102 24% 20%;
+    --destructive: 0 68% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 17% 84%;
+    --input: 30 17% 78%;
+    --ring: 15 62% 43%;
+    --radius: 0.875rem;
+
+    /* HouseFlow compatibility tokens used by pre-migration screens. */
+    --primary-soft: 18 68% 90%;
+    --primary-deep: 15 66% 35%;
+    --sage: 96 20% 52%;
+    --sage-soft: 96 24% 89%;
+    --cozy-bg: hsl(var(--background));
+    --cozy-surface: hsl(var(--card));
+    --cozy-text: hsl(var(--foreground));
+    --cozy-text-muted: hsl(var(--muted-foreground));
+    --cozy-text-soft: hsl(var(--muted-foreground) / 0.72);
+    --cozy-primary: hsl(var(--primary));
+    --cozy-primary-soft: hsl(var(--primary-soft));
+    --cozy-primary-deep: hsl(var(--primary-deep));
+    --cozy-sage: hsl(var(--sage));
+    --cozy-sage-soft: hsl(var(--sage-soft));
+    --cozy-terracotta: hsl(var(--primary));
+    --cozy-cream: hsl(var(--secondary));
+    --cozy-sand: hsl(var(--accent));
+    --cozy-gray-100: hsl(var(--muted));
+    --cozy-gray-200: hsl(var(--border));
+    --cozy-gray-300: hsl(var(--input));
+    --cozy-gray-400: hsl(var(--muted-foreground));
+    --cozy-shadow-sm: 0 1px 2px hsl(var(--foreground) / 0.05), 0 1px 8px hsl(var(--foreground) / 0.035);
+    --cozy-shadow-md: 0 12px 30px -16px hsl(var(--foreground) / 0.24);
+    --cozy-shadow-lg: 0 24px 60px -24px hsl(var(--foreground) / 0.32);
+    --cozy-shadow-glow: 0 10px 28px -12px hsl(var(--primary) / 0.45);
+    --hf-grad-from: hsl(var(--primary-soft));
+    --hf-grad-via: hsl(var(--secondary));
+    --hf-grad-to: hsl(var(--sage-soft));
+  }
+
+  .dark {
+    --background: 24 16% 10%;
+    --foreground: 36 24% 94%;
+    --card: 24 14% 13%;
+    --card-foreground: 36 24% 94%;
+    --popover: 24 14% 13%;
+    --popover-foreground: 36 24% 94%;
+    --primary: 17 72% 62%;
+    --primary-foreground: 24 22% 10%;
+    --secondary: 26 13% 19%;
+    --secondary-foreground: 36 22% 92%;
+    --muted: 25 12% 18%;
+    --muted-foreground: 30 12% 66%;
+    --accent: 98 13% 22%;
+    --accent-foreground: 90 18% 86%;
+    --destructive: 0 62% 52%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 25 12% 23%;
+    --input: 25 12% 28%;
+    --ring: 17 72% 62%;
+    --primary-soft: 16 30% 21%;
+    --primary-deep: 17 72% 68%;
+    --sage: 96 20% 62%;
+    --sage-soft: 96 14% 20%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    min-width: 320px;
+    background: hsl(var(--background));
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-height: 100vh;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+    color: hsl(var(--foreground));
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
-/* More specific targeting for notes editor */
+/* Notes are authored left-to-right even when pasted markup has direction data. */
+[contenteditable],
 [contenteditable] * {
   direction: ltr !important;
   text-align: left !important;
@@ -18,325 +118,71 @@
   writing-mode: horizontal-tb !important;
 }
 
-/* Force direction on all elements inside contentEditable */
-[contenteditable] p,
-[contenteditable] div,
-[contenteditable] span,
-[contenteditable] li,
-[contenteditable] td,
-[contenteditable] th {
-  direction: ltr !important;
-  text-align: left !important;
-  unicode-bidi: normal !important;
-  writing-mode: horizontal-tb !important;
-}
-
-/* Warm, cozy design system */
-:root {
-  /* Main background - warm ivory */
-  --cozy-bg: hsl(35, 25%, 97%);
-  --cozy-surface: hsl(35, 15%, 99%);
-  
-  /* Text colors */
-  --cozy-text: hsl(25, 15%, 15%);
-  --cozy-text-muted: hsl(25, 8%, 45%);
-  --cozy-text-soft: hsl(25, 5%, 65%);
-  
-  /* Warm accent colors */
-  --cozy-primary: hsl(18, 75%, 65%);      /* warm coral */
-  --cozy-primary-soft: hsl(18, 85%, 85%);  /* light coral */
-  --cozy-primary-deep: hsl(18, 65%, 45%);  /* deep coral */
-  
-  /* Secondary warm tones */
-  --cozy-sage: hsl(95, 20%, 65%);         /* warm sage */
-  --cozy-sage-soft: hsl(95, 25%, 85%);   /* light sage */
-  --cozy-terracotta: hsl(15, 60%, 60%);  /* terracotta */
-  --cozy-cream: hsl(45, 40%, 92%);       /* warm cream */
-  --cozy-sand: hsl(35, 30%, 85%);        /* warm sand */
-  
-  /* Warm grays */
-  --cozy-gray-100: hsl(25, 8%, 95%);
-  --cozy-gray-200: hsl(25, 6%, 88%);
-  --cozy-gray-300: hsl(25, 5%, 75%);
-  --cozy-gray-400: hsl(25, 4%, 60%);
-  
-  /* Gradients */
-  --cozy-gradient-warm: linear-gradient(135deg, 
-    hsl(35, 40%, 95%) 0%, 
-    hsl(25, 35%, 92%) 50%, 
-    hsl(18, 30%, 90%) 100%
-  );
-  
-  --cozy-gradient-header: linear-gradient(90deg, 
-    hsl(18, 85%, 90%) 0%, 
-    hsl(35, 60%, 88%) 30%, 
-    hsl(95, 30%, 88%) 70%, 
-    hsl(45, 50%, 90%) 100%
-  );
-  
-  /* Shadows - warm and soft */
-  --cozy-shadow-sm: 0 2px 8px hsla(25, 15%, 15%, 0.08);
-  --cozy-shadow-md: 0 4px 16px hsla(25, 15%, 15%, 0.12);
-  --cozy-shadow-lg: 0 8px 32px hsla(25, 15%, 15%, 0.16);
-  --cozy-shadow-glow: 0 0 20px hsla(18, 75%, 65%, 0.15);
-}
-
-/* Base styling with warm, cozy foundation */
-html, body { 
-  background: var(--cozy-bg);
-  color: var(--cozy-text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-/* Warm focus ring */
-*:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--cozy-surface), 0 0 0 5px var(--cozy-primary);
-  border-radius: 1rem;
-}
-
-/* Cozy glass panel */
-.cozy-glass {
-  background: var(--cozy-gradient-warm);
-  backdrop-filter: blur(12px);
-  border: 1px solid hsla(25, 15%, 85%, 0.4);
-  box-shadow: var(--cozy-shadow-md);
-}
-
-/* Warm card styling */
-.cozy-card { 
-  background: var(--cozy-surface);
-  border-radius: 1.5rem;
-  border: 1px solid var(--cozy-gray-200);
-  box-shadow: var(--cozy-shadow-sm);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.cozy-card:hover {
-  box-shadow: var(--cozy-shadow-md);
-  transform: translateY(-1px);
-}
-
-/* Warm button styles */
-.cozy-btn-primary {
-  background: var(--cozy-primary);
-  color: var(--cozy-surface);
-  border-radius: 1rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  box-shadow: var(--cozy-shadow-sm);
-}
-
-.cozy-btn-primary:hover {
-  background: var(--cozy-primary-deep);
-  box-shadow: var(--cozy-shadow-glow);
-  transform: translateY(-1px);
-}
-
-.cozy-btn-secondary {
-  background: var(--cozy-surface);
-  color: var(--cozy-text);
-  border: 1px solid var(--cozy-gray-300);
-  border-radius: 1rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.cozy-btn-secondary:hover {
-  background: var(--cozy-cream);
-  border-color: var(--cozy-primary-soft);
-}
-
-/* Safe-area util (for sticky footers on iOS) */
-.pb-safe { 
-  padding-bottom: max(12px, env(safe-area-inset-bottom)); 
-}
-
-/* Fun hover animations */
-.cozy-wiggle {
-  animation: wiggle 0.5s ease-in-out;
-}
-
-.cozy-bounce-in {
-  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-.cozy-shake {
-  animation: shake 0.5s ease-in-out;
-}
-
-.cozy-glow {
-  animation: glow 2s ease-in-out infinite alternate;
-}
-
-.cozy-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.cozy-pulse-gentle {
-  animation: pulseGentle 2s ease-in-out infinite;
-}
-
-/* Delightful button press effect */
-.cozy-btn-press {
-  transform: scale(0.98);
-  transition: transform 0.1s ease;
-}
-
-/* Fun keyframe animations */
-@keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(5deg); }
-  75% { transform: rotate(-5deg); }
-}
-
-@keyframes bounceIn {
-  0% { 
-    opacity: 0;
-    transform: scale(0.3) rotate(-10deg);
+@layer components {
+  .cozy-glass {
+    background: hsl(var(--card) / 0.82);
+    border: 1px solid hsl(var(--border) / 0.78);
+    box-shadow: var(--cozy-shadow-md);
+    backdrop-filter: blur(18px);
   }
-  50% { 
-    opacity: 1;
-    transform: scale(1.05) rotate(2deg);
+
+  .cozy-card,
+  .hf-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 2px);
+    box-shadow: var(--cozy-shadow-sm);
   }
-  70% { 
-    transform: scale(0.95) rotate(-1deg);
+
+  .cozy-card {
+    transition: border-color 160ms ease, box-shadow 160ms ease;
   }
-  100% { 
-    opacity: 1;
-    transform: scale(1) rotate(0deg);
+
+  .cozy-card:hover {
+    border-color: hsl(var(--primary) / 0.28);
+    box-shadow: var(--cozy-shadow-md);
+  }
+
+  .cozy-btn-primary,
+  .cozy-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.5rem;
+    border-radius: calc(var(--radius) - 2px);
+    padding: 0.625rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+  }
+
+  .cozy-btn-primary {
+    background: hsl(var(--primary));
+    color: hsl(var(--primary-foreground));
+    box-shadow: var(--cozy-shadow-sm);
+  }
+
+  .cozy-btn-primary:hover {
+    background: hsl(var(--primary-deep));
+    box-shadow: var(--cozy-shadow-glow);
+  }
+
+  .cozy-btn-secondary {
+    background: hsl(var(--card));
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--border));
+  }
+
+  .cozy-btn-secondary:hover {
+    background: hsl(var(--secondary));
+    border-color: hsl(var(--primary) / 0.32);
   }
 }
 
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
-  20%, 40%, 60%, 80% { transform: translateX(3px); }
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
-@keyframes glow {
-  from { box-shadow: 0 0 20px hsla(18, 75%, 65%, 0.3); }
-  to { box-shadow: 0 0 30px hsla(18, 75%, 65%, 0.6); }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
-}
-
-@keyframes pulseGentle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-@keyframes confetti {
-  0% { 
-    transform: translateY(0) rotate(0deg);
-    opacity: 1;
-  }
-  100% { 
-    transform: translateY(-100px) rotate(360deg);
-    opacity: 0;
-  }
-}
-
-.cozy-confetti {
-  animation: confetti 1s ease-out forwards;
-}
-
-/* Enhanced card hover effects */
-.cozy-card:hover {
-  box-shadow: var(--cozy-shadow-lg);
-  transform: translateY(-2px) scale(1.01);
-}
-
-/* Satisfying button interactions */
-.cozy-btn-primary:active, .cozy-btn-secondary:active {
-  transform: translateY(1px) scale(0.98);
-}
-
-.cozy-btn-primary:hover {
-  background: var(--cozy-primary-deep);
-  box-shadow: var(--cozy-shadow-glow);
-  transform: translateY(-2px);
-}
-
-.cozy-btn-secondary:hover {
-  background: var(--cozy-cream);
-  border-color: var(--cozy-primary-soft);
-  transform: translateY(-1px);
-}
-
-/* Fun loading states */
-.cozy-loading-dance {
-  animation: loadingDance 1.5s ease-in-out infinite;
-}
-
-@keyframes loadingDance {
-  0%, 100% { transform: rotate(0deg) scale(1); }
-  25% { transform: rotate(10deg) scale(1.1); }
-  50% { transform: rotate(0deg) scale(0.9); }
-  75% { transform: rotate(-10deg) scale(1.1); }
-}
-
-/* Interactive emoji animations */
-.cozy-emoji:hover {
-  transform: scale(1.3) rotate(15deg);
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-/* Celebration effects */
-.cozy-celebrate {
-  position: relative;
-  overflow: hidden;
-}
-
-.cozy-celebrate::after {
-  content: '🎉✨🎊';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  animation: celebrate 0.6s ease-out;
-  pointer-events: none;
-  font-size: 1.2em;
-  white-space: nowrap;
-}
-
-@keyframes celebrate {
-  0% { 
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
-  }
-  50% { 
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.2);
-  }
-  100% { 
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.8) translateY(-20px);
-  }
-}
-
-/* Cozy scrollbars */
-*::-webkit-scrollbar { 
-  height: 8px; 
-  width: 8px; 
-}
-
-*::-webkit-scrollbar-thumb { 
-  background: var(--cozy-primary-soft); 
-  border-radius: 999px; 
-}
-
-*::-webkit-scrollbar-track {
-  background: var(--cozy-gray-100);
-}
-
-/* Animation delay utilities */
 .animation-delay-100 { animation-delay: 100ms; }
 .animation-delay-200 { animation-delay: 200ms; }
 .animation-delay-300 { animation-delay: 300ms; }
@@ -346,3 +192,45 @@ html, body {
 .animation-delay-1000 { animation-delay: 1000ms; }
 .animation-delay-1500 { animation-delay: 1500ms; }
 .animation-delay-2000 { animation-delay: 2000ms; }
+
+.cozy-btn-press:active {
+  transform: scale(0.98);
+}
+
+.cozy-emoji {
+  transition: transform 180ms ease;
+}
+
+.cozy-emoji:hover {
+  transform: scale(1.08);
+}
+
+* {
+  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

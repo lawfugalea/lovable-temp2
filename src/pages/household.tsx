@@ -8,27 +8,15 @@ import { Badge } from '../components/ui/Badge'
 import HouseholdCreationWizard from '../components/HouseholdCreationWizard'
 import EnhancedInvitePanel from '../components/EnhancedInvitePanel'
 import HouseholdManagement from '../components/HouseholdManagement'
-import { Users, Plus, Mail, UserPlus, Settings, RefreshCw, Home, AlertCircle } from 'lucide-react'
+import { Users, Settings, RefreshCw, Home, Save, X } from 'lucide-react'
 
 interface Household {
   id: string
   name: string
-  ownerId: string
+  ownerId: string | null
   createdAt: string
   updatedAt: string
-}
-
-interface Membership {
-  id: string
-  userId: string
-  householdId: string
-  role: 'OWNER' | 'ADMIN' | 'MEMBER'
-  createdAt: string
-  user: {
-    id: string
-    name: string
-    email: string
-  }
+  role: 'OWNER' | 'MEMBER'
 }
 
 export default function HouseholdPage() {
@@ -37,6 +25,9 @@ export default function HouseholdPage() {
   const [loading, setLoading] = useState(true)
   const [showCreationWizard, setShowCreationWizard] = useState(false)
   const [householdError, setHouseholdError] = useState('')
+  const [editingName, setEditingName] = useState(false)
+  const [householdName, setHouseholdName] = useState('')
+  const [savingName, setSavingName] = useState(false)
 
   // Load household data
   useEffect(() => {
@@ -53,17 +44,20 @@ export default function HouseholdPage() {
       // Load active household
       const householdRes = await fetch('/api/household/active')
       const householdData = await householdRes.json()
-      
-      if (householdData.householdId) {
+      if (householdRes.status === 404) {
+        setHousehold(null)
+      } else if (!householdRes.ok) {
+        throw new Error(householdData.error || 'Failed to load household')
+      } else if (householdData.householdId) {
         setHousehold({
           id: householdData.householdId,
-          name: householdData.name || 'My Household',
-          ownerId: householdData.ownerId || '',
-          createdAt: householdData.createdAt || new Date().toISOString(),
-          updatedAt: householdData.updatedAt || new Date().toISOString(),
+          name: householdData.name,
+          ownerId: householdData.ownerId,
+          createdAt: householdData.createdAt,
+          updatedAt: householdData.updatedAt,
+          role: householdData.role,
         })
-
-        // Members are now loaded by HouseholdManagement component
+        setHouseholdName(householdData.name)
       } else {
         // No household found - this is normal for new users
         setHousehold(null)
@@ -81,6 +75,28 @@ export default function HouseholdPage() {
     setShowCreationWizard(false)
     // Reload household data to show the new household
     loadHouseholdData()
+  }
+
+  const handleRenameHousehold = async () => {
+    if (!household) return
+    setSavingName(true)
+    setHouseholdError('')
+    try {
+      const response = await fetch('/api/household/active', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId: household.id, name: householdName }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to rename household')
+      setHousehold(current => current ? { ...current, ...data.household } : current)
+      setHouseholdName(data.household.name)
+      setEditingName(false)
+    } catch (error) {
+      setHouseholdError(error instanceof Error ? error.message : 'Failed to rename household')
+    } finally {
+      setSavingName(false)
+    }
   }
 
   if (status === 'loading' || loading) {
@@ -131,23 +147,54 @@ export default function HouseholdPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
                     <Badge variant="secondary">Active Household</Badge>
+                    <Badge variant={household.role === 'OWNER' ? 'default' : 'secondary'}>{household.role}</Badge>
                   </div>
-                  <Button variant="outline" size="sm">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </Button>
+                  {household.role === 'OWNER' && !editingName && (
+                    <Button variant="outline" size="sm" onClick={() => setEditingName(true)}>
+                      <Settings className="w-4 h-4 mr-2" />
+                      Rename
+                    </Button>
+                  )}
                 </div>
+                {editingName && (
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                    <Input
+                      value={householdName}
+                      onChange={(event) => setHouseholdName(event.target.value)}
+                      maxLength={100}
+                      aria-label="Household name"
+                    />
+                    <Button onClick={handleRenameHousehold} disabled={savingName || householdName.trim().length < 2}>
+                      <Save className="w-4 h-4 mr-2" />
+                      {savingName ? 'Saving…' : 'Save'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setHouseholdName(household.name)
+                        setEditingName(false)
+                      }}
+                      disabled={savingName}
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+                {householdError && <p className="mt-3 text-sm text-red-600">{householdError}</p>}
               </CardContent>
             </Card>
 
             {/* Enhanced Invite Panel */}
-            <EnhancedInvitePanel 
-              householdId={household.id}
-              householdName={household.name}
-            />
+            {household.role === 'OWNER' && (
+              <EnhancedInvitePanel
+                householdId={household.id}
+                householdName={household.name}
+              />
+            )}
 
             {/* Household Management */}
             <HouseholdManagement 

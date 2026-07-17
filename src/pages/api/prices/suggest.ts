@@ -1,5 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
+import { apiRateLimit } from '@/lib/rate-limiter';
+
+const MAX_QUERY_LENGTH = 200;
 
 /**
  * Response shape:
@@ -39,8 +42,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!(await apiRateLimit(req, res))) return;
 
   const qRaw = (req.query.q ?? '').toString().trim();
+  if (qRaw.length > MAX_QUERY_LENGTH) {
+    return res.status(400).json({ error: `Search query must be ${MAX_QUERY_LENGTH} characters or fewer` });
+  }
   if (!qRaw) {
     return res.status(200).json({ items: [] });
   }

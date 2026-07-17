@@ -7,20 +7,40 @@ async function createProductionUser() {
   
   if (!process.env.DATABASE_URL) {
     console.log('❌ DATABASE_URL is missing! Please set it in CapRover environment variables.');
+    process.exitCode = 1;
+    return;
+  }
+
+  const email = String(process.argv[2] || '').trim().toLowerCase();
+  const password = String(process.argv[3] || '');
+  const name = String(process.argv[4] || '').trim();
+  if (!email || !password || !name) {
+    console.error('Usage: node create-production-user.js <email> <strong-password> <name>');
+    process.exitCode = 1;
+    return;
+  }
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    console.error('❌ A valid email address is required.');
+    process.exitCode = 1;
+    return;
+  }
+  if (password.length < 12 || password.length > 128 || !/[A-Z]/.test(password)
+    || !/[a-z]/.test(password) || !/\d/.test(password)) {
+    console.error('❌ Password must be 12-128 characters and include uppercase, lowercase, and a number.');
+    process.exitCode = 1;
+    return;
+  }
+  if (name.length < 2 || name.length > 50) {
+    console.error('❌ Name must be between 2 and 50 characters.');
+    process.exitCode = 1;
     return;
   }
   
+  const prisma = new PrismaClient();
   try {
-    const prisma = new PrismaClient();
     await prisma.$connect();
-    
-    // Get user details from command line arguments or use defaults
-    const email = process.argv[2] || 'admin@example.com';
-    const password = process.argv[3] || 'admin123';
-    const name = process.argv[4] || 'Admin User';
-    
+
     console.log(`📧 Email: ${email}`);
-    console.log(`🔒 Password: ${password}`);
     console.log(`👤 Name: ${name}`);
     
     // Check if user already exists
@@ -57,11 +77,11 @@ async function createProductionUser() {
       console.log(`🆔 User ID: ${user.id}`);
     }
     
-    await prisma.$disconnect();
-    
   } catch (error) {
     console.error('❌ Error creating user:', error.message);
-    console.error('Full error:', error);
+    process.exitCode = 1;
+  } finally {
+    await prisma.$disconnect();
   }
 }
 

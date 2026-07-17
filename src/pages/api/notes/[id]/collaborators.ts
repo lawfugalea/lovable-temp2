@@ -1,18 +1,13 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { getUserIdOr401 } from '@/lib/api-guards'
+
+type NoteUser = { id: string }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session?.user?.email) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
-  const user = await prisma.user.findUnique({
-    where: { email: session.user.email }
-  })
+  const userId = await getUserIdOr401(req, res)
+  if (!userId) return
+  const user: NoteUser = { id: userId }
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' })
@@ -36,7 +31,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function handleGetCollaborators(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
+async function handleGetCollaborators(req: NextApiRequest, res: NextApiResponse, user: NoteUser, noteId: string) {
   try {
     // Check if user has access to this note
     const note = await prisma.note.findFirst({
@@ -50,7 +45,11 @@ async function handleGetCollaborators(req: NextApiRequest, res: NextApiResponse,
                 userId: user.id
               }
             }
-          }
+          },
+          {
+            isShared: true,
+            household: { members: { some: { userId: user.id } } },
+          },
         ]
       }
     })
@@ -86,9 +85,10 @@ async function handleGetCollaborators(req: NextApiRequest, res: NextApiResponse,
   }
 }
 
-async function handleAddCollaborator(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
+async function handleAddCollaborator(req: NextApiRequest, res: NextApiResponse, user: NoteUser, noteId: string) {
   try {
-    const { userId, role = 'VIEWER' } = req.body
+    const userId = typeof req.body?.userId === 'string' ? req.body.userId : ''
+    const role = req.body?.role ?? 'VIEWER'
 
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' })
@@ -99,7 +99,8 @@ async function handleAddCollaborator(req: NextApiRequest, res: NextApiResponse, 
       where: {
         id: noteId,
         createdById: user.id
-      }
+      },
+      select: { id: true, householdId: true, createdById: true, isShared: true },
     })
 
     if (!note) {
@@ -107,35 +108,44 @@ async function handleAddCollaborator(req: NextApiRequest, res: NextApiResponse, 
     }
 
     // Check if the user to be added exists
+    if (!note.isShared || !note.householdId) {
+      return res.status(400).json({ error: 'Share the note with a household before adding collaborators' })
+    }
+
     const targetUser = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { id: userId },
+      select: { id: true },
     })
 
     if (!targetUser) {
       return res.status(404).json({ error: 'User not found' })
     }
 
-    // Check if user is already a collaborator
-    const existingCollaboration = await prisma.noteCollaborator.findUnique({
-      where: {
-        noteId_userId: {
-          noteId,
-          userId
-        }
-      }
-    })
-
-    if (existingCollaboration) {
-      return res.status(400).json({ error: 'User is already a collaborator' })
+    if (targetUser.id === user.id) {
+      return res.status(400).json({ error: 'The note owner is already an editor' })
     }
+    if (role !== 'VIEWER' && role !== 'EDITOR') {
+      return res.status(400).json({ error: 'Invalid collaborator role' })
+    }
+    const membership = await prisma.membership.findUnique({
+      where: { userId_householdId: { userId, householdId: note.householdId } },
+      select: { id: true },
+    })
+    if (!membership) return res.status(400).json({ error: 'Collaborator must belong to the note household' })
 
-    const collaborator = await prisma.noteCollaborator.create({
-      data: {
+    const existingCollaboration = await prisma.noteCollaborator.findUnique({
+      where: { noteId_userId: { noteId, userId } },
+      select: { id: true },
+    })
+    const collaborator = await prisma.noteCollaborator.upsert({
+      where: { noteId_userId: { noteId, userId } },
+      create: {
         noteId,
         userId,
         role,
         addedById: user.id
       },
+      update: { role, addedById: user.id },
       include: {
         user: {
           select: {
@@ -154,16 +164,16 @@ async function handleAddCollaborator(req: NextApiRequest, res: NextApiResponse, 
       }
     })
 
-    return res.status(201).json({ collaborator })
+    return res.status(existingCollaboration ? 200 : 201).json({ collaborator })
   } catch (error) {
     console.error('Error adding collaborator:', error)
     return res.status(500).json({ error: 'Failed to add collaborator' })
   }
 }
 
-async function handleRemoveCollaborator(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
+async function handleRemoveCollaborator(req: NextApiRequest, res: NextApiResponse, user: NoteUser, noteId: string) {
   try {
-    const { userId } = req.body
+    const userId = typeof req.body?.userId === 'string' ? req.body.userId : ''
 
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' })

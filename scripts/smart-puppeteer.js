@@ -1,5 +1,4 @@
 /* scripts/smart-puppeteer.js */
-/* eslint-disable no-console */
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer');
@@ -36,8 +35,8 @@ function cssEscape(s){ return String(s).replace(/([ !"#$%&'()*+,./:;<=>?@[\\\]^`
 async function ensureStore(){
   return prisma.store.upsert({
     where: { domain: STORE.domain },
-    update: { name: STORE.name },
-    create: { name: STORE.name, domain: STORE.domain },
+    update: { name: STORE.name, slug: 'smart', sourceType: 'PUBLIC_HTML' },
+    create: { name: STORE.name, slug: 'smart', domain: STORE.domain, sourceType: 'PUBLIC_HTML' },
   });
 }
 

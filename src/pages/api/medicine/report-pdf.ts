@@ -1,23 +1,24 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import jsPDF from 'jspdf'
+import { requireMembershipIn } from '@/lib/api-guards'
+import { parseRequiredDate } from '@/lib/medicine'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
   if (req.method === 'GET') {
     const { householdId, startDate, endDate } = req.query
-    
-    if (!householdId || !startDate || !endDate) {
+
+    const context = await requireMembershipIn(req, res, householdId as string)
+    if (!context) return
+    if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Missing required parameters' })
     }
+    const start = parseRequiredDate(startDate)
+    const end = parseRequiredDate(endDate)
+    if (!start || !end || start > end) return res.status(400).json({ error: 'Invalid date range' })
+    const inclusiveEnd = new Date(end)
+    inclusiveEnd.setHours(23, 59, 59, 999)
 
     try {
       // Get comprehensive data for the report
@@ -27,13 +28,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           where: { 
             child: { householdId: householdId as string },
             takenAt: {
-              gte: new Date(startDate as string),
-              lte: new Date(new Date(endDate as string).setHours(23, 59, 59, 999))
+              gte: start,
+              lte: inclusiveEnd
             }
           },
           include: { 
             child: true,
-            medicine: true 
+            medicine: true,
+            episode: true,
           },
           orderBy: { takenAt: 'asc' }
         }),
@@ -41,7 +43,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         // Active medicines
         prisma.medicine.findMany({
           where: { 
-            child: { householdId: householdId as string },
+            householdId: householdId as string,
+            isTemplate: false,
             isActive: true
           },
           include: { 
@@ -49,8 +52,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             doses: {
               where: {
                 takenAt: {
-                  gte: new Date(startDate as string),
-                  lte: new Date(new Date(endDate as string).setHours(23, 59, 59, 999))
+                  gte: start,
+                  lte: inclusiveEnd
                 }
               },
               orderBy: { takenAt: 'desc' }
@@ -69,11 +72,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           where: { 
             child: { householdId: householdId as string },
             takenAt: {
-              gte: new Date(startDate as string),
-              lte: new Date(new Date(endDate as string).setHours(23, 59, 59, 999))
+              gte: start,
+              lte: inclusiveEnd
             }
           },
-          include: { child: true },
+          include: { child: true, episode: true },
           orderBy: { takenAt: 'desc' }
         })
       ])
@@ -203,7 +206,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           
           childDoses.forEach(dose => {
             checkNewPage(15)
-            const doseText = `• ${dose.medicine.name} (${dose.dosage}) - ${format(new Date(dose.takenAt), 'MMM dd, HH:mm')}`
+            const doseText = `• ${dose.medicine.name} (${dose.dosage}) - ${format(new Date(dose.takenAt), 'MMM dd, HH:mm')} · ${dose.episode.title || 'Illness episode'}`
             yPosition = addText(doseText, 30, yPosition, pageWidth - 50, 9)
             
             if (dose.notes) {
@@ -306,7 +309,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const tempColor = reading.temperature >= 38 ? '220, 38, 38' : '34, 197, 94' // Red if fever, green if normal
             pdf.setTextColor(parseInt(tempColor.split(',')[0]), parseInt(tempColor.split(',')[1]), parseInt(tempColor.split(',')[2]))
             
-            const readingText = `• ${reading.temperature}°C (${reading.method}) - ${format(new Date(reading.takenAt), 'MMM dd, HH:mm')}`
+            const readingText = `• ${reading.temperature}°${reading.unit} (${reading.method}) - ${format(new Date(reading.takenAt), 'MMM dd, HH:mm')} · ${reading.episode.title || 'Illness episode'}`
             yPosition = addText(readingText, 30, yPosition, pageWidth - 50, 9)
             
             if (reading.notes) {

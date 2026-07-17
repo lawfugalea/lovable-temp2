@@ -1,57 +1,49 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import { prisma } from "@/lib/prisma";
+import type { NextApiRequest, NextApiResponse } from 'next';
+import { prisma } from '@/lib/prisma';
+import { apiRateLimit } from '@/lib/rate-limiter';
+import { hashInviteToken, normalizeInviteToken } from '@/lib/invite-tokens';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "GET") {
-    res.setHeader("Allow", ["GET"]);
-    return res.status(405).end("Method Not Allowed");
+  res.setHeader('Cache-Control', 'private, no-store');
+  if (req.method !== 'GET') {
+    res.setHeader('Allow', ['GET']);
+    return res.status(405).end('Method Not Allowed');
   }
+  if (!(await apiRateLimit(req, res))) return;
 
-  const token = (req.query.token as string | undefined)?.trim();
-  if (!token) {
-    return res.status(400).json({ error: "Missing token" });
-  }
+  const token = normalizeInviteToken(req.query.token);
+  if (!token) return res.status(400).json({ error: 'Missing or invalid token' });
 
   try {
-    // Find invite and validate
     const invite = await prisma.invite.findUnique({
-      where: { token },
+      where: { tokenHash: hashInviteToken(token) },
       select: {
-        id: true,
         status: true,
         expiresAt: true,
         household: {
           select: {
             name: true,
-            owner: {
-              select: {
-                name: true
-              }
-            }
-          }
-        }
+            owner: { select: { name: true } },
+          },
+        },
       },
     });
 
-    if (!invite) {
-      return res.status(404).json({ error: "Invite not found" });
+    if (!invite) return res.status(404).json({ error: 'Invite not found' });
+    if (invite.status !== 'PENDING') {
+      return res.status(400).json({ error: 'Invite already used or not pending' });
     }
-
-    if (invite.status !== "PENDING") {
-      return res.status(400).json({ error: "Invite already used or not pending" });
-    }
-
     if (invite.expiresAt <= new Date()) {
-      return res.status(400).json({ error: "Invite expired" });
+      return res.status(400).json({ error: 'Invite expired' });
     }
 
     return res.status(200).json({
       valid: true,
       householdName: invite.household.name,
-      inviterName: invite.household.owner?.name || 'Household Member'
+      inviterName: invite.household.owner?.name || 'Household Member',
     });
   } catch (error) {
-    console.error("Invite validation error:", error);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error('Invite validation error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

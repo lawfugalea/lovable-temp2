@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -104,17 +104,11 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
     takenAt: getCurrentLocalTime()
   })
 
-  useEffect(() => {
-    loadReadings()
-  }, [householdId])
-
-  const loadReadings = async () => {
+  const loadReadings = useCallback(async () => {
     try {
-      console.log('Loading fever readings...')
       const response = await fetch(`/api/medicine/fever-readings?householdId=${householdId}`)
       if (response.ok) {
         const data = await response.json()
-        console.log('Loaded readings:', data.length, 'items')
         setReadings(data)
       } else {
         console.error('Failed to load readings:', response.status)
@@ -122,7 +116,11 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
     } catch (error) {
       console.error('Failed to load fever readings:', error)
     }
-  }
+  }, [householdId])
+
+  useEffect(() => {
+    void loadReadings()
+  }, [loadReadings])
 
   const handleAddReading = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -132,9 +130,9 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
     try {
       const requestData = {
         ...newReading,
+        takenAt: new Date(newReading.takenAt).toISOString(),
         householdId: householdId
       }
-      console.log('Sending fever reading data:', requestData)
       
       const response = await fetch('/api/medicine/fever-readings', {
         method: 'POST',
@@ -174,9 +172,9 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
       const requestData = {
         id: editingReading.id,
         ...newReading,
+        takenAt: new Date(newReading.takenAt).toISOString(),
         householdId: householdId
       }
-      console.log('Updating fever reading data:', requestData)
       
       const response = await fetch('/api/medicine/fever-readings', {
         method: 'PUT',
@@ -185,9 +183,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
       })
 
       if (response.ok) {
-        console.log('Update successful, refreshing readings...')
         await loadReadings()
-        console.log('Readings refreshed')
         setEditingReading(null)
         setNewReading({
           childId: '',

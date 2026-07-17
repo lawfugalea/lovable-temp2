@@ -3,11 +3,13 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { prisma } from "@/lib/prisma";
 
+import { requireDebugAccess } from '@/lib/debug-guards';
 type DebugSession = {
   user?: { id?: string; email?: string | null };
 } | null;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (!(await requireDebugAccess(req, res))) return;
   const session = (await getServerSession(req, res, authOptions)) as DebugSession;
 
   const dbUser =

@@ -230,7 +230,7 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
                 </div>
                 <div className="flex items-center gap-2 text-sm text-cozy-text-muted">
                   <User className="w-4 h-4" />
-                  Family finances
+                  Shared finance visibility
                 </div>
               </div>
             </div>

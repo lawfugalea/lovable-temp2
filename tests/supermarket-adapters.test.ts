@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+
+const {
+  canonicalKey,
+  eurosToCents,
+  parsePackage,
+  parseWelbeesProducts,
+} = require('../scripts/sync-supermarket-prices.js') as {
+  canonicalKey: (product: Record<string, unknown>, pack: Record<string, unknown>, sourceKey?: string) => Record<string, unknown>
+  eurosToCents: (value: unknown) => number | null
+  parsePackage: (value: string) => Record<string, unknown>
+  parseWelbeesProducts: (html: string) => Array<Record<string, unknown>>
+}
+
+test('Welbees fixture keeps the public price separate from RRP', () => {
+  const html = `
+    <div class="select-none product-main-holder" data-product-code="0000012345">
+      <div style="background-image: url('https://welbees.mt/product.jpg');"></div>
+      <div class="font-body text-18 font-medium text-tertiary">&euro;0.89</div>
+      <s>RRP &euro;0.99</s><div>&euro;2.22/kg</div>
+      <h6 class="font-heading">Rosita Passata</h6>
+      <div class="font-body text-14 leading-none font-light text-grey-dark inline-block mr-2">400grms</div>
+    </div>`
+  const products = parseWelbeesProducts(html)
+  assert.equal(products.length, 1)
+  assert.deepEqual({
+    externalId: products[0].externalId,
+    name: products[0].name,
+    priceCents: products[0].priceCents,
+    regularPriceCents: products[0].regularPriceCents,
+  }, {
+    externalId: '0000012345',
+    name: 'Rosita Passata',
+    priceCents: 89,
+    regularPriceCents: 99,
+  })
+  assert.deepEqual(parsePackage(String(products[0].unit)), {
+    packageValue: 400,
+    packageUnit: 'G',
+    packCount: 1,
+  })
+})
+
+test('script matcher merges equivalent pack spellings but keeps weak identities store-specific', () => {
+  const welbeesPack = parsePackage('Rosita Passata 400grms')
+  const greensPack = parsePackage('Rosita Passata 400 g')
+  const welbees = canonicalKey(
+    { barcode: null, name: 'Rosita Passata', brand: 'Rosita' },
+    welbeesPack,
+    'welbees:123',
+  )
+  const greens = canonicalKey(
+    { barcode: null, name: 'Rosita Passata 400g', brand: 'Rosita' },
+    greensPack,
+    'greens:456',
+  )
+  assert.equal(welbees.exactKey, greens.exactKey)
+
+  const weakWelbees = canonicalKey({ barcode: null, name: 'Fresh tomatoes' }, parsePackage('Fresh tomatoes'), 'welbees:1')
+  const weakGreens = canonicalKey({ barcode: null, name: 'Fresh tomatoes' }, parsePackage('Fresh tomatoes'), 'greens:1')
+  assert.equal(weakWelbees.source, 'STORE_ONLY')
+  assert.notEqual(weakWelbees.exactKey, weakGreens.exactKey)
+})
+
+test('script matcher uses the same conservative barcode and pack policy', () => {
+  const pack = parsePackage('Benna Milk 500ml')
+  assert.deepEqual(pack, { packageValue: 500, packageUnit: 'ML', packCount: 1 })
+  const identity = canonicalKey({ barcode: '5350066200032', name: 'Benna Milk 500ml' }, pack)
+  assert.deepEqual(identity, {
+    exactKey: 'gtin:5350066200032', source: 'BARCODE', confidence: 100, barcode: '5350066200032',
+  })
+})
+
+test('price parsing never turns missing retailer values into a free public price', () => {
+  assert.equal(eurosToCents(null), null)
+  assert.equal(eurosToCents(undefined), null)
+  assert.equal(eurosToCents(''), null)
+  assert.equal(eurosToCents('0.89'), 89)
+})

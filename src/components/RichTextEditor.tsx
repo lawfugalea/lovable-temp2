@@ -37,6 +37,7 @@ import { Separator } from './ui/Separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/Tooltip'
 
 interface RichTextEditorProps {
+  noteId: string
   content?: any
   onUpdate?: (content: any, text: string) => void
   placeholder?: string
@@ -45,6 +46,7 @@ interface RichTextEditorProps {
 }
 
 export default function RichTextEditor({ 
+  noteId,
   content, 
   onUpdate, 
   placeholder = "Start writing your note...",
@@ -187,6 +189,7 @@ export default function RichTextEditor({
     try {
       const formData = new FormData()
       formData.append('image', file)
+      formData.append('noteId', noteId)
 
       const response = await fetch('/api/uploads/note-image', {
         method: 'POST',
@@ -206,7 +209,7 @@ export default function RichTextEditor({
     } finally {
       setIsUploading(false)
     }
-  }, [editor])
+  }, [editor, noteId])
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -554,6 +557,7 @@ export default function RichTextEditor({
       {/* Slash Menu */}
       <SlashMenu
         editor={editor}
+        noteId={noteId}
         isOpen={showSlashMenu}
         onClose={() => setShowSlashMenu(false)}
         position={slashMenuPosition}

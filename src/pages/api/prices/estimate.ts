@@ -1,5 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
+import { apiRateLimit } from '@/lib/rate-limiter';
+
+const MAX_TITLES = 25;
+const MAX_TITLE_LENGTH = 200;
 
 /**
  * Aggressive normalization and fuzzy ranking to estimate a price for a free-typed title.
@@ -104,6 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!(await apiRateLimit(req, res))) return;
 
   const qInput =
     req.method === 'GET'
@@ -112,14 +117,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? req.body.q
       : '';
 
-  const titles: string[] =
-    req.method === 'GET'
-      ? [qInput].filter(Boolean)
-      : Array.isArray(req.body?.titles)
-      ? (req.body.titles as string[]).filter((s) => typeof s === 'string' && s.trim())
+  if (req.method === 'POST' && req.body?.titles !== undefined && !Array.isArray(req.body.titles)) {
+    return res.status(400).json({ error: 'titles must be an array' });
+  }
+  if (Array.isArray(req.body?.titles) && req.body.titles.length > MAX_TITLES) {
+    return res.status(400).json({ error: `A maximum of ${MAX_TITLES} titles is allowed` });
+  }
+
+  const rawTitles: unknown[] = req.method === 'GET'
+    ? [qInput]
+    : Array.isArray(req.body?.titles)
+      ? req.body.titles
       : qInput
-      ? [qInput]
-      : [];
+        ? [qInput]
+        : [];
+  const titles: string[] = rawTitles
+    .filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+    .map(value => value.trim());
+
+  if (titles.some(title => title.length > MAX_TITLE_LENGTH)) {
+    return res.status(400).json({ error: `Titles must be ${MAX_TITLE_LENGTH} characters or fewer` });
+  }
 
   if (!titles.length) {
     return res.status(200).json({ results: {} });

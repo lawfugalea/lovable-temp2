@@ -1,6 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAdmin } from '@/lib/admin-helpers';
+import { isAdminEmail } from '@/lib/admin-config';
 import { prisma } from '@/lib/prisma';
+import { validatePassword } from '@/lib/password-policy';
+import { deleteProviderSession } from '@/lib/finance/enable-banking';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -78,104 +81,66 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Prevent deleting the admin user
-      if (user.email === 'lawfinuu@gmail.com') {
+      if (isAdminEmail(user.email)) {
         return res.status(400).json({ error: 'Cannot delete admin user' });
       }
 
-      // Delete user and all related data in a transaction
-      await prisma.$transaction(async (tx) => {
-        // First, get all households owned by this user
-        const ownedHouseholds = await tx.household.findMany({
-          where: { ownerId: userId },
-          select: { id: true }
-        });
-
-        // For each owned household, delete all related data
-        for (const household of ownedHouseholds) {
-          // Delete shopping items in shopping lists
-          await tx.shoppingItem.deleteMany({
-            where: {
-              list: {
-                householdId: household.id
-              }
-            }
-          });
-
-          // Delete shopping lists
-          await tx.shoppingList.deleteMany({
-            where: { householdId: household.id }
-          });
-
-          // Delete children and their related data
-          const children = await tx.child.findMany({
-            where: { householdId: household.id },
-            select: { id: true }
-          });
-
-          for (const child of children) {
-            // Delete medicine doses
-            await tx.medicineDose.deleteMany({
-              where: { childId: child.id }
-            });
-
-            // Delete medicine reminders
-            await tx.medicineReminder.deleteMany({
-              where: { childId: child.id }
-            });
-
-            // Delete fever readings
-            await tx.feverReading.deleteMany({
-              where: { childId: child.id }
-            });
-
-            // Delete medicines
-            await tx.medicine.deleteMany({
-              where: { childId: child.id }
-            });
-
-            // Delete the child
-            await tx.child.delete({
-              where: { id: child.id }
-            });
-          }
-
-          // Delete invites for this household
-          await tx.invite.deleteMany({ where: { householdId: household.id } });
-
-          // Before removing memberships, null activeHouseholdId for all users currently active on this household
-          await tx.user.updateMany({
-            where: { activeHouseholdId: household.id },
-            data: { activeHouseholdId: null }
-          });
-
-          // Delete memberships for this household
-          await tx.membership.deleteMany({ where: { householdId: household.id } });
-
-          // Delete page states for this household
-          await tx.pageState.deleteMany({
-            where: { householdId: household.id }
-          });
-
-          // Finally delete the household
-          await tx.household.delete({ where: { id: household.id } });
+      // Revoke external read access before the local cascade removes the
+      // provider session identifiers. A provider outage must not make local
+      // account deletion impossible; expired sessions are harmless here.
+      const bankSessions = await prisma.bankConnection.findMany({
+        where: { userId, providerSessionId: { not: null } },
+        select: { providerSessionId: true },
+      });
+      const revocations = await Promise.allSettled(
+        bankSessions
+          .map(connection => connection.providerSessionId)
+          .filter((sessionId): sessionId is string => Boolean(sessionId))
+          .map(sessionId => deleteProviderSession(sessionId)),
+      );
+      for (const revocation of revocations) {
+        if (revocation.status === 'rejected') {
+          console.warn('Unable to revoke bank session during user deletion:', revocation.reason);
         }
+      }
 
-        // Delete shopping items created by user (in other households)
-        await tx.shoppingItem.deleteMany({
-          where: { createdById: userId }
-        });
+      // Delete the account without destroying a household that still has
+      // another owner. Database cascades handle household-owned data and user
+      // relations atomically; invite actor ids are scalar audit fields and need
+      // explicit cleanup.
+      await prisma.$transaction(async (tx) => {
+        const [legacyOwned, ownerMemberships] = await Promise.all([
+          tx.household.findMany({ where: { ownerId: userId }, select: { id: true } }),
+          tx.membership.findMany({
+            where: { userId, role: 'OWNER' },
+            select: { householdId: true },
+          }),
+        ]);
+        const ownerHouseholdIds = [...new Set([
+          ...legacyOwned.map(household => household.id),
+          ...ownerMemberships.map(membership => membership.householdId),
+        ])];
 
-        // Update shopping items completed by user to remove the reference
-        await tx.shoppingItem.updateMany({
-          where: { doneById: userId },
-          data: { doneById: null }
-        });
-
-        // Delete memberships where user is a member
-        await tx.membership.deleteMany({ where: { userId } });
-
-        // Ensure user's own activeHouseholdId is cleared
-        await tx.user.update({ where: { id: userId }, data: { activeHouseholdId: null } });
+        for (const householdId of ownerHouseholdIds) {
+          await tx.$queryRaw`SELECT "id" FROM "Household" WHERE "id" = ${householdId} FOR UPDATE`;
+          const replacement = await tx.membership.findFirst({
+            where: { householdId, role: 'OWNER', userId: { not: userId } },
+            orderBy: { createdAt: 'asc' },
+            select: { userId: true },
+          });
+          if (replacement) {
+            await tx.household.update({
+              where: { id: householdId },
+              data: { ownerId: replacement.userId },
+            });
+          } else {
+            await tx.user.updateMany({
+              where: { activeHouseholdId: householdId },
+              data: { activeHouseholdId: null },
+            });
+            await tx.household.delete({ where: { id: householdId } });
+          }
+        }
 
         // Delete invites created by user
         await tx.invite.deleteMany({
@@ -188,10 +153,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           data: { acceptedById: null }
         });
 
-        // Finally, delete the user
-        await tx.user.delete({
-          where: { id: userId }
-        });
+        await tx.user.delete({ where: { id: userId } });
       });
 
       return res.status(200).json({ message: 'User deleted successfully' });
@@ -231,6 +193,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (action === 'resetPassword') {
         const { userId, newPassword } = req.body as { userId?: string; newPassword?: string };
         if (!userId || !newPassword) return res.status(400).json({ error: 'Missing userId or newPassword' });
+        const passwordErrors = validatePassword(newPassword);
+        if (passwordErrors.length > 0) {
+          return res.status(400).json({ error: passwordErrors.join('. ') });
+        }
         const bcrypt = await import('bcryptjs');
         const hash = await bcrypt.hash(newPassword, 12);
         await prisma.user.update({ where: { id: userId }, data: { password: hash } });

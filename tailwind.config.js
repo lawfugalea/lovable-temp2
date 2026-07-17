@@ -1,6 +1,6 @@
-// tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: ['class'],
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx}',
     './src/components/**/*.{js,ts,jsx,tsx}',
@@ -8,55 +8,88 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'ui-sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji'],
-        display: ['Inter', 'system-ui', 'ui-sans-serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        display: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
       },
       colors: {
+        border: 'hsl(var(--border) / <alpha-value>)',
+        input: 'hsl(var(--input) / <alpha-value>)',
+        ring: 'hsl(var(--ring) / <alpha-value>)',
+        background: 'hsl(var(--background) / <alpha-value>)',
+        foreground: 'hsl(var(--foreground) / <alpha-value>)',
+        primary: {
+          DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+          foreground: 'hsl(var(--primary-foreground) / <alpha-value>)',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary) / <alpha-value>)',
+          foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)',
+        },
+        destructive: {
+          DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
+          foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)',
+        },
+        muted: {
+          DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+          foreground: 'hsl(var(--muted-foreground) / <alpha-value>)',
+        },
+        accent: {
+          DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+          foreground: 'hsl(var(--accent-foreground) / <alpha-value>)',
+        },
+        popover: {
+          DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
+          foreground: 'hsl(var(--popover-foreground) / <alpha-value>)',
+        },
+        card: {
+          DEFAULT: 'hsl(var(--card) / <alpha-value>)',
+          foreground: 'hsl(var(--card-foreground) / <alpha-value>)',
+        },
         cozy: {
-          // Backgrounds
-          bg: 'hsl(35, 25%, 97%)',
-          surface: 'hsl(35, 15%, 99%)',
-          
-          // Text
-          text: 'hsl(25, 15%, 15%)',
-          'text-muted': 'hsl(25, 8%, 45%)',
-          'text-soft': 'hsl(25, 5%, 65%)',
-          
-          // Primary warm coral
-          primary: 'hsl(18, 75%, 65%)',
-          'primary-soft': 'hsl(18, 85%, 85%)',
-          'primary-deep': 'hsl(18, 65%, 45%)',
-          
-          // Secondary warm tones
-          sage: 'hsl(95, 20%, 65%)',
-          'sage-soft': 'hsl(95, 25%, 85%)',
-          terracotta: 'hsl(15, 60%, 60%)',
-          cream: 'hsl(45, 40%, 92%)',
-          sand: 'hsl(35, 30%, 85%)',
-          
-          // Warm grays
+          bg: 'hsl(var(--background) / <alpha-value>)',
+          surface: 'hsl(var(--card) / <alpha-value>)',
+          text: 'hsl(var(--foreground) / <alpha-value>)',
+          'text-muted': 'hsl(var(--muted-foreground) / <alpha-value>)',
+          'text-soft': 'hsl(var(--muted-foreground) / 0.72)',
+          primary: 'hsl(var(--primary) / <alpha-value>)',
+          'primary-soft': 'hsl(var(--primary-soft) / <alpha-value>)',
+          'primary-deep': 'hsl(var(--primary-deep) / <alpha-value>)',
+          'primary-dark': 'hsl(var(--primary-deep) / <alpha-value>)',
+          border: 'hsl(var(--border) / <alpha-value>)',
+          sage: 'hsl(var(--sage) / <alpha-value>)',
+          'sage-soft': 'hsl(var(--sage-soft) / <alpha-value>)',
+          terracotta: 'hsl(var(--primary) / <alpha-value>)',
+          cream: 'hsl(var(--secondary) / <alpha-value>)',
+          sand: 'hsl(var(--accent) / <alpha-value>)',
           gray: {
-            100: 'hsl(25, 8%, 95%)',
-            200: 'hsl(25, 6%, 88%)',
-            300: 'hsl(25, 5%, 75%)',
-            400: 'hsl(25, 4%, 60%)',
+            50: 'hsl(var(--background) / <alpha-value>)',
+            100: 'hsl(var(--muted) / <alpha-value>)',
+            200: 'hsl(var(--border) / <alpha-value>)',
+            300: 'hsl(var(--input) / <alpha-value>)',
+            400: 'hsl(var(--muted-foreground) / <alpha-value>)',
+            hover: 'hsl(var(--secondary) / <alpha-value>)',
+            active: 'hsl(var(--accent) / <alpha-value>)',
           },
         },
       },
       backgroundImage: {
-        'cozy-warm': 'linear-gradient(135deg, hsl(35, 40%, 95%) 0%, hsl(25, 35%, 92%) 50%, hsl(18, 30%, 90%) 100%)',
-        'cozy-header': 'linear-gradient(90deg, hsl(18, 85%, 90%) 0%, hsl(35, 60%, 88%) 30%, hsl(95, 30%, 88%) 70%, hsl(45, 50%, 90%) 100%)',
+        'cozy-warm': 'radial-gradient(circle at top left, hsl(var(--primary-soft) / .55), transparent 34%), linear-gradient(180deg, hsl(var(--background)), hsl(var(--secondary) / .65))',
+        'cozy-header': 'linear-gradient(135deg, hsl(var(--primary-soft) / .75), hsl(var(--secondary)), hsl(var(--sage-soft) / .7))',
       },
       boxShadow: {
-        'cozy-sm': '0 2px 8px hsla(25, 15%, 15%, 0.08)',
-        'cozy-md': '0 4px 16px hsla(25, 15%, 15%, 0.12)',
-        'cozy-lg': '0 8px 32px hsla(25, 15%, 15%, 0.16)',
-        'cozy-glow': '0 0 20px hsla(18, 75%, 65%, 0.15)',
+        'cozy-sm': '0 1px 2px hsl(var(--foreground) / .05), 0 1px 8px hsl(var(--foreground) / .035)',
+        'cozy-md': '0 12px 30px -16px hsl(var(--foreground) / .24)',
+        'cozy-lg': '0 24px 60px -24px hsl(var(--foreground) / .32)',
+        'cozy-glow': '0 10px 28px -12px hsl(var(--primary) / .45)',
+        soft: '0 16px 40px -24px hsl(var(--foreground) / .28)',
       },
       borderRadius: {
-        'cozy': '1.25rem',
-        'cozy-lg': '1.75rem',
-        'cozy-xl': '2rem',
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+        cozy: 'var(--radius)',
+        'cozy-lg': 'calc(var(--radius) + 4px)',
+        'cozy-xl': 'calc(var(--radius) + 10px)',
       },
       animation: {
         'cozy-fade-in': 'fade-in 0.4s ease-out',
@@ -71,6 +104,10 @@ module.exports = {
         'cozy-confetti': 'confetti 1s ease-out forwards',
       },
       keyframes: {
+        'fade-in': {
+          '0%': { opacity: '0', transform: 'translateY(4px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
         wiggle: {
           '0%, 100%': { transform: 'rotate(0deg)' },
           '25%': { transform: 'rotate(5deg)' },
@@ -125,5 +162,5 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate')],
 };

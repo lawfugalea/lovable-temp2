@@ -3,9 +3,12 @@
 import type { GetServerSideProps } from 'next';
 import Head from 'next/head';
 import Link from 'next/link';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import { withBasePath } from '@/lib/base-path';
+import { prisma } from '@/lib/prisma';
+import { hashInviteToken, normalizeInviteToken } from '@/lib/invite-tokens';
 
 type Props = { 
   token?: string;
@@ -17,22 +20,34 @@ type Props = {
 };
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const token = (ctx.query.token as string | undefined)?.trim() || '';
-  if (!token) return { props: { error: 'Missing token' } };
+  ctx.res.setHeader('Cache-Control', 'private, no-store');
+  ctx.res.setHeader('Referrer-Policy', 'no-referrer');
+  const token = normalizeInviteToken(ctx.query.token);
+  if (!token) return { props: { error: 'Missing or invalid token' } };
 
-  // Just validate the token exists and is valid, don't do heavy operations here
   try {
-    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/invites/validate?token=${encodeURIComponent(token)}`);
-    if (!response.ok) {
+    const invite = await prisma.invite.findUnique({
+      where: { tokenHash: hashInviteToken(token) },
+      select: {
+        status: true,
+        expiresAt: true,
+        household: {
+          select: {
+            name: true,
+            owner: { select: { name: true } },
+          },
+        },
+      },
+    });
+    if (!invite || invite.status !== 'PENDING' || invite.expiresAt <= new Date()) {
       return { props: { error: 'Invalid or expired invite' } };
     }
-    const data = await response.json();
     return { 
       props: { 
         token,
         inviteInfo: {
-          householdName: data.householdName,
-          inviterName: data.inviterName
+          householdName: invite.household.name,
+          inviterName: invite.household.owner?.name || 'Household Member'
         }
       } 
     };
@@ -42,7 +57,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 };
 
 export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
-  const { data: session, status } = useSession();
+  const { status, update } = useSession();
   const router = useRouter();
   const [processing, setProcessing] = useState(false);
   const [processError, setProcessError] = useState<string | null>(null);
@@ -50,18 +65,13 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
   useEffect(() => {
     if (error || !token) return;
 
-    // If user is not authenticated, redirect to login with invite token
+    // If user is not authenticated, redirect to login with invite token.
     if (status === 'unauthenticated') {
       const next = `/invites/accept?token=${encodeURIComponent(token)}`;
-      router.push(`/?signin=1&next=${encodeURIComponent(next)}&invite=${encodeURIComponent(token)}`);
+      router.push(`/login?next=${encodeURIComponent(next)}&invite=${encodeURIComponent(token)}`);
       return;
     }
-
-    // If user is authenticated, process the invite
-    if (status === 'authenticated' && !processing && !processError) {
-      processInvite();
-    }
-  }, [status, token, error, processing, processError]);
+  }, [status, token, error, router]);
 
   const processInvite = async () => {
     if (!token) return;
@@ -70,8 +80,10 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
     setProcessError(null);
 
     try {
-      const response = await fetch(`/api/invites/accept-invite?token=${encodeURIComponent(token)}`, {
-        method: 'GET',
+      const response = await fetch('/api/invites/accept-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
         credentials: 'include',
       });
 
@@ -80,9 +92,10 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
         throw new Error(errorData.error || 'Failed to accept invite');
       }
 
+      await update({ refreshProfile: true });
       // Redirect to dashboard with success flag and force page reload
       // This ensures the session is refreshed and data is reloaded
-      window.location.href = '/dashboard?joined=1';
+      window.location.href = withBasePath('/dashboard?joined=1');
     } catch (error: any) {
       console.error('Invite acceptance error:', error);
       setProcessError(error.message || 'Failed to accept invite');
@@ -131,10 +144,10 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
 
   return (
     <>
-      <Head><title>Accepting Invite – Houseflow</title></Head>
+      <Head><title>Accept Invite – Houseflow</title></Head>
       <main className="min-h-screen flex items-center justify-center p-6">
         <div className="max-w-md w-full rounded-3xl border border-black/5 bg-white shadow p-6">
-          <h1 className="text-lg font-semibold mb-2">Accepting Invite</h1>
+            <h1 className="text-lg font-semibold mb-2">Join household</h1>
           {inviteInfo && (
             <div className="mb-4">
               <p className="text-sm text-gray-700">
@@ -145,12 +158,17 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
               </p>
             </div>
           )}
-          <div className="flex items-center gap-3">
-            <div className="w-6 h-6 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm text-gray-600">
-              {processing ? 'Processing invite...' : 'Checking authentication...'}
-            </p>
-          </div>
+          <p className="text-sm text-amber-700 mb-4">
+            Joining will leave your current household. Household owners must transfer ownership first.
+          </p>
+          <button
+            type="button"
+            disabled={processing || status !== 'authenticated'}
+            onClick={processInvite}
+            className="rounded-lg bg-cozy-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          >
+            {processing ? 'Joining…' : 'Accept invitation'}
+          </button>
         </div>
       </main>
     </>

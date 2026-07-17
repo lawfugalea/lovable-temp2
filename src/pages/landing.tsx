@@ -1,101 +1,77 @@
-import React, { useState } from 'react'
-import { useRouter } from 'next/router'
 import Head from 'next/head'
 import Link from 'next/link'
-import { 
-  ShoppingCart, 
-  DollarSign, 
-  Pill, 
-  FileText, 
-  Users, 
-  ArrowRight, 
-  CheckCircle, 
-  Star,
-  Heart,
+import { useRouter } from 'next/router'
+import {
+  ArrowRight,
+  CalendarCheck2,
+  Check,
+  FileText,
+  HeartHandshake,
   Home,
-  TrendingUp,
-  Calendar,
-  Bell,
-  Shield,
-  Smartphone,
-  Globe
+  Landmark,
+  LockKeyhole,
+  Pill,
+  ShieldCheck,
+  ShoppingBasket,
+  UsersRound,
 } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
+import { Card } from '@/components/ui/Card'
+import { withBasePath } from '@/lib/base-path'
+
+const features = [
+  {
+    icon: ShoppingBasket,
+    title: 'Shared shopping',
+    description: 'Build household shopping lists, organize items, and keep everyone working from the same plan.',
+  },
+  {
+    icon: Landmark,
+    title: 'Connected finances',
+    description: 'Review supported connected accounts and transactions, with controls for what is shared with the household.',
+  },
+  {
+    icon: Pill,
+    title: 'Medicine schedules',
+    description: 'Keep medicine details, schedules, and the day-to-day record together in one practical view.',
+  },
+  {
+    icon: FileText,
+    title: 'Notes that stay useful',
+    description: 'Capture the information your household needs, then pin and organize it for quick access.',
+  },
+  {
+    icon: UsersRound,
+    title: 'Household membership',
+    description: 'Invite the people in your home and manage participation from a shared household workspace.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Privacy-minded access',
+    description: 'Authenticated membership checks help scope household data, with privacy controls for sensitive features.',
+  },
+]
+
+const steps = [
+  {
+    number: '01',
+    title: 'Create your account',
+    description: 'Set up your HouseFlow account with a strong password and security check.',
+  },
+  {
+    number: '02',
+    title: 'Set up or join a household',
+    description: 'Start a household workspace or follow an invitation from someone you trust.',
+  },
+  {
+    number: '03',
+    title: 'Bring the routine together',
+    description: 'Add the lists, notes, schedules, and optional connections that are useful to your home.',
+  },
+]
 
 export default function LandingPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
-
-  const features = [
-    {
-      icon: ShoppingCart,
-      title: "Smart Shopping Lists",
-      description: "Create shared shopping lists that sync in real-time. Get smart suggestions, organize by categories, and never forget an item again.",
-      emoji: "🧺",
-      color: "bg-cozy-sage-soft",
-      iconColor: "text-cozy-sage"
-    },
-    {
-      icon: DollarSign,
-      title: "Family Budgeting",
-      description: "Track income, manage expenses, and plan savings together. Set spending limits and get alerts when approaching budgets.",
-      emoji: "💰",
-      color: "bg-cozy-primary-soft",
-      iconColor: "text-cozy-primary"
-    },
-    {
-      icon: Pill,
-      title: "Medicine Tracking",
-      description: "Never miss a dose with smart medicine schedules. Track children's medications, set reminders, and maintain health records.",
-      emoji: "💊",
-      color: "bg-cozy-terracotta/20",
-      iconColor: "text-cozy-terracotta"
-    },
-    {
-      icon: FileText,
-      title: "Shared Notes",
-      description: "Collaborate on notes with your family. Color-code, pin important items, and share information seamlessly.",
-      emoji: "📝",
-      color: "bg-cozy-cream",
-      iconColor: "text-cozy-text"
-    },
-    {
-      icon: Users,
-      title: "Household Management",
-      description: "Invite family members, assign roles, and control what everyone can see. Keep your home organized and connected.",
-      emoji: "👪",
-      color: "bg-cozy-sand",
-      iconColor: "text-cozy-text-muted"
-    },
-    {
-      icon: Shield,
-      title: "Privacy & Security",
-      description: "Your family's data is protected with enterprise-grade security. Control who sees what with granular permissions.",
-      emoji: "🔒",
-      color: "bg-cozy-gray-100",
-      iconColor: "text-cozy-gray-400"
-    }
-  ]
-
-  const testimonials = [
-    {
-      name: "Sarah Johnson",
-      role: "Mother of 3",
-      content: "HouseFlow has transformed how our family stays organized. The shopping lists are a lifesaver!",
-      rating: 5
-    },
-    {
-      name: "Mike Chen",
-      role: "Father of 2",
-      content: "Finally, a budgeting app that actually works for families. We've saved 20% more this year!",
-      rating: 5
-    },
-    {
-      name: "Emily Rodriguez",
-      role: "Busy Parent",
-      content: "The medicine tracking feature is incredible. Never missed a dose since we started using it.",
-      rating: 5
-    }
-  ]
 
   const handleGetStarted = () => {
     router.push('/register')
@@ -108,307 +84,271 @@ export default function LandingPage() {
   return (
     <>
       <Head>
-        <title>HouseFlow - Your Family&apos;s Cozy Home Hub</title>
-        <meta name="description" content="The all-in-one family management app. Shopping lists, budgeting, medicine tracking, and shared notes - all in one cozy place." />
+        <title>HouseFlow – A calmer way to run your home</title>
+        <meta
+          name="description"
+          content="Bring household shopping, notes, medicine schedules, and connected finances into one shared workspace."
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href={withBasePath('/favicon.ico')} />
       </Head>
 
-      <div className="min-h-screen bg-cozy-warm">
-        {/* Navigation */}
-        <nav className="sticky top-0 z-50 bg-cozy-surface/80 backdrop-blur-md border-b border-cozy-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-cozy-lg bg-cozy-primary-soft shadow-cozy-sm grid place-items-center text-xl border border-cozy-primary-soft">
-                  🏠
-                </div>
-                <span className="text-xl font-bold text-cozy-text">HouseFlow</span>
-              </div>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={handleLogin}
-                  className="text-cozy-text-muted hover:text-cozy-text transition-colors"
-                >
-                  Sign In
-                </button>
-                <button
-                  onClick={handleGetStarted}
-                  className="bg-cozy-primary text-cozy-surface px-6 py-2 rounded-cozy font-medium hover:bg-cozy-primary-deep transition-all shadow-cozy-sm hover:shadow-cozy-md"
-                >
-                  Get Started
-                </button>
-              </div>
+      <div className="min-h-screen bg-background text-foreground">
+        <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-xl">
+          <nav
+            aria-label="Primary navigation"
+            className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"
+          >
+            <Link
+              href="/landing"
+              className="inline-flex items-center gap-3 rounded-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                <Home className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <span>HouseFlow</span>
+            </Link>
+
+            <div className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
+              <a href="#features" className="transition-colors hover:text-foreground">Features</a>
+              <a href="#how-it-works" className="transition-colors hover:text-foreground">How it works</a>
+              <a href="#privacy" className="transition-colors hover:text-foreground">Privacy</a>
             </div>
-          </div>
-        </nav>
 
-        {/* Hero Section */}
-        <section className="relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-            <div className="text-center">
-              <div className="inline-flex items-center gap-2 bg-cozy-primary-soft text-cozy-primary px-4 py-2 rounded-full text-sm font-medium mb-8 animate-cozy-bounce-in">
-                <Heart className="w-4 h-4" />
-                <span>Ready to get started?</span>
-              </div>
-              
-              <h1 className="text-5xl md:text-7xl font-bold text-cozy-text mb-6 leading-tight">
-                Your Family&apos;s
-                <span className="block text-cozy-primary animate-cozy-pulse-gentle">Cozy Home Hub</span>
-              </h1>
-              
-              <p className="text-xl text-cozy-text-muted mb-8 max-w-3xl mx-auto leading-relaxed">
-                The all-in-one app that brings your family together. Manage shopping lists, 
-                track budgets, organize medicines, and share notes - all in one warm, 
-                welcoming place.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-                <button
-                  onClick={handleGetStarted}
-                  className="bg-cozy-primary text-cozy-surface px-8 py-4 rounded-cozy-lg font-semibold text-lg hover:bg-cozy-primary-deep transition-all shadow-cozy-md hover:shadow-cozy-lg flex items-center gap-2 group"
-                >
-                  Start Your Family Journey
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button
-                  onClick={handleLogin}
-                  className="border-2 border-cozy-primary text-cozy-primary px-8 py-4 rounded-cozy-lg font-semibold text-lg hover:bg-cozy-primary hover:text-cozy-surface transition-all"
-                >
-                  Sign In
-                </button>
-              </div>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" onClick={handleLogin}>
+                Sign in
+              </Button>
+              <Button type="button" onClick={handleGetStarted} className="hidden sm:inline-flex">
+                Get started
+              </Button>
+            </div>
+          </nav>
+        </header>
 
-              {/* Hero Image/Preview */}
-              <div className="relative max-w-4xl mx-auto">
-                <div className="bg-cozy-surface rounded-cozy-xl shadow-cozy-lg p-8 border border-cozy-gray-200">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-cozy-sage-soft rounded-cozy p-4 text-center">
-                      <div className="text-3xl mb-2">🧺</div>
-                      <h3 className="font-semibold text-cozy-text">Shopping</h3>
-                      <p className="text-sm text-cozy-text-muted">4 items</p>
-                    </div>
-                    <div className="bg-cozy-primary-soft rounded-cozy p-4 text-center">
-                      <div className="text-3xl mb-2">💰</div>
-                      <h3 className="font-semibold text-cozy-text">Budget</h3>
-                      <p className="text-sm text-cozy-text-muted">$2,450 saved</p>
-                    </div>
-                    <div className="bg-cozy-terracotta/20 rounded-cozy p-4 text-center">
-                      <div className="text-3xl mb-2">💊</div>
-                      <h3 className="font-semibold text-cozy-text">Medicine</h3>
-                      <p className="text-sm text-cozy-text-muted">2 doses today</p>
-                    </div>
-                  </div>
+        <main>
+          <section className="relative overflow-hidden border-b border-border">
+            <div
+              aria-hidden="true"
+              className="absolute inset-x-0 top-0 h-80 bg-gradient-to-b from-primary/10 via-primary/5 to-transparent"
+            />
+            <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-4 py-16 sm:px-6 sm:py-24 lg:grid-cols-[1fr_0.92fr] lg:px-8 lg:py-28">
+              <div className="max-w-2xl">
+                <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm">
+                  <HeartHandshake className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Built for the people who share a home
+                </div>
+                <h1 className="text-4xl font-semibold leading-[1.08] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
+                  One calm place to run your home.
+                </h1>
+                <p className="mt-6 max-w-xl text-lg leading-8 text-muted-foreground sm:text-xl">
+                  HouseFlow brings the small, important details of household life
+                  together—so your people can plan, share, and stay in sync without
+                  another scattered group chat.
+                </p>
+
+                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                  <Button type="button" size="xl" onClick={handleGetStarted} className="gap-2">
+                    Create your account
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                  <Button type="button" size="xl" variant="outline" onClick={handleLogin}>
+                    Sign in
+                  </Button>
+                </div>
+
+                <div className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-2">
+                    <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+                    Household-based access
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+                    Invitation flow included
+                  </span>
+                  <span className="inline-flex items-center gap-2">
+                    <Check className="h-4 w-4 text-primary" aria-hidden="true" />
+                    Responsive layouts
+                  </span>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Floating Elements */}
-          <div className="absolute top-20 left-10 text-2xl animate-cozy-float opacity-20 pointer-events-none">
-            🌸
-          </div>
-          <div className="absolute top-40 right-20 text-xl animate-cozy-pulse-gentle opacity-30 pointer-events-none">
-            ✨
-          </div>
-          <div className="absolute bottom-20 left-20 text-lg animate-cozy-wiggle opacity-25 pointer-events-none">
-            🫖
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section className="py-20 bg-cozy-surface">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-cozy-text mb-4">
-                Everything Your Family Needs
-              </h2>
-              <p className="text-xl text-cozy-text-muted max-w-2xl mx-auto">
-                Six powerful features designed to make family life simpler, 
-                more organized, and more connected.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {features.map((feature, index) => (
-                <div
-                  key={index}
-                  className="bg-cozy-surface rounded-cozy-xl p-8 border border-cozy-gray-200 shadow-cozy-sm hover:shadow-cozy-md transition-all hover:-translate-y-1 group"
-                >
-                  <div className={`w-16 h-16 ${feature.color} rounded-cozy-lg flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
-                    <feature.icon className={`w-8 h-8 ${feature.iconColor}`} />
+              <div className="relative mx-auto w-full max-w-xl lg:mx-0">
+                <div aria-hidden="true" className="absolute -inset-6 rounded-[2rem] bg-primary/10 blur-3xl" />
+                <Card className="relative overflow-hidden border-border bg-card shadow-2xl shadow-black/10 hover:translate-y-0">
+                  <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Household overview</p>
+                      <p className="mt-1 font-semibold">Today at home</p>
+                    </div>
+                    <div className="flex -space-x-2" aria-label="Household members">
+                      <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-card bg-primary text-xs font-semibold text-primary-foreground">A</span>
+                      <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-card bg-accent text-xs font-semibold text-foreground">M</span>
+                      <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-card bg-muted text-xs font-semibold text-muted-foreground">J</span>
+                    </div>
                   </div>
-                  <div className="text-3xl mb-4">{feature.emoji}</div>
-                  <h3 className="text-xl font-semibold text-cozy-text mb-3">
-                    {feature.title}
-                  </h3>
-                  <p className="text-cozy-text-muted leading-relaxed">
-                    {feature.description}
+
+                  <div className="grid gap-4 p-5 sm:grid-cols-2">
+                    <div className="rounded-xl border border-border bg-background p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                          <ShoppingBasket className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="text-xs text-muted-foreground">Shopping</span>
+                      </div>
+                      <p className="mt-6 text-2xl font-semibold tracking-tight">4 items</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Ready for the next shop</p>
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-background p-4">
+                      <div className="flex items-center justify-between">
+                        <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                          <CalendarCheck2 className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="text-xs text-muted-foreground">Schedule</span>
+                      </div>
+                      <p className="mt-6 text-2xl font-semibold tracking-tight">2 reminders</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Planned for today</p>
+                    </div>
+
+                    <div className="rounded-xl border border-border bg-muted/50 p-4 sm:col-span-2">
+                      <div className="flex items-start gap-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-card text-primary shadow-sm">
+                          <FileText className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">Pinned household note</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">Everything important, visible when it is needed.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          </section>
+
+          <section id="features" className="scroll-mt-20 py-20 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="max-w-2xl">
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">Everyday essentials</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] sm:text-5xl">
+                  Your household, without the busywork.
+                </h2>
+                <p className="mt-4 text-base leading-7 text-muted-foreground sm:text-lg">
+                  Start with the tools your home needs today and keep them together as routines change.
+                </p>
+              </div>
+
+              <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {features.map((feature) => (
+                  <Card key={feature.title} className="border-border bg-card p-6">
+                    <span className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <feature.icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <h3 className="mt-5 text-lg font-semibold tracking-tight">{feature.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{feature.description}</p>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section id="how-it-works" className="scroll-mt-20 border-y border-border bg-muted/40 py-20 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-2xl text-center">
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">A simple start</p>
+                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] sm:text-5xl">
+                  From account to shared home in three steps.
+                </h2>
+              </div>
+
+              <ol className="mt-14 grid gap-8 md:grid-cols-3">
+                {steps.map((step) => (
+                  <li key={step.number} className="relative border-l border-border pl-6">
+                    <span className="text-xs font-semibold tracking-[0.16em] text-primary">{step.number}</span>
+                    <h3 className="mt-4 text-lg font-semibold">{step.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.description}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
+
+          <section id="privacy" className="scroll-mt-20 py-20 sm:py-24">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="grid overflow-hidden rounded-2xl border border-border bg-card shadow-sm lg:grid-cols-[0.8fr_1.2fr]">
+                <div className="flex min-h-64 items-center justify-center bg-primary p-10 text-primary-foreground">
+                  <LockKeyhole className="h-20 w-20" strokeWidth={1.25} aria-hidden="true" />
+                </div>
+                <div className="p-7 sm:p-10 lg:p-14">
+                  <p className="text-sm font-semibold uppercase tracking-[0.16em] text-primary">Privacy and participation</p>
+                  <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] sm:text-4xl">
+                    Share a home, not everything.
+                  </h2>
+                  <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
+                    HouseFlow is organized around authenticated household membership,
+                    and sensitive areas can include additional sharing controls. No
+                    system can promise absolute security, so we document how this
+                    deployment handles data and the choices available to you.
                   </p>
+                  <div className="mt-7 flex flex-wrap gap-4 text-sm font-medium">
+                    <Link href="/privacy" className="text-primary underline underline-offset-4 hover:text-foreground">
+                      Read the Privacy Policy
+                    </Link>
+                    <Link href="/terms" className="text-primary underline underline-offset-4 hover:text-foreground">
+                      Review the Terms
+                    </Link>
+                  </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* How It Works */}
-        <section className="py-20 bg-cozy-warm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-cozy-text mb-4">
-                Get Started in Minutes
+          <section className="border-t border-border bg-foreground py-20 text-background">
+            <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+              <h2 className="text-3xl font-semibold tracking-[-0.035em] sm:text-5xl">
+                Make room for a calmer household.
               </h2>
-              <p className="text-xl text-cozy-text-muted">
-                Setting up your family&apos;s cozy home hub is simple and quick.
+              <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-background/70 sm:text-lg">
+                Create an account, set up your household, and bring the routines you already share into one place.
+              </p>
+              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+                <Button type="button" size="xl" onClick={handleGetStarted} className="gap-2 bg-background text-foreground hover:bg-background/90">
+                  Get started
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+                <Button type="button" size="xl" variant="outline" onClick={handleLogin} className="border-background/30 bg-transparent text-background hover:bg-background/10 hover:text-background">
+                  Sign in
+                </Button>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <footer className="border-t border-border bg-background">
+          <div className="mx-auto flex max-w-7xl flex-col gap-8 px-4 py-10 sm:px-6 md:flex-row md:items-end md:justify-between lg:px-8">
+            <div>
+              <Link href="/landing" className="inline-flex items-center gap-3 font-semibold tracking-tight">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
+                  <Home className="h-4 w-4" aria-hidden="true" />
+                </span>
+                HouseFlow
+              </Link>
+              <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
+                A shared workspace for the practical details of household life.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-cozy-primary rounded-cozy-lg flex items-center justify-center text-cozy-surface text-2xl font-bold mx-auto mb-6">
-                  1
-                </div>
-                <h3 className="text-xl font-semibold text-cozy-text mb-3">
-                  Create Your Household
-                </h3>
-                <p className="text-cozy-text-muted">
-                  Sign up and create your family&apos;s private household space.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-cozy-sage rounded-cozy-lg flex items-center justify-center text-cozy-surface text-2xl font-bold mx-auto mb-6">
-                  2
-                </div>
-                <h3 className="text-xl font-semibold text-cozy-text mb-3">
-                  Invite Family Members
-                </h3>
-                <p className="text-cozy-text-muted">
-                  Send invites to your partner, children, or other family members.
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-cozy-terracotta rounded-cozy-lg flex items-center justify-center text-cozy-surface text-2xl font-bold mx-auto mb-6">
-                  3
-                </div>
-                <h3 className="text-xl font-semibold text-cozy-text mb-3">
-                  Start Organizing
-                </h3>
-                <p className="text-cozy-text-muted">
-                  Begin creating lists, setting budgets, and sharing information.
-                </p>
-              </div>
+            <div className="flex flex-col gap-5 text-sm text-muted-foreground sm:flex-row sm:items-center">
+              <a href="#features" className="hover:text-foreground">Features</a>
+              <a href="#how-it-works" className="hover:text-foreground">How it works</a>
+              <Link href="/privacy" className="hover:text-foreground">Privacy</Link>
+              <Link href="/terms" className="hover:text-foreground">Terms</Link>
             </div>
           </div>
-        </section>
-
-        {/* Testimonials */}
-        <section className="py-20 bg-cozy-surface">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl font-bold text-cozy-text mb-4">
-                Loved by Families Everywhere
-              </h2>
-              <p className="text-xl text-cozy-text-muted">
-                See what real families are saying about HouseFlow.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {testimonials.map((testimonial, index) => (
-                <div
-                  key={index}
-                  className="bg-cozy-warm rounded-cozy-xl p-8 border border-cozy-gray-200 shadow-cozy-sm"
-                >
-                  <div className="flex items-center gap-1 mb-4">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-cozy-primary text-cozy-primary" />
-                    ))}
-                  </div>
-                  <p className="text-cozy-text-muted mb-6 italic">
-                    &ldquo;{testimonial.content}&rdquo;
-                  </p>
-                  <div>
-                    <p className="font-semibold text-cozy-text">{testimonial.name}</p>
-                    <p className="text-sm text-cozy-text-muted">{testimonial.role}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* CTA Section */}
-        <section className="py-20 bg-cozy-primary">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-4xl font-bold text-cozy-surface mb-6">
-              Ready to Transform Your Family Life?
-            </h2>
-            <p className="text-xl text-cozy-surface/90 mb-8">
-              Join those families who have found their perfect home management solution.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={handleGetStarted}
-                className="bg-cozy-surface text-cozy-primary px-8 py-4 rounded-cozy-lg font-semibold text-lg hover:bg-cozy-gray-100 transition-all shadow-cozy-md hover:shadow-cozy-lg flex items-center gap-2 justify-center group"
-              >
-                Start Free Today
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button
-                onClick={handleLogin}
-                className="border-2 border-cozy-surface text-cozy-surface px-8 py-4 rounded-cozy-lg font-semibold text-lg hover:bg-cozy-surface hover:text-cozy-primary transition-all"
-              >
-                Sign In
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* Footer */}
-        <footer className="bg-cozy-text text-cozy-surface py-12">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-              <div className="col-span-1 md:col-span-2">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-10 w-10 rounded-cozy-lg bg-cozy-primary-soft shadow-cozy-sm grid place-items-center text-xl border border-cozy-primary-soft">
-                    🏠
-                  </div>
-                  <span className="text-xl font-bold">HouseFlow</span>
-                </div>
-                <p className="text-cozy-surface/80 mb-4 max-w-md">
-                  The cozy home hub that brings families together. 
-                  Organize, collaborate, and thrive as a family.
-                </p>
-                <div className="flex items-center gap-2 text-sm text-cozy-surface/60">
-                  <Heart className="w-4 h-4" />
-                  <span>Made with love for families everywhere</span>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Product</h3>
-                <ul className="space-y-2 text-sm text-cozy-surface/80">
-                  <li><a href="#" className="hover:text-cozy-surface transition-colors">Features</a></li>
-                  <li><a href="#" className="hover:text-cozy-surface transition-colors">Pricing</a></li>
-                  <li><a href="#" className="hover:text-cozy-surface transition-colors">Security</a></li>
-                  <li><a href="#" className="hover:text-cozy-surface transition-colors">Updates</a></li>
-                </ul>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold mb-4">Support</h3>
-                <ul className="space-y-2 text-sm text-cozy-surface/80">
-                  <li><a href="#" className="hover:text-cozy-surface transition-colors">Help Center</a></li>
-                  <li><a href="#" className="hover:text-cozy-surface transition-colors">Contact Us</a></li>
-                  <li><a href="#" className="hover:text-cozy-surface transition-colors">Privacy Policy</a></li>
-                  <li><a href="#" className="hover:text-cozy-surface transition-colors">Terms of Service</a></li>
-                </ul>
-              </div>
-            </div>
-            
-            <div className="border-t border-cozy-surface/20 mt-8 pt-8 text-center text-sm text-cozy-surface/60">
-              <p>&copy; 2024 HouseFlow. All rights reserved.</p>
-            </div>
+          <div className="border-t border-border px-4 py-5 text-center text-xs text-muted-foreground">
+            &copy; {new Date().getFullYear()} HouseFlow. All rights reserved.
           </div>
         </footer>
       </div>

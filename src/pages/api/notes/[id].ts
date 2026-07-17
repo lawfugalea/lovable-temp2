@@ -1,17 +1,21 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
+import { getUserIdOr401 } from '@/lib/api-guards'
+import {
+  validateContentJson,
+  validateNoteColor,
+  validateOptionalBoolean,
+  validateOptionalText,
+} from '@/lib/note-validation'
+
+type NoteUser = { id: string; activeHouseholdId: string | null }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session?.user?.email) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-
+  const userId = await getUserIdOr401(req, res)
+  if (!userId) return
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { id: userId },
+    select: { id: true, activeHouseholdId: true },
   })
 
   if (!user) {
@@ -36,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function handleGetNote(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
+async function handleGetNote(req: NextApiRequest, res: NextApiResponse, user: NoteUser, noteId: string) {
   try {
     const note = await prisma.note.findFirst({
       where: {
@@ -49,7 +53,11 @@ async function handleGetNote(req: NextApiRequest, res: NextApiResponse, user: an
                 userId: user.id
               }
             }
-          }
+          },
+          {
+            isShared: true,
+            household: { members: { some: { userId: user.id } } }
+          },
         ]
       },
       include: {
@@ -91,9 +99,22 @@ async function handleGetNote(req: NextApiRequest, res: NextApiResponse, user: an
   }
 }
 
-async function handleUpdateNote(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
+async function handleUpdateNote(req: NextApiRequest, res: NextApiResponse, user: NoteUser, noteId: string) {
   try {
     const { title, content, contentJson, contentText, color, isPinned, isArchived, isShared, householdId } = req.body
+    const errors = [
+      validateOptionalText(content, 'Content', 200_000),
+      validateOptionalText(contentText, 'Plain-text content', 200_000),
+      validateContentJson(contentJson),
+      validateNoteColor(color),
+      validateOptionalBoolean(isPinned, 'isPinned'),
+      validateOptionalBoolean(isArchived, 'isArchived'),
+      validateOptionalBoolean(isShared, 'isShared'),
+    ].filter(Boolean)
+    if (errors.length) return res.status(400).json({ error: errors[0], details: errors })
+    if (householdId !== undefined && householdId !== null && typeof householdId !== 'string') {
+      return res.status(400).json({ error: 'Invalid household' })
+    }
 
     // Check if user has permission to edit this note
     const existingNote = await prisma.note.findFirst({
@@ -117,13 +138,29 @@ async function handleUpdateNote(req: NextApiRequest, res: NextApiResponse, user:
       return res.status(404).json({ error: 'Note not found or no permission to edit' })
     }
 
+    const isOwner = existingNote.createdById === user.id
+    const changesOwnerOnlyState = (isShared !== undefined && isShared !== existingNote.isShared)
+      || (householdId !== undefined && householdId !== existingNote.householdId)
+      || (isPinned !== undefined && isPinned !== existingNote.isPinned)
+      || (isArchived !== undefined && isArchived !== existingNote.isArchived)
+    if (!isOwner && changesOwnerOnlyState) {
+      return res.status(403).json({ error: 'Only the note owner can change sharing or status' })
+    }
+
+    const effectiveHouseholdId = isShared === false
+      ? null
+      : householdId || existingNote.householdId || user.activeHouseholdId
+    if (isShared === true && !effectiveHouseholdId) {
+      return res.status(400).json({ error: 'A household is required for shared notes' })
+    }
+
     // Validate household access for shared notes
-    if (isShared && householdId) {
+    if (isOwner && isShared === true && effectiveHouseholdId) {
       const membership = await prisma.membership.findUnique({
         where: {
           userId_householdId: {
             userId: user.id,
-            householdId: householdId
+            householdId: effectiveHouseholdId
           }
         }
       })
@@ -134,45 +171,60 @@ async function handleUpdateNote(req: NextApiRequest, res: NextApiResponse, user:
     }
 
     const updateData: any = {}
-    if (title !== undefined) updateData.title = title
+    if (title !== undefined) {
+      const normalizedTitle = typeof title === 'string' ? title.trim() : ''
+      if (!normalizedTitle || normalizedTitle.length > 200) {
+        return res.status(400).json({ error: 'A title of 200 characters or fewer is required' })
+      }
+      updateData.title = normalizedTitle
+    }
     if (content !== undefined) updateData.content = content
     if (contentJson !== undefined) updateData.contentJson = contentJson
     if (contentText !== undefined) updateData.contentText = contentText
     if (color !== undefined) updateData.color = color
-    if (isPinned !== undefined) updateData.isPinned = isPinned
-    if (isArchived !== undefined) updateData.isArchived = isArchived
-    if (isShared !== undefined) updateData.isShared = isShared
-    if (householdId !== undefined) updateData.householdId = isShared ? householdId : null
+    if (isOwner && isPinned !== undefined) updateData.isPinned = isPinned
+    if (isOwner && isArchived !== undefined) updateData.isArchived = isArchived
+    if (isOwner && isShared !== undefined) {
+      updateData.isShared = isShared
+      updateData.householdId = effectiveHouseholdId
+    }
 
-    const note = await prisma.note.update({
-      where: { id: noteId },
-      data: updateData,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        collaborators: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
+    const note = await prisma.$transaction(async tx => {
+      const updated = await tx.note.update({
+        where: { id: noteId },
+        data: updateData,
+        include: {
+          createdBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          },
+          collaborators: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true
+                }
               }
             }
-          }
-        },
-        household: {
-          select: {
-            id: true,
-            name: true
+          },
+          household: {
+            select: {
+              id: true,
+              name: true
+            }
           }
         }
+      })
+      if (isOwner && isShared === false) {
+        await tx.noteCollaborator.deleteMany({ where: { noteId } })
+        updated.collaborators = []
       }
+      return updated
     })
 
     return res.status(200).json({ note })
@@ -182,7 +234,7 @@ async function handleUpdateNote(req: NextApiRequest, res: NextApiResponse, user:
   }
 }
 
-async function handleDeleteNote(req: NextApiRequest, res: NextApiResponse, user: any, noteId: string) {
+async function handleDeleteNote(req: NextApiRequest, res: NextApiResponse, user: NoteUser, noteId: string) {
   try {
     // Only the creator can delete a note
     const note = await prisma.note.findFirst({

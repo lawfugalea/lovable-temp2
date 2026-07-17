@@ -1,26 +1,31 @@
-import React, { useState, useEffect } from 'react'
-import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/router'
-import ModernAppShell from '../components/ModernAppShell'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card'
-import { Button } from '../components/ui/Button'
-import Link from 'next/link'
-import { usePageState } from '../hooks/usePageState'
+import React, { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/router"
+import { useSession } from "next-auth/react"
+import {
+  Activity,
+  ArrowRight,
+  CheckCircle2,
+  CircleDollarSign,
+  Clock3,
+  HeartPulse,
+  Home,
+  ShoppingBasket,
+  Sparkles,
+} from "lucide-react"
+import ModernAppShell from "@/components/ModernAppShell"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/Alert"
+import { Badge } from "@/components/ui/Badge"
+import { Button } from "@/components/ui/Button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
+import { Skeleton } from "@/components/ui/Skeleton"
+import { cn } from "@/lib/utils"
+import { getMedicineSchedule } from "@/lib/medicine"
 
 interface ShoppingList {
   id: string
   name: string
   itemCount: number
-}
-
-interface FinanceState {
-  earners: Array<{ id: string; name: string; salary: number; keep: number }>
-  accounts: Array<{ id: string; name: string; target: number; expenses: any[] }>
-  splitMethod: string
-  months: number
-  startingSavings: number
-  savingsPct: number
-  selectedTemplateKey: string
 }
 
 interface Medicine {
@@ -29,12 +34,17 @@ interface Medicine {
   name: string
   dosage: string
   frequency: string
+  startDate: string
+  endDate?: string | null
   isActive: boolean
+  isTemplate: boolean
   nextDoseOverride?: string
-  child: {
-    id: string
-    name: string
-  }
+  overrideReason?: string | null
+  minGapHours?: number | null
+  maxDosesPer24h?: number | null
+  isPrn?: boolean
+  scheduleVerifiedAt?: string | null
+  child: { id: string; name: string }
 }
 
 interface MedicineDose {
@@ -44,18 +54,64 @@ interface MedicineDose {
   takenAt: string
   dosage: string
   notes?: string
-  medicine: {
-    name: string
-  }
-  child: {
-    name: string
-  }
+  medicine: { name: string }
+  child: { name: string }
+}
+
+type SummaryCardProps = {
+  eyebrow: string
+  title: string
+  description: string
+  href: string
+  action: string
+  icon: React.ComponentType<{ className?: string }>
+  tone: "sage" | "coral" | "amber"
+}
+
+const summaryTones = {
+  sage: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+  coral: "bg-primary/10 text-primary ring-primary/10",
+  amber: "bg-amber-50 text-amber-700 ring-amber-100",
+}
+
+function SummaryCard({ eyebrow, title, description, href, action, icon: Icon, tone }: SummaryCardProps) {
+  return (
+    <Card className="group overflow-hidden transition-colors hover:border-primary/25">
+      <CardHeader className="pb-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className={cn("grid h-11 w-11 place-items-center rounded-xl ring-1", summaryTones[tone])}>
+            <Icon className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <Badge variant="outline" className="font-medium text-muted-foreground">{eyebrow}</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+        <p className="mt-2 min-h-[44px] text-sm leading-relaxed text-muted-foreground">{description}</p>
+        <Button asChild variant="ghost" className="mt-5 -ml-3 text-primary hover:bg-primary/10 hover:text-primary">
+          <Link href={href}>{action}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></Link>
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6" aria-label="Loading dashboard">
+      <div className="space-y-3"><Skeleton className="h-9 w-64" /><Skeleton className="h-5 w-96 max-w-full" /></div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {[0, 1, 2].map((item) => <Skeleton key={item} className="h-60 rounded-lg" />)}
+      </div>
+      <Skeleton className="h-72 rounded-lg" />
+    </div>
+  )
 }
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [householdId, setHouseholdId] = useState<string>('')
+  const [financeSummary, setFinanceSummary] = useState<{ accountCount: number; totals: Array<{ currency: string; amount: string }> }>({ accountCount: 0, totals: [] })
   const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([])
   const [totalItems, setTotalItems] = useState(0)
   const [medicines, setMedicines] = useState<Medicine[]>([])
@@ -63,369 +119,246 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [showJoinSuccess, setShowJoinSuccess] = useState(false)
 
-  // Check for join success message
   useEffect(() => {
-    if (router.query.joined === '1') {
+    if (router.query.joined === "1") {
       setShowJoinSuccess(true)
-      // Clear the query parameter from URL
-      router.replace('/dashboard', undefined, { shallow: true })
-      // Hide success message after 5 seconds
-      setTimeout(() => setShowJoinSuccess(false), 5000)
+      void router.replace("/dashboard", undefined, { shallow: true })
+      const timeout = window.setTimeout(() => setShowJoinSuccess(false), 5000)
+      return () => window.clearTimeout(timeout)
     }
   }, [router.query.joined, router])
 
-  // Get household ID and load data
-  useEffect(() => {
-    if (status === 'authenticated') {
-      loadHouseholdData()
-    } else if (status === 'unauthenticated') {
-      setLoading(false)
-    }
-  }, [status])
-
-  const loadHouseholdData = async () => {
+  const loadShoppingData = useCallback(async (_householdId: string) => {
     try {
-      const res = await fetch('/api/household/active')
-      const data = await res.json()
-      
-      if (data.householdId) {
-        setHouseholdId(data.householdId)
-        await Promise.all([
-          loadShoppingData(data.householdId),
-          loadMedicineData(data.householdId)
-        ])
-      }
+      const response = await fetch("/api/shopping/lists")
+      if (!response.ok) return
+      const data = await response.json()
+      const lists = Array.isArray(data.lists) ? data.lists : []
+      setShoppingLists(lists)
+
+      const itemCounts = await Promise.all(lists.map(async (list: ShoppingList) => {
+        const itemsResponse = await fetch(`/api/shopping/items?listId=${encodeURIComponent(list.id)}`)
+        if (!itemsResponse.ok) return 0
+        const itemsData = await itemsResponse.json()
+        return Array.isArray(itemsData.items) ? itemsData.items.length : 0
+      }))
+      setTotalItems(itemCounts.reduce((total: number, count: number) => total + count, 0))
     } catch (error) {
-      console.error('Failed to load household data:', error)
-    } finally {
-      setLoading(false)
+      console.error("Failed to load shopping data:", error)
     }
-  }
+  }, [])
 
-  const loadShoppingData = async (hid: string) => {
+  const loadMedicineData = useCallback(async (householdId: string) => {
     try {
-      const response = await fetch('/api/shopping/lists')
-      if (response.ok) {
-        const data = await response.json()
-        setShoppingLists(data.lists || [])
-        
-        // Calculate total items
-        let total = 0
-        for (const list of data.lists || []) {
-          const itemsResponse = await fetch(`/api/shopping/items?listId=${list.id}`)
-          if (itemsResponse.ok) {
-            const itemsData = await itemsResponse.json()
-            total += itemsData.items?.length || 0
-          }
-        }
-        setTotalItems(total)
-      }
-    } catch (error) {
-      console.error('Failed to load shopping data:', error)
-    }
-  }
-
-  const loadMedicineData = async (hid: string) => {
-    try {
-      // Load active medicines
-      const medicinesResponse = await fetch(`/api/medicine/medicines?householdId=${hid}`)
+      const medicinesResponse = await fetch(`/api/medicine/medicines?householdId=${encodeURIComponent(householdId)}`)
       if (medicinesResponse.ok) {
         const medicinesData = await medicinesResponse.json()
-        // API returns array directly, not wrapped in object
         setMedicines(Array.isArray(medicinesData) ? medicinesData : [])
       }
 
-      // Load recent doses (last 7 days)
       const sevenDaysAgo = new Date()
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-      const dosesResponse = await fetch(`/api/medicine/doses?householdId=${hid}&startDate=${sevenDaysAgo.toISOString().split('T')[0]}`)
+      const dosesResponse = await fetch(`/api/medicine/doses?householdId=${encodeURIComponent(householdId)}&startDate=${sevenDaysAgo.toISOString().split("T")[0]}`)
       if (dosesResponse.ok) {
         const dosesData = await dosesResponse.json()
-        // API returns array directly, not wrapped in object
         setRecentDoses(Array.isArray(dosesData) ? dosesData : [])
       }
     } catch (error) {
-      console.error('Failed to load medicine data:', error)
+      console.error("Failed to load medicine data:", error)
     }
-  }
+  }, [])
 
-  // Load financial data
-  const { value: financeState } = usePageState<FinanceState>({
-    householdId,
-    page: 'finances',
-    initial: {
-      earners: [{ id: '1', name: 'You', salary: 0, keep: 0 }],
-      accounts: [{ id: '1', name: 'Monthly Expenses', target: 0, expenses: [] }],
-      splitMethod: 'equal',
-      months: 12,
-      startingSavings: 0,
-      savingsPct: 20,
-      selectedTemplateKey: 'classic20',
-    },
-  })
+  const loadFinanceData = useCallback(async (householdId: string) => {
+    try {
+      const response = await fetch(`/api/finance/overview?householdId=${encodeURIComponent(householdId)}`)
+      if (!response.ok) return
+      const data = await response.json()
+      setFinanceSummary({
+        accountCount: Array.isArray(data.accounts) ? data.accounts.length : 0,
+        totals: Array.isArray(data.totals) ? data.totals : [],
+      })
+    } catch (error) {
+      console.error("Failed to load finance summary:", error)
+    }
+  }, [])
 
-  // Calculate financial summary
-  const totalSalary = financeState?.earners?.reduce((sum, earner) => sum + earner.salary, 0) || 0
-  const totalTargets = financeState?.accounts?.reduce((sum, account) => sum + account.target, 0) || 0
-  const monthlySavings = (totalSalary * (financeState?.savingsPct || 20)) / 100
-
-  // Calculate medicine summary
-  const activeMedicines = medicines.filter(m => m.isActive)
-  const getDueMedicines = () => {
-    const now = new Date()
-    return activeMedicines.filter(medicine => {
-      // Only check medicines with nextDoseOverride for now
-      // In a full implementation, we'd calculate based on last dose and frequency
-      if (medicine.nextDoseOverride) {
-        return new Date(medicine.nextDoseOverride) <= now
+  const loadHouseholdData = useCallback(async () => {
+    try {
+      const response = await fetch("/api/household/active")
+      const data = await response.json()
+      if (data.householdId) {
+        await Promise.all([
+          loadShoppingData(data.householdId),
+          loadMedicineData(data.householdId),
+          loadFinanceData(data.householdId),
+        ])
       }
-      // Don't show medicines as due if they don't have an override set
-      return false
-    })
-  }
-  const dueMedicines = getDueMedicines()
+    } catch (error) {
+      console.error("Failed to load household data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [loadFinanceData, loadMedicineData, loadShoppingData])
 
-  if (status === 'loading' || loading) {
-    return (
-      <ModernAppShell title="Overview">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-cozy-text-muted">Loading your dashboard...</p>
-          </div>
-        </div>
-      </ModernAppShell>
-    )
+  useEffect(() => {
+    if (status === "authenticated") {
+      void loadHouseholdData()
+    } else if (status === "unauthenticated") {
+      setLoading(false)
+    }
+  }, [status, loadHouseholdData])
+
+  const activeMedicines = medicines.filter((medicine) => medicine.isActive && !medicine.isTemplate)
+  const dueMedicines = activeMedicines.filter((medicine) => (
+    Boolean(medicine.scheduleVerifiedAt) && getMedicineSchedule(medicine, recentDoses, new Date()).isDue
+  ))
+  const firstName = session?.user?.name?.trim().split(/\s+/)[0]
+  const financeDetail = financeSummary.accountCount > 0
+    ? `${financeSummary.accountCount} connected account${financeSummary.accountCount === 1 ? "" : "s"}${financeSummary.totals[0] ? ` · ${financeSummary.totals[0].amount} ${financeSummary.totals[0].currency}` : ""}`
+    : "No connected accounts are visible to you yet"
+
+  if (status === "loading" || loading) {
+    return <ModernAppShell title="Overview"><DashboardSkeleton /></ModernAppShell>
   }
 
   return (
     <ModernAppShell title="Overview">
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-cozy-text">Welcome Home</h1>
-          <p className="text-cozy-text-muted">Your cozy home hub awaits</p>
-        </div>
+      <div className="space-y-6 sm:space-y-8">
+        <section className="relative overflow-hidden rounded-2xl border bg-card px-6 py-7 shadow-cozy-sm sm:px-8 sm:py-9">
+          <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-accent/80 blur-3xl" />
+          <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium text-primary">
+                <Sparkles className="h-4 w-4" aria-hidden="true" /> Your household at a glance
+              </div>
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Welcome home{firstName ? `, ${firstName}` : ""}.</h2>
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
+                Keep today&apos;s lists, money, medicines and shared plans moving from one calm workspace.
+              </p>
+            </div>
+            <Button asChild variant="outline" className="w-full bg-background/75 sm:w-auto">
+              <Link href="/household"><Home className="h-4 w-4" /> Manage household</Link>
+            </Button>
+          </div>
+        </section>
 
-        {/* Join Success Message */}
         {showJoinSuccess && (
-          <Card className="border-green-200 bg-green-50 animate-cozy-bounce-in">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="text-green-600 text-2xl">🎉</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-green-800">
-                    Welcome to your new household!
-                  </h3>
-                  <p className="text-sm text-green-700">
-                    You&apos;ve successfully joined the household. Your data is being loaded...
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setShowJoinSuccess(false)}
-                  className="text-green-600 hover:text-green-800 text-sm underline"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </CardContent>
-          </Card>
+          <Alert variant="success">
+            <CheckCircle2 className="h-4 w-4" />
+            <AlertTitle>Household joined</AlertTitle>
+            <AlertDescription>You now have access to the household workspace and its shared information.</AlertDescription>
+          </Alert>
         )}
 
-        {/* Medicine Alerts */}
         {dueMedicines.length > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="text-orange-600 text-2xl">⚠️</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-orange-800">
-                    Medicine Reminder
-                  </h3>
-                  <p className="text-sm text-orange-700">
-                    {dueMedicines.length} medicine{dueMedicines.length !== 1 ? 's' : ''} {dueMedicines.length === 1 ? 'is' : 'are'} due for administration
-                  </p>
-                  <div className="text-xs text-orange-600 mt-1">
-                    {dueMedicines.map(medicine => `${medicine.name} (${medicine.child.name})`).join(', ')}
-                  </div>
-                </div>
-                <Link href="/medicine">
-                  <Button size="sm" className="bg-orange-600 hover:bg-orange-700 text-white">
-                    View Medicines
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+          <Alert variant="warning">
+            <Clock3 className="h-4 w-4" />
+            <AlertTitle>{dueMedicines.length} medicine reminder{dueMedicines.length === 1 ? "" : "s"}</AlertTitle>
+            <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>{dueMedicines.map((medicine) => `${medicine.name} for ${medicine.child.name}`).join(", ")}</span>
+              <Button asChild size="sm" variant="outline" className="shrink-0 border-amber-300 bg-white/70 text-amber-950 hover:bg-white">
+                <Link href="/medicine">Review schedule <ArrowRight className="h-4 w-4" /></Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
         )}
 
-        {/* Dashboard Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Shopping widget */}
-          <Card className="hover:shadow-cozy-md transition-all duration-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-cozy-sage-soft flex items-center justify-center text-xl">
-                  🧺
-                </div>
-                <div>
-                  <div className="text-lg font-semibold">Shopping List</div>
-                  <div className="text-sm text-cozy-text-muted">
-                    {totalItems} item{totalItems !== 1 ? 's' : ''} across {shoppingLists.length} list{shoppingLists.length !== 1 ? 's' : ''}
-                  </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <Button variant="outline" className="flex-1 mr-2">
-                  + Quick Add
-                </Button>
-                <Link href="/shopping">
-                  <Button className="bg-cozy-primary hover:bg-cozy-primary-deep">
-                    Manage
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+        <section aria-labelledby="household-summary-heading">
+          <div className="mb-4 flex items-end justify-between gap-4">
+            <div>
+              <h2 id="household-summary-heading" className="text-xl font-semibold tracking-tight">Household summary</h2>
+              <p className="mt-1 text-sm text-muted-foreground">The things that may need your attention today.</p>
+            </div>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <SummaryCard
+              eyebrow={`${shoppingLists.length} list${shoppingLists.length === 1 ? "" : "s"}`}
+              title={`${totalItems} shopping item${totalItems === 1 ? "" : "s"}`}
+              description={shoppingLists.length ? "Shared lists are ready for the next shop." : "Create a shared list to start planning the next shop."}
+              href="/shopping"
+              action="Open shopping"
+              icon={ShoppingBasket}
+              tone="sage"
+            />
+            <SummaryCard
+              eyebrow={`${financeSummary.accountCount} account${financeSummary.accountCount === 1 ? "" : "s"}`}
+              title="Finances visible to you"
+              description={financeDetail}
+              href="/finances"
+              action="View finances"
+              icon={CircleDollarSign}
+              tone="coral"
+            />
+            <SummaryCard
+              eyebrow={dueMedicines.length ? `${dueMedicines.length} due` : "On schedule"}
+              title={`${activeMedicines.length} active medicine${activeMedicines.length === 1 ? "" : "s"}`}
+              description={dueMedicines.length ? "Review the verified regimens currently due." : "No verified scheduled medicine is currently due."}
+              href="/medicine"
+              action="Open medicine"
+              icon={HeartPulse}
+              tone="amber"
+            />
+          </div>
+        </section>
 
-          {/* Finances widget */}
-          <Card className="hover:shadow-cozy-md transition-all duration-200">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-cozy-primary-soft flex items-center justify-center text-xl">
-                  💰
-                </div>
-                <div>
-                  <div className="text-lg font-semibold">Finances</div>
-                  <div className="text-sm text-cozy-text-muted">
-                    {totalSalary > 0 ? `€${totalSalary.toLocaleString()} income` : 'No income set'}
-                    {totalTargets > 0 && ` • €${totalTargets.toLocaleString()} targets`}
-                    {monthlySavings > 0 && ` • €${monthlySavings.toLocaleString()}/mo savings`}
-                  </div>
-                </div>
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-primary" /> Recent activity</CardTitle>
+              <CardDescription>Recent medicine records and shopping lists from this household.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
-                <Button variant="outline" className="flex-1 mr-2">
-                  Quick Add
-                </Button>
-                <Link href="/finances">
-                  <Button className="bg-cozy-primary hover:bg-cozy-primary-deep">
-                    Manage
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Medicine widget */}
-          <Card className="hover:shadow-cozy-md transition-all duration-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-cozy-primary-soft flex items-center justify-center text-xl">
-                  💊
-                </div>
-                <div>
-                  <div className="text-lg font-semibold">Medicine</div>
-                  <div className="text-sm text-cozy-text-muted">
-                    {activeMedicines.length} active medicine{activeMedicines.length !== 1 ? 's' : ''}
-                    {dueMedicines.length > 0 && ` • ${dueMedicines.length} due`}
+              <div className="divide-y rounded-lg border">
+                {recentDoses.slice(0, 3).map((dose) => (
+                  <div key={dose.id} className="flex items-start gap-3 p-4">
+                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><HeartPulse className="h-4 w-4" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium">{dose.medicine.name} recorded for {dose.child.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {new Date(dose.takenAt).toLocaleDateString()} · {new Date(dose.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {dose.dosage}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {dueMedicines.length > 0 && (
-                  <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
-                    <div className="flex items-center gap-2">
-                      <div className="text-orange-600">⚠️</div>
-                      <div className="text-sm font-medium text-orange-800">
-                        {dueMedicines.length} medicine{dueMedicines.length !== 1 ? 's' : ''} due
-                      </div>
+                ))}
+                {shoppingLists.slice(0, Math.max(1, 4 - recentDoses.slice(0, 3).length)).map((list) => (
+                  <div key={list.id} className="flex items-start gap-3 p-4">
+                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><ShoppingBasket className="h-4 w-4" /></span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{list.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{list.itemCount} item{list.itemCount === 1 ? "" : "s"} in this shopping list</p>
                     </div>
-                    <div className="text-xs text-orange-700 mt-1">
-                      {dueMedicines.slice(0, 2).map(medicine => medicine.name).join(', ')}
-                      {dueMedicines.length > 2 && ` and ${dueMedicines.length - 2} more`}
-                    </div>
+                  </div>
+                ))}
+                {recentDoses.length === 0 && shoppingLists.length === 0 && (
+                  <div className="px-5 py-10 text-center">
+                    <Activity className="mx-auto h-8 w-8 text-muted-foreground/50" />
+                    <p className="mt-3 text-sm font-medium">No recent household activity</p>
+                    <p className="mt-1 text-sm text-muted-foreground">New list and medicine activity will appear here.</p>
                   </div>
                 )}
-                <div className="flex items-center justify-between">
-                  <Button variant="outline" className="flex-1 mr-2">
-                    Quick Add
-                  </Button>
-                  <Link href="/medicine">
-                    <Button className="bg-cozy-primary hover:bg-cozy-primary-deep">
-                      Manage
-                    </Button>
-                  </Link>
-                </div>
               </div>
             </CardContent>
           </Card>
+
+          <Card className="bg-foreground text-background">
+            <CardHeader>
+              <CardTitle>Move something forward</CardTitle>
+              <CardDescription className="text-background/65">Jump straight into a shared household tool.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {[
+                { href: "/shopping", label: "Update a shopping list", icon: ShoppingBasket },
+                { href: "/finances", label: "Review your finance view", icon: CircleDollarSign },
+                { href: "/medicine", label: "Record medicine", icon: HeartPulse },
+              ].map((item) => (
+                <Button key={item.href} asChild variant="ghost" className="w-full justify-between text-background hover:bg-background/10 hover:text-background">
+                  <Link href={item.href}><span className="flex items-center gap-2"><item.icon className="h-4 w-4" /> {item.label}</span><ArrowRight className="h-4 w-4" /></Link>
+                </Button>
+              ))}
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>Your latest household activities</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {/* Recent Medicine Doses */}
-              {recentDoses.length > 0 && (
-                recentDoses.slice(0, 2).map((dose) => (
-                  <div key={dose.id} className="flex items-center gap-3 p-3 rounded-lg bg-cozy-cream">
-                    <div className="h-8 w-8 rounded-lg bg-cozy-primary-soft flex items-center justify-center text-sm">
-                      💊
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-cozy-text">
-                        {dose.medicine.name} given to {dose.child.name}
-                      </p>
-                      <p className="text-xs text-cozy-text-muted">
-                        {new Date(dose.takenAt).toLocaleDateString()} at {new Date(dose.takenAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} • {dose.dosage}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-
-              {/* Shopping Lists */}
-              {shoppingLists.length > 0 ? (
-                shoppingLists.slice(0, 2).map((list) => (
-                  <div key={list.id} className="flex items-center gap-3 p-3 rounded-lg bg-cozy-cream">
-                    <div className="h-8 w-8 rounded-lg bg-cozy-sage-soft flex items-center justify-center text-sm">
-                      🧺
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-cozy-text">
-                        {list.name} ({list.itemCount} items)
-                      </p>
-                      <p className="text-xs text-cozy-text-muted">Shopping list</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                recentDoses.length === 0 && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-cozy-cream">
-                    <div className="h-8 w-8 rounded-lg bg-cozy-sage-soft flex items-center justify-center text-sm">
-                      🧺
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-cozy-text">No recent activity</p>
-                      <p className="text-xs text-cozy-text-muted">Start by creating a shopping list or recording medicine doses</p>
-                    </div>
-                  </div>
-                )
-              )}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </ModernAppShell>
   )

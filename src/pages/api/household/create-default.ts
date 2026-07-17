@@ -29,8 +29,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
   if (!user && sessionEmail) {
-    user = await prisma.user.findUnique({
-      where: { email: sessionEmail },
+    user = await prisma.user.findFirst({
+      where: { email: { equals: sessionEmail, mode: 'insensitive' } },
       select: { id: true, name: true, email: true, activeHouseholdId: true },
     });
   }
@@ -63,6 +63,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const household = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user!.id} FOR UPDATE`;
+      const concurrentMembership = await tx.membership.findFirst({
+        where: { userId: user!.id },
+        select: { householdId: true },
+      });
+      if (concurrentMembership) return { id: concurrentMembership.householdId, existing: true };
+
       const h = await tx.household.create({
         data: { name: defaultName, ownerId: user!.id }, // Keep ownerId for backward compatibility
         select: { id: true },
@@ -78,11 +85,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data: { activeHouseholdId: h.id },
       });
 
-      return h;
+      return { id: h.id, existing: false };
     });
 
     return res.status(200).json({ householdId: household.id });
   } catch (e: any) {
-    return res.status(500).json({ error: 'Failed to create default household', detail: e?.message || String(e) });
+    return res.status(500).json({ error: 'Failed to create default household' });
   }
 }

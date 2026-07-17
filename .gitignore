@@ -8,6 +8,11 @@ yarn-error.log*
 # Next.js
 .next
 out
+/public/uploads/
+/uploads/
+
+# Local agent worktrees
+/.claude/worktrees/
 
 # Builds / coverage
 dist
@@ -16,6 +21,11 @@ coverage
 # Env
 .env
 .env.*
+!.env.example
+!.env.deploy.example
+
+# Private API signing keys
+/keys/
 
 # OS / editors
 .DS_Store
@@ -28,3 +38,5 @@ coverage
 **/*.Zone.Identifier
 *.Zone.Identifier
 **/*.Zone.Identifier
+
+.env.deploy

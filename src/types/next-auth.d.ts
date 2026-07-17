@@ -13,6 +13,7 @@ declare module 'next-auth' {
     id: string;
     name?: string | null;
     email: string;
+    passwordVersion?: string;
   }
 }
 
@@ -21,5 +22,7 @@ declare module 'next-auth/jwt' {
     id?: string;
     email?: string;
     name?: string | null;
+    passwordVersion?: string;
+    invalidated?: boolean;
   }
 }

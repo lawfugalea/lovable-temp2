@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { requireAdmin } from '@/lib/admin-helpers';
+import { isAdminEmail } from '@/lib/admin-config';
 import { prisma } from '@/lib/prisma';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -87,7 +88,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Prevent deleting household owned by admin
-      if (household.owner && household.owner.email === 'lawfinuu@gmail.com') {
+      if (household.owner && isAdminEmail(household.owner.email)) {
         return res.status(400).json({ error: 'Cannot delete admin household' });
       }
 
@@ -180,6 +181,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!householdId || !newOwnerUserId) return res.status(400).json({ error: 'Missing householdId or newOwnerUserId' });
 
         await prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${newOwnerUserId} FOR UPDATE`;
+          await tx.$queryRaw`SELECT "id" FROM "Household" WHERE "id" = ${householdId} FOR UPDATE`;
+          const [household, user, otherMembership] = await Promise.all([
+            tx.household.findUnique({ where: { id: householdId }, select: { id: true } }),
+            tx.user.findUnique({ where: { id: newOwnerUserId }, select: { id: true } }),
+            tx.membership.findFirst({
+              where: { userId: newOwnerUserId, householdId: { not: householdId } },
+              select: { id: true },
+            }),
+          ]);
+          if (!household) throw Object.assign(new Error('Household not found'), { status: 404 });
+          if (!user) throw Object.assign(new Error('New owner not found'), { status: 404 });
+          if (otherMembership) {
+            throw Object.assign(new Error('New owner must leave their current household first'), { status: 409 });
+          }
           // Ensure new owner is a member; if not, add as MEMBER
           const existing = await tx.membership.findFirst({ where: { userId: newOwnerUserId, householdId }, select: { id: true } });
           if (!existing) {
@@ -202,7 +218,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Unknown action' });
     } catch (error) {
       console.error('Error updating household:', error);
-      return res.status(500).json({ error: 'Failed to update household' });
+      const status = typeof error === 'object' && error && 'status' in error
+        ? Number((error as { status: number }).status)
+        : 500;
+      return res.status(status).json({ error: status === 500 ? 'Failed to update household' : (error as Error).message });
     }
   }
 
