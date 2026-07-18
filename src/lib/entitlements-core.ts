@@ -2,7 +2,7 @@ import type { NextApiResponse } from 'next'
 
 export type PlanKey = 'FREE' | 'FAMILY'
 export type PlanSourceKey = 'STRIPE' | 'ADMIN' | null
-export type EntitlementFeature = 'finance' | 'ai' | 'pushReminders' | 'medicinePdf' | 'children'
+export type EntitlementFeature = 'finance' | 'ai' | 'pushReminders' | 'medicinePdf' | 'children' | 'priceComparison'
 
 export const FREE_CHILD_LIMIT = 1
 
@@ -14,6 +14,7 @@ export interface HouseholdEntitlements {
   effectiveVia: 'free' | 'stripe' | 'admin' | 'demo' | 'grace'
   canUseFinance: boolean
   canUseAi: boolean
+  canUsePriceComparison: boolean
   maxChildren: number
   canUsePushReminders: boolean
   canExportMedicinePdf: boolean
@@ -37,6 +38,7 @@ const UPGRADE_COPY: Record<EntitlementFeature, string> = {
   pushReminders: 'Medicine push reminders are part of the Family plan',
   medicinePdf: 'PDF health reports are part of the Family plan',
   children: 'The free plan tracks medicines for one child — upgrade to add more',
+  priceComparison: 'Supermarket price comparison is part of the Family plan',
 }
 
 /** Pure entitlement resolution — the single place plan semantics live. */
@@ -64,6 +66,7 @@ export function resolveEntitlements(input: EntitlementInput): HouseholdEntitleme
     effectiveVia,
     canUseFinance: isFamily,
     canUseAi: isFamily,
+    canUsePriceComparison: isFamily,
     maxChildren: isFamily ? Number.POSITIVE_INFINITY : FREE_CHILD_LIMIT,
     canUsePushReminders: isFamily,
     canExportMedicinePdf: isFamily,
@@ -79,6 +82,7 @@ export function featureAllowed(entitlements: HouseholdEntitlements, feature: Ent
     case 'pushReminders': return entitlements.canUsePushReminders
     case 'medicinePdf': return entitlements.canExportMedicinePdf
     case 'children': return entitlements.maxChildren === Number.POSITIVE_INFINITY
+    case 'priceComparison': return entitlements.canUsePriceComparison
   }
 }
 

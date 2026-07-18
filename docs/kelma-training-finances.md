@@ -55,7 +55,7 @@ A: No — ClanKeep doesn't connect to banks. Finances is a private money planner
 A: It's a private money planner for your household — map what comes in and what goes out, see what's left to direct, set budgets and savings goals with progress tracking, and get practical suggestions from the built-in planning coach. No bank logins, no data leaving your home.
 
 **Q: Is the money planner free?**
-A: The planner is part of the Family plan — €4.99/month or €49/year, VAT included. The free plan includes shopping lists with supermarket price comparison, the meal planner, chores, notes, and medicine tracking for one child. Upgrade in Settings → Plan & Billing.
+A: The planner is part of the Family plan — €4.99/month or €49/year, VAT included. The free plan includes shared shopping lists, the meal planner, chores, notes, and medicine tracking for one child. Upgrade in Settings → Plan & Billing.
 
 **Q: Can other household members see the money planner?**
 A: The planner belongs to the household, so members of your household on the Family plan can work on the shared plan together.
@@ -67,10 +67,10 @@ A: No — this assistant has no access to any household's data, so it can't see 
 A: Nothing is deleted. Access pauses, your data stays safely in your household's database, and everything reappears if you resubscribe.
 
 **Q: What does ClanKeep cost?**
-A: The free plan is free forever: shopping lists with Malta supermarket price comparison and offers, meal planner, chores, notes, unlimited household members, and medicine tracking for one child. The Family plan is €4.99/month or €49/year (two months free), VAT included, and adds the private money planner with budgets, goals and coach, medicine for unlimited children, push dose reminders, and PDF health reports. Cancel anytime.
+A: The free plan is free forever: shared shopping lists, meal planner, chores, notes, unlimited household members, and medicine tracking for one child. The Family plan is €4.99/month or €49/year (two months free), VAT included, and adds the Malta supermarket price comparison with daily offers, weekly meal plans priced per store, the private money planner with budgets, goals and coach, medicine for unlimited children, push dose reminders, and PDF health reports. Cancel anytime.
 
 **Q: Which supermarkets does the price comparison cover?**
-A: ClanKeep reads the public online catalogues of Smart Supermarket, Greens, and Welbee's, refreshed every day. Prices are planning estimates — in-store prices can differ. Smart's catalogue lists a single price per product, so special offers can only be detected for Greens and Welbee's.
+A: ClanKeep reads the public online catalogues of Smart Supermarket, Greens, and Welbee's, refreshed every day. Price comparison and offers are part of the Family plan. Prices are planning estimates — in-store prices can differ. Smart's catalogue lists a single price per product, so special offers can only be detected for Greens and Welbee's.
 
 **Q: Is there a demo?**
 A: Yes — the "Try the demo" button on clankeep.com creates a fully furnished sample household (the Borg family) you can explore for 24 hours without an account or card.

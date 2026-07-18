@@ -49,6 +49,7 @@ interface BillingSummary {
 }
 
 const FAMILY_FEATURES = [
+  'Malta supermarket price comparison & offers',
   'Private money planner — budgets, goals & coach',
   'Medicine for unlimited children',
   'Push reminders for doses',

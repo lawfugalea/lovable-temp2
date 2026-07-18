@@ -5,6 +5,9 @@ import { getUserIdOr401 } from '@/lib/api-guards'
 import { apiRateLimit } from '@/lib/rate-limiter'
 import { withBasePath } from '@/lib/base-path'
 import { safeRetailerSourceUrl } from '@/lib/catalog-source-url'
+import { requireActiveHousehold } from '@/lib/chores'
+import { getHouseholdEntitlements } from '@/lib/entitlements'
+import { respondUpgradeRequired } from '@/lib/entitlements-core'
 
 const FRESH_HOURS = 48
 // Retailers anchor half the catalogue with strike-through prices; only a
@@ -50,6 +53,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const userId = await getUserIdOr401(req, res)
   if (!userId) return
   if (!(await apiRateLimit(req, res))) return
+  const householdId = await requireActiveHousehold(req, res, userId)
+  if (!householdId) return
+  const entitlements = await getHouseholdEntitlements(householdId)
+  if (!entitlements.canUsePriceComparison) return respondUpgradeRequired(res, 'priceComparison')
 
   const since = new Date(Date.now() - FRESH_HOURS * 3600 * 1000)
 

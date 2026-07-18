@@ -608,9 +608,8 @@ export default function LandingPage() {
                   <p className="lp-display mt-5 text-4xl font-extrabold tracking-tight">€0</p>
                   <ul className="mt-6 flex-1 space-y-3 text-[15px] text-brand-body">
                     {[
-                      'Shared shopping lists',
-                      'Malta supermarket price comparison & offers',
-                      'Meal planner with priced ingredients',
+                      'Shared shopping lists the whole clan updates live',
+                      'Meal planner with one-tap shopping lists',
                       'Recurring chores for the whole clan',
                       'Shared notes',
                       'Unlimited household members',
@@ -644,6 +643,8 @@ export default function LandingPage() {
                   <ul className="mt-6 flex-1 space-y-3 text-[15px] text-brand-body">
                     {[
                       'Everything in Free',
+                      'Malta supermarket price comparison & offers',
+                      'Weekly meal plan priced per store',
                       'Private money planner — budgets, goals & coach',
                       'Medicine for unlimited children',
                       'Push reminders for doses',

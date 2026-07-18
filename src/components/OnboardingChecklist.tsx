@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
-import { ArrowRight, Check, ListChecks, Scale, ShoppingBasket, UsersRound, UtensilsCrossed, X } from 'lucide-react'
+import { ArrowRight, Check, FileText, ListChecks, ShoppingBasket, UsersRound, UtensilsCrossed, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface OnboardingSteps {
   invitedMember: boolean
   addedShoppingItem: boolean
-  matchedProduct: boolean
+  wroteNote: boolean
   plannedMeal: boolean
   createdChore: boolean
 }
 
 const STEP_ROWS = [
   { key: 'addedShoppingItem', label: 'Add your first shopping item', href: '/shopping', icon: ShoppingBasket, colorClass: 'text-module-shopping', tileClass: 'bg-module-shopping/10' },
-  { key: 'matchedProduct', label: 'Match an item to compare supermarket prices', href: '/shopping', icon: Scale, colorClass: 'text-module-shopping', tileClass: 'bg-module-shopping/10' },
+  { key: 'wroteNote', label: 'Pin your first household note', href: '/notes', icon: FileText, colorClass: 'text-module-notes', tileClass: 'bg-module-notes/10' },
   { key: 'plannedMeal', label: 'Plan a dinner this week', href: '/meals', icon: UtensilsCrossed, colorClass: 'text-module-meals', tileClass: 'bg-module-meals/10' },
   { key: 'createdChore', label: 'Set up a recurring chore', href: '/chores', icon: ListChecks, colorClass: 'text-module-chores', tileClass: 'bg-module-chores/10' },
   { key: 'invitedMember', label: 'Invite someone from your household', href: '/household', icon: UsersRound, colorClass: 'text-primary', tileClass: 'bg-primary/10' },

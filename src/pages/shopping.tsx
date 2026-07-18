@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
 import ModernAppShell from '@/components/ModernAppShell'
 import SupermarketComparisonPanel from '@/components/shopping/SupermarketComparisonPanel'
+import UpgradeGate from '@/components/UpgradeGate'
 import OffersPanel, { type SupermarketOffer } from '@/components/shopping/OffersPanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -174,6 +175,7 @@ export default function ShoppingPage() {
   const [offersLoading, setOffersLoading] = useState(false)
   const [offersError, setOffersError] = useState('')
   const [addingOfferId, setAddingOfferId] = useState<string | null>(null)
+  const [pricesLocked, setPricesLocked] = useState(false)
   const offersLoadedRef = useRef(false)
 
   const [query, setQuery] = useState('')
@@ -267,6 +269,13 @@ export default function ShoppingPage() {
       const response = await fetch(`/api/shopping/compare?listId=${encodeURIComponent(listId)}`)
       if (!response.ok) {
         const data = await responseJson(response)
+        if (response.status === 403 && data.code === 'upgrade_required') {
+          if (requestId === comparisonRequestId.current) {
+            setPricesLocked(true)
+            setComparison(null)
+          }
+          return
+        }
         throw new Error(errorMessage(data, 'Could not compare this list right now'))
       }
       const data = await response.json() as BasketComparison
@@ -298,6 +307,7 @@ export default function ShoppingPage() {
 
   useEffect(() => {
     const cleanQuery = query.trim()
+    if (pricesLocked) return
     if (cleanQuery.length < 2) {
       searchRequestId.current += 1
       setSearchResults([])
@@ -313,6 +323,14 @@ export default function ShoppingPage() {
       try {
         const response = await fetch(`/api/prices/search?q=${encodeURIComponent(cleanQuery)}`)
         const data = await responseJson(response)
+        if (response.status === 403 && data.code === 'upgrade_required') {
+          if (requestId === searchRequestId.current) {
+            setPricesLocked(true)
+            setSearchResults([])
+            setSearchLoading(false)
+          }
+          return
+        }
         if (!response.ok) throw new Error(errorMessage(data, 'Catalogue search is unavailable'))
         if (requestId !== searchRequestId.current) return
         setSearchResults((data.items || []) as CatalogueSearchItem[])
@@ -326,7 +344,7 @@ export default function ShoppingPage() {
       }
     }, 300)
     return () => window.clearTimeout(timeout)
-  }, [query])
+  }, [query, pricesLocked])
 
   const refreshComparison = useCallback(() => {
     void loadComparison(selectedListId)
@@ -338,6 +356,11 @@ export default function ShoppingPage() {
     try {
       const response = await fetch('/api/prices/offers')
       const data = await responseJson(response)
+      if (response.status === 403 && data.code === 'upgrade_required') {
+        setPricesLocked(true)
+        offersLoadedRef.current = true
+        return
+      }
       if (!response.ok) throw new Error(errorMessage(data, 'Could not load supermarket offers'))
       setOffers((data.offers || []) as SupermarketOffer[])
       offersLoadedRef.current = true
@@ -862,34 +885,53 @@ export default function ShoppingPage() {
                   <div className="p-10 text-center"><h2 className="font-semibold">{filter ? 'No matching active items' : 'Nothing left to buy'}</h2><p className="mt-1 text-sm text-muted-foreground">{filter ? 'Try a different filter.' : totalDone > 0 ? 'Everything on this list is complete.' : archived ? 'This archived list is empty.' : 'Add an item above to get started.'}</p></div>
                 ) : (
                   <div className="divide-y">
-                    {activeItems.map(item => <ShoppingItemRow key={item.id} item={item} comparisonItem={comparisonItems.get(item.id)} archived={archived} updating={updatingCounts.has(item.id)} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}
+                    {activeItems.map(item => <ShoppingItemRow key={item.id} item={item} comparisonItem={comparisonItems.get(item.id)} archived={archived} updating={updatingCounts.has(item.id)} showPrices={!pricesLocked} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}
                   </div>
                 )}
 
                 {doneItems.length > 0 && (
                   <div className="border-t">
                     <button type="button" onClick={() => setCompletedOpen(open => !open)} className="flex min-h-11 w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5" aria-expanded={completedOpen}>Completed <span className="flex items-center gap-2 text-muted-foreground">{doneItems.length}<ChevronDown className={`h-4 w-4 transition-transform ${completedOpen ? 'rotate-180' : ''}`} /></span></button>
-                    {completedOpen && <div className="divide-y border-t">{doneItems.map(item => <ShoppingItemRow key={item.id} item={item} archived={archived} updating={false} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}</div>}
+                    {completedOpen && <div className="divide-y border-t">{doneItems.map(item => <ShoppingItemRow key={item.id} item={item} archived={archived} updating={false} showPrices={!pricesLocked} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}</div>}
                   </div>
                 )}
               </CardContent>
             </Card>
           </div>
         ) : tab === 'compare' ? (
-          <div role="tabpanel" aria-label="Supermarket comparison" className="rounded-xl border bg-card p-4 shadow-soft-sm sm:p-6">
-            <SupermarketComparisonPanel comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={refreshComparison} onMatch={openMatch} />
+          <div role="tabpanel" aria-label="Supermarket comparison" className={pricesLocked ? '' : 'rounded-xl border bg-card p-4 shadow-soft-sm sm:p-6'}>
+            {pricesLocked ? (
+              <UpgradeGate
+                icon={Scale}
+                module="shopping"
+                title="Know the cheapest supermarket before you leave home"
+                description="The Family plan prices your whole list across Malta's supermarket catalogues — every item compared per store, the cheapest basket highlighted, refreshed daily."
+                bullets={['Smart, Greens & Welbee’s compared', 'Cheapest full basket highlighted', 'Prices refreshed every day']}
+              />
+            ) : (
+              <SupermarketComparisonPanel comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={refreshComparison} onMatch={openMatch} />
+            )}
           </div>
         ) : (
           <div role="tabpanel" aria-label="Supermarket offers">
-            <OffersPanel
-              offers={offers}
-              loading={offersLoading}
-              error={offersError}
-              canAdd={Boolean(selectedListId) && !archived}
-              addingProductId={addingOfferId}
-              onRetry={() => void loadOffers()}
-              onAdd={offer => void addOfferToList(offer)}
-            />
+            {pricesLocked ? (
+              <UpgradeGate
+                icon={Percent}
+                module="shopping"
+                title="Today’s best supermarket offers, curated"
+                description="The Family plan surfaces genuine deals from the supermarket catalogues — sorted by discount or by euros saved, addable to your list in one tap."
+              />
+            ) : (
+              <OffersPanel
+                offers={offers}
+                loading={offersLoading}
+                error={offersError}
+                canAdd={Boolean(selectedListId) && !archived}
+                addingProductId={addingOfferId}
+                onRetry={() => void loadOffers()}
+                onAdd={offer => void addOfferToList(offer)}
+              />
+            )}
           </div>
         )}
       </div>
@@ -935,11 +977,12 @@ export default function ShoppingPage() {
   )
 }
 
-function ShoppingItemRow({ item, comparisonItem, archived, updating, onToggle, onCount, onMatch, onDelete }: {
+function ShoppingItemRow({ item, comparisonItem, archived, updating, showPrices, onToggle, onCount, onMatch, onDelete }: {
   item: ShoppingItem
   comparisonItem?: ComparedItem
   archived: boolean
   updating: boolean
+  showPrices: boolean
   onToggle: (item: ShoppingItem) => Promise<void>
   onCount: (item: ShoppingItem, count: number) => Promise<void>
   onMatch: (id: string, title: string) => void
@@ -957,7 +1000,7 @@ function ShoppingItemRow({ item, comparisonItem, archived, updating, onToggle, o
           <span className={`font-medium ${done ? 'text-muted-foreground line-through' : ''}`}>{item.title}</span>
           {item.qty && <Badge variant="outline" className="font-normal">{item.qty}</Badge>}
         </div>
-        {!done && (
+        {!done && showPrices && (
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <span className={comparisonItem?.matchStatus === 'MATCHED' ? 'text-green-700' : comparisonItem?.matchStatus === 'NO_CURRENT_OFFERS' ? 'text-amber-700' : ''}>{matchLabel(comparisonItem, item.canonicalProductId)}</span>
             {freshOffer && <><span aria-hidden="true">·</span><span className="font-medium text-foreground">{money(freshOffer.priceCents)}</span><span>at {freshOffer.storeName}</span></>}
@@ -976,7 +1019,7 @@ function ShoppingItemRow({ item, comparisonItem, archived, updating, onToggle, o
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button type="button" variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label={`Actions for ${item.title}`}><MoreHorizontal /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {!done && <DropdownMenuItem onSelect={() => onMatch(item.id, item.title)}><RefreshCw />{item.canonicalProductId ? 'Rematch product' : 'Match product'}</DropdownMenuItem>}
+            {!done && showPrices && <DropdownMenuItem onSelect={() => onMatch(item.id, item.title)}><RefreshCw />{item.canonicalProductId ? 'Rematch product' : 'Match product'}</DropdownMenuItem>}
             <DropdownMenuItem onSelect={() => void onDelete(item.id)} className="text-destructive focus:text-destructive"><Trash2 />Delete</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

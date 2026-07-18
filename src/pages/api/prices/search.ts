@@ -8,6 +8,9 @@ import { withBasePath } from '@/lib/base-path'
 import { safeRetailerSourceUrl } from '@/lib/catalog-source-url'
 import { catalogSearchTokens, rankCatalogCandidates } from '@/lib/catalog-search'
 import { searchCatalogCandidates } from '@/lib/catalog-lookup'
+import { requireActiveHousehold } from '@/lib/chores'
+import { getHouseholdEntitlements } from '@/lib/entitlements'
+import { respondUpgradeRequired } from '@/lib/entitlements-core'
 
 const MAX_QUERY_LENGTH = 200
 const MAX_RESULTS = 50
@@ -28,6 +31,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const userId = await getUserIdOr401(req, res)
   if (!userId) return
   if (!(await apiRateLimit(req, res))) return
+  const householdId = await requireActiveHousehold(req, res, userId)
+  if (!householdId) return
+  const entitlements = await getHouseholdEntitlements(householdId)
+  if (!entitlements.canUsePriceComparison) return respondUpgradeRequired(res, 'priceComparison')
 
   const qRaw = typeof req.query.q === 'string' ? req.query.q.trim() : ''
   if (qRaw.length > MAX_QUERY_LENGTH) {

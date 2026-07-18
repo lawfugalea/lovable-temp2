@@ -24,6 +24,7 @@ test('free households get the free tier with a one-child limit', () => {
   assert.equal(ent.canUseFinance, false)
   assert.equal(ent.canUseAi, false)
   assert.equal(ent.canUsePushReminders, false)
+  assert.equal(ent.canUsePriceComparison, false)
   assert.equal(ent.canExportMedicinePdf, false)
   assert.equal(ent.maxChildren, FREE_CHILD_LIMIT)
 })
@@ -76,7 +77,7 @@ test('demo households experience the Family feature set', () => {
 test('featureAllowed maps features to capabilities', () => {
   const free = base()
   const family = base({ plan: 'FAMILY', planSource: 'ADMIN' })
-  for (const feature of ['finance', 'ai', 'pushReminders', 'medicinePdf', 'children'] as const) {
+  for (const feature of ['finance', 'ai', 'pushReminders', 'medicinePdf', 'children', 'priceComparison'] as const) {
     assert.equal(featureAllowed(free, feature), false)
     assert.equal(featureAllowed(family, feature), true)
   }

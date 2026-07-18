@@ -13,11 +13,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const householdId = await requireActiveHousehold(req, res, userId)
   if (!householdId) return
 
-  const [memberCount, inviteCount, itemCount, matchedCount, mealCount, choreCount] = await Promise.all([
+  const [memberCount, inviteCount, itemCount, noteCount, mealCount, choreCount] = await Promise.all([
     prisma.membership.count({ where: { householdId } }),
     prisma.invite.count({ where: { householdId } }),
     prisma.shoppingItem.count({ where: { list: { householdId } } }),
-    prisma.shoppingItem.count({ where: { list: { householdId }, canonicalProductId: { not: null } } }),
+    prisma.note.count({ where: { householdId } }),
     prisma.mealPlanEntry.count({ where: { householdId } }),
     prisma.chore.count({ where: { householdId } }),
   ])
@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     steps: {
       invitedMember: memberCount > 1 || inviteCount > 0,
       addedShoppingItem: itemCount > 0,
-      matchedProduct: matchedCount > 0,
+      wroteNote: noteCount > 0,
       plannedMeal: mealCount > 0,
       createdChore: choreCount > 0,
     },

@@ -8,6 +8,7 @@ import GenerateListDialog from '@/components/meals/GenerateListDialog'
 import MealSlotPicker, { type PlanEntryDto, type RecipeOption } from '@/components/meals/MealSlotPicker'
 import RecipeFormDialog, { type RecipeDto } from '@/components/meals/RecipeFormDialog'
 import SupermarketComparisonPanel from '@/components/shopping/SupermarketComparisonPanel'
+import UpgradeGate from '@/components/UpgradeGate'
 import { Button } from '@/components/ui/Button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -59,6 +60,7 @@ export default function MealsPage() {
   const [priceComparison, setPriceComparison] = useState<BasketComparison | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
   const [priceError, setPriceError] = useState('')
+  const [priceLocked, setPriceLocked] = useState(false)
 
   const weekDates = useMemo(
     () => Array.from({ length: 7 }, (_, index) => localDateOnly(addDays(weekStart, index))),
@@ -145,6 +147,11 @@ export default function MealsPage() {
     try {
       const response = await fetch(`/api/meals/plan-price?from=${from}&to=${to}`)
       const data = await response.json().catch(() => ({}))
+      if (response.status === 403 && data.code === 'upgrade_required') {
+        setPriceLocked(true)
+        setPriceComparison(null)
+        return
+      }
       if (!response.ok) throw new Error(errorMessage(data, 'Could not price this week'))
       setPriceComparison((data.comparison ?? null) as BasketComparison | null)
     } catch (error) {
@@ -250,7 +257,15 @@ export default function MealsPage() {
               </Button>
             </div>
 
-            {priceOpen && (
+            {priceOpen && priceLocked && (
+              <UpgradeGate
+                icon={Scale}
+                module="meals"
+                title="Price the whole week before you shop"
+                description="The Family plan prices every planned ingredient across Malta's supermarket catalogues, so you know what the week costs per store."
+              />
+            )}
+            {priceOpen && !priceLocked && (
               <div className="rounded-xl border bg-card p-4 shadow-soft-sm sm:p-6">
                 <SupermarketComparisonPanel
                   comparison={priceComparison}

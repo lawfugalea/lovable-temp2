@@ -6,6 +6,8 @@ import { buildBasketComparison, type ComparisonItemInput } from '@/lib/shopping-
 import { loadEnabledComparisonStores, loadOffersByCanonicalProduct } from '@/lib/shopping-offers'
 import { toComparisonInputs } from '@/lib/meal-planning'
 import { aggregatePlannedIngredients, parsePlanRange } from '@/lib/meals'
+import { getHouseholdEntitlements } from '@/lib/entitlements'
+import { respondUpgradeRequired } from '@/lib/entitlements-core'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -17,6 +19,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!(await apiRateLimit(req, res))) return
   const householdId = await requireActiveHousehold(req, res, userId)
   if (!householdId) return
+  const entitlements = await getHouseholdEntitlements(householdId)
+  if (!entitlements.canUsePriceComparison) return respondUpgradeRequired(res, 'priceComparison')
 
   const range = parsePlanRange(req.query.from, req.query.to)
   if (!range) return res.status(400).json({ error: 'A valid from/to range (max one month) is required' })
