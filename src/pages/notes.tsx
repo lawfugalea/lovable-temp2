@@ -181,7 +181,7 @@ export default function NotesPage() {
       {!selectedNote && (
         <button
           onClick={createNewNote}
-          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft-lg transition-all duration-200 hover:scale-105 hover:bg-brand-purple active:scale-95 sm:hidden"
+          className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft-lg transition-all duration-200 hover:scale-105 hover:bg-brand-purple active:scale-95 sm:hidden"
           title="Create new note"
         >
           <Plus className="h-6 w-6" />

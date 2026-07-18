@@ -207,8 +207,10 @@ export default function HouseholdPage() {
             {householdError ? (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <div className="text-6xl mb-4">⚠️</div>
-                  <h2 className="text-xl font-semibold text-foreground mb-2">Error Loading Household</h2>
+                  <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-destructive/10 text-destructive">
+                    <RefreshCw className="h-7 w-7" aria-hidden="true" />
+                  </span>
+                  <h2 className="font-display text-xl font-semibold text-foreground mb-2">Error Loading Household</h2>
                   <p className="text-muted-foreground mb-4">{householdError}</p>
                   <div className="flex gap-3 justify-center">
                     <Button 
@@ -235,8 +237,10 @@ export default function HouseholdPage() {
             ) : (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <div className="text-6xl mb-4">🏠</div>
-                  <h2 className="text-xl font-semibold text-foreground mb-2">Welcome to Houseflow!</h2>
+                  <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
+                    <Home className="h-7 w-7" aria-hidden="true" />
+                  </span>
+                  <h2 className="font-display text-xl font-semibold text-foreground mb-2">Welcome to Clankeep!</h2>
                   <p className="text-muted-foreground mb-6">
                     Create your household to start managing your home, family, and daily tasks together.
                   </p>

@@ -1,6 +1,7 @@
 import React from 'react'
-import { Plus } from 'lucide-react'
+import { FileText, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/Skeleton'
 import NoteCard from './NoteCard'
 import type { Note, NotesTab } from './types'
@@ -58,21 +59,21 @@ export default function NotesGrid({
   if (notes.length === 0) {
     const copy = EMPTY_COPY[activeTab]
     return (
-      <div className="py-12 text-center animate-fade-in">
-        <div className="mb-4 text-6xl">📝</div>
-        <h3 className="mb-2 text-xl font-normal text-foreground">
-          {searchQuery ? 'No notes found' : copy.title}
-        </h3>
-        <p className="mb-4 text-muted-foreground">
-          {searchQuery ? 'Try adjusting your search terms' : copy.description}
-        </p>
-        {!searchQuery && activeTab !== 'archived' && (
-          <Button onClick={onCreateNote}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Note
-          </Button>
-        )}
-      </div>
+      <EmptyState
+        className="animate-fade-in"
+        icon={FileText}
+        module="notes"
+        title={searchQuery ? 'No notes found' : copy.title}
+        description={searchQuery ? 'Try adjusting your search terms' : copy.description}
+        action={
+          !searchQuery && activeTab !== 'archived' ? (
+            <Button onClick={onCreateNote}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Note
+            </Button>
+          ) : undefined
+        }
+      />
     )
   }
 
