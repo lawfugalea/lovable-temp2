@@ -6,7 +6,7 @@ import { normalizeCatalogText } from '@/lib/catalog-normalization'
 import { priceFreshness } from '@/lib/shopping-price-comparison'
 import { withBasePath } from '@/lib/base-path'
 import { safeRetailerSourceUrl } from '@/lib/catalog-source-url'
-import { catalogSearchTokens, rankCatalogCandidates } from '@/lib/catalog-search'
+import { catalogSearchTokens, rankCatalogCandidates, tokenVariants } from '@/lib/catalog-search'
 
 const MAX_QUERY_LENGTH = 200
 const MAX_CANDIDATES = 2_000
@@ -37,17 +37,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (query.length < 2) return res.status(200).json({ items: [] })
   const tokens = catalogSearchTokens(query)
 
-  // Rank lightweight records before loading nested products and offers. Previously
-  // an arbitrary 200 rows were loaded first, so the best matches were often absent.
-  const candidates = await prisma.canonicalProduct.findMany({
+  // normalizedName is space-normalized, so "starts with" plus "contains ' token'"
+  // is an exact word-boundary match — substrings inside words ("tea" in
+  // "chateau") never qualify. Each token also matches its singular/plural forms.
+  const wordBoundaryClauses = (values: string[]) => ({
+    OR: values.flatMap(value => [
+      { normalizedName: { startsWith: value, mode: 'insensitive' as const } },
+      { normalizedName: { contains: ` ${value}`, mode: 'insensitive' as const } },
+      { brand: { startsWith: value, mode: 'insensitive' as const } },
+      { brand: { contains: ` ${value}`, mode: 'insensitive' as const } },
+    ]),
+  })
+  const fetchCandidates = (tokenValueSets: string[][]) => prisma.canonicalProduct.findMany({
     where: {
       products: { some: { active: true, store: { enabled: true } } },
-      AND: tokens.map(token => ({
-        OR: [
-          { normalizedName: { contains: token, mode: 'insensitive' as const } },
-          { brand: { contains: token, mode: 'insensitive' as const } },
-        ],
-      })),
+      AND: tokenValueSets.map(wordBoundaryClauses),
     },
     select: {
       id: true,
@@ -57,6 +61,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     },
     take: MAX_CANDIDATES,
   })
+
+  let candidates = await fetchCandidates(tokens.map(tokenVariants))
+  if (!candidates.length && tokens.some(token => token.length >= 5)) {
+    // Typo fallback: widen recall to short word prefixes ("bananna" -> "ban")
+    // and let the ranker's edit-distance check keep only realistic matches.
+    candidates = await fetchCandidates(
+      tokens.map(token => (token.length >= 5 ? [token.slice(0, 3)] : tokenVariants(token))),
+    )
+  }
   const rankedIds = rankCatalogCandidates(candidates, query)
     .slice(0, MAX_RESULTS * 2)
     .map(candidate => candidate.id)
