@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { withBasePath } from '@/lib/base-path'
 import BrandLogo from '@/components/BrandLogo'
+import KelmaWidget from '@/components/KelmaWidget'
 
 const heroChecklist = [
   { name: 'Milk (2L)', store: 'Smart', price: '€1.09', done: true },
@@ -892,6 +893,7 @@ export default function LandingPage() {
           }
         }
       `}</style>
+      <KelmaWidget />
     </>
   )
 }

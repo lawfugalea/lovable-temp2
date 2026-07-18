@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react'
 import type { PublicLegalConfig } from '@/lib/public-legal'
 import BrandLogo from '@/components/BrandLogo'
+import KelmaWidget from '@/components/KelmaWidget'
 
 type PublicLegalPageProps = {
   title: string
@@ -90,6 +91,7 @@ export default function PublicLegalPage({
           </div>
         </main>
       </div>
+      <KelmaWidget />
     </>
   )
 }
