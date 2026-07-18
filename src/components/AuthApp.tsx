@@ -3,7 +3,6 @@ import Head from "next/head";
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { APP_BASE_PATH, withBasePath } from "@/lib/base-path";
-import { Toaster } from "@/components/ui/Toaster";
 
 const InviteBanner = dynamic(() => import("@/components/InviteBanner"), { ssr: false });
 
@@ -53,7 +52,6 @@ export default function AuthApp({ Component, pageProps, session }: Props) {
         <ServiceWorkerRegistrar />
         <InviteBanner />
         <Component {...pageProps} />
-        <Toaster position="top-right" richColors closeButton />
       </SessionProvider>
     </>
   );
