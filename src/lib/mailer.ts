@@ -48,6 +48,7 @@ export async function sendInviteEmail({
 
   const subject = `You're invited to join ${householdName || 'a household'} on Clankeep`;
   const safeAcceptUrl = escapeHtml(acceptUrl);
+  const logoUrl = escapeHtml(resolveLogoUrl(acceptUrl));
   const safeInviter = escapeHtml(inviterName || 'Someone');
   const safeHousehold = escapeHtml(householdName || 'their household');
   const preheader = `${inviterName || 'Someone'} invited you to ${householdName || 'a household'} — shopping lists, medicine schedules, notes and finances in one shared home.`;
@@ -86,11 +87,10 @@ export async function sendInviteEmail({
               <!-- Header with gradient background -->
               <tr>
                 <td style="background: linear-gradient(135deg, #4D6BFF 0%, #7B61FF 100%); padding: 40px 40px 30px 40px; text-align: center;">
-                  <div style="display: inline-block; background-color: #ffffff; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                    <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #4D6BFF; letter-spacing: -0.025em;">clankeep</h1>
+                  <div style="display: inline-block; background-color: #ffffff; padding: 14px 22px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <img src="${logoUrl}" width="176" height="51" alt="clankeep" style="display: block; width: 176px; height: auto; border: 0; font-size: 22px; font-weight: 700; color: #4D6BFF; letter-spacing: -0.025em;">
                   </div>
                   <h2 style="margin: 0; font-size: 28px; font-weight: 600; color: #ffffff; line-height: 1.2;">You're invited</h2>
-                  <p style="margin: 8px 0 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.85);">Together. Organised. At home.</p>
                 </td>
               </tr>
 
@@ -186,6 +186,15 @@ export async function sendInviteEmail({
     return { ok: true, providerId, fromUsed: fromHeader, to };
   } catch (e: any) {
     return { ok: false, error: e?.message || String(e), fromUsed: fromHeader, to };
+  }
+}
+
+/** Hosted logo for the email header, served from the same origin the invite links to. */
+function resolveLogoUrl(acceptUrl: string): string {
+  try {
+    return new URL('/brand/clankeep-logo-email.png', acceptUrl).toString();
+  } catch {
+    return 'https://clankeep.com/brand/clankeep-logo-email.png';
   }
 }
 
