@@ -34,6 +34,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/Sheet"
 import CommandPalette from "./CommandPalette"
 import BottomTabBar from "./BottomTabBar"
 import DemoBanner from "./DemoBanner"
+import HelpChat from "./HelpChat"
 import BrandLogo from "./BrandLogo"
 
 const manageItems = [
@@ -373,6 +374,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
             <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search Clankeep">
               <Search className="h-4 w-4" />
             </Button>
+            <HelpChat />
           </div>
         </header>
 
