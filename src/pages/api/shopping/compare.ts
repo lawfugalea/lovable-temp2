@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { apiRateLimit } from '@/lib/rate-limiter'
 import { buildBasketComparison, type ComparisonItemInput } from '@/lib/shopping-price-comparison'
-import { safeRetailerSourceUrl } from '@/lib/catalog-source-url'
+import { loadEnabledComparisonStores, loadOffersByCanonicalProduct } from '@/lib/shopping-offers'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -37,68 +37,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       title: true,
       quantityCount: true,
       canonicalProductId: true,
-      canonicalProduct: {
-        select: {
-          products: {
-            where: { active: true, store: { enabled: true } },
-            select: {
-              id: true,
-              name: true,
-              sourceUrl: true,
-              lastSeenAt: true,
-              store: { select: { id: true, name: true, slug: true } },
-              offers: {
-                orderBy: { scrapedAt: 'desc' },
-                take: 1,
-                select: {
-                  priceCents: true,
-                  regularPriceCents: true,
-                  loyaltyPriceCents: true,
-                  available: true,
-                  unit: true,
-                  unitPriceCents: true,
-                  unitPriceUnit: true,
-                  scrapedAt: true,
-                },
-              },
-            },
-          },
-        },
-      },
     },
   })
 
-  const stores = await prisma.store.findMany({
-    where: { enabled: true },
-    orderBy: { name: 'asc' },
-    select: { id: true, name: true, slug: true, lastSuccessfulSyncAt: true },
-  })
+  const [stores, offersByCanonical] = await Promise.all([
+    loadEnabledComparisonStores(),
+    loadOffersByCanonicalProduct(items.map(item => item.canonicalProductId || '')),
+  ])
 
   const comparisonItems: ComparisonItemInput[] = items.map(item => ({
     id: item.id,
     title: item.title,
     quantityCount: item.quantityCount,
     canonicalProductId: item.canonicalProductId,
-    offers: (item.canonicalProduct?.products || []).flatMap(product => {
-      const offer = product.offers[0]
-      if (!offer) return []
-      return [{
-        storeId: product.store.id,
-        storeName: product.store.name,
-        storeSlug: product.store.slug,
-        productId: product.id,
-        productName: product.name,
-        priceCents: offer.priceCents,
-        regularPriceCents: offer.regularPriceCents,
-        loyaltyPriceCents: offer.loyaltyPriceCents,
-        unit: offer.unit,
-        unitPriceCents: offer.unitPriceCents,
-        unitPriceUnit: offer.unitPriceUnit,
-        sourceUrl: safeRetailerSourceUrl(product.sourceUrl, product.store.slug),
-        observedAt: product.lastSeenAt || offer.scrapedAt,
-        available: offer.available,
-      }]
-    }),
+    offers: item.canonicalProductId ? offersByCanonical.get(item.canonicalProductId) || [] : [],
   }))
 
   res.setHeader('Cache-Control', 'private, no-store')

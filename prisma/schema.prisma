@@ -62,6 +62,8 @@ model Household {
   invites                   Invite[]
   members                   Membership[]
   chores                    Chore[]
+  recipes                   Recipe[]
+  mealPlanEntries           MealPlanEntry[]
   shoppingLists             ShoppingList[]
   shoppingTemplates         ShoppingTemplate[]
   activeForUsers            User[]                     @relation("ActiveHousehold")
@@ -182,6 +184,7 @@ model CanonicalProduct {
 
   @@index([normalizedName])
   @@index([brand, normalizedName])
+  recipeIngredients RecipeIngredient[]
 }
 
 model PriceProduct {
@@ -956,4 +959,59 @@ model ChoreCompletion {
 
   @@unique([choreId, dueDate])
   @@index([choreId, dueDate])
+}
+
+enum MealSlot {
+  DINNER
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  householdId String
+  name        String
+  servings    Int      @default(4)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household   Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+  planEntries MealPlanEntry[]
+
+  @@unique([householdId, name])
+  @@index([householdId])
+}
+
+model RecipeIngredient {
+  id                 String  @id @default(cuid())
+  recipeId           String
+  name               String
+  quantity           Decimal @default(1)
+  unit               String?
+  canonicalProductId String?
+  sortOrder          Int     @default(0)
+
+  recipe           Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  canonicalProduct CanonicalProduct? @relation(fields: [canonicalProductId], references: [id], onDelete: SetNull)
+
+  @@index([recipeId])
+}
+
+model MealPlanEntry {
+  id          String   @id @default(cuid())
+  householdId String
+  /// Date-only; the day this meal is planned for.
+  date        DateTime @db.Date
+  slot        MealSlot @default(DINNER)
+  recipeId    String?
+  /// Free-text alternative when no recipe is linked ("Pizza night out").
+  freeText    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  recipe    Recipe?   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, date, slot])
+  @@index([householdId, date])
 }

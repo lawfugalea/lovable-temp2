@@ -31,6 +31,10 @@ const choresMigration = readFileSync(
   join(process.cwd(), 'prisma/migrations/20260718120000_chores_and_recurrence/migration.sql'),
   'utf8',
 )
+const mealsMigration = readFileSync(
+  join(process.cwd(), 'prisma/migrations/20260718150000_meal_planner/migration.sql'),
+  'utf8',
+)
 
 test('schema reconciliation adds every missing application model', () => {
   assert.match(migration, /User_email_lower_key/)
@@ -114,4 +118,14 @@ test('chores migration is additive with household-scoped cascade semantics', () 
   assert.match(choresMigration, /ChoreCompletion_completedById_fkey[\s\S]*ON DELETE SET NULL/)
   assert.match(choresMigration, /ChoreCompletion_choreId_dueDate_key/)
   assert.doesNotMatch(choresMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
+})
+
+test('meal planner migration is additive with correct cascade semantics', () => {
+  assert.match(mealsMigration, /CREATE TABLE "Recipe"/)
+  assert.match(mealsMigration, /CREATE TABLE "RecipeIngredient"/)
+  assert.match(mealsMigration, /CREATE TABLE "MealPlanEntry"/)
+  assert.match(mealsMigration, /Recipe_householdId_fkey[\s\S]*ON DELETE CASCADE/)
+  assert.match(mealsMigration, /RecipeIngredient_canonicalProductId_fkey[\s\S]*ON DELETE SET NULL/)
+  assert.match(mealsMigration, /MealPlanEntry_householdId_date_slot_key/)
+  assert.doesNotMatch(mealsMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
 })

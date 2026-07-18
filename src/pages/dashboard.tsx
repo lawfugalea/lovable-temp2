@@ -13,6 +13,7 @@ import {
   ListChecks,
   ShoppingBasket,
   Sparkles,
+  UtensilsCrossed,
 } from "lucide-react"
 import ModernAppShell from "@/components/ModernAppShell"
 import ChoreTodayList, { todayItemKey, type TodayChoreItem } from "@/components/chores/ChoreTodayList"
@@ -67,7 +68,7 @@ type SummaryCardProps = {
   href: string
   action: string
   icon: React.ComponentType<{ className?: string }>
-  tone: "shopping" | "finances" | "medicine" | "chores"
+  tone: "shopping" | "finances" | "medicine" | "chores" | "meals"
   delayClass?: string
 }
 
@@ -91,6 +92,11 @@ const summaryTones = {
     tile: "bg-module-chores/10 text-module-chores ring-module-chores/15",
     link: "text-module-chores hover:bg-module-chores/10 hover:text-module-chores",
     hover: "hover:border-module-chores/30",
+  },
+  meals: {
+    tile: "bg-module-meals/10 text-module-meals ring-module-meals/15",
+    link: "text-module-meals hover:bg-module-meals/10 hover:text-module-meals",
+    hover: "hover:border-module-meals/30",
   },
 }
 
@@ -140,6 +146,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [showJoinSuccess, setShowJoinSuccess] = useState(false)
   const [todayChores, setTodayChores] = useState<TodayChoreItem[]>([])
+  const [tonight, setTonight] = useState<{ recipeName: string | null; freeText: string | null } | null>(null)
   const [choreBusyKey, setChoreBusyKey] = useState<string | null>(null)
 
   useEffect(() => {
@@ -203,6 +210,19 @@ export default function DashboardPage() {
     }
   }, [])
 
+  const loadMealsData = useCallback(async () => {
+    try {
+      const today = new Date().toLocaleDateString("en-CA")
+      const response = await fetch(`/api/meals/plan?from=${today}&to=${today}`)
+      if (!response.ok) return
+      const data = await response.json()
+      const entry = Array.isArray(data.entries) ? data.entries[0] : null
+      setTonight(entry ? { recipeName: entry.recipe?.name || null, freeText: entry.freeText || null } : null)
+    } catch (error) {
+      console.error("Failed to load meal plan:", error)
+    }
+  }, [])
+
   const resolveChore = useCallback(async (item: TodayChoreItem, resolveStatus: "DONE" | "SKIPPED") => {
     setChoreBusyKey(todayItemKey(item))
     try {
@@ -255,6 +275,7 @@ export default function DashboardPage() {
           loadMedicineData(data.householdId),
           loadFinanceData(data.householdId),
           loadChoresData(),
+          loadMealsData(),
         ])
       }
     } catch (error) {
@@ -262,7 +283,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [loadChoresData, loadFinanceData, loadMedicineData, loadShoppingData])
+  }, [loadChoresData, loadFinanceData, loadMealsData, loadMedicineData, loadShoppingData])
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -367,6 +388,16 @@ export default function DashboardPage() {
               delayClass="animation-delay-200"
             />
             <SummaryCard
+              eyebrow={tonight ? "Planned" : "Unplanned"}
+              title={tonight ? `Tonight: ${tonight.recipeName || tonight.freeText}` : "Nothing planned tonight"}
+              description={tonight ? "The plan for dinner is set — ingredients are one tap from the list." : "Pick tonight's dinner and Clankeep prices the ingredients."}
+              href="/meals"
+              action="Open meals"
+              icon={UtensilsCrossed}
+              tone="meals"
+              delayClass="animation-delay-300"
+            />
+            <SummaryCard
               eyebrow={pendingChores.length ? `${pendingChores.length} to do` : "All done"}
               title={pendingChores.length ? `${pendingChores.length} chore${pendingChores.length === 1 ? "" : "s"} today` : "Chores done"}
               description={pendingChores.length ? "Tick off today's household jobs together." : "Nothing due right now — set up recurring chores for the whole clan."}
@@ -374,7 +405,7 @@ export default function DashboardPage() {
               action="Open chores"
               icon={ListChecks}
               tone="chores"
-              delayClass="animation-delay-300"
+              delayClass="animation-delay-400"
             />
           </div>
         </section>
