@@ -48,18 +48,21 @@ export async function sendInviteEmail({
 
   const subject = `You're invited to join ${householdName || 'a household'} on Clankeep`;
   const safeAcceptUrl = escapeHtml(acceptUrl);
-const text = [
-    `Hello!`,
+  const safeInviter = escapeHtml(inviterName || 'Someone');
+  const safeHousehold = escapeHtml(householdName || 'their household');
+  const preheader = `${inviterName || 'Someone'} invited you to ${householdName || 'a household'} — shopping lists, medicine schedules, notes and finances in one shared home.`;
+  const text = [
+    `Hi there,`,
     '',
-    `${inviterName || 'Someone'} has invited you to join ${householdName || 'a household'} on Clankeep - a cozy app for managing your household together.`,
+    `${inviterName || 'Someone'} has invited you to join ${householdName || 'a household'} on Clankeep — the shared home for everything your household runs on.`,
     '',
-    `Clankeep helps families organize shopping lists, track children's medicine, manage finances, and stay connected with everything that makes your house a home.`,
+    `Clankeep brings your household's shopping lists, medicine schedules, notes, and family finances together in one calm, private place.`,
     '',
     `Accept your invitation: ${acceptUrl}`,
     '',
-    `This invitation will expire in 7 days. If you weren't expecting this invitation, you can safely ignore this email.`,
+    `This invitation expires in 7 days. If you weren't expecting it, you can safely ignore this email.`,
     '',
-    `Welcome to the Clankeep family!`,
+    `Together. Organised. At home.`,
     `The Clankeep Team`,
   ].join('\n');
 
@@ -69,52 +72,54 @@ const text = [
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="color-scheme" content="light">
+      <meta name="supported-color-schemes" content="light">
       <title>You're invited to join ${escapeHtml(householdName || 'a household')} on Clankeep</title>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;">
+    <body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">${escapeHtml(preheader)}</div>
       <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F8FAFC;">
         <tr>
           <td align="center" style="padding: 40px 20px;">
             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden;">
-              
+
               <!-- Header with gradient background -->
               <tr>
                 <td style="background: linear-gradient(135deg, #4D6BFF 0%, #7B61FF 100%); padding: 40px 40px 30px 40px; text-align: center;">
                   <div style="display: inline-block; background-color: #ffffff; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                    <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #4D6BFF; letter-spacing: -0.025em;">Clankeep</h1>
+                    <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #4D6BFF; letter-spacing: -0.025em;">clankeep</h1>
                   </div>
-                  <h2 style="margin: 0; font-size: 28px; font-weight: 600; color: #ffffff; line-height: 1.2;">You're Invited!</h2>
+                  <h2 style="margin: 0; font-size: 28px; font-weight: 600; color: #ffffff; line-height: 1.2;">You're invited</h2>
+                  <p style="margin: 8px 0 0 0; font-size: 14px; color: rgba(255, 255, 255, 0.85);">Together. Organised. At home.</p>
                 </td>
               </tr>
-              
+
               <!-- Main content -->
               <tr>
                 <td style="padding: 40px;">
-                  <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hello there! 👋</p>
-                  
+                  <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi there,</p>
+
                   <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
-                    <strong style="color: #4D6BFF;">${escapeHtml(inviterName || 'Someone')}</strong> has invited you to join
-                    <strong style="color: #111827;">${escapeHtml(householdName || 'their household')}</strong> on Clankeep.
+                    <strong style="color: #4D6BFF;">${safeInviter}</strong> has invited you to join
+                    <strong style="color: #111827;">${safeHousehold}</strong> on Clankeep — the shared home for
+                    everything your household runs on.
                   </p>
-                  
-                  <div style="background-color: #F8FAFC; border-left: 4px solid #4D6BFF; padding: 20px; margin: 24px 0; border-radius: 8px;">
+
+                  <div style="background-color: #F4F6FE; padding: 20px; margin: 24px 0; border-radius: 12px;">
                     <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #4B5563;">
                       <strong style="color: #111827;">What is Clankeep?</strong><br>
-                      Clankeep is your cozy digital home companion that helps families organize shopping lists, track children's medicine, manage household finances, and stay connected with everything that makes your house a home. 🏡✨
+                      Clankeep brings your household's shopping lists, medicine schedules, notes, and family
+                      finances together in one calm, private place — so everyone is finally on the same page.
                     </p>
                   </div>
-                  
-                  <p style="margin: 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
-                    Ready to join your household and start organizing together?
-                  </p>
-                  
+
                   <!-- CTA Button -->
                   <div style="text-align: center; margin: 32px 0;">
                     <a href="${safeAcceptUrl}" style="display: inline-block; background: linear-gradient(135deg, #4D6BFF, #7B61FF); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: -0.025em; box-shadow: 0 4px 12px -2px rgba(77, 107, 255, 0.4);">
-                      Accept Invitation
+                      Accept invitation
                     </a>
                   </div>
-                  
+
                   <div style="background-color: #F8FAFC; border-radius: 8px; padding: 16px; margin: 24px 0;">
                     <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #4B5563;">Having trouble with the button?</p>
                     <p style="margin: 0; font-size: 13px; color: #94A3B8; word-break: break-all; line-height: 1.4;">
@@ -124,20 +129,20 @@ const text = [
                   </div>
                 </td>
               </tr>
-              
+
               <!-- Footer -->
               <tr>
                 <td style="background-color: #F8FAFC; padding: 30px 40px; border-top: 1px solid #E5E7EB;">
                   <p style="margin: 0 0 12px 0; font-size: 14px; color: #4B5563; text-align: center;">
-                    This invitation will expire in <strong>7 days</strong>. If you weren't expecting this invitation, you can safely ignore this email.
+                    This invitation expires in <strong>7 days</strong>. If you weren't expecting it, you can safely ignore this email.
                   </p>
                   <p style="margin: 0; font-size: 13px; color: #94A3B8; text-align: center;">
-                    Welcome to the Clankeep family! 🌟<br>
+                    Together. Organised. At home.<br>
                     <span style="font-weight: 500;">The Clankeep Team</span>
                   </p>
                 </td>
               </tr>
-              
+
             </table>
           </td>
         </tr>
