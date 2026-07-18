@@ -12,7 +12,7 @@ function dateValue(value: unknown): Date | null | undefined {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = typeof req.body?.householdId === 'string' ? req.body.householdId : undefined
-  const access = await requireFinanceAccess(req, res, householdId, { manage: true })
+  const access = await requireFinanceAccess(req, res, householdId, { manage: true, bank: true })
   if (!access) return
   const id = typeof req.query.id === 'string' ? req.query.id : ''
   const subscription = await prisma.financeSubscription.findFirst({ where: { id, userId: access.userId } })

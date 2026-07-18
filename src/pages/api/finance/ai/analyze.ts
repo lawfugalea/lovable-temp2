@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' })
   }
   const householdId = typeof req.body?.householdId === 'string' ? req.body.householdId : undefined
-  const access = await requireFinanceAccess(req, res, householdId)
+  const access = await requireFinanceAccess(req, res, householdId, { bank: true })
   if (!access) return
   if (!isDeepSeekConfigured()) return res.status(503).json({ error: 'DeepSeek is not configured' })
   let preference = await prisma.financeAiPreference.findUnique({ where: { userId: access.userId } })

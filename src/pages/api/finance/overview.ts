@@ -14,6 +14,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const access = await requireFinanceAccess(req, res, householdId)
   if (!access) return
 
+  if (!access.bankEnabled) {
+    // Planner-only households: no bank surface at all.
+    res.setHeader('Cache-Control', 'private, no-store')
+    return res.status(200).json({
+      bankEnabled: false,
+      canManage: access.canManage,
+      providerConfigured: false,
+      accounts: [],
+      connections: [],
+      totals: [],
+      recentTransactions: [],
+    })
+  }
+
   const accountWhere = accessibleBankAccountWhere(access)
   const [accounts, recentTransactions, connections] = await Promise.all([
     prisma.bankAccount.findMany({
@@ -99,6 +113,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   res.setHeader('Cache-Control', 'private, no-store')
   return res.status(200).json({
+    bankEnabled: true,
     canManage: access.canManage,
     providerConfigured: isFinanceProviderConfigured(),
     accounts: serializedAccounts,

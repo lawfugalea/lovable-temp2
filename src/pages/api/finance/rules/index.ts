@@ -7,7 +7,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const householdId = req.method === 'GET'
     ? (typeof req.query.householdId === 'string' ? req.query.householdId : undefined)
     : (typeof req.body?.householdId === 'string' ? req.body.householdId : undefined)
-  const access = await requireFinanceAccess(req, res, householdId, { manage: true })
+  const access = await requireFinanceAccess(req, res, householdId, { manage: true, bank: true })
   if (!access) return
 
   if (req.method === 'GET') {

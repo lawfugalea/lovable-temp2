@@ -5,7 +5,7 @@ import { isFinanceCategory } from '@/lib/finance/metadata'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = typeof req.body?.householdId === 'string' ? req.body.householdId : undefined
-  const access = await requireFinanceAccess(req, res, householdId, { manage: true })
+  const access = await requireFinanceAccess(req, res, householdId, { manage: true, bank: true })
   if (!access) return
   const id = typeof req.query.id === 'string' ? req.query.id : ''
   const rule = await prisma.financePatternRule.findFirst({ where: { id, userId: access.userId } })

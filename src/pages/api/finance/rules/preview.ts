@@ -10,7 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Method not allowed' })
   }
   const householdId = typeof req.body?.householdId === 'string' ? req.body.householdId : undefined
-  const access = await requireFinanceAccess(req, res, householdId, { manage: true })
+  const access = await requireFinanceAccess(req, res, householdId, { manage: true, bank: true })
   if (!access) return
   const transactionId = typeof req.body?.transactionId === 'string' ? req.body.transactionId : ''
   const transaction = await prisma.bankTransaction.findFirst({
