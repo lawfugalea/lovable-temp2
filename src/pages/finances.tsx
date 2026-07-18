@@ -22,12 +22,18 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Target,
   Trash2,
+  Wallet,
   WalletCards,
   X,
 } from 'lucide-react'
 import UpgradeGate from '@/components/UpgradeGate'
 import ModernAppShell from '@/components/ModernAppShell'
+import PlannerPanel from '@/components/finance/PlannerPanel'
+import PlannerGoalsPanel from '@/components/finance/PlannerGoalsPanel'
+import PlannerCoachPanel from '@/components/finance/PlannerCoachPanel'
+import type { PlannerData } from '@/components/finance/planner-types'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
@@ -97,6 +103,7 @@ type Transaction = {
 }
 
 type Overview = {
+  bankEnabled: boolean
   canManage: boolean
   providerConfigured: boolean
   accounts: Account[]
@@ -162,7 +169,9 @@ export default function FinancesPage() {
   const [search, setSearch] = useState('')
   const [transactionReload, setTransactionReload] = useState(0)
   const [clock, setClock] = useState(0)
-  const [activeTab, setActiveTab] = useState<'overview' | 'statistics' | 'transactions' | 'subscriptions' | 'coach'>('overview')
+  const [activeTab, setActiveTab] = useState<'plan' | 'goals' | 'plannercoach' | 'overview' | 'statistics' | 'transactions' | 'subscriptions' | 'coach'>('plan')
+  const [planner, setPlanner] = useState<PlannerData | null>(null)
+  const [plannerLoading, setPlannerLoading] = useState(false)
   const [renamingAccount, setRenamingAccount] = useState<string | null>(null)
   const [accountName, setAccountName] = useState('')
   const [editingTransaction, setEditingTransaction] = useState<EditableFinanceTransaction | null>(null)
@@ -215,6 +224,24 @@ export default function FinancesPage() {
     setLoading(false)
   }, [])
 
+  const loadPlanner = useCallback(async (id: string) => {
+    setPlannerLoading(true)
+    try {
+      const response = await fetch(`/api/finance/planner?householdId=${encodeURIComponent(id)}`)
+      const payload = await response.json().catch(() => null)
+      if (response.status === 403 && payload?.code === 'upgrade_required') {
+        setUpgradeRequired(true)
+        return
+      }
+      if (!response.ok) throw new Error(payload?.error || 'Unable to load the money planner')
+      setPlanner(payload as PlannerData)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Unable to load the money planner')
+    } finally {
+      setPlannerLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (status !== 'authenticated') {
       if (status === 'unauthenticated') setLoading(false)
@@ -229,8 +256,9 @@ export default function FinancesPage() {
         if (!active) return
         const id = typeof payload?.householdId === 'string' ? payload.householdId : ''
         setHouseholdId(id)
-        if (id) await loadOverview(id, true)
-        else setLoading(false)
+        if (id) {
+          await Promise.all([loadOverview(id, true), loadPlanner(id)])
+        } else setLoading(false)
       } catch (loadError) {
         if (active) {
           setError(loadError instanceof Error ? loadError.message : 'Unable to load finances')
@@ -239,7 +267,7 @@ export default function FinancesPage() {
       }
     })()
     return () => { active = false }
-  }, [status, loadOverview])
+  }, [status, loadOverview, loadPlanner])
 
   const loadTransactions = useCallback(async (append = false) => {
     if (!householdId || !overview) return
@@ -458,10 +486,14 @@ export default function FinancesPage() {
           <div>
             <div className="flex items-center gap-2 mb-2 text-sm font-medium text-primary">
               <ShieldCheck className="w-4 h-4" />
-              Read-only open banking
+              {overview?.bankEnabled ? 'Read-only open banking' : 'Private household planner'}
             </div>
             <h1 className="font-display text-3xl font-bold text-foreground">Your money, in one calm view</h1>
-            <p className="text-muted-foreground mt-1">Balances and activity from Bank of Valletta.</p>
+            <p className="text-muted-foreground mt-1">
+              {overview?.bankEnabled
+                ? 'Your plan plus live Bank of Valletta activity.'
+                : 'What comes in, what goes out, and what is truly yours to direct.'}
+            </p>
           </div>
           {overview?.canManage && overview.connections.length > 0 && (
             <Button
@@ -490,16 +522,23 @@ export default function FinancesPage() {
           </div>
         )}
 
-        {overview && overview.accounts.length > 0 && (
+        {householdId && (
           <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-2 lg:flex-row lg:items-center lg:justify-between">
-            <nav className="grid grid-cols-2 gap-1 sm:flex" aria-label="Finance sections">
+            <nav className="grid grid-cols-3 gap-1 sm:flex sm:flex-wrap" aria-label="Finance sections">
               {([
-                ['overview', 'Overview', LayoutDashboard],
-                ['statistics', 'Statistics', BarChart3],
-                ['transactions', 'Transactions', ReceiptText],
-                ['subscriptions', 'Subscriptions', Repeat2],
-                ['coach', 'Spending coach', Sparkles],
-              ] as const).map(([id, label, Icon]) => (
+                ['plan', 'My plan', Wallet],
+                ['goals', 'Goals', Target],
+                ['plannercoach', 'Coach', Sparkles],
+                ...(overview?.bankEnabled
+                  ? ([
+                      ['overview', 'Accounts', LayoutDashboard],
+                      ['statistics', 'Statistics', BarChart3],
+                      ['transactions', 'Transactions', ReceiptText],
+                      ['subscriptions', 'Subscriptions', Repeat2],
+                      ['coach', 'Bank coach', WalletCards],
+                    ] as const)
+                  : []),
+              ] as ReadonlyArray<readonly [typeof activeTab, string, typeof Wallet]>).map(([id, label, Icon]) => (
                 <button
                   key={id}
                   type="button"
@@ -510,16 +549,44 @@ export default function FinancesPage() {
                 </button>
               ))}
             </nav>
-            <select
-              className="h-10 rounded-lg border border-input bg-white px-3 text-sm lg:min-w-52"
-              value={accountFilter}
-              onChange={event => setAccountFilter(event.target.value)}
-              aria-label="Focus finance page on one account"
-            >
-              <option value="">All visible accounts</option>
-              {overview.accounts.map(account => <option key={account.id} value={account.id}>{account.displayName}</option>)}
-            </select>
+            {overview && overview.accounts.length > 0 && !['plan', 'goals', 'plannercoach'].includes(activeTab) && (
+              <select
+                className="h-10 rounded-lg border border-input bg-card px-3 text-sm lg:min-w-52"
+                value={accountFilter}
+                onChange={event => setAccountFilter(event.target.value)}
+                aria-label="Focus finance page on one account"
+              >
+                <option value="">All visible accounts</option>
+                {overview.accounts.map(account => <option key={account.id} value={account.id}>{account.displayName}</option>)}
+              </select>
+            )}
           </div>
+        )}
+
+        {householdId && activeTab === 'plan' && (
+          planner ? (
+            <PlannerPanel
+              householdId={householdId}
+              data={planner}
+              onChanged={() => void loadPlanner(householdId)}
+              onError={setError}
+            />
+          ) : plannerLoading ? (
+            <div className="flex min-h-[240px] items-center justify-center text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading your plan…
+            </div>
+          ) : null
+        )}
+        {householdId && activeTab === 'goals' && planner && (
+          <PlannerGoalsPanel
+            householdId={householdId}
+            data={planner}
+            onChanged={() => void loadPlanner(householdId)}
+            onError={setError}
+          />
+        )}
+        {householdId && activeTab === 'plannercoach' && planner && (
+          <PlannerCoachPanel householdId={householdId} data={planner} onError={setError} />
         )}
 
         {!householdId && (
@@ -532,7 +599,7 @@ export default function FinancesPage() {
           </Card>
         )}
 
-        {householdId && overview?.canManage && !overview.providerConfigured && (
+        {householdId && overview?.bankEnabled && activeTab === 'overview' && overview.canManage && !overview.providerConfigured && (
           <Card className="border-amber-200">
             <CardContent className="py-8">
               <h2 className="font-semibold">Enable Banking setup needed</h2>
@@ -543,7 +610,7 @@ export default function FinancesPage() {
           </Card>
         )}
 
-        {householdId && overview && overview.accounts.length === 0 && (
+        {householdId && overview?.bankEnabled && activeTab === 'overview' && overview.accounts.length === 0 && (
           <Card className="overflow-hidden">
             <CardContent className="py-14 text-center">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 mx-auto mb-4 flex items-center justify-center">

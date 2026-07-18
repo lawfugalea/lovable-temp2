@@ -139,7 +139,7 @@ function DashboardSkeleton() {
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [financeSummary, setFinanceSummary] = useState<{ accountCount: number; totals: Array<{ currency: string; amount: string }> }>({ accountCount: 0, totals: [] })
+  const [financeSummary, setFinanceSummary] = useState<{ accountCount: number; totals: Array<{ currency: string; amount: string }>; plannerDisposableCents: number | null }>({ accountCount: 0, totals: [], plannerDisposableCents: null })
   const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([])
   const [totalItems, setTotalItems] = useState(0)
   const [medicines, setMedicines] = useState<Medicine[]>([])
@@ -257,9 +257,22 @@ export default function DashboardPage() {
       const response = await fetch(`/api/finance/overview?householdId=${encodeURIComponent(householdId)}`)
       if (!response.ok) return
       const data = await response.json()
+      const accountCount = Array.isArray(data.accounts) ? data.accounts.length : 0
+      let plannerDisposableCents: number | null = null
+      if (!data.bankEnabled) {
+        const plannerResponse = await fetch(`/api/finance/planner?householdId=${encodeURIComponent(householdId)}`)
+        if (plannerResponse.ok) {
+          const planner = await plannerResponse.json()
+          const hasPlan = (planner.incomes?.length || 0) + (planner.commitments?.length || 0) > 0
+          plannerDisposableCents = hasPlan && typeof planner.summary?.disposableCents === "number"
+            ? planner.summary.disposableCents
+            : null
+        }
+      }
       setFinanceSummary({
-        accountCount: Array.isArray(data.accounts) ? data.accounts.length : 0,
+        accountCount,
         totals: Array.isArray(data.totals) ? data.totals : [],
+        plannerDisposableCents,
       })
     } catch (error) {
       console.error("Failed to load finance summary:", error)
@@ -302,7 +315,9 @@ export default function DashboardPage() {
   const pendingChores = todayChores.filter((item) => item.status === "PENDING")
   const financeDetail = financeSummary.accountCount > 0
     ? `${financeSummary.accountCount} connected account${financeSummary.accountCount === 1 ? "" : "s"}${financeSummary.totals[0] ? ` · ${financeSummary.totals[0].amount} ${financeSummary.totals[0].currency}` : ""}`
-    : "No connected accounts are visible to you yet"
+    : financeSummary.plannerDisposableCents !== null
+      ? `${new Intl.NumberFormat("en-MT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(financeSummary.plannerDisposableCents / 100)}/month yours to direct`
+      : "Map your income and commitments in the money planner"
 
   if (status === "loading" || loading) {
     return <ModernAppShell title="Overview"><DashboardSkeleton /></ModernAppShell>
