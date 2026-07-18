@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import clankeepLogo from '@/assets/clankeep-logo.png'
+import clankeepLogoDark from '@/assets/clankeep-logo-dark.png'
 
 type BrandLogoProps = {
   className?: string
@@ -16,7 +17,13 @@ export default function BrandLogo({ className, compact = false, priority = false
           src={clankeepLogo}
           alt="Clankeep"
           priority={priority}
-          className="absolute -left-[12px] -top-[22px] h-auto w-[162px] max-w-none"
+          className="absolute -left-[12px] -top-[22px] h-auto w-[162px] max-w-none dark:hidden"
+        />
+        <Image
+          src={clankeepLogoDark}
+          alt="Clankeep"
+          priority={priority}
+          className="absolute -left-[12px] -top-[22px] hidden h-auto w-[162px] max-w-none dark:block"
         />
       </span>
     )
@@ -28,7 +35,13 @@ export default function BrandLogo({ className, compact = false, priority = false
         src={clankeepLogo}
         alt="Clankeep — Together. Organised. At home."
         priority={priority}
-        className="absolute left-0 -top-[18px] h-auto w-40 max-w-none"
+        className="absolute left-0 -top-[18px] h-auto w-40 max-w-none dark:hidden"
+      />
+      <Image
+        src={clankeepLogoDark}
+        alt="Clankeep — Together. Organised. At home."
+        priority={priority}
+        className="absolute left-0 -top-[18px] hidden h-auto w-40 max-w-none dark:block"
       />
     </span>
   )
