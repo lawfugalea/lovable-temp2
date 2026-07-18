@@ -55,7 +55,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Latest offer per store product; a product is on offer only if its most
   // recent observation is discounted, so superseded promotions never linger.
-  const rows = await prisma.$queryRaw<OfferRow[]>`
+  // Fetched twice — best by percentage and best by absolute saving — so the
+  // client can offer both sort orders without missing big-ticket discounts.
+  const fetchTop = (orderBy: Prisma.Sql) => prisma.$queryRaw<OfferRow[]>`
     SELECT
       latest."productId",
       latest."priceCents",
@@ -90,9 +92,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       AND latest."priceCents" > 0
       AND (latest."regularPriceCents" - latest."priceCents")::float / latest."regularPriceCents" >= ${MIN_DISCOUNT_RATIO}
       AND (latest."regularPriceCents" - latest."priceCents")::float / latest."regularPriceCents" <= ${MAX_DISCOUNT_RATIO}
-    ORDER BY (latest."regularPriceCents" - latest."priceCents")::float / latest."regularPriceCents" DESC
+    ORDER BY ${orderBy} DESC
     LIMIT ${MAX_RESULTS}
   `
+
+  const [byPercent, bySaving] = await Promise.all([
+    fetchTop(Prisma.sql`(latest."regularPriceCents" - latest."priceCents")::float / latest."regularPriceCents"`),
+    fetchTop(Prisma.sql`latest."regularPriceCents" - latest."priceCents"`),
+  ])
+  const rows = [...byPercent]
+  const seen = new Set(byPercent.map(row => row.productId))
+  for (const row of bySaving) {
+    if (!seen.has(row.productId)) {
+      seen.add(row.productId)
+      rows.push(row)
+    }
+  }
 
   const offers = rows.map(row => {
     const savingCents = row.regularPriceCents - row.priceCents

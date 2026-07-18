@@ -57,8 +57,11 @@ function OfferThumbnail({ src, alt }: { src: string | null; alt: string }) {
   )
 }
 
+type OfferSort = 'percent' | 'saving'
+
 export default function OffersPanel({ offers, loading, error, canAdd, addingProductId, onRetry, onAdd }: OffersPanelProps) {
   const [storeFilter, setStoreFilter] = useState('all')
+  const [sort, setSort] = useState<OfferSort>('percent')
 
   const stores = useMemo(() => {
     const seen = new Map<string, string>()
@@ -66,7 +69,14 @@ export default function OffersPanel({ offers, loading, error, canAdd, addingProd
     return Array.from(seen, ([slug, name]) => ({ slug, name }))
   }, [offers])
 
-  const visible = storeFilter === 'all' ? offers : offers.filter(offer => offer.storeSlug === storeFilter)
+  const visible = useMemo(() => {
+    const filtered = storeFilter === 'all' ? offers : offers.filter(offer => offer.storeSlug === storeFilter)
+    return [...filtered].sort((a, b) => (
+      sort === 'percent'
+        ? b.discountPercent - a.discountPercent || b.savingCents - a.savingCents
+        : b.savingCents - a.savingCents || b.discountPercent - a.discountPercent
+    ))
+  }, [offers, storeFilter, sort])
 
   if (loading) {
     return (
@@ -127,7 +137,33 @@ export default function OffersPanel({ offers, loading, error, canAdd, addingProd
             </button>
           ))}
         </div>
-        <span className="text-xs text-muted-foreground">{visible.length} offer{visible.length === 1 ? '' : 's'}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-full border p-0.5" role="group" aria-label="Sort offers">
+            <button
+              type="button"
+              aria-pressed={sort === 'percent'}
+              onClick={() => setSort('percent')}
+              className={cn(
+                'min-h-8 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                sort === 'percent' ? 'bg-module-shopping/10 text-module-shopping' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Biggest %
+            </button>
+            <button
+              type="button"
+              aria-pressed={sort === 'saving'}
+              onClick={() => setSort('saving')}
+              className={cn(
+                'min-h-8 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                sort === 'saving' ? 'bg-module-shopping/10 text-module-shopping' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Biggest saving €
+            </button>
+          </div>
+          <span className="text-xs text-muted-foreground">{visible.length} offer{visible.length === 1 ? '' : 's'}</span>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -174,6 +210,7 @@ export default function OffersPanel({ offers, loading, error, canAdd, addingProd
 
       <p className="text-center text-xs text-muted-foreground">
         Offers come from public online catalogues and refresh daily. Estimates for planning — in-store prices can differ.
+        Only stores that publish before-and-after prices can appear here; Smart&apos;s online catalogue lists a single price per product, so its offers cannot be detected.
       </p>
     </div>
   )
