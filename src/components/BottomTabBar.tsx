@@ -10,7 +10,7 @@ export default function BottomTabBar() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 md:hidden"
     >
       <div className="grid grid-cols-5 pb-safe pt-1.5">
         {modules.map((module) => {

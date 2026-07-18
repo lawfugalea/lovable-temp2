@@ -132,6 +132,25 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
     </div>
   )
 
+  const accountMenuContent = (
+    <DropdownMenuContent side="top" align="start" className="w-64">
+      <DropdownMenuLabel>My account</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem asChild><Link href="/settings"><Settings /> Settings</Link></DropdownMenuItem>
+      <DropdownMenuItem asChild><Link href="/household"><Users /> Household</Link></DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Theme</DropdownMenuLabel>
+      <ThemePicker />
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+        onSelect={() => void signOut({ callbackUrl: withBasePath("/login") })}
+      >
+        <LogOut /> Sign out
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  )
+
   const userMenu = (
     <div className="border-t p-3">
       <DropdownMenu>
@@ -148,22 +167,79 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
             <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="top" align="start" className="w-64">
-          <DropdownMenuLabel>My account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem asChild><Link href="/settings"><Settings /> Settings</Link></DropdownMenuItem>
-          <DropdownMenuItem asChild><Link href="/household"><Users /> Household</Link></DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Theme</DropdownMenuLabel>
-          <ThemePicker />
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-            onSelect={() => void signOut({ callbackUrl: withBasePath("/login") })}
+        {accountMenuContent}
+      </DropdownMenu>
+    </div>
+  )
+
+  const railLinkClass = (active: boolean, activeClass: string) =>
+    cn(
+      "grid h-11 w-11 place-items-center rounded-xl transition-colors",
+      active ? activeClass : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    )
+
+  // Compact icon rail for tablets (md–lg): modules + manage, no labels.
+  const rail = (
+    <div className="flex h-full flex-col items-center bg-card py-4">
+      <Link href="/dashboard" aria-label="Overview" className="mb-4">
+        <BrandLogo compact priority />
+      </Link>
+      <nav className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto" aria-label="Main navigation">
+        {modules.map((module) => {
+          const active = router.pathname === module.href
+          const Icon = module.icon
+          return (
+            <Link
+              key={module.key}
+              href={module.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={module.name}
+              title={module.name}
+              className={railLinkClass(active, module.activeClass)}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          )
+        })}
+        <div className="my-2 h-px w-8 bg-border" aria-hidden="true" />
+        {manageItems.map((item) => {
+          const active = router.pathname === item.href
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={item.name}
+              title={item.name}
+              className={railLinkClass(active, "bg-secondary text-foreground")}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          )
+        })}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            aria-current={router.pathname === "/admin" ? "page" : undefined}
+            aria-label="Admin"
+            title="Admin"
+            className={railLinkClass(router.pathname === "/admin", "bg-secondary text-foreground")}
           >
-            <LogOut /> Sign out
-          </DropdownMenuItem>
-        </DropdownMenuContent>
+            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        )}
+      </nav>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label="Account menu" className="mt-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Avatar className="h-9 w-9 border border-primary/15">
+              {session?.user?.image && <AvatarImage src={session.user.image} alt="" />}
+              <AvatarFallback>{getInitials(session?.user?.name, session?.user?.email)}</AvatarFallback>
+            </Avatar>
+          </button>
+        </DropdownMenuTrigger>
+        {accountMenuContent}
       </DropdownMenu>
     </div>
   )
@@ -251,7 +327,8 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
   )
 
   return (
-    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+    <div className="min-h-screen bg-background md:grid md:grid-cols-[76px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)]">
+      <aside className="sticky top-0 hidden h-screen border-r bg-card md:block lg:hidden">{rail}</aside>
       <aside className="sticky top-0 hidden h-screen border-r bg-card lg:block">{sidebar}</aside>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -264,7 +341,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       <div className="min-w-0">
         <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75">
           <div className="flex h-[72px] items-center gap-3 px-4 sm:px-6 lg:px-8">
-            <Button variant="outline" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
+            <Button variant="outline" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
               <Menu className="h-5 w-5" />
             </Button>
             <div className="min-w-0 flex-1">
@@ -291,7 +368,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
           </div>
         </header>
 
-        <main className="min-h-[calc(100vh-72px)] px-4 py-5 pb-28 sm:px-6 sm:py-7 lg:px-8 lg:py-8 lg:pb-8">
+        <main className="min-h-[calc(100vh-72px)] px-4 py-5 pb-28 sm:px-6 sm:py-7 md:pb-8 lg:px-8 lg:py-8">
           <div className="mx-auto w-full max-w-[1520px] animate-fade-in">{children}</div>
         </main>
       </div>

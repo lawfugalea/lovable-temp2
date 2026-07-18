@@ -255,7 +255,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="top-[18vh] max-w-2xl translate-y-0 gap-0 overflow-hidden p-0">
+      <DialogContent className="top-[18vh] max-w-2xl translate-y-0 gap-0 overflow-hidden p-0 max-sm:bottom-auto max-sm:top-0 max-sm:max-h-[80dvh] max-sm:rounded-b-2xl max-sm:rounded-t-none max-sm:border-t-0 max-sm:border-x-0 max-sm:pb-0 max-sm:data-[state=open]:slide-in-from-top-6 max-sm:data-[state=closed]:slide-out-to-top-6">
         <DialogTitle className="sr-only">Search Clankeep</DialogTitle>
         <DialogDescription className="sr-only">Navigate to a page or choose a quick action.</DialogDescription>
           {/* Search Input */}
@@ -271,7 +271,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
               placeholder="Search pages and actions..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-8 flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="h-8 flex-1 bg-transparent text-base text-foreground placeholder:text-muted-foreground focus:outline-none sm:text-sm"
             />
           </div>
 
