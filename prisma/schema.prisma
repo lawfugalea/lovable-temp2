@@ -34,6 +34,8 @@ model User {
   memberships               Membership[]
   assignedChores            Chore[]                      @relation("ChoreAssignee")
   choreCompletions          ChoreCompletion[]            @relation("ChoreCompletedBy")
+  incomeSources             IncomeSource[]               @relation("IncomeSourceUser")
+  commitments               Commitment[]                 @relation("CommitmentUser")
   shoppingItemsCreated      ShoppingItem[]               @relation("ShoppingItemCreatedBy")
   shoppingItemsCompleted    ShoppingItem[]               @relation("ShoppingItemDoneBy")
   activeHousehold           Household?                   @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id], onDelete: SetNull)
@@ -76,6 +78,9 @@ model Household {
   chores                    Chore[]
   recipes                   Recipe[]
   mealPlanEntries           MealPlanEntry[]
+  incomeSources             IncomeSource[]
+  commitments               Commitment[]
+  savingsGoals              SavingsGoal[]
   shoppingLists             ShoppingList[]
   shoppingTemplates         ShoppingTemplate[]
   activeForUsers            User[]                     @relation("ActiveHousehold")
@@ -1043,4 +1048,67 @@ model BillingEvent {
   id        String   @id
   type      String
   createdAt DateTime @default(now())
+}
+
+/// Frequencies the household money planner understands. BIMONTHLY covers
+/// Malta's two-monthly utility (ARMS) billing cycle.
+enum PlannerFrequency {
+  WEEKLY
+  FOUR_WEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+model IncomeSource {
+  id          String           @id @default(cuid())
+  householdId String
+  /// The member this income belongs to; null for household-level income.
+  userId      String?
+  label       String
+  amountCents Int
+  frequency   PlannerFrequency @default(MONTHLY)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User?     @relation("IncomeSourceUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([householdId])
+}
+
+model Commitment {
+  id          String           @id @default(cuid())
+  householdId String
+  /// The member this commitment belongs to; null for shared household commitments.
+  userId      String?
+  label       String
+  category    String           @default("other")
+  amountCents Int
+  frequency   PlannerFrequency @default(MONTHLY)
+  essential   Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User?     @relation("CommitmentUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([householdId])
+}
+
+model SavingsGoal {
+  id          String    @id @default(cuid())
+  householdId String
+  name        String
+  targetCents Int
+  savedCents  Int       @default(0)
+  /// Date-only; when the household wants the goal reached.
+  targetDate  DateTime? @db.Date
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  @@index([householdId])
 }

@@ -43,6 +43,10 @@ const billingMigration = readFileSync(
   join(process.cwd(), 'prisma/migrations/20260719120000_household_billing/migration.sql'),
   'utf8',
 )
+const plannerMigration = readFileSync(
+  join(process.cwd(), 'prisma/migrations/20260719150000_money_planner/migration.sql'),
+  'utf8',
+)
 
 test('schema reconciliation adds every missing application model', () => {
   assert.match(migration, /User_email_lower_key/)
@@ -142,6 +146,18 @@ test('demo mode migration is additive and defaults everyone to non-demo', () => 
   assert.match(demoMigration, /ADD COLUMN "isDemo" BOOLEAN NOT NULL DEFAULT false/)
   assert.match(demoMigration, /ADD COLUMN "demoExpiresAt" TIMESTAMP/)
   assert.doesNotMatch(demoMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
+})
+
+test('money planner migration is additive with correct cascade semantics', () => {
+  assert.match(plannerMigration, /CREATE TABLE "IncomeSource"/)
+  assert.match(plannerMigration, /CREATE TABLE "Commitment"/)
+  assert.match(plannerMigration, /CREATE TABLE "SavingsGoal"/)
+  assert.match(plannerMigration, /IncomeSource_householdId_fkey[\s\S]*ON DELETE CASCADE/)
+  assert.match(plannerMigration, /IncomeSource_userId_fkey[\s\S]*ON DELETE SET NULL/)
+  assert.match(plannerMigration, /Commitment_householdId_fkey[\s\S]*ON DELETE CASCADE/)
+  assert.match(plannerMigration, /Commitment_userId_fkey[\s\S]*ON DELETE SET NULL/)
+  assert.match(plannerMigration, /SavingsGoal_householdId_fkey[\s\S]*ON DELETE CASCADE/)
+  assert.doesNotMatch(plannerMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
 })
 
 test('billing migration is additive, defaults to FREE, and only comps the known owner', () => {
