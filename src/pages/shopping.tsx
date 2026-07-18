@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
+import { toast } from 'sonner'
 import { useSession } from 'next-auth/react'
 import ModernAppShell from '@/components/ModernAppShell'
 import SupermarketComparisonPanel from '@/components/shopping/SupermarketComparisonPanel'
+import OffersPanel, { type SupermarketOffer } from '@/components/shopping/OffersPanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -37,6 +39,7 @@ import {
   MoreHorizontal,
   Package,
   Pencil,
+  Percent,
   Plus,
   RefreshCw,
   Search,
@@ -106,7 +109,7 @@ interface ShoppingTemplate {
 }
 
 type ListDialogMode = 'create' | 'rename' | 'archive' | 'delete' | null
-type ShoppingTab = 'list' | 'compare'
+type ShoppingTab = 'list' | 'compare' | 'offers'
 
 function errorMessage(value: unknown, fallback: string) {
   if (value && typeof value === 'object' && 'error' in value && typeof value.error === 'string') return value.error
@@ -166,6 +169,12 @@ export default function ShoppingPage() {
   const [comparisonLoading, setComparisonLoading] = useState(false)
   const [comparisonError, setComparisonError] = useState('')
   const comparisonRequestId = useRef(0)
+
+  const [offers, setOffers] = useState<SupermarketOffer[]>([])
+  const [offersLoading, setOffersLoading] = useState(false)
+  const [offersError, setOffersError] = useState('')
+  const [addingOfferId, setAddingOfferId] = useState<string | null>(null)
+  const offersLoadedRef = useRef(false)
 
   const [query, setQuery] = useState('')
   const [packNote, setPackNote] = useState('')
@@ -322,6 +331,57 @@ export default function ShoppingPage() {
   const refreshComparison = useCallback(() => {
     void loadComparison(selectedListId)
   }, [loadComparison, selectedListId])
+
+  const loadOffers = useCallback(async () => {
+    setOffersLoading(true)
+    setOffersError('')
+    try {
+      const response = await fetch('/api/prices/offers')
+      const data = await responseJson(response)
+      if (!response.ok) throw new Error(errorMessage(data, 'Could not load supermarket offers'))
+      setOffers((data.offers || []) as SupermarketOffer[])
+      offersLoadedRef.current = true
+    } catch (error) {
+      setOffersError(error instanceof Error ? error.message : 'Could not load supermarket offers')
+    } finally {
+      setOffersLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (tab === 'offers' && !offersLoadedRef.current && !offersLoading) void loadOffers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, loadOffers])
+
+  const addOfferToList = useCallback(async (offer: SupermarketOffer) => {
+    if (!selectedListId || archived) return
+    setAddingOfferId(offer.productId)
+    setNotice('')
+    try {
+      const response = await fetch('/api/shopping/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listId: selectedListId,
+          title: offer.title,
+          quantityCount: 1,
+          canonicalProductId: offer.canonicalProductId || undefined,
+          imageUrl: offer.imageUrl || undefined,
+          productUrl: offer.sourceUrl || undefined,
+          store: offer.storeName,
+        }),
+      })
+      const data = await responseJson(response)
+      if (!response.ok) throw new Error(errorMessage(data, 'Could not add this offer'))
+      setItems(current => [data.item as unknown as ShoppingItem, ...current])
+      toast.success(`Added ${offer.title} to ${selectedList?.name || 'the list'}`)
+      refreshComparison()
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Could not add this offer')
+    } finally {
+      setAddingOfferId(null)
+    }
+  }, [archived, refreshComparison, selectedList, selectedListId])
 
   const finishComposer = useCallback(() => {
     setQuery('')
@@ -697,9 +757,10 @@ export default function ShoppingPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 rounded-lg bg-muted p-1" role="tablist" aria-label="Shopping view">
-            <button type="button" role="tab" aria-selected={tab === 'list'} onClick={() => setTab('list')} className={`min-h-11 rounded-md px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><ListChecks className="mr-2 inline h-4 w-4" />List</button>
-            <button type="button" role="tab" aria-selected={tab === 'compare'} onClick={() => setTab('compare')} className={`min-h-11 rounded-md px-4 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${tab === 'compare' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Scale className="mr-2 inline h-4 w-4" />Compare{comparison && comparison.items.some(item => item.matchStatus !== 'MATCHED') && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-amber-500" />}</button>
+          <div className="grid grid-cols-3 rounded-lg bg-muted p-1" role="tablist" aria-label="Shopping view">
+            <button type="button" role="tab" aria-selected={tab === 'list'} onClick={() => setTab('list')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><ListChecks className="mr-2 inline h-4 w-4" />List</button>
+            <button type="button" role="tab" aria-selected={tab === 'compare'} onClick={() => setTab('compare')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'compare' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Scale className="mr-2 inline h-4 w-4" />Compare{comparison && comparison.items.some(item => item.matchStatus !== 'MATCHED') && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-amber-500" />}</button>
+            <button type="button" role="tab" aria-selected={tab === 'offers'} onClick={() => setTab('offers')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'offers' ? 'bg-background text-module-shopping shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Percent className="mr-2 inline h-4 w-4" />Offers</button>
           </div>
         </header>
 
@@ -814,9 +875,21 @@ export default function ShoppingPage() {
               </CardContent>
             </Card>
           </div>
-        ) : (
+        ) : tab === 'compare' ? (
           <div role="tabpanel" aria-label="Supermarket comparison" className="rounded-xl border bg-card p-4 shadow-soft-sm sm:p-6">
             <SupermarketComparisonPanel comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={refreshComparison} onMatch={openMatch} />
+          </div>
+        ) : (
+          <div role="tabpanel" aria-label="Supermarket offers">
+            <OffersPanel
+              offers={offers}
+              loading={offersLoading}
+              error={offersError}
+              canAdd={Boolean(selectedListId) && !archived}
+              addingProductId={addingOfferId}
+              onRetry={() => void loadOffers()}
+              onAdd={offer => void addOfferToList(offer)}
+            />
           </div>
         )}
       </div>
