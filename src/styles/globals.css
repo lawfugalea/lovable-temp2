@@ -43,37 +43,6 @@
     /* Shadows derive from this, never from --foreground. */
     --shadow-color: 221 39% 11%;
 
-    /* Compatibility tokens used by pre-migration screens. */
-    --primary-soft: 229 100% 94%;
-    --primary-deep: 250 100% 69%;
-    --sage: 181 72% 45%;
-    --sage-soft: 181 72% 92%;
-    --success: 142 71% 45%;
-    --warning: 38 92% 50%;
-    --cozy-bg: hsl(var(--background));
-    --cozy-surface: hsl(var(--card));
-    --cozy-text: hsl(var(--foreground));
-    --cozy-text-muted: hsl(var(--muted-foreground));
-    --cozy-text-soft: hsl(var(--soft-foreground));
-    --cozy-primary: hsl(var(--primary));
-    --cozy-primary-soft: hsl(var(--primary-soft));
-    --cozy-primary-deep: hsl(var(--primary-deep));
-    --cozy-sage: hsl(var(--sage));
-    --cozy-sage-soft: hsl(var(--sage-soft));
-    --cozy-terracotta: hsl(var(--primary));
-    --cozy-cream: hsl(var(--secondary));
-    --cozy-sand: hsl(var(--accent));
-    --cozy-gray-100: hsl(var(--muted));
-    --cozy-gray-200: hsl(var(--border));
-    --cozy-gray-300: hsl(var(--input));
-    --cozy-gray-400: hsl(var(--muted-foreground));
-    --cozy-shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.05), 0 1px 8px hsl(var(--shadow-color) / 0.035);
-    --cozy-shadow-md: 0 12px 30px -16px hsl(var(--shadow-color) / 0.24);
-    --cozy-shadow-lg: 0 24px 60px -24px hsl(var(--shadow-color) / 0.32);
-    --cozy-shadow-glow: 0 10px 28px -12px hsl(var(--primary) / 0.45);
-    --hf-grad-from: hsl(var(--primary));
-    --hf-grad-via: hsl(var(--brand-purple));
-    --hf-grad-to: hsl(var(--brand-teal));
   }
 
   .dark {
@@ -107,11 +76,6 @@
     --brand-coral: 0 90% 74%;
 
     --shadow-color: 222 47% 4%;
-
-    --primary-soft: 229 40% 24%;
-    --primary-deep: 250 100% 74%;
-    --sage: 181 72% 52%;
-    --sage-soft: 181 35% 20%;
   }
 
   * {
@@ -150,67 +114,6 @@
   writing-mode: horizontal-tb !important;
 }
 
-@layer components {
-  .cozy-glass {
-    background: hsl(var(--card) / 0.82);
-    border: 1px solid hsl(var(--border) / 0.78);
-    box-shadow: var(--cozy-shadow-md);
-    backdrop-filter: blur(18px);
-  }
-
-  .cozy-card,
-  .hf-card {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) + 2px);
-    box-shadow: var(--cozy-shadow-sm);
-  }
-
-  .cozy-card {
-    transition: border-color 160ms ease, box-shadow 160ms ease;
-  }
-
-  .cozy-card:hover {
-    border-color: hsl(var(--primary) / 0.28);
-    box-shadow: var(--cozy-shadow-md);
-  }
-
-  .cozy-btn-primary,
-  .cozy-btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 2.5rem;
-    border-radius: calc(var(--radius) - 2px);
-    padding: 0.625rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-  }
-
-  .cozy-btn-primary {
-    background: hsl(var(--primary));
-    color: hsl(var(--primary-foreground));
-    box-shadow: var(--cozy-shadow-sm);
-  }
-
-  .cozy-btn-primary:hover {
-    background: hsl(var(--primary-deep));
-    box-shadow: var(--cozy-shadow-glow);
-  }
-
-  .cozy-btn-secondary {
-    background: hsl(var(--card));
-    color: hsl(var(--foreground));
-    border: 1px solid hsl(var(--border));
-  }
-
-  .cozy-btn-secondary:hover {
-    background: hsl(var(--secondary));
-    border-color: hsl(var(--primary) / 0.32);
-  }
-}
-
 .pb-safe {
   padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
@@ -224,18 +127,6 @@
 .animation-delay-1000 { animation-delay: 1000ms; }
 .animation-delay-1500 { animation-delay: 1500ms; }
 .animation-delay-2000 { animation-delay: 2000ms; }
-
-.cozy-btn-press:active {
-  transform: scale(0.98);
-}
-
-.cozy-emoji {
-  transition: transform 180ms ease;
-}
-
-.cozy-emoji:hover {
-  transform: scale(1.08);
-}
 
 * {
   scrollbar-color: hsl(var(--border)) transparent;
