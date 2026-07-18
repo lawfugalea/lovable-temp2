@@ -19,10 +19,12 @@ planner.
 
 Finances is a **private money planner** for the household: map what comes in
 (income) and what goes out (bills, groceries, commitments), see what's left to
-direct, set **budgets** and **savings goals** with progress tracking, and use
-the built-in **planning coach** for practical suggestions on keeping the plan
-honest. Nothing connects to a bank — you enter your own figures, and the data
-never leaves the household's own ClanKeep database.
+direct, set **budgets** and **savings goals** with progress tracking, and ask
+the **AI savings coach** for a personalised plan to hit your goals sooner.
+The coach is opt-in and privacy-first: it only ever receives a redacted
+summary of totals — no names, no labels you haven't approved, and nothing is
+stored by the AI provider. Nothing connects to a bank — you enter your own
+figures, and the data never leaves the household's own ClanKeep database.
 
 The money planner is part of the **Family plan** (€4.99/month or €49/year,
 VAT included). On the free plan the Finances page explains the planner and how
@@ -52,7 +54,7 @@ deleted: access pauses and resubscribing restores it.
 A: No — ClanKeep doesn't connect to banks. Finances is a private money planner: you enter your income, outgoings, budgets, and savings goals yourself, and everything stays in your household. Most families find that entering their regular figures once is all it takes.
 
 **Q: What does the Finances page do?**
-A: It's a private money planner for your household — map what comes in and what goes out, see what's left to direct, set budgets and savings goals with progress tracking, and get practical suggestions from the built-in planning coach. No bank logins, no data leaving your home.
+A: It's a private money planner for your household — map what comes in and what goes out, see what's left to direct, set budgets and savings goals with progress tracking, and ask the AI savings coach for a personalised route to your goals. The coach only sees a redacted summary you approve first. No bank logins, no data leaving your home.
 
 **Q: Is the money planner free?**
 A: The planner is part of the Family plan — €4.99/month or €49/year, VAT included. The free plan includes shared shopping lists, the meal planner, chores, notes, and medicine tracking for one child. Upgrade in Settings → Plan & Billing.
@@ -67,7 +69,7 @@ A: No — this assistant has no access to any household's data, so it can't see 
 A: Nothing is deleted. Access pauses, your data stays safely in your household's database, and everything reappears if you resubscribe.
 
 **Q: What does ClanKeep cost?**
-A: The free plan is free forever: shared shopping lists, meal planner, chores, notes, unlimited household members, and medicine tracking for one child. The Family plan is €4.99/month or €49/year (two months free), VAT included, and adds the Malta supermarket price comparison with daily offers, weekly meal plans priced per store, the private money planner with budgets, goals and coach, medicine for unlimited children, push dose reminders, and PDF health reports. Cancel anytime.
+A: The free plan is free forever: shared shopping lists, meal planner, chores, notes, unlimited household members, and medicine tracking for one child. The Family plan is €4.99/month or €49/year (two months free), VAT included, and adds the Malta supermarket price comparison with daily offers, weekly meal plans priced per store, the money planner with its AI savings coach, medicine for unlimited children, push dose reminders, and PDF health reports. Cancel anytime.
 
 **Q: Which supermarkets does the price comparison cover?**
 A: ClanKeep reads the public online catalogues of Smart Supermarket, Greens, and Welbee's, refreshed every day. Price comparison and offers are part of the Family plan. Prices are planning estimates — in-store prices can differ. Smart's catalogue lists a single price per product, so special offers can only be detected for Greens and Welbee's.

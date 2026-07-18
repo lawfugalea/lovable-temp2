@@ -23,6 +23,38 @@ import {
 import { withBasePath } from '@/lib/base-path'
 import BrandLogo from '@/components/BrandLogo'
 import KelmaWidget from '@/components/KelmaWidget'
+import Image from 'next/image'
+import shotDashboard from '@/assets/marketing/dashboard.jpg'
+import shotCompare from '@/assets/marketing/compare.jpg'
+import shotMeals from '@/assets/marketing/meals.jpg'
+import shotChores from '@/assets/marketing/chores.jpg'
+
+const productShots = [
+  {
+    image: shotDashboard,
+    alt: 'ClanKeep dashboard showing the household overview',
+    title: 'Your household at a glance',
+    caption: 'Tonight’s dinner, today’s chores, and the next shop — one calm overview for the whole clan.',
+  },
+  {
+    image: shotCompare,
+    alt: 'Shopping list priced across Malta supermarkets',
+    title: 'Where is this list cheapest?',
+    caption: 'Your actual list priced item-by-item per supermarket, cheapest basket highlighted. Family plan.',
+  },
+  {
+    image: shotMeals,
+    alt: 'Weekly meal planner',
+    title: 'Dinner, decided',
+    caption: 'Plan Monday to Sunday from your own recipes, then add the whole week to the shopping list in one tap.',
+  },
+  {
+    image: shotChores,
+    alt: 'Recurring chores with one-tap check-off',
+    title: 'The rota that runs itself',
+    caption: 'Recurring chores that appear on the right day, tick off in one tap, and keep a shared log.',
+  },
+]
 
 const heroChecklist = [
   { name: 'Milk (2L)', store: 'Smart', price: '€1.09', done: true },
@@ -56,10 +88,10 @@ const bentoFeatures = [
   {
     icon: Landmark,
     tone: 'blue',
-    title: 'A money planner that stays private',
+    title: 'A money planner with an AI coach',
     description:
-      'Map what comes in, what goes out, and what’s left to direct — with budgets, savings goals, and a coach that keeps the plan honest. No bank logins, no data leaving your home. Part of the Family plan.',
-    bullets: ['Income & outgoings in one view', 'Savings goals with progress', 'Built-in planning coach'],
+      'Map what comes in, what goes out, and what’s left to direct — with budgets, savings goals, and an AI savings coach that studies your plan and suggests how to hit your goals sooner. Only redacted totals are analysed; no bank logins, no names, nothing leaves your control. Part of the Family plan.',
+    bullets: ['Income & outgoings in one view', 'Savings goals with progress', 'AI savings coach — private & redacted'],
   },
   {
     icon: FileText,
@@ -200,6 +232,7 @@ export default function LandingPage() {
             <div className="hidden items-center gap-8 text-[15px] font-medium text-brand-body md:flex">
               <a href="#features" className="transition-colors hover:text-brand-heading">Features</a>
               <a href="#prices" className="transition-colors hover:text-brand-heading">Price compare</a>
+              <a href="#tour" className="transition-colors hover:text-brand-heading">Screenshots</a>
               <a href="#pricing" className="transition-colors hover:text-brand-heading">Pricing</a>
               <a href="#privacy" className="transition-colors hover:text-brand-heading">Privacy</a>
             </div>
@@ -588,6 +621,42 @@ export default function LandingPage() {
           </section>
 
 
+
+          {/* ── Product screenshots ───────────────────────────── */}
+          <section id="tour" className="scroll-mt-20 py-24 sm:py-28">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-2xl text-center" data-reveal>
+                <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-teal">See it in action</p>
+                <h2 className="lp-display mt-4 text-4xl font-bold leading-[1.08] tracking-[-0.03em] text-brand-heading sm:text-5xl">
+                  The calm is real. Here’s the app.
+                </h2>
+                <p className="mt-5 text-lg leading-relaxed text-brand-body">
+                  Actual screens from ClanKeep — no mock-ups, no promises. This is what your household sees.
+                </p>
+              </div>
+
+              <div className="mt-14 grid gap-8 lg:grid-cols-2">
+                {productShots.map((shot, index) => (
+                  <figure key={shot.title} data-reveal style={{ transitionDelay: `${(index % 2) * 100}ms` }} className="group">
+                    <div className="overflow-hidden rounded-2xl border border-slate-900/[0.08] bg-white shadow-[0_24px_60px_-28px_rgba(15,23,42,0.28)] transition-transform duration-500 group-hover:-translate-y-1">
+                      <div className="flex items-center gap-1.5 border-b border-slate-900/[0.06] bg-slate-50 px-4 py-2.5">
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#FF6B6B]/70" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#F5C543]/70" />
+                        <span className="h-2.5 w-2.5 rounded-full bg-[#2EC5A8]/70" />
+                        <span className="ml-3 truncate text-xs font-medium text-slate-400">clankeep.com</span>
+                      </div>
+                      <Image src={shot.image} alt={shot.alt} className="h-auto w-full" sizes="(min-width: 1024px) 590px, 100vw" />
+                    </div>
+                    <figcaption className="mt-4 px-1">
+                      <p className="lp-display text-lg font-bold text-brand-heading">{shot.title}</p>
+                      <p className="mt-1 text-sm leading-relaxed text-brand-body">{shot.caption}</p>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          </section>
+
           {/* ── Pricing ───────────────────────────────────────── */}
           <section id="pricing" className="scroll-mt-20 border-y border-slate-900/[0.06] bg-white py-24 sm:py-28">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -645,7 +714,7 @@ export default function LandingPage() {
                       'Everything in Free',
                       'Malta supermarket price comparison & offers',
                       'Weekly meal plan priced per store',
-                      'Private money planner — budgets, goals & coach',
+                      'Money planner with AI savings coach',
                       'Medicine for unlimited children',
                       'Push reminders for doses',
                       'PDF health reports for the doctor',
@@ -772,6 +841,7 @@ export default function LandingPage() {
             <nav aria-label="Footer" className="flex flex-col gap-5 text-sm font-medium text-brand-body sm:flex-row sm:items-center">
               <a href="#features" className="transition-colors hover:text-brand-heading">Features</a>
               <a href="#prices" className="transition-colors hover:text-brand-heading">Price compare</a>
+              <a href="#tour" className="transition-colors hover:text-brand-heading">Screenshots</a>
               <a href="#pricing" className="transition-colors hover:text-brand-heading">Pricing</a>
               <a href="#privacy" className="transition-colors hover:text-brand-heading">Privacy</a>
               <Link href="/privacy" className="transition-colors hover:text-brand-heading">Privacy Policy</Link>
