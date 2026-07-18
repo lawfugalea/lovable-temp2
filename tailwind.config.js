@@ -24,7 +24,20 @@ module.exports = {
   				'sans-serif'
   			]
   		},
-  		colors: {
+		colors: {
+			brand: {
+				blue: '#4D6BFF',
+				purple: '#7B61FF',
+				teal: '#20C5C8',
+				coral: '#FF6B6B',
+				dark: '#0F172A',
+				heading: '#111827',
+				body: '#4B5563',
+				muted: '#94A3B8',
+				success: '#22C55E',
+				warning: '#F59E0B',
+				error: '#EF4444'
+			},
   			border: 'hsl(var(--border) / <alpha-value>)',
   			input: 'hsl(var(--input) / <alpha-value>)',
   			ring: 'hsl(var(--ring) / <alpha-value>)',
@@ -63,7 +76,7 @@ module.exports = {
   				surface: 'hsl(var(--card) / <alpha-value>)',
   				text: 'hsl(var(--foreground) / <alpha-value>)',
   				'text-muted': 'hsl(var(--muted-foreground) / <alpha-value>)',
-  				'text-soft': 'hsl(var(--muted-foreground) / 0.72)',
+				'text-soft': 'hsl(var(--soft-foreground) / <alpha-value>)',
   				primary: 'hsl(var(--primary) / <alpha-value>)',
   				'primary-soft': 'hsl(var(--primary-soft) / <alpha-value>)',
   				'primary-deep': 'hsl(var(--primary-deep) / <alpha-value>)',
@@ -79,13 +92,16 @@ module.exports = {
   					'100': 'hsl(var(--muted) / <alpha-value>)',
   					'200': 'hsl(var(--border) / <alpha-value>)',
   					'300': 'hsl(var(--input) / <alpha-value>)',
-  					'400': 'hsl(var(--muted-foreground) / <alpha-value>)',
+					'400': 'hsl(var(--soft-foreground) / <alpha-value>)',
   					hover: 'hsl(var(--secondary) / <alpha-value>)',
   					active: 'hsl(var(--accent) / <alpha-value>)'
   				}
   			}
   		},
-  		backgroundImage: {
+		backgroundImage: {
+			'brand-primary': 'linear-gradient(135deg, #4D6BFF, #7B61FF)',
+			'brand-secondary': 'linear-gradient(135deg, #20C5C8, #4D6BFF)',
+			'brand-accent': 'linear-gradient(135deg, #FF6B6B, #7B61FF)',
   			'cozy-warm': 'radial-gradient(circle at top left, hsl(var(--primary-soft) / .55), transparent 34%), linear-gradient(180deg, hsl(var(--background)), hsl(var(--secondary) / .65))',
   			'cozy-header': 'linear-gradient(135deg, hsl(var(--primary-soft) / .75), hsl(var(--secondary)), hsl(var(--sage-soft) / .7))'
   		},

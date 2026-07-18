@@ -189,7 +189,7 @@ export default function FinancesPage() {
     } else if (router.query.bankError) {
       const messages: Record<string, string> = {
         authorization_cancelled: 'Bank connection was cancelled.',
-        session_expired: 'Your HouseFlow session expired. Sign in and connect again.',
+        session_expired: 'Your Clankeep session expired. Sign in and connect again.',
         invalid_or_expired_state: 'That bank connection link expired. Please start again.',
       }
       setError(messages[String(router.query.bankError)] || 'The bank connection could not be completed.')
@@ -366,7 +366,7 @@ export default function FinancesPage() {
 
   const disconnect = async (connection: Connection) => {
     if (!householdId || !window.confirm(
-      'Disconnect Bank of Valletta? This revokes consent and permanently removes every imported balance and transaction from HouseFlow.',
+      'Disconnect Bank of Valletta? This revokes consent and permanently removes every imported balance and transaction from Clankeep.',
     )) return
     setAction(`disconnect:${connection.id}`)
     setError(null)
@@ -514,7 +514,7 @@ export default function FinancesPage() {
             <CardContent className="py-8">
               <h2 className="font-semibold">Set the finance owner</h2>
               <p className="text-sm text-cozy-text-muted mt-1">
-                Configure <code className="px-1 py-0.5 rounded bg-cozy-cream">FINANCE_OWNER_EMAIL</code> with your HouseFlow email and restart the app.
+                Configure <code className="px-1 py-0.5 rounded bg-cozy-cream">FINANCE_OWNER_EMAIL</code> with your Clankeep email and restart the app.
               </p>
             </CardContent>
           </Card>
@@ -525,7 +525,7 @@ export default function FinancesPage() {
             <CardContent className="py-8">
               <h2 className="font-semibold">Enable Banking setup needed</h2>
               <p className="text-sm text-cozy-text-muted mt-1 max-w-2xl">
-                Register a restricted-production application, pre-link your BOV accounts, then configure its application ID and base64-encoded private key in HouseFlow.
+                Register a restricted-production application, pre-link your BOV accounts, then configure its application ID and base64-encoded private key in Clankeep.
               </p>
             </CardContent>
           </Card>
@@ -541,7 +541,7 @@ export default function FinancesPage() {
                 <>
                   <h2 className="text-xl font-semibold">Connect Bank of Valletta</h2>
                   <p className="text-sm text-cozy-text-muted mt-2 max-w-lg mx-auto">
-                    You will continue to BOV to approve read-only access. HouseFlow never receives your bank password or permission to make payments.
+                    You will continue to BOV to approve read-only access. Clankeep never receives your bank password or permission to make payments.
                   </p>
                   <Button
                     className="mt-6"

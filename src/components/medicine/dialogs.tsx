@@ -440,7 +440,7 @@ export function ReportDialog({ open, onOpenChange, householdId }: ReportDialogPr
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `houseflow-medicine-report-${dates.startDate}-to-${dates.endDate}.pdf`
+      a.download = `clankeep-medicine-report-${dates.startDate}-to-${dates.endDate}.pdf`
       document.body.appendChild(a)
       a.click()
       window.URL.revokeObjectURL(url)

@@ -113,7 +113,7 @@ export async function dispatchMedicinePush(now = new Date()): Promise<{ queued: 
           keys: { p256dh: delivery.subscription.p256dh, auth: delivery.subscription.auth },
         },
         JSON.stringify({
-          title: 'HouseFlow',
+          title: 'Clankeep',
           body: 'Medicine reminder due',
           tag: `medicine-${delivery.medicineId}-${delivery.scheduledAt.toISOString()}`,
           url: withBasePath('/medicine'),

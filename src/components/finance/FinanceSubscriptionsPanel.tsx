@@ -105,7 +105,7 @@ export default function FinanceSubscriptionsPanel({ householdId, accountId, acco
   const requestNotifications = async () => {
     if (!('Notification' in window)) return onError('This browser does not support notifications')
     const permission = await Notification.requestPermission()
-    if (permission === 'granted') onNotice('Browser subscription reminders are enabled while HouseFlow is open.')
+    if (permission === 'granted') onNotice('Browser subscription reminders are enabled while Clankeep is open.')
     else onError('Browser notification permission was not granted.')
   }
 

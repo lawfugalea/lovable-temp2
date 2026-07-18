@@ -1,4 +1,4 @@
-# HouseFlow Codex team
+# Clankeep Codex team
 
 This repository uses a deliberately small, token-conscious team. The lead agent
 does not invoke every role for every task. It delegates only when the saved time,

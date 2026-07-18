@@ -8,15 +8,14 @@ location so its prices may differ from Mriehel or Gozo.
 
 ## Catalogue synchronization
 
-Run the default Smart and Welbee's adapters once:
+Run the default Smart, Welbee's, and Greens adapters once:
 
 ```bash
 npm run prices:sync
 ```
 
-Smart and Welbee's are enabled by default. Add `greens` after checking its
-terms, access, and data quality. PAVI/PAMA's published terms require prior
-written consent for automated extraction and price-comparison use, so its
+Smart, Welbee's, and Greens are enabled by default. PAVI/PAMA's published terms
+require prior written consent for automated extraction and price-comparison use, so its
 adapter also requires `PAVIPAMA_PERMISSION_CONFIRMED=true`. The
 production Compose stack includes `price-sync`, which runs immediately and then
 every 24 hours. Override the interval with

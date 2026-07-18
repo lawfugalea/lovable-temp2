@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { useSession } from 'next-auth/react'
 import ModernAppShell from '@/components/ModernAppShell'
 import SupermarketComparisonPanel from '@/components/shopping/SupermarketComparisonPanel'
@@ -34,6 +35,7 @@ import {
   Loader2,
   Minus,
   MoreHorizontal,
+  Package,
   Pencil,
   Plus,
   RefreshCw,
@@ -127,6 +129,19 @@ function packLabel(item: CatalogueSearchItem) {
 
 function bestFreshOffer(item: CatalogueSearchItem) {
   return item.offers.find(offer => offer.available && offer.freshness === 'FRESH')
+}
+
+function ProductThumbnail({ src, alt }: { src?: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false)
+  const showImage = Boolean(src) && !failed
+
+  return (
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-muted/40">
+      {showImage
+        ? <Image src={src!} alt={alt} width={64} height={64} className="h-full w-full object-contain p-1" onError={() => setFailed(true)} />
+        : <Package className="h-6 w-6 text-muted-foreground/60" aria-hidden="true" />}
+    </div>
+  )
 }
 
 function matchLabel(item: ComparedItem | undefined, canonicalProductId?: string | null) {
@@ -742,12 +757,22 @@ export default function ShoppingPage() {
                       {!searchLoading && !searchError && searchResults.length === 0 && <div className="p-4 text-sm text-muted-foreground">No exact catalogue products found. Add the item as written instead.</div>}
                       {searchResults.slice(0, 12).map((result, index) => {
                         const offer = bestFreshOffer(result)
-                        const supermarketCount = new Set(result.offers.map(item => item.storeId)).size
+                        const storeOffers = result.offers
+                          .filter(item => item.available && item.freshness === 'FRESH')
+                          .filter((item, offerIndex, all) => all.findIndex(candidate => candidate.storeId === item.storeId) === offerIndex)
                         return (
                           <div id={`catalogue-result-${index}`} role="option" aria-selected={highlightedResult === index} key={result.canonicalProductId} className={`flex items-center gap-3 border-b p-3 last:border-b-0 ${highlightedResult === index ? 'bg-secondary' : 'bg-background'}`}>
+                            <ProductThumbnail src={result.imageUrl} alt="" />
                             <div className="min-w-0 flex-1">
                               <div className="truncate text-sm font-medium">{result.title}</div>
-                              <div className="mt-1 flex flex-wrap gap-x-2 text-xs text-muted-foreground"><span>{packLabel(result)}</span><span>{supermarketCount} {supermarketCount === 1 ? 'supermarket' : 'supermarkets'}</span></div>
+                              <div className="mt-1 text-xs text-muted-foreground">{packLabel(result)}</div>
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {storeOffers.map(item => (
+                                  <span key={item.storeId} className="rounded-full bg-muted px-2 py-0.5 text-xs text-foreground">
+                                    {item.storeName} · {money(item.priceCents)}
+                                  </span>
+                                ))}
+                              </div>
                             </div>
                             <div className="shrink-0 text-right">
                               <div className="text-sm font-semibold text-primary">{offer ? money(offer.priceCents) : 'No fresh price'}</div>

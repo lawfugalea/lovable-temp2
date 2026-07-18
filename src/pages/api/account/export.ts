@@ -87,6 +87,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const stamp = new Date().toISOString().slice(0, 10);
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="houseflow-export-${stamp}.json"`);
+  res.setHeader('Content-Disposition', `attachment; filename="clankeep-export-${stamp}.json"`);
   return res.status(200).json({ exportedAt: new Date().toISOString(), user, notes });
 }

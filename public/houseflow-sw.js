@@ -1,7 +1,7 @@
 self.addEventListener('push', function (event) {
   var payload = {}
   try { payload = event.data ? event.data.json() : {} } catch (_) {}
-  event.waitUntil(self.registration.showNotification(payload.title || 'HouseFlow', {
+  event.waitUntil(self.registration.showNotification(payload.title || 'Clankeep', {
     body: payload.body || 'Medicine reminder due',
     icon: 'logo.png',
     badge: 'logo.png',

@@ -13,7 +13,7 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>HouseFlow - Redirecting...</title>
+        <title>Clankeep - Redirecting...</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <div className="min-h-screen bg-cozy-warm flex items-center justify-center">

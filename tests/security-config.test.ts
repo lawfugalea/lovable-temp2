@@ -23,7 +23,8 @@ test('private legacy uploads are excluded from production images', () => {
 
 test('production compose config supplies the verified invitation sender', () => {
   const compose = readFileSync(join(process.cwd(), 'docker-compose.yml'), 'utf8')
-  assert.match(compose, /INVITES_FROM:.*no-reply@galeahub\.online/)
+  assert.match(compose, /INVITES_FROM:.*noreply@clankeep\.com/)
+  assert.match(compose, /INVITES_FROM_DOMAIN:.*clankeep\.com/)
 })
 
 test('read-only price worker keeps Chromium state on its writable tmpfs', () => {

@@ -1,6 +1,6 @@
-# HouseFlow
+# Clankeep
 
-HouseFlow is a self-hosted household app built with Next.js, TypeScript, PostgreSQL, Prisma, NextAuth, and Tailwind CSS. It includes shared shopping lists with Malta supermarket price comparison, read-only open-banking visibility, medicine and fever tracking, notes, household invitations, and an administrator panel.
+Clankeep is a self-hosted household app built with Next.js, TypeScript, PostgreSQL, Prisma, NextAuth, and Tailwind CSS. It includes shared shopping lists with Malta supermarket price comparison, read-only open-banking visibility, medicine and fever tracking, notes, household invitations, and an administrator panel.
 
 ## Requirements
 
@@ -70,10 +70,10 @@ Before deploying a new migration, take and verify a backup:
 
 Deployment variables belong in the ignored `.env.deploy` file. Application secrets belong in the ignored `.env` file. Never add either file to the Docker build context or Git.
 
-Invitation email requires `RESEND_API_KEY` in `.env` and a verified
-`galeahub.online` sender in `INVITES_FROM` (normally configured in
-`.env.deploy`). Link-only invitations remain available when email delivery is
-not configured.
+Invitation email requires `RESEND_API_KEY` in `.env` and a verified sender in
+`INVITES_FROM`. Set `INVITES_FROM_DOMAIN` to the same verified domain (normally
+configured in `.env.deploy`). Link-only invitations remain available when
+email delivery is not configured.
 
 See [docs/HOUSEFLOW_BACKUPS.md](docs/HOUSEFLOW_BACKUPS.md) for backup and restore procedures.
 
@@ -97,4 +97,4 @@ For supermarket sources, matching rules, freshness, and sync operations, see
 
 ## Authentication and authorization
 
-HouseFlow currently uses email/password credentials through NextAuth. Household data must be accessed through APIs that validate both the session and household membership. Administrator access is configured with the comma-separated `ADMIN_EMAILS` environment variable.
+Clankeep currently uses email/password credentials through NextAuth. Household data must be accessed through APIs that validate both the session and household membership. Administrator access is configured with the comma-separated `ADMIN_EMAILS` environment variable.

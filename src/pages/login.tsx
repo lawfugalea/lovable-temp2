@@ -71,10 +71,10 @@ export default function LoginPage() {
   return (
     <>
       <Head>
-        <title>Sign in – HouseFlow</title>
+        <title>Sign in – Clankeep</title>
         <meta
           name="description"
-          content="Sign in to HouseFlow to access your household workspace."
+          content="Sign in to Clankeep to access your household workspace."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -152,7 +152,7 @@ export default function LoginPage() {
 
         <div className="mt-6 border-t border-border pt-6 text-center">
           <p className="text-sm text-muted-foreground">
-            New to HouseFlow?{' '}
+            New to Clankeep?{' '}
             <button
               type="button"
               onClick={goToRegistration}

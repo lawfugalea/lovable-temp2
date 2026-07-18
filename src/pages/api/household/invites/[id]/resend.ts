@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const result = await sendInviteEmail({
     to: prepared.email,
     acceptUrl,
-    inviterName: inviter?.name || inviter?.email || 'A HouseFlow user',
+    inviterName: inviter?.name || inviter?.email || 'A Clankeep user',
     householdName: prepared.householdName,
   });
 

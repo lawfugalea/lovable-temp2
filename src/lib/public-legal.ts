@@ -15,7 +15,7 @@ export function getPublicLegalConfig(): PublicLegalConfig {
   const financeOwnerEmail = process.env.FINANCE_OWNER_EMAIL?.trim()
 
   return {
-    controllerName: process.env.PRIVACY_CONTROLLER_NAME?.trim() || 'HouseFlow deployment operator',
+    controllerName: process.env.PRIVACY_CONTROLLER_NAME?.trim() || 'Clankeep deployment operator',
     contactEmail: dedicatedEmail || financeOwnerEmail || '',
     contactConfigured: Boolean(dedicatedEmail || financeOwnerEmail),
     lastUpdated: '16 July 2026',

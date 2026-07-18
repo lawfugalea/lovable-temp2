@@ -75,17 +75,17 @@ export default function RegisterPage() {
   return (
     <>
       <Head>
-        <title>Create an account – HouseFlow</title>
+        <title>Create an account – Clankeep</title>
         <meta
           name="description"
-          content="Create a HouseFlow account for your shared household workspace."
+          content="Create a Clankeep account for your shared household workspace."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
       <AuthLayout
         eyebrow={router.query.invite ? 'Household invitation' : 'Get started'}
-        title={router.query.invite ? 'Create your account to join' : 'Create your HouseFlow account'}
+        title={router.query.invite ? 'Create your account to join' : 'Create your Clankeep account'}
         description={
           router.query.invite
             ? 'Your invitation will be waiting after you create your account and sign in.'

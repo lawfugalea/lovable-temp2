@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Home, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, ShieldCheck } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
+import BrandLogo from '@/components/BrandLogo'
 
 interface AuthLayoutProps {
   eyebrow: string
@@ -35,10 +36,7 @@ export default function AuthLayout({
             href="/landing"
             className="inline-flex w-fit items-center gap-3 rounded-lg text-sm font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Home className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <span className="text-lg">HouseFlow</span>
+            <BrandLogo priority />
           </Link>
 
           <div className="max-w-xl py-16">
@@ -54,7 +52,7 @@ export default function AuthLayout({
               to connect into one calm, shared place.
             </p>
 
-            <ul className="mt-10 space-y-4" aria-label="HouseFlow highlights">
+            <ul className="mt-10 space-y-4" aria-label="Clankeep highlights">
               {highlights.map((highlight) => (
                 <li key={highlight} className="flex items-start gap-3 text-sm">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
@@ -65,7 +63,7 @@ export default function AuthLayout({
           </div>
 
           <p className="max-w-lg text-xs leading-5 text-muted-foreground">
-            HouseFlow is designed around authenticated household membership. Read
+            Clankeep is designed around authenticated household membership. Read
             the{' '}
             <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">
               Privacy Policy
@@ -80,10 +78,7 @@ export default function AuthLayout({
               href="/landing"
               className="mb-8 inline-flex items-center gap-3 rounded-lg font-semibold tracking-tight focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
             >
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-                <Home className="h-4 w-4" aria-hidden="true" />
-              </span>
-              HouseFlow
+              <BrandLogo />
             </Link>
 
             <Card className="border-border bg-card shadow-xl shadow-black/5 hover:translate-y-0">

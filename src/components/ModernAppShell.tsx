@@ -14,7 +14,6 @@ import {
   Settings,
   ShieldCheck,
   ShoppingBasket,
-  Sparkles,
   Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -31,6 +30,7 @@ import {
 } from "@/components/ui/DropdownMenu"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/Sheet"
 import CommandPalette from "./CommandPalette"
+import BrandLogo from "./BrandLogo"
 
 const navigationGroups = [
   {
@@ -61,9 +61,9 @@ interface ModernAppShellProps {
 }
 
 function getInitials(name?: string | null, email?: string | null) {
-  const source = name?.trim() || email?.trim() || "HouseFlow"
+  const source = name?.trim() || email?.trim() || "Clankeep"
   const parts = source.split(/\s+/).filter(Boolean)
-  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "HF"
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "CK"
 }
 
 export default function ModernAppShell({ children, title }: ModernAppShellProps) {
@@ -79,7 +79,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       const match = group.items.find((item) => item.href === router.pathname)
       if (match) return match.name
     }
-    return router.pathname === "/admin" ? "Admin" : "HouseFlow"
+    return router.pathname === "/admin" ? "Admin" : "Clankeep"
   }, [router.pathname, title])
 
   useEffect(() => {
@@ -96,16 +96,8 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
   const navigation = (
     <div className="flex h-full flex-col bg-card">
       <div className="flex h-[72px] items-center border-b px-5">
-        <Link href="/dashboard" className="group flex items-center gap-3" onClick={() => setSidebarOpen(false)}>
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-primary text-primary-foreground shadow-cozy-glow transition-transform group-hover:scale-[1.03]">
-            <Home className="h-5 w-5" aria-hidden="true" />
-          </span>
-          <span className="min-w-0">
-            <span className="flex items-center gap-1.5 text-base font-bold tracking-tight">
-              HouseFlow <Sparkles className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            </span>
-            <span className="block text-xs text-muted-foreground">Home, in sync</span>
-          </span>
+        <Link href="/dashboard" className="group flex items-center" onClick={() => setSidebarOpen(false)}>
+          <BrandLogo priority className="transition-transform group-hover:scale-[1.02]" />
         </Link>
       </div>
 
@@ -128,7 +120,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
                     className={cn(
                       "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                       active
-                        ? "bg-primary text-primary-foreground shadow-sm"
+                        ? "bg-brand-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                     )}
                   >
@@ -145,7 +137,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
                   className={cn(
                     "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     router.pathname === "/admin"
-                      ? "bg-primary text-primary-foreground shadow-sm"
+                      ? "bg-brand-primary text-primary-foreground shadow-sm"
                       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >
@@ -167,7 +159,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
                 <AvatarFallback>{getInitials(session?.user?.name, session?.user?.email)}</AvatarFallback>
               </Avatar>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-foreground">{session?.user?.name || "HouseFlow member"}</span>
+                <span className="block truncate text-sm font-semibold text-foreground">{session?.user?.name || "Clankeep member"}</span>
                 <span className="block truncate text-xs font-normal text-muted-foreground">{session?.user?.email || "Account"}</span>
               </span>
               <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
@@ -197,7 +189,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="w-[min(88vw,320px)] p-0">
-          <SheetTitle className="sr-only">HouseFlow navigation</SheetTitle>
+          <SheetTitle className="sr-only">Clankeep navigation</SheetTitle>
           {navigation}
         </SheetContent>
       </Sheet>
@@ -220,7 +212,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
               <span className="flex items-center gap-2"><Search className="h-4 w-4" /> Search</span>
               <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
             </Button>
-            <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search HouseFlow">
+            <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search Clankeep">
               <Search className="h-4 w-4" />
             </Button>
           </div>

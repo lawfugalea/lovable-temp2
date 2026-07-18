@@ -124,8 +124,8 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `Join ${householdName || 'our household'} on HouseFlow`,
-          text: `You have been invited to join ${householdName || 'a household'} on HouseFlow.`,
+          title: `Join ${householdName || 'our household'} on Clankeep`,
+          text: `You have been invited to join ${householdName || 'a household'} on Clankeep.`,
           url: result.acceptUrl,
         });
       } else {

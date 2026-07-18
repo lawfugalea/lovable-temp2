@@ -157,7 +157,7 @@ async function createInvite(req: NextApiRequest, res: NextApiResponse) {
     const result = await sendInviteEmail({
       to: invite.email,
       acceptUrl,
-      inviterName: inviter?.name || inviter?.email || 'A HouseFlow user',
+      inviterName: inviter?.name || inviter?.email || 'A Clankeep user',
       householdName: household?.name || 'your household',
     });
 

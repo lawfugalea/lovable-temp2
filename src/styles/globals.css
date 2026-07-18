@@ -4,37 +4,45 @@
 
 @layer base {
   :root {
-    --background: 36 33% 97%;
-    --foreground: 24 18% 13%;
-    --card: 36 30% 99%;
-    --card-foreground: 24 18% 13%;
-    --popover: 36 30% 99%;
-    --popover-foreground: 24 18% 13%;
-    --primary: 15 62% 43%;
-    --primary-foreground: 36 33% 98%;
-    --secondary: 38 32% 91%;
-    --secondary-foreground: 25 24% 20%;
-    --muted: 32 20% 92%;
-    --muted-foreground: 24 10% 40%;
-    --accent: 95 18% 88%;
-    --accent-foreground: 102 24% 20%;
-    --destructive: 0 68% 48%;
+    --background: 210 40% 98%;
+    --foreground: 221 39% 11%;
+    --heading: 221 39% 11%;
+    --body-foreground: 215 14% 34%;
+    --soft-foreground: 215 20% 65%;
+    --card: 0 0% 100%;
+    --card-foreground: 221 39% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 39% 11%;
+    --primary: 229 100% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 229 100% 96%;
+    --secondary-foreground: 229 70% 42%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 14% 34%;
+    --accent: 181 72% 94%;
+    --accent-foreground: 181 72% 28%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 30 17% 84%;
-    --input: 30 17% 78%;
-    --ring: 15 62% 43%;
+    --border: 220 13% 91%;
+    --input: 220 13% 86%;
+    --ring: 229 100% 65%;
     --radius: 0.875rem;
 
-    /* HouseFlow compatibility tokens used by pre-migration screens. */
-    --primary-soft: 18 68% 90%;
-    --primary-deep: 15 66% 35%;
-    --sage: 96 20% 52%;
-    --sage-soft: 96 24% 89%;
+    /* Compatibility tokens used by pre-migration screens. */
+    --primary-soft: 229 100% 94%;
+    --primary-deep: 250 100% 69%;
+    --sage: 181 72% 45%;
+    --sage-soft: 181 72% 92%;
+    --brand-purple: 250 100% 69%;
+    --brand-teal: 181 72% 45%;
+    --brand-coral: 0 100% 71%;
+    --success: 142 71% 45%;
+    --warning: 38 92% 50%;
     --cozy-bg: hsl(var(--background));
     --cozy-surface: hsl(var(--card));
     --cozy-text: hsl(var(--foreground));
     --cozy-text-muted: hsl(var(--muted-foreground));
-    --cozy-text-soft: hsl(var(--muted-foreground) / 0.72);
+    --cozy-text-soft: hsl(var(--soft-foreground));
     --cozy-primary: hsl(var(--primary));
     --cozy-primary-soft: hsl(var(--primary-soft));
     --cozy-primary-deep: hsl(var(--primary-deep));
@@ -51,35 +59,38 @@
     --cozy-shadow-md: 0 12px 30px -16px hsl(var(--foreground) / 0.24);
     --cozy-shadow-lg: 0 24px 60px -24px hsl(var(--foreground) / 0.32);
     --cozy-shadow-glow: 0 10px 28px -12px hsl(var(--primary) / 0.45);
-    --hf-grad-from: hsl(var(--primary-soft));
-    --hf-grad-via: hsl(var(--secondary));
-    --hf-grad-to: hsl(var(--sage-soft));
+    --hf-grad-from: hsl(var(--primary));
+    --hf-grad-via: hsl(var(--brand-purple));
+    --hf-grad-to: hsl(var(--brand-teal));
   }
 
   .dark {
-    --background: 24 16% 10%;
-    --foreground: 36 24% 94%;
-    --card: 24 14% 13%;
-    --card-foreground: 36 24% 94%;
-    --popover: 24 14% 13%;
-    --popover-foreground: 36 24% 94%;
-    --primary: 17 72% 62%;
-    --primary-foreground: 24 22% 10%;
-    --secondary: 26 13% 19%;
-    --secondary-foreground: 36 22% 92%;
-    --muted: 25 12% 18%;
-    --muted-foreground: 30 12% 66%;
-    --accent: 98 13% 22%;
-    --accent-foreground: 90 18% 86%;
-    --destructive: 0 62% 52%;
+    --background: 222 47% 11%;
+    --foreground: 210 40% 96%;
+    --heading: 210 40% 98%;
+    --body-foreground: 215 20% 78%;
+    --soft-foreground: 215 20% 65%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 96%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 229 100% 70%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 229 35% 22%;
+    --secondary-foreground: 229 100% 90%;
+    --muted: 217 25% 20%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 181 42% 20%;
+    --accent-foreground: 181 72% 78%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --border: 25 12% 23%;
-    --input: 25 12% 28%;
-    --ring: 17 72% 62%;
-    --primary-soft: 16 30% 21%;
-    --primary-deep: 17 72% 68%;
-    --sage: 96 20% 62%;
-    --sage-soft: 96 14% 20%;
+    --border: 217 24% 27%;
+    --input: 217 24% 32%;
+    --ring: 229 100% 70%;
+    --primary-soft: 229 40% 24%;
+    --primary-deep: 250 100% 74%;
+    --sage: 181 72% 52%;
+    --sage-soft: 181 35% 20%;
   }
 
   * {

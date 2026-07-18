@@ -4,7 +4,7 @@ const { prisma } = require('./prisma');
 
 const REQUEST_DELAY_MS = Math.max(0, Number(process.env.CATALOG_REQUEST_DELAY_MS || 250));
 const STORE_FILTER = new Set(
-  String(process.env.CATALOG_SYNC_STORES || 'smart,welbees')
+  String(process.env.CATALOG_SYNC_STORES || 'smart,welbees,greens')
     .split(',')
     .map(value => value.trim().toLowerCase())
     .filter(Boolean)
@@ -94,6 +94,17 @@ function normalizeBarcode(value) {
   ), 0);
   const calculatedCheckDigit = (10 - (sum % 10)) % 10;
   return calculatedCheckDigit === expectedCheckDigit ? barcode : null;
+}
+
+function smartBarcodeFromImageUrl(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (!['smart.com.mt', 'www.smart.com.mt'].includes(url.hostname.toLowerCase())) return null;
+    const filename = url.pathname.split('/').pop() || '';
+    return normalizeBarcode(filename.replace(/\.[a-z0-9]+$/i, ''));
+  } catch {
+    return null;
+  }
 }
 
 function parsePackage(value, explicitValue, explicitUnit, explicitPackCount) {
@@ -590,6 +601,7 @@ async function adoptSmartProducts(store, observedAt, complete) {
       name: true,
       brand: true,
       barcode: true,
+      imageUrl: true,
       externalId: true,
       canonicalProductId: true,
     },
@@ -601,7 +613,8 @@ async function adoptSmartProducts(store, observedAt, complete) {
   try {
     for (const product of products) {
       const pack = parsePackage(product.name);
-      const identity = canonicalKey(product, pack, `${store.slug}:${product.externalId || product.id}`);
+      const barcode = normalizeBarcode(product.barcode) || smartBarcodeFromImageUrl(product.imageUrl);
+      const identity = canonicalKey({ ...product, barcode }, pack, `${store.slug}:${product.externalId || product.id}`);
       const canonical = await prisma.canonicalProduct.upsert({
         where: { exactKey: identity.exactKey },
         update: { displayName: product.name, brand: product.brand || undefined },
@@ -620,6 +633,7 @@ async function adoptSmartProducts(store, observedAt, complete) {
         where: { id: product.id },
         data: {
           canonicalProductId: canonical.id,
+          barcode: identity.barcode,
           packageValue: pack.packageValue,
           packageUnit: pack.packageUnit,
           packCount: pack.packCount,
@@ -734,6 +748,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  adoptSmartProducts,
   canonicalKey,
   decodeHtml,
   eurosToCents,
@@ -745,6 +760,7 @@ module.exports = {
   isStorePermitted,
   mayUseGreensImages,
   normalizeBarcode,
+  smartBarcodeFromImageUrl,
   normalizeText,
   parsePackage,
   parseHappyShopperProducts,

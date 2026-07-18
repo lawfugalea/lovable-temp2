@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
-import { ArrowLeft, Home, Mail, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react'
 import type { PublicLegalConfig } from '@/lib/public-legal'
+import BrandLogo from '@/components/BrandLogo'
 
 type PublicLegalPageProps = {
   title: string
@@ -29,7 +30,7 @@ export default function PublicLegalPage({
   return (
     <>
       <Head>
-        <title>{title} | HouseFlow</title>
+        <title>{title} | Clankeep</title>
         <meta name="description" content={description} />
         <meta name="robots" content="index,follow" />
       </Head>
@@ -38,17 +39,14 @@ export default function PublicLegalPage({
         <header className="border-b border-cozy-gray-200 bg-cozy-surface/90 backdrop-blur">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
             <Link href="/landing" className="flex items-center gap-3 text-cozy-text">
-              <span className="grid h-10 w-10 place-items-center rounded-cozy-lg border border-cozy-primary-soft bg-cozy-primary-soft">
-                <Home className="h-5 w-5 text-cozy-primary" aria-hidden="true" />
-              </span>
-              <span className="font-semibold">HouseFlow</span>
+              <BrandLogo priority />
             </Link>
             <Link
               href="/landing"
               className="flex items-center gap-2 text-sm font-medium text-cozy-text-muted transition-colors hover:text-cozy-primary"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Back to HouseFlow
+              Back to Clankeep
             </Link>
           </div>
         </header>

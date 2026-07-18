@@ -22,19 +22,19 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
   return (
     <PublicLegalPage
       title="Privacy Policy"
-      description="How this private HouseFlow deployment handles household and connected banking data."
+      description="How this private Clankeep deployment handles household and connected banking data."
       config={config}
     >
       <LegalSection title="1. Who is responsible for your data">
         <p>
-          The data controller for this HouseFlow deployment is <strong className="text-cozy-text">{config.controllerName}</strong>.
+          The data controller for this Clankeep deployment is <strong className="text-cozy-text">{config.controllerName}</strong>.
           This is a privately operated household service, not a Bank of Valletta or Enable Banking service.
           Privacy questions and requests can be sent to {contact}.
         </p>
       </LegalSection>
 
-      <LegalSection title="2. Data HouseFlow processes">
-        <p>Depending on the features you use, HouseFlow processes:</p>
+      <LegalSection title="2. Data Clankeep processes">
+        <p>Depending on the features you use, Clankeep processes:</p>
         <ul className="list-disc space-y-2 pl-5">
           <li>account data such as your name, email address, password hash, household membership and role;</li>
           <li>household content you enter, including shopping lists, notes, medicine schedules and health-related records;</li>
@@ -43,28 +43,28 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           <li>open-banking connection details, consent/session identifiers, expiry dates and synchronisation errors; and</li>
           <li>limited technical and security information needed to operate, troubleshoot and protect the service.</li>
         </ul>
-        <p>HouseFlow does not receive or store your BOV online-banking password or authentication codes.</p>
+        <p>Clankeep does not receive or store your BOV online-banking password or authentication codes.</p>
       </LegalSection>
 
       <LegalSection title="3. Why the data is used and the legal basis">
         <p>
-          Data is used to provide the HouseFlow features requested by its users, authenticate accounts, keep household data in sync,
+          Data is used to provide the Clankeep features requested by its users, authenticate accounts, keep household data in sync,
           connect authorised BOV accounts, display balances and transactions, prevent misuse and maintain the service.
         </p>
         <p>
           Open-banking access is based on the bank-account holder&apos;s explicit consent. Other processing is necessary to provide the
           requested private household service. Where applicable, service security and maintenance rely on the operator&apos;s legitimate
-          interest in running HouseFlow safely. Health-related information should only be entered with the knowledge and authority of
+          interest in running Clankeep safely. Health-related information should only be entered with the knowledge and authority of
           the person concerned and is processed only for the private household feature in which it was supplied. Child-health records
-          are not sent to DeepSeek. If a member enables medicine reminders, HouseFlow sends a minimal, non-identifying notification through
+          are not sent to DeepSeek. If a member enables medicine reminders, Clankeep sends a minimal, non-identifying notification through
           that device&apos;s browser push service; health details are displayed only after the authenticated app opens.
         </p>
       </LegalSection>
 
       <LegalSection title="4. Open banking and household sharing">
         <p>
-          HouseFlow uses Enable Banking to request read-only account information from Bank of Valletta after you approve access through
-          the bank&apos;s own authorisation flow. HouseFlow does not initiate payments. Imported accounts are private by default. The finance
+          Clankeep uses Enable Banking to request read-only account information from Bank of Valletta after you approve access through
+          the bank&apos;s own authorisation flow. Clankeep does not initiate payments. Imported accounts are private by default. The finance
           owner can explicitly share an individual account with the active household; household members then receive read-only access to
           that account&apos;s cached balance and transaction data.
         </p>
@@ -79,18 +79,18 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
       <LegalSection title="5. Who can receive the data">
         <p>Data is disclosed only as needed to:</p>
         <ul className="list-disc space-y-2 pl-5">
-          <li>members of your HouseFlow household, for content and bank accounts that are shared with that household;</li>
+          <li>members of your Clankeep household, for content and bank accounts that are shared with that household;</li>
           <li>Enable Banking and Bank of Valletta, to authorise and operate the read-only bank connection;</li>
           <li>DeepSeek, only when the finance owner explicitly requests optional AI analysis after previewing a redacted aggregate payload;</li>
           <li>the deployment&apos;s hosting, database, backup and email providers, where those services are configured; and</li>
           <li>public authorities where disclosure is legally required.</li>
         </ul>
-        <p>HouseFlow does not sell personal data and does not use connected banking data for advertising.</p>
+        <p>Clankeep does not sell personal data and does not use connected banking data for advertising.</p>
       </LegalSection>
 
       <LegalSection title="6. International transfers">
         <p>
-          Enable Banking states that its API cloud providers process data in the EEA. The location of HouseFlow hosting, backups and email
+          Enable Banking states that its API cloud providers process data in the EEA. The location of Clankeep hosting, backups and email
           services depends on this deployment&apos;s configuration. Optional DeepSeek analysis involves processing in China according to
           DeepSeek&apos;s privacy notice and is disabled unless the finance owner gives explicit, informed consent after reviewing the redacted
           information that will be sent. If a provider processes data outside the EEA, the operator must assess and use an applicable GDPR
@@ -109,16 +109,16 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           <a className="text-cozy-primary hover:underline" href="https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html?locale=en_US" rel="noreferrer" target="_blank">
             privacy policy
           </a>{' '}
-          states that submitted information may be used to improve its services. HouseFlow therefore sends no raw transactions, account
+          states that submitted information may be used to improve its services. Clankeep therefore sends no raw transactions, account
           identifiers, exact dates, bank notes, references or user identity through this optional feature.
         </p>
       </LegalSection>
 
       <LegalSection title="7. Retention and deletion">
         <p>
-          HouseFlow keeps account and household data while the relevant account and household use the service. Disconnecting a bank
+          Clankeep keeps account and household data while the relevant account and household use the service. Disconnecting a bank
           connection requests revocation of the provider session and permanently removes that connection&apos;s cached accounts, balances,
-          transactions and sharing records from the live HouseFlow database. Older copies may remain temporarily in protected backups
+          transactions and sharing records from the live Clankeep database. Older copies may remain temporarily in protected backups
           until they expire under the deployment&apos;s backup-retention schedule. Legal or security records may be kept longer when required.
         </p>
       </LegalSection>
@@ -126,7 +126,7 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
       <LegalSection title="8. Your choices and rights">
         <p>
           Subject to applicable law, you may ask for access, correction, deletion, restriction, portability or an objection to processing.
-          You may withdraw open-banking consent at any time by disconnecting the account in HouseFlow or ending the consent through Enable
+          You may withdraw open-banking consent at any time by disconnecting the account in Clankeep or ending the consent through Enable
           Banking. Withdrawal does not make earlier lawful processing unlawful. Send requests to {contact}; identity may need to be verified
           before a request is completed.
         </p>
@@ -144,17 +144,17 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
 
       <LegalSection title="9. Security, cookies and automated decisions">
         <p>
-          HouseFlow uses access controls, authentication and deployment security measures intended to protect the data. No internet service
-          can guarantee absolute security. HouseFlow uses essential session and security cookies; it does not use advertising cookies.
-          HouseFlow calculates recurring-payment candidates and neutral spending observations locally. These are explainable convenience
+          Clankeep uses access controls, authentication and deployment security measures intended to protect the data. No internet service
+          can guarantee absolute security. Clankeep uses essential session and security cookies; it does not use advertising cookies.
+          Clankeep calculates recurring-payment candidates and neutral spending observations locally. These are explainable convenience
           features that users can correct, dismiss or disable. Optional AI output is shown only as a suggestion and never changes financial
-          records automatically. HouseFlow does not make automated decisions with legal or similarly significant effects.
+          records automatically. Clankeep does not make automated decisions with legal or similarly significant effects.
         </p>
       </LegalSection>
 
       <LegalSection title="10. Changes and contact">
         <p>
-          This notice may be updated when HouseFlow&apos;s features, providers or legal obligations change. The updated date will be shown at
+          This notice may be updated when Clankeep&apos;s features, providers or legal obligations change. The updated date will be shown at
           the top of this page. Questions and data-protection requests can be sent to {contact}.
         </p>
       </LegalSection>

@@ -6,8 +6,11 @@ import { normalizeCatalogText } from '@/lib/catalog-normalization'
 import { priceFreshness } from '@/lib/shopping-price-comparison'
 import { withBasePath } from '@/lib/base-path'
 import { safeRetailerSourceUrl } from '@/lib/catalog-source-url'
+import { catalogSearchTokens, rankCatalogCandidates } from '@/lib/catalog-search'
 
 const MAX_QUERY_LENGTH = 200
+const MAX_CANDIDATES = 2_000
+const MAX_RESULTS = 50
 
 function browserImageUrl(value: string | null, storeSlug: string): string | null {
   if (!value) return null
@@ -15,16 +18,6 @@ function browserImageUrl(value: string | null, storeSlug: string): string | null
     return withBasePath(`/api/image-proxy?url=${encodeURIComponent(value)}`)
   }
   return value
-}
-
-function scoreProduct(name: string, brand: string | null, tokens: string[], query: string): number {
-  const haystack = normalizeCatalogText(`${brand || ''} ${name}`)
-  let score = haystack === query ? 100 : haystack.startsWith(query) ? 40 : haystack.includes(query) ? 20 : 0
-  for (const token of tokens) {
-    if (haystack.split(' ').includes(token)) score += 8
-    else if (haystack.includes(token)) score += 3
-  }
-  return score
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -42,21 +35,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   const query = normalizeCatalogText(qRaw)
   if (query.length < 2) return res.status(200).json({ items: [] })
-  const tokens = Array.from(new Set(query.split(' ').filter(token => token.length > 1))).slice(0, 8)
+  const tokens = catalogSearchTokens(query)
 
+  // Rank lightweight records before loading nested products and offers. Previously
+  // an arbitrary 200 rows were loaded first, so the best matches were often absent.
   const candidates = await prisma.canonicalProduct.findMany({
     where: {
       products: { some: { active: true, store: { enabled: true } } },
-      OR: tokens.flatMap(token => [
-        { normalizedName: { contains: token, mode: 'insensitive' as const } },
-        { brand: { contains: token, mode: 'insensitive' as const } },
-      ]),
+      AND: tokens.map(token => ({
+        OR: [
+          { normalizedName: { contains: token, mode: 'insensitive' as const } },
+          { brand: { contains: token, mode: 'insensitive' as const } },
+        ],
+      })),
     },
     select: {
       id: true,
       displayName: true,
       brand: true,
       normalizedName: true,
+    },
+    take: MAX_CANDIDATES,
+  })
+  const rankedIds = rankCatalogCandidates(candidates, query)
+    .slice(0, MAX_RESULTS * 2)
+    .map(candidate => candidate.id)
+  if (!rankedIds.length) {
+    res.setHeader('Cache-Control', 'private, max-age=60')
+    return res.status(200).json({ items: [] })
+  }
+  const rank = new Map(rankedIds.map((id, index) => [id, index]))
+
+  const products = await prisma.canonicalProduct.findMany({
+    where: { id: { in: rankedIds } },
+    select: {
+      id: true,
+      displayName: true,
+      brand: true,
       packageValue: true,
       packageUnit: true,
       packCount: true,
@@ -86,10 +101,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       },
     },
-    take: 200,
   })
 
-  const items = candidates
+  const items = products
     .map(product => {
       const offers = product.products.flatMap(storeProduct => {
         const offer = storeProduct.offers[0]
@@ -118,6 +132,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }).sort((a, b) => a.priceCents - b.priceCents)
       const best = offers.find(offer => offer.available && offer.freshness === 'FRESH')
       const representative = best || offers.find(offer => offer.available) || offers[0]
+      const image = offers.find(offer => offer.available && offer.imageUrl)
+        || offers.find(offer => offer.imageUrl)
       return {
         id: product.id,
         canonicalProductId: product.id,
@@ -126,19 +142,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         packageValue: product.packageValue?.toString() || null,
         packageUnit: product.packageUnit,
         packCount: product.packCount,
-        imageUrl: representative?.imageUrl || null,
+        imageUrl: image?.imageUrl || null,
         offers,
         store: best?.storeName || null,
         nowCents: best?.priceCents ?? null,
         price: best ? `${(best.priceCents / 100).toFixed(2)} EUR` : null,
         url: best?.sourceUrl || null,
-        _score: scoreProduct(product.displayName, product.brand, tokens, query),
+        _rank: rank.get(product.id) ?? Number.MAX_SAFE_INTEGER,
       }
     })
     .filter(product => product.offers.length > 0)
-    .sort((a, b) => b._score - a._score || (a.nowCents || Number.MAX_SAFE_INTEGER) - (b.nowCents || Number.MAX_SAFE_INTEGER))
-    .slice(0, 50)
-    .map(({ _score, ...product }) => product)
+    .sort((a, b) => a._rank - b._rank || (a.nowCents || Number.MAX_SAFE_INTEGER) - (b.nowCents || Number.MAX_SAFE_INTEGER))
+    .slice(0, MAX_RESULTS)
+    .map(({ _rank, ...product }) => product)
 
   res.setHeader('Cache-Control', 'private, max-age=60')
   return res.status(200).json({ items })

@@ -22,30 +22,30 @@ export default function TermsPage({ config }: TermsPageProps) {
   return (
     <PublicLegalPage
       title="Terms of Service"
-      description="The rules for using this private HouseFlow household service and its read-only bank connection."
+      description="The rules for using this private Clankeep household service and its read-only bank connection."
       config={config}
     >
       <LegalSection title="1. The service">
         <p>
-          These terms apply to this private HouseFlow deployment, operated by{' '}
-          <strong className="text-cozy-text">{config.controllerName}</strong>. HouseFlow helps invited household members manage shared
-          information and, when enabled, view selected Bank of Valletta account information through Enable Banking. By using HouseFlow,
+          These terms apply to this private Clankeep deployment, operated by{' '}
+          <strong className="text-cozy-text">{config.controllerName}</strong>. Clankeep helps invited household members manage shared
+          information and, when enabled, view selected Bank of Valletta account information through Enable Banking. By using Clankeep,
           you agree to these terms and the <a className="text-cozy-primary hover:underline" href="./privacy">Privacy Policy</a>.
         </p>
       </LegalSection>
 
       <LegalSection title="2. Private and authorised use">
         <p>
-          HouseFlow is for the operator&apos;s private household and invited users. You must give accurate account information, keep your sign-in
+          Clankeep is for the operator&apos;s private household and invited users. You must give accurate account information, keep your sign-in
           details secure and promptly report suspected unauthorised access. You may only enter or connect information that you are legally
-          authorised to use and share. Do not use HouseFlow for unlawful, abusive or security-disrupting activity.
+          authorised to use and share. Do not use Clankeep for unlawful, abusive or security-disrupting activity.
         </p>
       </LegalSection>
 
       <LegalSection title="3. Read-only bank access">
         <p>
           Only the designated finance owner can create or manage an open-banking connection. You must be an authorised holder or user of
-          every bank account you connect. Bank access is read-only: HouseFlow displays account details, balances and transactions but does
+          every bank account you connect. Bank access is read-only: Clankeep displays account details, balances and transactions but does
           not initiate transfers or payments. Authorisation takes place with BOV through Enable Banking and remains subject to their terms,
           security checks, consent duration and availability.
         </p>
@@ -53,16 +53,16 @@ export default function TermsPage({ config }: TermsPageProps) {
 
       <LegalSection title="4. Sharing with the household">
         <p>
-          Imported bank accounts start private. If the finance owner chooses to share an account, members of the active HouseFlow household
+          Imported bank accounts start private. If the finance owner chooses to share an account, members of the active Clankeep household
           can see its cached account details, balance and transactions. The finance owner is responsible for having authority to make that
-          disclosure and can stop sharing without disconnecting the bank. Other HouseFlow content may also be visible to household members
+          disclosure and can stop sharing without disconnecting the bank. Other Clankeep content may also be visible to household members
           according to the feature and permissions in use.
         </p>
       </LegalSection>
 
       <LegalSection title="5. Accuracy and availability">
         <p>
-          Bank information may be delayed, incomplete or temporarily unavailable because it comes from BOV and Enable Banking. HouseFlow
+          Bank information may be delayed, incomplete or temporarily unavailable because it comes from BOV and Enable Banking. Clankeep
           is a convenience view, not an official bank statement, accounting system or financial-advice service. Verify important balances
           and transactions directly with BOV. The operator may maintain, change, suspend or discontinue the private deployment when needed.
         </p>
@@ -88,7 +88,7 @@ export default function TermsPage({ config }: TermsPageProps) {
           for checking the formulation, concentration, dose, interval and daily maximum before administration.
         </p>
         <p>
-          HouseFlow may warn when a recorded administration conflicts with a verified schedule, but it preserves explicitly confirmed
+          Clankeep may warn when a recorded administration conflicts with a verified schedule, but it preserves explicitly confirmed
           entries so the journal reflects what actually happened. Child-health information is not sent to DeepSeek. Optional Web Push
           reminders contain no child or medicine details on the lock screen.
         </p>
@@ -97,15 +97,15 @@ export default function TermsPage({ config }: TermsPageProps) {
       <LegalSection title="6. Privacy and third-party services">
         <p>
           Use of personal data is described in the Privacy Policy. The bank connection also involves Enable Banking and Bank of Valletta,
-          whose own terms and privacy notices apply to their services. HouseFlow is not endorsed by, operated by or a replacement for either
+          whose own terms and privacy notices apply to their services. Clankeep is not endorsed by, operated by or a replacement for either
           provider. If optional AI analysis is requested, DeepSeek&apos;s own terms and privacy policy also apply to its processing.
         </p>
       </LegalSection>
 
       <LegalSection title="7. Ending access and deleting bank data">
         <p>
-          You can stop using HouseFlow at any time. The finance owner can unshare an account or disconnect the bank connection. Disconnecting
-          requests revocation of the Enable Banking session and deletes the connection and its cached banking data from the live HouseFlow
+          You can stop using Clankeep at any time. The finance owner can unshare an account or disconnect the bank connection. Disconnecting
+          requests revocation of the Enable Banking session and deletes the connection and its cached banking data from the live Clankeep
           database; temporary protected backup copies expire under the deployment&apos;s backup-retention schedule. You can also end an active
           consent in Enable Banking&apos;s data-sharing consent portal.
         </p>
@@ -113,7 +113,7 @@ export default function TermsPage({ config }: TermsPageProps) {
 
       <LegalSection title="8. Responsibility and limitations">
         <p>
-          Use reasonable care when relying on household or financial information shown in HouseFlow. To the extent permitted by applicable
+          Use reasonable care when relying on household or financial information shown in Clankeep. To the extent permitted by applicable
           law, the private operator is not responsible for losses caused by inaccurate upstream bank data, provider outages, unauthorised use
           of credentials, or decisions made from the convenience view. Nothing in these terms excludes responsibility that cannot legally be
           excluded.

@@ -146,7 +146,7 @@ export function WeightDialog({ open, onOpenChange, householdId, child, onSaved }
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}><DialogContent>
-      <DialogHeader><DialogTitle>Record weight</DialogTitle><DialogDescription>Weight history stays inside HouseFlow and is not used to prescribe a dose.</DialogDescription></DialogHeader>
+      <DialogHeader><DialogTitle>Record weight</DialogTitle><DialogDescription>Weight history stays inside Clankeep and is not used to prescribe a dose.</DialogDescription></DialogHeader>
       <div className="space-y-4"><div className="space-y-1.5"><Label htmlFor="weight-kg">Weight (kg)</Label><Input id="weight-kg" type="number" min="0.5" max="250" step="0.1" value={form.weightKg} onChange={(event) => setForm({ ...form, weightKg: event.target.value })} /></div><div className="space-y-1.5"><Label htmlFor="weight-time">Measured at</Label><Input id="weight-time" type="datetime-local" value={form.measuredAt} onChange={(event) => setForm({ ...form, measuredAt: event.target.value })} /></div><div className="space-y-1.5"><Label htmlFor="weight-notes">Notes</Label><Input id="weight-notes" value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></div></div>
       <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button disabled={saving} onClick={() => void submit()}>{saving ? 'Saving…' : 'Save weight'}</Button></DialogFooter>
     </DialogContent></Dialog>

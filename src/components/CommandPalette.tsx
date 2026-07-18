@@ -256,7 +256,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="top-[18vh] max-w-2xl translate-y-0 gap-0 overflow-hidden p-0">
-        <DialogTitle className="sr-only">Search HouseFlow</DialogTitle>
+        <DialogTitle className="sr-only">Search Clankeep</DialogTitle>
         <DialogDescription className="sr-only">Navigate to a page or choose a quick action.</DialogDescription>
           {/* Search Input */}
           <div className="flex items-center gap-3 border-b px-4 py-3 pr-12">

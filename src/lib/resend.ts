@@ -13,22 +13,22 @@ export async function sendInviteEmail(opts: {
   if (!resend) {
     return { ok: false, error: 'RESEND_API_KEY not configured' as const };
   }
-  const from = process.env.INVITES_FROM || 'Houseflow <no-reply@galeahub.online>';
+  const from = process.env.INVITES_FROM || 'Clankeep <noreply@clankeep.com>';
 
-  const subject = `You're invited to join ${opts.householdName} on HouseFlow`;
+  const subject = `You're invited to join ${opts.householdName} on Clankeep`;
   const text = [
     `Hello!`,
     '',
-    `${opts.invitedByName || 'Someone'} has invited you to join ${opts.householdName} on HouseFlow - a cozy app for managing your household together.`,
+    `${opts.invitedByName || 'Someone'} has invited you to join ${opts.householdName} on Clankeep - a cozy app for managing your household together.`,
     '',
-    `HouseFlow helps families organize shopping lists, track children's medicine, manage finances, and stay connected with everything that makes your house a home.`,
+    `Clankeep helps families organize shopping lists, track children's medicine, manage finances, and stay connected with everything that makes your house a home.`,
     '',
     `Accept your invitation: ${opts.acceptUrl}`,
     '',
     `This invitation will expire in 7 days. If you weren't expecting this invitation, you can safely ignore this email.`,
     '',
-    `Welcome to the HouseFlow family!`,
-    `The HouseFlow Team`,
+    `Welcome to the Clankeep family!`,
+    `The Clankeep Team`,
   ].join('\n');
 
   try {

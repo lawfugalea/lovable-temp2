@@ -1,11 +1,11 @@
 {
-  "name": "HouseFlow",
-  "short_name": "HouseFlow",
+  "name": "Clankeep",
+  "short_name": "Clankeep",
   "description": "Household management app for shopping, finances, and medicine tracking",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#000000",
+  "background_color": "#F8FAFC",
+  "theme_color": "#4D6BFF",
   "orientation": "portrait-primary",
   "icons": [
     {

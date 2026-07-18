@@ -21,7 +21,7 @@ services:
       context: .
       target: builder
       args:
-        NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH:-/houseflow}
+        NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
     env_file:
       - .env
     environment:
@@ -79,7 +79,7 @@ services:
       context: .
       target: runner
       args:
-        NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH:-/houseflow}
+        NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
     restart: unless-stopped
     init: true
     read_only: true
@@ -99,14 +99,16 @@ services:
       DATABASE_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
       DIRECT_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
       DIRECT_DATABASE_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
-      NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH:-/houseflow}
+      NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
       APP_URL: ${HOUSEFLOW_PUBLIC_URL:-http://10.77.0.1:8097/houseflow}
-      APP_INTERNAL_URL: http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH:-/houseflow}
+      APP_INTERNAL_URL: http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH-/houseflow}
       NEXTAUTH_URL: ${HOUSEFLOW_PUBLIC_URL:-http://10.77.0.1:8097/houseflow}/api/auth
-      NEXTAUTH_URL_INTERNAL: http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH:-/houseflow}/api/auth
+      NEXTAUTH_URL_INTERNAL: http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH-/houseflow}/api/auth
       INVITES_BASE_URL: ${HOUSEFLOW_PUBLIC_URL:-http://10.77.0.1:8097}
-      INVITES_FROM: ${INVITES_FROM:-Houseflow <no-reply@galeahub.online>}
+      INVITES_FROM: ${INVITES_FROM:-Clankeep <noreply@clankeep.com>}
+      INVITES_FROM_DOMAIN: ${INVITES_FROM_DOMAIN:-clankeep.com}
       INVITES_REPLY_TO: ${INVITES_REPLY_TO:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:?set ADMIN_EMAILS in .env.deploy}
       UPLOAD_DIR: /app/uploads
       PUPPETEER_SKIP_DOWNLOAD: "1"
@@ -119,7 +121,7 @@ services:
     ports:
       - "10.77.0.1:${HOUSEFLOW_PORT:-8097}:3000"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH:-/houseflow}/api/health"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH-/houseflow}/api/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -140,7 +142,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
-      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH:-/houseflow}
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
       REMINDER_WORKER_SECRET: ${REMINDER_WORKER_SECRET:-}
     entrypoint:
       - /bin/sh
@@ -181,7 +183,7 @@ services:
       HOME: /tmp/priceworker
       XDG_CONFIG_HOME: /tmp/priceworker/.config
       XDG_CACHE_HOME: /tmp/priceworker/.cache
-      CATALOG_SYNC_STORES: ${HOUSEFLOW_CATALOG_SYNC_STORES:-smart,welbees}
+      CATALOG_SYNC_STORES: ${HOUSEFLOW_CATALOG_SYNC_STORES:-smart,welbees,greens}
       CATALOG_REQUEST_DELAY_MS: ${HOUSEFLOW_CATALOG_REQUEST_DELAY_MS:-250}
       GREENS_MAX_PAGES: ${HOUSEFLOW_GREENS_MAX_PAGES:-0}
       GREENS_IMAGE_USE_CONFIRMED: ${HOUSEFLOW_GREENS_IMAGE_USE_CONFIRMED:-false}

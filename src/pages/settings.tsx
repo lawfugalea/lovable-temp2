@@ -133,7 +133,7 @@ export default function SettingsPage() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `houseflow-export-${new Date().toISOString().slice(0, 10)}.json`
+      link.download = `clankeep-export-${new Date().toISOString().slice(0, 10)}.json`
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -345,7 +345,7 @@ export default function SettingsPage() {
                   <CardDescription>Your account and household data are protected by two authentication layers.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm text-cozy-text-muted">
-                  <p>HouseFlow requires the site access gate and your personal HouseFlow account.</p>
+                  <p>Clankeep requires the site access gate and your personal Clankeep account.</p>
                   <p>Household APIs verify membership before returning shared data. Personal notes remain visible only to you unless explicitly shared.</p>
                   <p>Use the password controls under Profile to rotate your account password.</p>
                 </CardContent>
@@ -364,7 +364,7 @@ export default function SettingsPage() {
                     <Button variant="outline" onClick={handleClearLocalData}>Clear local cache</Button>
                   </div>
                   {dataMessage && <p className="text-sm text-cozy-text-muted">{dataMessage}</p>}
-                  <p className="text-xs text-cozy-text-muted">Clearing local cache does not remove anything from the HouseFlow server.</p>
+                  <p className="text-xs text-cozy-text-muted">Clearing local cache does not remove anything from the Clankeep server.</p>
                 </CardContent>
               </Card>
             )}

@@ -10,6 +10,7 @@ const {
   parseHappyShopperProducts,
   parsePackage,
   parseWelbeesProducts,
+  smartBarcodeFromImageUrl,
 } = require('../scripts/sync-supermarket-prices.js') as {
   canonicalKey: (product: Record<string, unknown>, pack: Record<string, unknown>, sourceKey?: string) => Record<string, unknown>
   eurosToCents: (value: unknown) => number | null
@@ -19,6 +20,7 @@ const {
   parseHappyShopperProducts: (html: string) => Array<Record<string, unknown>>
   parsePackage: (value: string) => Record<string, unknown>
   parseWelbeesProducts: (html: string) => Array<Record<string, unknown>>
+  smartBarcodeFromImageUrl: (value: string) => string | null
 }
 
 test('retailer permission gates default to the conservative setting', () => {
@@ -33,6 +35,15 @@ test('Greens pagination trusts the returned rows instead of its inaccurate adver
   assert.equal(hasMoreGreensPages(250), true)
   assert.equal(hasMoreGreensPages(230), false)
   assert.equal(hasMoreGreensPages(0), false)
+})
+
+test('Smart image filenames provide a safe GTIN for cross-store image matching', () => {
+  assert.equal(
+    smartBarcodeFromImageUrl('http://www.smart.com.mt/productImages/5055940101206.jpg'),
+    '5055940101206',
+  )
+  assert.equal(smartBarcodeFromImageUrl('https://evil.example/5055940101206.jpg'), null)
+  assert.equal(smartBarcodeFromImageUrl('http://www.smart.com.mt/productImages/not-a-barcode.jpg'), null)
 })
 
 test('Happy Shopper fixture parses public Odoo product cards', () => {
