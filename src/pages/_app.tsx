@@ -4,9 +4,21 @@ import "../styles/globals.css";
 import "../components/ui/minimal-tiptap/styles/index.css";
 import AuthApp from "@/components/AuthApp";
 import { Toaster } from "@/components/ui/Toaster";
+import { bodyFont, displayFont } from "@/lib/fonts";
 import { installBasePathFetch, withBasePath } from "@/lib/base-path";
 
 installBasePathFetch();
+
+function FontVariables() {
+  return (
+    <style jsx global>{`
+      :root {
+        --font-body: ${bodyFont.style.fontFamily};
+        --font-display: ${displayFont.style.fontFamily};
+      }
+    `}</style>
+  );
+}
 
 export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   if (process.env.NEXT_PUBLIC_SAFE_MODE === '1') {
@@ -21,6 +33,7 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         </Head>
+        <FontVariables />
         <Component {...pageProps} />
       </>
     );
@@ -28,6 +41,7 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
 
   return (
     <>
+      <FontVariables />
       <AuthApp Component={Component} pageProps={pageProps} session={session} />
       <Toaster position="top-center" richColors />
     </>

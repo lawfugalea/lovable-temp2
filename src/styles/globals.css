@@ -28,14 +28,26 @@
     --ring: 229 100% 65%;
     --radius: 0.875rem;
 
+    /* Brand palette (from the ClanKeep logo). */
+    --brand-blue: 229 100% 65%;
+    --brand-purple: 250 100% 69%;
+    --brand-teal: 181 72% 45%;
+    --brand-coral: 0 100% 71%;
+
+    /* Module colour coding. */
+    --module-shopping: var(--brand-teal);
+    --module-finances: var(--brand-blue);
+    --module-medicine: var(--brand-coral);
+    --module-notes: var(--brand-purple);
+
+    /* Shadows derive from this, never from --foreground. */
+    --shadow-color: 221 39% 11%;
+
     /* Compatibility tokens used by pre-migration screens. */
     --primary-soft: 229 100% 94%;
     --primary-deep: 250 100% 69%;
     --sage: 181 72% 45%;
     --sage-soft: 181 72% 92%;
-    --brand-purple: 250 100% 69%;
-    --brand-teal: 181 72% 45%;
-    --brand-coral: 0 100% 71%;
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
     --cozy-bg: hsl(var(--background));
@@ -55,9 +67,9 @@
     --cozy-gray-200: hsl(var(--border));
     --cozy-gray-300: hsl(var(--input));
     --cozy-gray-400: hsl(var(--muted-foreground));
-    --cozy-shadow-sm: 0 1px 2px hsl(var(--foreground) / 0.05), 0 1px 8px hsl(var(--foreground) / 0.035);
-    --cozy-shadow-md: 0 12px 30px -16px hsl(var(--foreground) / 0.24);
-    --cozy-shadow-lg: 0 24px 60px -24px hsl(var(--foreground) / 0.32);
+    --cozy-shadow-sm: 0 1px 2px hsl(var(--shadow-color) / 0.05), 0 1px 8px hsl(var(--shadow-color) / 0.035);
+    --cozy-shadow-md: 0 12px 30px -16px hsl(var(--shadow-color) / 0.24);
+    --cozy-shadow-lg: 0 24px 60px -24px hsl(var(--shadow-color) / 0.32);
     --cozy-shadow-glow: 0 10px 28px -12px hsl(var(--primary) / 0.45);
     --hf-grad-from: hsl(var(--primary));
     --hf-grad-via: hsl(var(--brand-purple));
@@ -70,7 +82,7 @@
     --heading: 210 40% 98%;
     --body-foreground: 215 20% 78%;
     --soft-foreground: 215 20% 65%;
-    --card: 217 33% 17%;
+    --card: 221 39% 15%;
     --card-foreground: 210 40% 96%;
     --popover: 217 33% 17%;
     --popover-foreground: 210 40% 96%;
@@ -87,6 +99,15 @@
     --border: 217 24% 27%;
     --input: 217 24% 32%;
     --ring: 229 100% 70%;
+
+    /* Lift brand colours for contrast on dark surfaces. */
+    --brand-blue: 229 100% 72%;
+    --brand-purple: 250 100% 75%;
+    --brand-teal: 181 65% 52%;
+    --brand-coral: 0 90% 74%;
+
+    --shadow-color: 222 47% 4%;
+
     --primary-soft: 229 40% 24%;
     --primary-deep: 250 100% 74%;
     --sage: 181 72% 52%;
@@ -104,7 +125,7 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
     min-height: 100vh;
     font-feature-settings: "rlig" 1, "calt" 1;
   }

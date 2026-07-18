@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { Bricolage_Grotesque, Instrument_Sans } from 'next/font/google'
 import {
   ArrowRight,
   BadgeCheck,
@@ -20,18 +19,6 @@ import {
 } from 'lucide-react'
 import { withBasePath } from '@/lib/base-path'
 import BrandLogo from '@/components/BrandLogo'
-
-const displayFont = Bricolage_Grotesque({
-  subsets: ['latin'],
-  weight: ['500', '600', '700', '800'],
-  variable: '--lp-font-display',
-})
-
-const bodyFont = Instrument_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--lp-font-body',
-})
 
 const heroChecklist = [
   { name: 'Milk (2L)', store: 'Smart', price: '€1.09', done: true },
@@ -172,7 +159,7 @@ export default function LandingPage() {
         <link rel="icon" type="image/png" href={withBasePath('/logo.png')} />
       </Head>
 
-      <div className={`lp ${displayFont.variable} ${bodyFont.variable} min-h-screen bg-[#F7F8FD] text-brand-heading`}>
+      <div className="lp min-h-screen bg-[#F7F8FD] text-brand-heading">
         {/* ── Nav ─────────────────────────────────────────────── */}
         <header className="sticky top-0 z-50 border-b border-slate-900/[0.06] bg-[#F7F8FD]/85 backdrop-blur-xl">
           <nav
@@ -676,10 +663,10 @@ export default function LandingPage() {
 
       <style jsx global>{`
         .lp {
-          font-family: var(--lp-font-body), ui-sans-serif, system-ui, sans-serif;
+          font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
         }
         .lp-display {
-          font-family: var(--lp-font-display), var(--lp-font-body), ui-sans-serif, system-ui, sans-serif;
+          font-family: var(--font-display), var(--font-body), ui-sans-serif, system-ui, sans-serif;
         }
         .lp-gradient-text {
           background: linear-gradient(120deg, #4d6bff 10%, #7b61ff 55%, #9d5cff 90%);

@@ -1,84 +1,36 @@
-import React from 'react'
-import FunButton from './FunButton'
+import * as React from 'react'
+import type { LucideIcon } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { moduleByKey, type ModuleKey } from '@/lib/modules'
 
 interface EmptyStateProps {
+  icon: LucideIcon
   title: string
-  description: string
-  emoji?: string
-  actionLabel?: string
-  onAction?: () => void
-  illustration?: 'shopping' | 'finances' | 'general' | 'celebration'
+  description?: string
+  action?: React.ReactNode
+  module?: Exclude<ModuleKey, 'home'>
+  className?: string
 }
 
-export default function EmptyState({
-  title,
-  description,
-  emoji = '🌸',
-  actionLabel,
-  onAction,
-  illustration = 'general'
-}: EmptyStateProps) {
-  const illustrations = {
-    shopping: (
-      <div className="relative">
-        <div className="text-6xl animate-cozy-float">{emoji}</div>
-        <div className="absolute -top-2 -right-2 text-2xl animate-cozy-bounce-in animation-delay-300">✨</div>
-        <div className="absolute -bottom-1 -left-2 text-xl animate-cozy-wiggle animation-delay-500">🛒</div>
-      </div>
-    ),
-    finances: (
-      <div className="relative">
-        <div className="text-6xl animate-cozy-glow">{emoji}</div>
-        <div className="absolute -top-3 -right-1 text-2xl animate-cozy-float animation-delay-200">💫</div>
-        <div className="absolute -bottom-2 -left-3 text-xl animate-cozy-bounce-in animation-delay-400">📊</div>
-      </div>
-    ),
-    celebration: (
-      <div className="relative">
-        <div className="text-6xl animate-cozy-bounce-in">{emoji}</div>
-        <div className="absolute -top-4 -right-2 text-2xl animate-cozy-confetti animation-delay-100">🎉</div>
-        <div className="absolute -top-2 -left-4 text-xl animate-cozy-confetti animation-delay-300">🎊</div>
-        <div className="absolute -bottom-3 right-0 text-lg animate-cozy-confetti animation-delay-500">✨</div>
-      </div>
-    ),
-    general: (
-      <div className="relative">
-        <div className="text-6xl animate-cozy-float">{emoji}</div>
-        <div className="absolute -top-2 -right-2 text-2xl animate-cozy-pulse-gentle animation-delay-200">💝</div>
-      </div>
-    )
-  }
-
+export function EmptyState({ icon: Icon, title, description, action, module, className }: EmptyStateProps) {
+  const tileClass = module ? moduleByKey[module].tileClass : 'bg-primary/10 text-primary'
   return (
-    <div className="cozy-card p-12 text-center animate-cozy-bounce-in">
-      <div className="mb-6 flex justify-center">
-        {illustrations[illustration]}
-      </div>
-      
-      <h3 className="text-xl font-bold text-cozy-text mb-3">
-        {title}
-      </h3>
-      
-      <p className="text-cozy-text-muted mb-6 max-w-md mx-auto leading-relaxed">
-        {description}
-      </p>
-      
-      {actionLabel && onAction && (
-        <FunButton
-          onClick={onAction}
-          variant="primary"
-          emoji="✨"
-          celebration
-        >
-          {actionLabel}
-        </FunButton>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card/50 px-6 py-14 text-center',
+        className,
       )}
-      
-      <div className="mt-8 flex justify-center gap-4">
-        <div className="w-2 h-2 bg-cozy-primary-soft rounded-full animate-cozy-bounce animation-delay-100"></div>
-        <div className="w-2 h-2 bg-cozy-sage-soft rounded-full animate-cozy-bounce animation-delay-200"></div>
-        <div className="w-2 h-2 bg-cozy-cream rounded-full animate-cozy-bounce animation-delay-300"></div>
-      </div>
+    >
+      <span className={cn('grid h-14 w-14 place-items-center rounded-2xl', tileClass)}>
+        <Icon className="h-7 w-7" aria-hidden="true" />
+      </span>
+      <h3 className="mt-5 font-display text-lg font-semibold tracking-tight text-foreground">{title}</h3>
+      {description && (
+        <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p>
+      )}
+      {action && <div className="mt-6">{action}</div>}
     </div>
   )
 }
+
+export default EmptyState

@@ -4,12 +4,13 @@ module.exports = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx}',
     './src/components/**/*.{js,ts,jsx,tsx}',
+    './src/lib/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'Inter',
+  				'var(--font-body)',
   				'ui-sans-serif',
   				'system-ui',
   				'-apple-system',
@@ -18,7 +19,8 @@ module.exports = {
   				'sans-serif'
   			],
   			display: [
-  				'Inter',
+  				'var(--font-display)',
+  				'var(--font-body)',
   				'ui-sans-serif',
   				'system-ui',
   				'sans-serif'
@@ -26,10 +28,10 @@ module.exports = {
   		},
 		colors: {
 			brand: {
-				blue: '#4D6BFF',
-				purple: '#7B61FF',
-				teal: '#20C5C8',
-				coral: '#FF6B6B',
+				blue: 'hsl(var(--brand-blue) / <alpha-value>)',
+				purple: 'hsl(var(--brand-purple) / <alpha-value>)',
+				teal: 'hsl(var(--brand-teal) / <alpha-value>)',
+				coral: 'hsl(var(--brand-coral) / <alpha-value>)',
 				dark: '#0F172A',
 				heading: '#111827',
 				body: '#4B5563',
@@ -71,6 +73,12 @@ module.exports = {
   				DEFAULT: 'hsl(var(--card) / <alpha-value>)',
   				foreground: 'hsl(var(--card-foreground) / <alpha-value>)'
   			},
+  			module: {
+  				shopping: 'hsl(var(--module-shopping) / <alpha-value>)',
+  				finances: 'hsl(var(--module-finances) / <alpha-value>)',
+  				medicine: 'hsl(var(--module-medicine) / <alpha-value>)',
+  				notes: 'hsl(var(--module-notes) / <alpha-value>)'
+  			},
   			cozy: {
   				bg: 'hsl(var(--background) / <alpha-value>)',
   				surface: 'hsl(var(--card) / <alpha-value>)',
@@ -106,11 +114,14 @@ module.exports = {
   			'cozy-header': 'linear-gradient(135deg, hsl(var(--primary-soft) / .75), hsl(var(--secondary)), hsl(var(--sage-soft) / .7))'
   		},
   		boxShadow: {
-  			'cozy-sm': '0 1px 2px hsl(var(--foreground) / .05), 0 1px 8px hsl(var(--foreground) / .035)',
-  			'cozy-md': '0 12px 30px -16px hsl(var(--foreground) / .24)',
-  			'cozy-lg': '0 24px 60px -24px hsl(var(--foreground) / .32)',
-  			'cozy-glow': '0 10px 28px -12px hsl(var(--primary) / .45)',
-  			soft: '0 16px 40px -24px hsl(var(--foreground) / .28)'
+  			'soft-sm': '0 1px 2px hsl(var(--shadow-color) / .05), 0 1px 8px hsl(var(--shadow-color) / .035)',
+  			soft: '0 12px 30px -16px hsl(var(--shadow-color) / .24)',
+  			'soft-lg': '0 24px 60px -24px hsl(var(--shadow-color) / .32)',
+  			glow: '0 10px 28px -12px hsl(var(--primary) / .45)',
+  			'cozy-sm': '0 1px 2px hsl(var(--shadow-color) / .05), 0 1px 8px hsl(var(--shadow-color) / .035)',
+  			'cozy-md': '0 12px 30px -16px hsl(var(--shadow-color) / .24)',
+  			'cozy-lg': '0 24px 60px -24px hsl(var(--shadow-color) / .32)',
+  			'cozy-glow': '0 10px 28px -12px hsl(var(--primary) / .45)'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -121,6 +132,9 @@ module.exports = {
   			'cozy-xl': 'calc(var(--radius) + 10px)'
   		},
   		animation: {
+  			'fade-in': 'fade-in 0.4s ease-out',
+  			rise: 'rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',
   			'cozy-fade-in': 'fade-in 0.4s ease-out',
   			'cozy-bounce': 'bounce 0.3s ease-out',
   			'cozy-pulse': 'pulse 1.5s ease-in-out infinite',
@@ -133,6 +147,26 @@ module.exports = {
   			'cozy-confetti': 'confetti 1s ease-out forwards'
   		},
   		keyframes: {
+  			rise: {
+  				'0%': {
+  					opacity: '0',
+  					transform: 'translateY(16px)'
+  				},
+  				'100%': {
+  					opacity: '1',
+  					transform: 'translateY(0)'
+  				}
+  			},
+  			'scale-in': {
+  				'0%': {
+  					opacity: '0',
+  					transform: 'scale(0.96)'
+  				},
+  				'100%': {
+  					opacity: '1',
+  					transform: 'scale(1)'
+  				}
+  			},
   			'fade-in': {
   				'0%': {
   					opacity: '0',
