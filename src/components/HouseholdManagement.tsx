@@ -229,8 +229,8 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
     return (
       <Card>
         <CardContent className="p-8 text-center">
-          <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-cozy-text-muted">Loading household data...</p>
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading household data...</p>
         </CardContent>
       </Card>
     );
@@ -241,8 +241,8 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
       <Card>
         <CardContent className="p-8 text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-cozy-text mb-2">Error Loading Data</h3>
-          <p className="text-cozy-text-muted mb-4">{error}</p>
+          <h3 className="text-lg font-semibold text-foreground mb-2">Error Loading Data</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
           <Button onClick={loadData} variant="outline">
             <RefreshCw className="w-4 h-4 mr-2" />
             Try Again
@@ -271,7 +271,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
           </CardHeader>
           <CardContent>
             {invites.length === 0 ? (
-              <div className="text-center py-8 text-cozy-text-muted">
+              <div className="text-center py-8 text-muted-foreground">
                 <Mail className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>No pending invites</p>
               </div>
@@ -281,14 +281,14 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
                   <div key={invite.id} className="space-y-2 p-3 border rounded-lg bg-gray-50">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-cozy-primary/20 rounded-full flex items-center justify-center">
-                          <Mail className="w-4 h-4 text-cozy-primary" />
+                        <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                          <Mail className="w-4 h-4 text-primary" />
                         </div>
                         <div>
-                          <div className="font-medium text-cozy-text">
+                          <div className="font-medium text-foreground">
                             {invite.email || 'Link-only invite'}
                           </div>
-                          <div className="text-sm text-cozy-text-muted flex items-center gap-2">
+                          <div className="text-sm text-muted-foreground flex items-center gap-2">
                             <Badge variant="secondary" className="text-xs">
                               {invite.role}
                             </Badge>
@@ -366,19 +366,19 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
             {members.map((member) => (
               <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-cozy-primary rounded-full flex items-center justify-center">
+                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                     <span className="text-xs font-medium text-white">
                       {member.user.name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   </div>
                   <div>
-                    <div className="font-medium text-cozy-text">
+                    <div className="font-medium text-foreground">
                       {member.user.name || 'Unknown User'}
                       {member.user.id === currentUserId && (
-                        <span className="text-sm text-cozy-text-muted ml-2">(You)</span>
+                        <span className="text-sm text-muted-foreground ml-2">(You)</span>
                       )}
                     </div>
-                    <div className="text-sm text-cozy-text-muted">
+                    <div className="text-sm text-muted-foreground">
                       {member.user.email}
                     </div>
                   </div>

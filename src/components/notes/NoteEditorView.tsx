@@ -49,7 +49,7 @@ export default function NoteEditorView({
       <div className={cn('flex items-center justify-between border-b border-border p-3 md:p-4', getNoteColor(note.color).accent)}>
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-primary transition-colors hover:text-cozy-primary-deep md:gap-2"
+          className="flex items-center gap-1 text-primary transition-colors hover:text-brand-purple md:gap-2"
         >
           <ChevronLeft className="h-4 w-4" />
           <span className="hidden text-sm font-medium sm:inline">All Notes</span>
@@ -103,7 +103,7 @@ export default function NoteEditorView({
           }}
           placeholder="Title"
           rows={1}
-          className="w-full resize-none border-0 bg-transparent text-2xl font-bold text-cozy-text placeholder:text-muted-foreground/60 focus:outline-none md:text-3xl"
+          className="w-full resize-none border-0 bg-transparent text-2xl font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none md:text-3xl"
           style={{ minHeight: '40px' }}
         />
       </div>
@@ -146,7 +146,7 @@ export default function NoteEditorView({
       <div className="flex-1 overflow-y-auto p-3 md:p-4">
         <ClientOnly
           fallback={
-            <div className="flex min-h-[300px] items-center justify-center rounded-cozy-lg border border-border bg-muted/30">
+            <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-border bg-muted/30">
               <div className="text-muted-foreground">Loading editor…</div>
             </div>
           }

@@ -419,8 +419,8 @@ export default function FinancesPage() {
     return (
       <ModernAppShell title="Finance">
         <div className="min-h-[420px] flex items-center justify-center">
-          <div className="text-center text-cozy-text-muted">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-cozy-primary" />
+          <div className="text-center text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-primary" />
             Loading your finances…
           </div>
         </div>
@@ -433,12 +433,12 @@ export default function FinancesPage() {
       <div className="space-y-6 max-w-7xl mx-auto">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-2 text-sm font-medium text-cozy-primary">
+            <div className="flex items-center gap-2 mb-2 text-sm font-medium text-primary">
               <ShieldCheck className="w-4 h-4" />
               Read-only open banking
             </div>
-            <h1 className="text-3xl font-bold text-cozy-text">Your money, in one calm view</h1>
-            <p className="text-cozy-text-muted mt-1">Balances and activity from Bank of Valletta.</p>
+            <h1 className="text-3xl font-bold text-foreground">Your money, in one calm view</h1>
+            <p className="text-muted-foreground mt-1">Balances and activity from Bank of Valletta.</p>
           </div>
           {overview?.canManage && overview.connections.length > 0 && (
             <Button
@@ -468,7 +468,7 @@ export default function FinancesPage() {
         )}
 
         {overview && overview.accounts.length > 0 && (
-          <div className="flex flex-col gap-3 rounded-xl border border-cozy-gray-200 bg-cozy-surface p-2 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-2 lg:flex-row lg:items-center lg:justify-between">
             <nav className="grid grid-cols-2 gap-1 sm:flex" aria-label="Finance sections">
               {([
                 ['overview', 'Overview', LayoutDashboard],
@@ -481,14 +481,14 @@ export default function FinancesPage() {
                   key={id}
                   type="button"
                   onClick={() => setActiveTab(id)}
-                  className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${activeTab === id ? 'bg-cozy-primary text-white shadow-sm' : 'text-cozy-text-muted hover:bg-cozy-cream hover:text-cozy-text'}`}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition ${activeTab === id ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
                 >
                   <Icon className="h-4 w-4" />{label}
                 </button>
               ))}
             </nav>
             <select
-              className="h-10 rounded-lg border border-cozy-gray-300 bg-white px-3 text-sm lg:min-w-52"
+              className="h-10 rounded-lg border border-input bg-white px-3 text-sm lg:min-w-52"
               value={accountFilter}
               onChange={event => setAccountFilter(event.target.value)}
               aria-label="Focus finance page on one account"
@@ -502,9 +502,9 @@ export default function FinancesPage() {
         {!householdId && (
           <Card>
             <CardContent className="py-12 text-center">
-              <WalletCards className="w-10 h-10 mx-auto mb-3 text-cozy-text-muted" />
+              <WalletCards className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
               <h2 className="font-semibold text-lg">Create or join a household first</h2>
-              <p className="text-sm text-cozy-text-muted mt-1">Finance visibility follows your active household.</p>
+              <p className="text-sm text-muted-foreground mt-1">Finance visibility follows your active household.</p>
             </CardContent>
           </Card>
         )}
@@ -513,8 +513,8 @@ export default function FinancesPage() {
           <Card className="border-amber-200">
             <CardContent className="py-8">
               <h2 className="font-semibold">Set the finance owner</h2>
-              <p className="text-sm text-cozy-text-muted mt-1">
-                Configure <code className="px-1 py-0.5 rounded bg-cozy-cream">FINANCE_OWNER_EMAIL</code> with your Clankeep email and restart the app.
+              <p className="text-sm text-muted-foreground mt-1">
+                Configure <code className="px-1 py-0.5 rounded bg-secondary">FINANCE_OWNER_EMAIL</code> with your Clankeep email and restart the app.
               </p>
             </CardContent>
           </Card>
@@ -524,7 +524,7 @@ export default function FinancesPage() {
           <Card className="border-amber-200">
             <CardContent className="py-8">
               <h2 className="font-semibold">Enable Banking setup needed</h2>
-              <p className="text-sm text-cozy-text-muted mt-1 max-w-2xl">
+              <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
                 Register a restricted-production application, pre-link your BOV accounts, then configure its application ID and base64-encoded private key in Clankeep.
               </p>
             </CardContent>
@@ -534,13 +534,13 @@ export default function FinancesPage() {
         {householdId && overview?.ownerConfigured && overview.accounts.length === 0 && (
           <Card className="overflow-hidden">
             <CardContent className="py-14 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-cozy-primary-soft mx-auto mb-4 flex items-center justify-center">
-                <Building2 className="w-7 h-7 text-cozy-primary" />
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 mx-auto mb-4 flex items-center justify-center">
+                <Building2 className="w-7 h-7 text-primary" />
               </div>
               {overview.canManage ? (
                 <>
                   <h2 className="text-xl font-semibold">Connect Bank of Valletta</h2>
-                  <p className="text-sm text-cozy-text-muted mt-2 max-w-lg mx-auto">
+                  <p className="text-sm text-muted-foreground mt-2 max-w-lg mx-auto">
                     You will continue to BOV to approve read-only access. Clankeep never receives your bank password or permission to make payments.
                   </p>
                   <Button
@@ -555,7 +555,7 @@ export default function FinancesPage() {
               ) : (
                 <>
                   <h2 className="text-xl font-semibold">No accounts are shared yet</h2>
-                  <p className="text-sm text-cozy-text-muted mt-2">The finance owner controls which accounts the household can view.</p>
+                  <p className="text-sm text-muted-foreground mt-2">The finance owner controls which accounts the household can view.</p>
                 </>
               )}
             </CardContent>
@@ -566,7 +566,7 @@ export default function FinancesPage() {
           <>
             {activeTab === 'overview' && <>
             <div className="grid gap-4 lg:grid-cols-[1.15fr_2fr]">
-              <Card className="bg-gradient-to-br from-cozy-primary to-cozy-primary-deep text-white border-0">
+              <Card className="bg-gradient-to-br from-brand-blue to-brand-purple text-white border-0">
                 <CardContent className="p-6">
                   <p className="text-sm text-white/75">Total visible balance</p>
                   <div className="mt-3 space-y-1">
@@ -590,7 +590,7 @@ export default function FinancesPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-cozy-primary shrink-0" />
+                            <Building2 className="w-4 h-4 text-primary shrink-0" />
                             {renamingAccount === account.id ? (
                               <div className="flex min-w-0 items-center gap-1">
                                 <Input
@@ -627,10 +627,10 @@ export default function FinancesPage() {
                               </>
                             )}
                           </div>
-                          <p className="text-xs text-cozy-text-muted mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             {[account.maskedIdentifier, account.cashAccountType].filter(Boolean).join(' · ') || 'Bank of Valletta'}
                           </p>
-                          {account.customName && <p className="mt-1 text-[11px] text-cozy-text-muted">Bank name: {account.providerDisplayName}</p>}
+                          {account.customName && <p className="mt-1 text-[11px] text-muted-foreground">Bank name: {account.providerDisplayName}</p>}
                         </div>
                         <Badge variant="outline" className={account.shared ? 'border-green-200 text-green-700' : ''}>
                           {account.shared ? <Eye className="w-3 h-3 mr-1" /> : <EyeOff className="w-3 h-3 mr-1" />}
@@ -641,7 +641,7 @@ export default function FinancesPage() {
                         {account.balance ? currency(account.balance.amount, account.balance.currency) : '—'}
                       </div>
                       <div className="mt-4 flex items-center justify-between gap-2">
-                        <span className="text-xs text-cozy-text-muted">{relativeSync(account.connection.lastSyncedAt, clock)}</span>
+                        <span className="text-xs text-muted-foreground">{relativeSync(account.connection.lastSyncedAt, clock)}</span>
                         {overview.canManage && account.owned && (
                           <div className="flex items-center gap-1">
                             {account.customName && <Button size="sm" variant="ghost" disabled={Boolean(action)} onClick={() => renameAccount(account, true)}>Reset name</Button>}
@@ -678,15 +678,15 @@ export default function FinancesPage() {
                 <Card key={connection.id} className={connection.status === 'ACTIVE' ? '' : 'border-amber-200'}>
                   <CardContent className="p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-cozy-primary-soft flex items-center justify-center shrink-0">
-                        <Link2 className="w-5 h-5 text-cozy-primary" />
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Link2 className="w-5 h-5 text-primary" />
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold">{connection.aspspName}</h3>
                           <Badge variant="outline" className={tone.className}>{tone.label}</Badge>
                         </div>
-                        <div className="text-xs text-cozy-text-muted mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                        <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-x-4 gap-y-1">
                           <span>{relativeSync(connection.lastSyncedAt, clock)}</span>
                           {expiry && (
                             <span className={expiringSoon ? 'text-amber-700 font-medium' : ''}>
@@ -744,7 +744,7 @@ export default function FinancesPage() {
               <CardContent>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr]">
                   <div className="relative">
-                    <Search className="absolute left-3 top-3 w-4 h-4 text-cozy-text-muted" />
+                    <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                     <Input
                       className="pl-9"
                       value={searchInput}
@@ -753,7 +753,7 @@ export default function FinancesPage() {
                     />
                   </div>
                   <select
-                    className="h-10 rounded-lg border border-cozy-gray-300 bg-cozy-surface px-3 text-sm"
+                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm"
                     value={accountFilter}
                     onChange={event => setAccountFilter(event.target.value)}
                     aria-label="Filter by account"
@@ -762,7 +762,7 @@ export default function FinancesPage() {
                     {overview.accounts.map(account => <option key={account.id} value={account.id}>{account.displayName}</option>)}
                   </select>
                   <select
-                    className="h-10 rounded-lg border border-cozy-gray-300 bg-cozy-surface px-3 text-sm"
+                    className="h-10 rounded-lg border border-input bg-card px-3 text-sm"
                     value={statusFilter}
                     onChange={event => setStatusFilter(event.target.value)}
                     aria-label="Filter by status"
@@ -775,28 +775,28 @@ export default function FinancesPage() {
                   <Input type="date" value={dateTo} onChange={event => setDateTo(event.target.value)} aria-label="To date" />
                 </div>
 
-                <div className="mt-5 divide-y divide-cozy-gray-200">
+                <div className="mt-5 divide-y divide-border">
                   {transactions.map(transaction => {
                     const amount = Number(transaction.amount)
                     const incoming = amount >= 0
                     return (
                       <div key={transaction.id} className="py-4 flex items-start gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${incoming ? 'bg-green-50 text-green-700' : 'bg-cozy-primary-soft text-cozy-primary'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${incoming ? 'bg-green-50 text-green-700' : 'bg-primary/10 text-primary'}`}>
                           {incoming ? <ArrowDownLeft className="w-4 h-4" /> : transaction.transactionType === 'Card purchase' ? <ReceiptText className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="font-semibold truncate" title={transaction.merchantName}>{transaction.merchantName || transaction.counterparty || 'Bank transaction'}</p>
-                              <p className="text-sm text-cozy-text-muted truncate mt-0.5">
+                              <p className="text-sm text-muted-foreground truncate mt-0.5">
                                 {transaction.detail || transaction.transactionType}
                               </p>
                             </div>
-                            <p className={`font-semibold whitespace-nowrap ${incoming ? 'text-green-700' : 'text-cozy-text'}`}>
+                            <p className={`font-semibold whitespace-nowrap ${incoming ? 'text-green-700' : 'text-foreground'}`}>
                               {incoming ? '+' : ''}{currency(transaction.amount, transaction.currency)}
                             </p>
                           </div>
-                          <div className="mt-2 text-xs text-cozy-text-muted flex flex-wrap items-center gap-x-3 gap-y-1">
+                          <div className="mt-2 text-xs text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
                             <span className="flex items-center gap-1"><CalendarDays className="w-3 h-3" />{friendlyDate(transaction.bookingDate || transaction.valueDate)}</span>
                             <span>{transaction.account.displayName}</span>
                             <Badge variant="outline" className="font-normal">{transaction.category}</Badge>
@@ -810,10 +810,10 @@ export default function FinancesPage() {
                     )
                   })}
                   {!transactions.length && !transactionsLoading && (
-                    <div className="py-12 text-center text-sm text-cozy-text-muted">No transactions match these filters.</div>
+                    <div className="py-12 text-center text-sm text-muted-foreground">No transactions match these filters.</div>
                   )}
                   {transactionsLoading && (
-                    <div className="py-8 flex items-center justify-center text-sm text-cozy-text-muted">
+                    <div className="py-8 flex items-center justify-center text-sm text-muted-foreground">
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading activity…
                     </div>
                   )}

@@ -153,7 +153,7 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
       <CardContent className="space-y-6">
         {/* Email input */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-cozy-text">Email Address</label>
+          <label className="text-sm font-medium text-foreground">Email Address</label>
           <Input
             type="email"
             placeholder="family@example.com"
@@ -161,36 +161,36 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
             onChange={(e) => setEmail(e.target.value)}
             className="w-full"
           />
-          <p className="text-xs text-cozy-text-muted">
+          <p className="text-xs text-muted-foreground">
             Leave this blank to create a link you can share yourself.
           </p>
         </div>
 
         {/* Role selection */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-cozy-text">Role</label>
+          <label className="text-sm font-medium text-foreground">Role</label>
           <div className="flex gap-2">
             <button
               onClick={() => setRole('MEMBER')}
               className={`flex-1 p-3 border rounded-lg text-sm transition-all ${
                 role === 'MEMBER'
-                  ? 'border-cozy-primary bg-cozy-primary/10 text-cozy-primary'
-                  : 'border-cozy-gray-200 hover:border-cozy-gray-300'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border hover:border-input'
               }`}
             >
               <div className="font-medium">Member</div>
-              <div className="text-xs text-cozy-text-muted">Household access without member administration</div>
+              <div className="text-xs text-muted-foreground">Household access without member administration</div>
             </button>
             <button
               onClick={() => setRole('OWNER')}
               className={`flex-1 p-3 border rounded-lg text-sm transition-all ${
                 role === 'OWNER'
-                  ? 'border-cozy-primary bg-cozy-primary/10 text-cozy-primary'
-                  : 'border-cozy-gray-200 hover:border-cozy-gray-300'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border hover:border-input'
               }`}
             >
               <div className="font-medium">Owner</div>
-              <div className="text-xs text-cozy-text-muted">Can invite, promote, remove, and manage members</div>
+              <div className="text-xs text-muted-foreground">Can invite, promote, remove, and manage members</div>
             </button>
           </div>
         </div>
@@ -256,7 +256,7 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
         )}
 
         {/* Native share where supported; clipboard fallback elsewhere. */}
-        <div className="pt-4 border-t border-cozy-gray-200">
+        <div className="pt-4 border-t border-border">
           <Button variant="outline" size="sm" className="w-full" onClick={shareInvite} disabled={!result}>
             <Share2 className="w-4 h-4 mr-2" />
             Share latest invite

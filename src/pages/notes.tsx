@@ -62,8 +62,8 @@ export default function NotesPage() {
       <ModernAppShell title="Notes">
         <div className="flex min-h-screen items-center justify-center">
           <div className="text-center">
-            <h2 className="mb-2 text-xl font-semibold text-cozy-text">Please sign in</h2>
-            <p className="text-cozy-text-muted">You need to be signed in to view your notes.</p>
+            <h2 className="mb-2 text-xl font-semibold text-foreground">Please sign in</h2>
+            <p className="text-muted-foreground">You need to be signed in to view your notes.</p>
           </div>
         </div>
       </ModernAppShell>
@@ -76,7 +76,7 @@ export default function NotesPage() {
         <div className="flex min-h-screen items-center justify-center">
           <div className="text-center">
             <h2 className="mb-2 text-xl font-semibold text-destructive">Error</h2>
-            <p className="mb-4 text-cozy-text-muted">{error}</p>
+            <p className="mb-4 text-muted-foreground">{error}</p>
             <Button onClick={() => { clearError(); loadNotes() }}>Try Again</Button>
           </div>
         </div>
@@ -90,7 +90,7 @@ export default function NotesPage() {
         {/* Desktop sidebar */}
         <div className="hidden w-80 overflow-y-auto border-r border-border bg-card/60 md:block">
           <div className="p-4 pb-0">
-            <h1 className="text-xl font-semibold text-cozy-text">Notes</h1>
+            <h1 className="text-xl font-semibold text-foreground">Notes</h1>
           </div>
           <NotesSidebar
             searchQuery={searchQuery}
@@ -107,7 +107,7 @@ export default function NotesPage() {
           {!selectedNote && (
             <div className="border-b border-border bg-card/60 p-4 md:hidden">
               <div className="mb-3 flex items-center justify-between">
-                <h1 className="text-lg font-semibold text-cozy-text">Notes</h1>
+                <h1 className="text-lg font-semibold text-foreground">Notes</h1>
               </div>
               <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -181,7 +181,7 @@ export default function NotesPage() {
       {!selectedNote && (
         <button
           onClick={createNewNote}
-          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-cozy-lg transition-all duration-200 hover:scale-105 hover:bg-cozy-primary-deep active:scale-95 sm:hidden"
+          className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-soft-lg transition-all duration-200 hover:scale-105 hover:bg-brand-purple active:scale-95 sm:hidden"
           title="Create new note"
         >
           <Plus className="h-6 w-6" />

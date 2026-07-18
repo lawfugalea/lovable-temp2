@@ -226,7 +226,7 @@ export default function MedicinePage() {
   return (
     <ModernAppShell title="Health journal">
       <div className="space-y-6 sm:space-y-8">
-        <section className="overflow-hidden rounded-2xl border bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-cozy-sm sm:p-7">
+        <section className="overflow-hidden rounded-2xl border bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-soft-sm sm:p-7">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><HeartPulse className="h-4 w-4" /> Child health journal</div>

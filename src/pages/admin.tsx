@@ -306,7 +306,7 @@ export default function AdminPage() {
     return (
       <ModernAppShell title="Admin Panel">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cozy-primary"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       </ModernAppShell>
     );
@@ -330,8 +330,8 @@ export default function AdminPage() {
         {/* Admin Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-cozy-text">Admin Panel</h1>
-            <p className="text-cozy-text-muted">Manage users, households, and view system statistics</p>
+            <h1 className="text-2xl font-bold text-foreground">Admin Panel</h1>
+            <p className="text-muted-foreground">Manage users, households, and view system statistics</p>
           </div>
           <Badge variant="outline" className="flex items-center gap-2">
             <Shield className="w-4 h-4" />
@@ -340,7 +340,7 @@ export default function AdminPage() {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex space-x-1 bg-cozy-cream p-1 rounded-lg overflow-x-auto">
+        <div className="flex space-x-1 bg-secondary p-1 rounded-lg overflow-x-auto">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -349,8 +349,8 @@ export default function AdminPage() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === tab.id
-                    ? 'bg-white text-cozy-primary shadow-sm'
-                    : 'text-cozy-text-muted hover:text-cozy-text'
+                    ? 'bg-white text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -369,13 +369,13 @@ export default function AdminPage() {
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-cozy-text-muted">Total Users</p>
-                      <p className="text-lg font-bold text-cozy-text">{stats.overview.totalUsers}</p>
-                      <p className="text-xs text-cozy-text-muted">
+                      <p className="text-xs font-medium text-muted-foreground">Total Users</p>
+                      <p className="text-lg font-bold text-foreground">{stats.overview.totalUsers}</p>
+                      <p className="text-xs text-muted-foreground">
                         +{stats.overview.recentUsers} new this week
                       </p>
                     </div>
-                    <Users className="h-4 w-4 text-cozy-text-muted" />
+                    <Users className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -384,13 +384,13 @@ export default function AdminPage() {
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-cozy-text-muted">Households</p>
-                      <p className="text-lg font-bold text-cozy-text">{stats.overview.totalHouseholds}</p>
-                      <p className="text-xs text-cozy-text-muted">
+                      <p className="text-xs font-medium text-muted-foreground">Households</p>
+                      <p className="text-lg font-bold text-foreground">{stats.overview.totalHouseholds}</p>
+                      <p className="text-xs text-muted-foreground">
                         {stats.overview.activeHouseholds} active
                       </p>
                     </div>
-                    <Home className="h-4 w-4 text-cozy-text-muted" />
+                    <Home className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -399,13 +399,13 @@ export default function AdminPage() {
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-cozy-text-muted">Shopping Items</p>
-                      <p className="text-lg font-bold text-cozy-text">{stats.overview.totalShoppingItems}</p>
-                      <p className="text-xs text-cozy-text-muted">
+                      <p className="text-xs font-medium text-muted-foreground">Shopping Items</p>
+                      <p className="text-lg font-bold text-foreground">{stats.overview.totalShoppingItems}</p>
+                      <p className="text-xs text-muted-foreground">
                         {stats.shopping.activeItems} active, {stats.shopping.completedItems} done
                       </p>
                     </div>
-                    <ShoppingCart className="h-4 w-4 text-cozy-text-muted" />
+                    <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -414,13 +414,13 @@ export default function AdminPage() {
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-medium text-cozy-text-muted">Medicines</p>
-                      <p className="text-lg font-bold text-cozy-text">{stats.overview.totalMedicines}</p>
-                      <p className="text-xs text-cozy-text-muted">
+                      <p className="text-xs font-medium text-muted-foreground">Medicines</p>
+                      <p className="text-lg font-bold text-foreground">{stats.overview.totalMedicines}</p>
+                      <p className="text-xs text-muted-foreground">
                         {stats.medicine.activeMedicines} active
                       </p>
                     </div>
-                    <Pill className="h-4 w-4 text-cozy-text-muted" />
+                    <Pill className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>
@@ -435,16 +435,16 @@ export default function AdminPage() {
               <CardContent>
                 <div className="space-y-4">
                   {stats.topHouseholds.slice(0, 5).map((household) => (
-                    <div key={household.id} className="flex items-center justify-between p-3 bg-cozy-cream rounded-lg">
+                    <div key={household.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                       <div>
                         <p className="font-medium">{household.name}</p>
-                        <p className="text-sm text-cozy-text-muted">
+                        <p className="text-sm text-muted-foreground">
                           Owner: {household.owner?.name || household.owner?.email || 'No Owner'}
                         </p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-medium">{household._count.shoppingLists} lists</p>
-                        <p className="text-xs text-cozy-text-muted">
+                        <p className="text-xs text-muted-foreground">
                           {(household._count as any).activeForUsers || (household._count as any).members} members
                         </p>
                       </div>
@@ -466,18 +466,18 @@ export default function AdminPage() {
             <CardContent>
               <div className="space-y-4">
                 {users.map((user) => (
-                  <div key={user.id} className="p-4 border border-cozy-gray-200 rounded-lg space-y-4">
+                  <div key={user.id} className="p-4 border border-border rounded-lg space-y-4">
                     {/* User Info */}
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-cozy-primary rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-white font-medium">
                           {user.name?.charAt(0)?.toUpperCase() || user.email.charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{user.name || 'No name'}</p>
-                        <p className="text-sm text-cozy-text-muted truncate">{user.email}</p>
-                        <p className="text-xs text-cozy-text-muted">
+                        <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                        <p className="text-xs text-muted-foreground">
                           Joined: {formatDate(user.createdAt)}
                         </p>
                       </div>
@@ -545,18 +545,18 @@ export default function AdminPage() {
             <CardContent>
               <div className="space-y-4">
                 {households.map((household) => (
-                  <div key={household.id} className="p-4 border border-cozy-gray-200 rounded-lg space-y-4">
+                  <div key={household.id} className="p-4 border border-border rounded-lg space-y-4">
                     {/* Household Info */}
                     <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 bg-cozy-primary rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
                         <Home className="w-5 h-5 text-white" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{household.name}</p>
-                        <p className="text-sm text-cozy-text-muted truncate">
+                        <p className="text-sm text-muted-foreground truncate">
                           Owner: {household.owner?.name || household.owner?.email || 'No Owner'}
                         </p>
-                        <p className="text-xs text-cozy-text-muted">
+                        <p className="text-xs text-muted-foreground">
                           Created: {formatDate(household.createdAt)}
                         </p>
                       </div>
@@ -617,10 +617,10 @@ export default function AdminPage() {
             <CardContent>
               <div className="space-y-3">
                 {invites.map((i) => (
-                  <div key={i.id} className="p-3 border border-cozy-gray-200 rounded-lg space-y-3">
+                  <div key={i.id} className="p-3 border border-border rounded-lg space-y-3">
                     <div>
                       <p className="font-medium truncate">{i.email || 'Open invite'} → {i.household.name}</p>
-                      <p className="text-xs text-cozy-text-muted">Role: {i.role} • Status: {i.status} • Expires: {formatDate(i.expiresAt)}</p>
+                      <p className="text-xs text-muted-foreground">Role: {i.role} • Status: {i.status} • Expires: {formatDate(i.expiresAt)}</p>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={() => updateInvite(i.id, 'revoke')} disabled={i.status !== 'PENDING'} title="Revoke">Revoke</Button>
@@ -641,7 +641,7 @@ export default function AdminPage() {
               <CardDescription>Quick helpers for debugging and maintenance</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 text-sm text-cozy-text-muted">
+              <div className="space-y-3 text-sm text-muted-foreground">
                 <p>Use the Users/Households/Invites tabs for most operations. More tools can be added here on demand.</p>
               </div>
             </CardContent>

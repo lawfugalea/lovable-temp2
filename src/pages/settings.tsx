@@ -158,8 +158,8 @@ export default function SettingsPage() {
       <ModernAppShell title="Settings">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-cozy-text-muted">Loading your settings...</p>
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your settings...</p>
           </div>
         </div>
       </ModernAppShell>
@@ -183,8 +183,8 @@ export default function SettingsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-cozy-text">Settings</h1>
-          <p className="text-cozy-text-muted">Manage your account and preferences</p>
+          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+          <p className="text-muted-foreground">Manage your account and preferences</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
@@ -201,8 +201,8 @@ export default function SettingsPage() {
                         onClick={() => setActiveTab(tab.id)}
                         className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
                           activeTab === tab.id
-                            ? 'bg-cozy-primary text-white'
-                            : 'text-cozy-text hover:bg-cozy-cream'
+                            ? 'bg-primary text-white'
+                            : 'text-foreground hover:bg-secondary'
                         }`}
                       >
                         <Icon className="w-5 h-5" />
@@ -231,7 +231,7 @@ export default function SettingsPage() {
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-cozy-text">Full Name</label>
+                        <label className="text-sm font-medium text-foreground">Full Name</label>
                         <Input
                           value={profile.name}
                           onChange={(e) => setProfile(prev => ({ ...prev, name: e.target.value }))}
@@ -239,19 +239,19 @@ export default function SettingsPage() {
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-cozy-text">Email</label>
+                        <label className="text-sm font-medium text-foreground">Email</label>
                         <Input
                           type="email"
                           value={profile.email}
                           readOnly
                           className="mt-1"
                         />
-                        <p className="mt-1 text-xs text-cozy-text-muted">Contact an administrator to change your login email.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Contact an administrator to change your login email.</p>
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-4 border-t">
-                      <span className="text-sm text-cozy-text-muted">Changes are saved to your account.</span>
+                      <span className="text-sm text-muted-foreground">Changes are saved to your account.</span>
                       <Button onClick={handleProfileUpdate} disabled={loading}>
                         <Save className="w-4 h-4 mr-2" />
                         Save Changes
@@ -270,7 +270,7 @@ export default function SettingsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
-                      <label className="text-sm font-medium text-cozy-text">Current Password</label>
+                      <label className="text-sm font-medium text-foreground">Current Password</label>
                       <div className="relative mt-1">
                         <Input
                           type={showPassword ? 'text' : 'password'}
@@ -279,7 +279,7 @@ export default function SettingsPage() {
                         />
                         <button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-cozy-text-muted hover:text-cozy-text"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                           onClick={() => setShowPassword(!showPassword)}
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -287,7 +287,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-cozy-text">New Password</label>
+                      <label className="text-sm font-medium text-foreground">New Password</label>
                       <Input
                         type="password"
                         value={passwordForm.newPassword}
@@ -296,7 +296,7 @@ export default function SettingsPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-cozy-text">Confirm New Password</label>
+                      <label className="text-sm font-medium text-foreground">Confirm New Password</label>
                       <Input
                         type="password"
                         value={passwordForm.confirmPassword}
@@ -319,8 +319,8 @@ export default function SettingsPage() {
                   <CardDescription>Browser notifications are requested only when you choose to enable them.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <p className="text-sm text-cozy-text-muted">
-                    Current permission: <strong className="text-cozy-text">{notificationPermission}</strong>
+                  <p className="text-sm text-muted-foreground">
+                    Current permission: <strong className="text-foreground">{notificationPermission}</strong>
                   </p>
                   {notificationPermission === 'default' && (
                     <Button onClick={handleNotificationPermission}>Enable browser notifications</Button>
@@ -344,7 +344,7 @@ export default function SettingsPage() {
                   <CardTitle className="flex items-center gap-2"><Shield className="w-5 h-5" /> Privacy & Security</CardTitle>
                   <CardDescription>Your account and household data are protected by two authentication layers.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3 text-sm text-cozy-text-muted">
+                <CardContent className="space-y-3 text-sm text-muted-foreground">
                   <p>Clankeep requires the site access gate and your personal Clankeep account.</p>
                   <p>Household APIs verify membership before returning shared data. Personal notes remain visible only to you unless explicitly shared.</p>
                   <p>Use the password controls under Profile to rotate your account password.</p>
@@ -363,8 +363,8 @@ export default function SettingsPage() {
                     <Button onClick={handleExport} disabled={loading}>Export my data</Button>
                     <Button variant="outline" onClick={handleClearLocalData}>Clear local cache</Button>
                   </div>
-                  {dataMessage && <p className="text-sm text-cozy-text-muted">{dataMessage}</p>}
-                  <p className="text-xs text-cozy-text-muted">Clearing local cache does not remove anything from the Clankeep server.</p>
+                  {dataMessage && <p className="text-sm text-muted-foreground">{dataMessage}</p>}
+                  <p className="text-xs text-muted-foreground">Clearing local cache does not remove anything from the Clankeep server.</p>
                 </CardContent>
               </Card>
             )}
@@ -374,8 +374,8 @@ export default function SettingsPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-medium text-cozy-text">Sign Out</h3>
-                    <p className="text-sm text-cozy-text-muted">Sign out of your account</p>
+                    <h3 className="font-medium text-foreground">Sign Out</h3>
+                    <p className="text-sm text-muted-foreground">Sign out of your account</p>
                   </div>
                   <Button variant="outline" onClick={handleSignOut}>
                     <LogOut className="w-4 h-4 mr-2" />

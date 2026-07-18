@@ -217,14 +217,14 @@ export function MedicineDialog({ open, onOpenChange, householdId, medicine, onSa
             <Input id="med-notes" placeholder="e.g., Take with food" value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
-          <div className="rounded-md border border-cozy-gray-200 bg-cozy-cream/40 p-3 space-y-3">
-            <p className="text-sm font-medium text-cozy-text">Safety guardrails</p>
-            <label className="flex items-center gap-2 text-sm text-cozy-text">
+          <div className="rounded-md border border-border bg-secondary/40 p-3 space-y-3">
+            <p className="text-sm font-medium text-foreground">Safety guardrails</p>
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input
                 type="checkbox"
                 checked={form.isPrn}
                 onChange={(e) => setForm({ ...form, isPrn: e.target.checked })}
-                className="h-4 w-4 rounded border-cozy-gray-300"
+                className="h-4 w-4 rounded border-input"
               />
               As needed (PRN) — no fixed schedule, only gap and daily limits apply
             </label>

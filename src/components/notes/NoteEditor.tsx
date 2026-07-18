@@ -27,7 +27,7 @@ interface NoteEditorProps {
 }
 
 const Toolbar = ({ editor }: { editor: Editor }) => (
-  <div className="border-border bg-muted/40 flex shrink-0 overflow-x-auto rounded-t-cozy-lg border-b p-2">
+  <div className="border-border bg-muted/40 flex shrink-0 overflow-x-auto rounded-t-xl border-b p-2">
     <div className="flex w-max items-center gap-px">
       <SectionOne editor={editor} activeLevels={[1, 2, 3]} />
 
@@ -185,7 +185,7 @@ export default function NoteEditor({
 
   if (!editor) {
     return (
-      <div className="flex min-h-[300px] items-center justify-center rounded-cozy-lg border border-border bg-muted/30">
+      <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-border bg-muted/30">
         <div className="text-muted-foreground">Loading editor…</div>
       </div>
     )
@@ -238,7 +238,7 @@ function NoteEditorInner({
   return (
     <div
       className={cn(
-        "flex h-auto w-full flex-col rounded-cozy-lg border border-border bg-card shadow-cozy-sm",
+        "flex h-auto w-full flex-col rounded-xl border border-border bg-card shadow-soft-sm",
         "focus-within:border-ring/60",
         className
       )}

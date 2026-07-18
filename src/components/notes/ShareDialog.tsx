@@ -163,7 +163,7 @@ export default function ShareDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center justify-between rounded-cozy border border-border bg-muted/40 px-4 py-3">
+        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-4 py-3">
           <div>
             <Label htmlFor="share-toggle" className="font-medium">
               Share with household
@@ -218,7 +218,7 @@ export default function ShareDialog({
 
           <div className="space-y-2">
             {/* Owner row */}
-            <div className="flex items-center gap-3 rounded-cozy px-2 py-1.5">
+            <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="text-xs">
                   {initials(note.createdBy.name || note.createdBy.email)}
@@ -242,7 +242,7 @@ export default function ShareDialog({
             )}
 
             {!loading && collaborators.map(collaborator => (
-              <div key={collaborator.user.id} className="flex items-center gap-3 rounded-cozy px-2 py-1.5">
+              <div key={collaborator.user.id} className="flex items-center gap-3 rounded-lg px-2 py-1.5">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="text-xs">
                     {initials(collaborator.user.name || collaborator.user.email)}

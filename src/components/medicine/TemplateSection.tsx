@@ -26,13 +26,13 @@ export default function TemplateSection({ templates, onAdd, onStartCourse, onEdi
             <Plus className="h-4 w-4" /> New Template
           </Button>
         </div>
-        <p className="text-sm text-cozy-text-muted mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Reusable medicines you can start as a course for any child.
         </p>
       </CardHeader>
       <CardContent>
         {templates.length === 0 ? (
-          <div className="text-center py-8 text-cozy-text-muted">
+          <div className="text-center py-8 text-muted-foreground">
             <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No medicine templates yet</p>
             <Button onClick={onAdd} variant="outline" className="mt-4" disabled={busy}>
@@ -42,13 +42,13 @@ export default function TemplateSection({ templates, onAdd, onStartCourse, onEdi
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {templates.map((template) => (
-              <div key={template.id} className="p-4 border border-cozy-gray-200 rounded-lg bg-white">
+              <div key={template.id} className="p-4 border border-border rounded-lg bg-white">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-cozy-text truncate">{template.name}</h3>
-                    <p className="text-sm text-cozy-text-muted">{template.dosage} • {template.frequency}</p>
+                    <h3 className="font-semibold text-foreground truncate">{template.name}</h3>
+                    <p className="text-sm text-muted-foreground">{template.dosage} • {template.frequency}</p>
                     {template.description && (
-                      <p className="text-sm text-cozy-text-muted mt-1 line-clamp-2">{template.description}</p>
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{template.description}</p>
                     )}
                   </div>
                   <Badge variant="secondary" className="flex-shrink-0">Template</Badge>

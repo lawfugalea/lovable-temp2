@@ -61,13 +61,13 @@ export default function NoteCard({
     <div
       onClick={() => onOpen(note)}
       className={cn(
-        'cozy-card group cursor-pointer border p-4 transition-all duration-200',
-        'rounded-cozy-lg shadow-cozy-sm hover:-translate-y-0.5 hover:shadow-cozy-md',
+        'rounded-2xl border bg-card shadow-soft-sm group cursor-pointer border p-4 transition-all duration-200',
+        'rounded-xl shadow-soft-sm hover:-translate-y-0.5 hover:shadow-soft',
         colors.card
       )}
     >
       <div className="mb-2 flex items-start justify-between gap-2">
-        <h3 className="min-w-0 flex-1 truncate font-medium text-cozy-text">
+        <h3 className="min-w-0 flex-1 truncate font-medium text-foreground">
           {note.title || 'Untitled'}
         </h3>
         <div className="flex flex-shrink-0 items-center gap-1">
@@ -152,12 +152,12 @@ export default function NoteCard({
             <span>{indicator.label}</span>
           </div>
         )}
-        <div className="line-clamp-3 text-sm text-cozy-text-muted">
+        <div className="line-clamp-3 text-sm text-muted-foreground">
           {getSmartPreview(note)}
         </div>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-cozy-text-soft">
+      <div className="flex items-center justify-between text-xs text-muted-foreground/70">
         <div className="flex items-center gap-2">
           <span>by {note.createdBy.name}</span>
           {note.isShared && (
@@ -178,7 +178,7 @@ export default function NoteCard({
                 </Avatar>
               ))}
               {note.collaborators.length > 3 && (
-                <span className="flex items-center gap-0.5 pl-2 text-cozy-text-soft">
+                <span className="flex items-center gap-0.5 pl-2 text-muted-foreground/70">
                   <Users className="h-3 w-3" />+{note.collaborators.length - 3}
                 </span>
               )}

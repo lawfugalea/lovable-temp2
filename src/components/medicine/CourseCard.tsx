@@ -21,12 +21,12 @@ export default function CourseCard({
   medicine, schedule, onGiveDose, onStop, onEdit, onOverride, onClearOverride, busy,
 }: CourseCardProps) {
   return (
-    <div className={`p-4 border rounded-lg ${schedule.isDue ? 'border-orange-200 bg-orange-50' : 'border-cozy-gray-200 bg-white'}`}>
+    <div className={`p-4 border rounded-lg ${schedule.isDue ? 'border-orange-200 bg-orange-50' : 'border-border bg-white'}`}>
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-cozy-text text-lg truncate">{medicine.name}</h3>
-            <p className="text-sm text-cozy-text-muted">{medicine.dosage} • {medicine.frequency}</p>
+            <h3 className="font-semibold text-foreground text-lg truncate">{medicine.name}</h3>
+            <p className="text-sm text-muted-foreground">{medicine.dosage} • {medicine.frequency}</p>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {schedule.isPrn && <Badge variant="secondary" className="text-xs">As needed</Badge>}
@@ -36,12 +36,12 @@ export default function CourseCard({
         </div>
 
         {medicine.description && (
-          <p className="text-sm text-cozy-text-muted">{medicine.description}</p>
+          <p className="text-sm text-muted-foreground">{medicine.description}</p>
         )}
 
         <div className="text-xs space-y-1">
           {schedule.lastDoseAt && (
-            <p className="text-cozy-text-muted">Last dose: {format(schedule.lastDoseAt, 'MMM dd, HH:mm')}</p>
+            <p className="text-muted-foreground">Last dose: {format(schedule.lastDoseAt, 'MMM dd, HH:mm')}</p>
           )}
           {schedule.nextDoseTime && (
             <p className={`font-medium ${schedule.isDue ? 'text-red-600' : 'text-blue-600'}`}>
@@ -61,7 +61,7 @@ export default function CourseCard({
             ) : null
           )}
           {medicine.maxDosesPer24h != null && (
-            <p className={schedule.dailyLimitReached ? 'font-medium text-red-600' : 'text-cozy-text-muted'}>
+            <p className={schedule.dailyLimitReached ? 'font-medium text-red-600' : 'text-muted-foreground'}>
               {schedule.dosesLast24h} of {medicine.maxDosesPer24h} doses in the last 24h
               {schedule.dailyLimitReached ? ' — limit reached' : ''}
             </p>
@@ -72,7 +72,7 @@ export default function CourseCard({
             </p>
           )}
           {medicine.endDate && (
-            <p className="text-cozy-text-muted">Course ends {format(new Date(medicine.endDate), 'MMM dd, yyyy')}</p>
+            <p className="text-muted-foreground">Course ends {format(new Date(medicine.endDate), 'MMM dd, yyyy')}</p>
           )}
         </div>
 

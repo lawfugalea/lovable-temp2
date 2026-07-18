@@ -44,7 +44,7 @@ export default function NotesGrid({
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="rounded-cozy-lg border border-border bg-card p-4">
+          <div key={i} className="rounded-xl border border-border bg-card p-4">
             <Skeleton className="mb-3 h-5 w-2/3" />
             <Skeleton className="mb-2 h-3 w-full" />
             <Skeleton className="mb-2 h-3 w-5/6" />
@@ -58,12 +58,12 @@ export default function NotesGrid({
   if (notes.length === 0) {
     const copy = EMPTY_COPY[activeTab]
     return (
-      <div className="py-12 text-center animate-cozy-fade-in">
+      <div className="py-12 text-center animate-fade-in">
         <div className="mb-4 text-6xl">📝</div>
-        <h3 className="mb-2 text-xl font-normal text-cozy-text">
+        <h3 className="mb-2 text-xl font-normal text-foreground">
           {searchQuery ? 'No notes found' : copy.title}
         </h3>
-        <p className="mb-4 text-cozy-text-muted">
+        <p className="mb-4 text-muted-foreground">
           {searchQuery ? 'Try adjusting your search terms' : copy.description}
         </p>
         {!searchQuery && activeTab !== 'archived' && (
@@ -77,7 +77,7 @@ export default function NotesGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 animate-cozy-fade-in sm:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 animate-fade-in sm:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
       {notes.map((note) => (
         <NoteCard
           key={note.id}

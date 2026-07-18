@@ -32,7 +32,7 @@ export default function ChildSection({
               <Baby className="h-4 w-4 text-blue-600" />
             </span>
             <span className="truncate">{child.name}</span>
-            <span className="text-sm font-normal text-cozy-text-muted whitespace-nowrap">
+            <span className="text-sm font-normal text-muted-foreground whitespace-nowrap">
               {getChildAge(child.dateOfBirth)} • Born {format(new Date(child.dateOfBirth), 'MMM dd, yyyy')}
             </span>
           </CardTitle>
@@ -40,11 +40,11 @@ export default function ChildSection({
             <Plus className="h-4 w-4" /> Start Course
           </Button>
         </div>
-        {child.notes && <p className="text-sm text-cozy-text-muted mt-1">{child.notes}</p>}
+        {child.notes && <p className="text-sm text-muted-foreground mt-1">{child.notes}</p>}
       </CardHeader>
       <CardContent>
         {courses.length === 0 ? (
-          <div className="text-center py-6 text-cozy-text-muted">
+          <div className="text-center py-6 text-muted-foreground">
             <p className="text-sm">No active medicine courses for {child.name}</p>
             <Button variant="outline" size="sm" className="mt-3" disabled={busy} onClick={() => onStartCourse(child)}>
               Start a course

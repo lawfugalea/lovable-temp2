@@ -12,7 +12,7 @@ export const getServerSideProps: GetServerSideProps<TermsPageProps> = async () =
 
 export default function TermsPage({ config }: TermsPageProps) {
   const contact = config.contactEmail ? (
-    <a className="text-cozy-primary hover:underline" href={`mailto:${config.contactEmail}`}>
+    <a className="text-primary hover:underline" href={`mailto:${config.contactEmail}`}>
       {config.contactEmail}
     </a>
   ) : (
@@ -28,9 +28,9 @@ export default function TermsPage({ config }: TermsPageProps) {
       <LegalSection title="1. The service">
         <p>
           These terms apply to this private Clankeep deployment, operated by{' '}
-          <strong className="text-cozy-text">{config.controllerName}</strong>. Clankeep helps invited household members manage shared
+          <strong className="text-foreground">{config.controllerName}</strong>. Clankeep helps invited household members manage shared
           information and, when enabled, view selected Bank of Valletta account information through Enable Banking. By using Clankeep,
-          you agree to these terms and the <a className="text-cozy-primary hover:underline" href="./privacy">Privacy Policy</a>.
+          you agree to these terms and the <a className="text-primary hover:underline" href="./privacy">Privacy Policy</a>.
         </p>
       </LegalSection>
 

@@ -30,8 +30,8 @@ export default function DueNowBanner({ dueMedicines, children, onGiveDose }: Due
             return (
               <div key={medicine.id} className="flex items-center justify-between gap-3 p-3 bg-white/70 border border-orange-200 rounded-lg">
                 <div className="min-w-0">
-                  <p className="font-medium text-cozy-text truncate">{medicine.name}</p>
-                  <p className="text-sm text-cozy-text-muted truncate">
+                  <p className="font-medium text-foreground truncate">{medicine.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">
                     {child?.name ? `${child.name} • ` : ''}{medicine.dosage} • {medicine.frequency}
                   </p>
                 </div>

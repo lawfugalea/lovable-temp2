@@ -104,8 +104,8 @@ export default function HouseholdPage() {
       <ModernAppShell title="Household">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="w-8 h-8 border-4 border-cozy-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-cozy-text-muted">Loading your household...</p>
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your household...</p>
           </div>
         </div>
       </ModernAppShell>
@@ -129,8 +129,8 @@ export default function HouseholdPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-cozy-text">Household</h1>
-          <p className="text-cozy-text-muted">Manage your household members and settings</p>
+          <h1 className="text-3xl font-bold text-foreground">Household</h1>
+          <p className="text-muted-foreground">Manage your household members and settings</p>
         </div>
 
         {household ? (
@@ -208,8 +208,8 @@ export default function HouseholdPage() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <div className="text-6xl mb-4">⚠️</div>
-                  <h2 className="text-xl font-semibold text-cozy-text mb-2">Error Loading Household</h2>
-                  <p className="text-cozy-text-muted mb-4">{householdError}</p>
+                  <h2 className="text-xl font-semibold text-foreground mb-2">Error Loading Household</h2>
+                  <p className="text-muted-foreground mb-4">{householdError}</p>
                   <div className="flex gap-3 justify-center">
                     <Button 
                       onClick={() => window.location.reload()}
@@ -236,8 +236,8 @@ export default function HouseholdPage() {
               <Card>
                 <CardContent className="p-8 text-center">
                   <div className="text-6xl mb-4">🏠</div>
-                  <h2 className="text-xl font-semibold text-cozy-text mb-2">Welcome to Houseflow!</h2>
-                  <p className="text-cozy-text-muted mb-6">
+                  <h2 className="text-xl font-semibold text-foreground mb-2">Welcome to Houseflow!</h2>
+                  <p className="text-muted-foreground mb-6">
                     Create your household to start managing your home, family, and daily tasks together.
                   </p>
                   <div className="space-y-3">
@@ -248,7 +248,7 @@ export default function HouseholdPage() {
                       <Home className="w-4 h-4 mr-2" />
                       Create Your Household
                     </Button>
-                    <p className="text-sm text-cozy-text-muted">
+                    <p className="text-sm text-muted-foreground">
                       Or join an existing household with an invite link
                     </p>
                   </div>

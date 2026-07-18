@@ -36,7 +36,7 @@ export default function DoseHistory({ doses, medicines, children, onEdit, onDele
       </CardHeader>
       <CardContent>
         {recent.length === 0 ? (
-          <div className="text-center py-8 text-cozy-text-muted">
+          <div className="text-center py-8 text-muted-foreground">
             <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
             <p>No doses recorded yet</p>
           </div>
@@ -47,13 +47,13 @@ export default function DoseHistory({ doses, medicines, children, onEdit, onDele
               const child = children.find((c) => c.id === dose.childId)
               const takenAt = new Date(dose.takenAt)
               return (
-                <div key={dose.id} className="flex items-center justify-between gap-3 p-4 border border-cozy-gray-200 rounded-lg">
+                <div key={dose.id} className="flex items-center justify-between gap-3 p-4 border border-border rounded-lg">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-cozy-text truncate">{medicine?.name || 'Medicine'}</h3>
-                    <p className="text-sm text-cozy-text-muted">
+                    <h3 className="font-semibold text-foreground truncate">{medicine?.name || 'Medicine'}</h3>
+                    <p className="text-sm text-muted-foreground">
                       {child?.name ? `${child.name} • ` : ''}{dose.dosage} • {format(takenAt, 'MMM dd, yyyy HH:mm')}
                     </p>
-                    {dose.notes && <p className="text-sm text-cozy-text-muted mt-1">{dose.notes}</p>}
+                    {dose.notes && <p className="text-sm text-muted-foreground mt-1">{dose.notes}</p>}
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <Badge variant="outline">{doseDayLabel(takenAt)}</Badge>

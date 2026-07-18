@@ -165,7 +165,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
             type="button"
             disabled={processing || status !== 'authenticated'}
             onClick={processInvite}
-            className="rounded-lg bg-cozy-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {processing ? 'Joining…' : 'Accept invitation'}
           </button>

@@ -12,7 +12,7 @@ export const getServerSideProps: GetServerSideProps<PrivacyPageProps> = async ()
 
 export default function PrivacyPage({ config }: PrivacyPageProps) {
   const contact = config.contactEmail ? (
-    <a className="text-cozy-primary hover:underline" href={`mailto:${config.contactEmail}`}>
+    <a className="text-primary hover:underline" href={`mailto:${config.contactEmail}`}>
       {config.contactEmail}
     </a>
   ) : (
@@ -27,7 +27,7 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
     >
       <LegalSection title="1. Who is responsible for your data">
         <p>
-          The data controller for this Clankeep deployment is <strong className="text-cozy-text">{config.controllerName}</strong>.
+          The data controller for this Clankeep deployment is <strong className="text-foreground">{config.controllerName}</strong>.
           This is a privately operated household service, not a Bank of Valletta or Enable Banking service.
           Privacy questions and requests can be sent to {contact}.
         </p>
@@ -70,7 +70,7 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
         </p>
         <p>
           You can review or end Enable Banking consents through its{' '}
-          <a className="text-cozy-primary hover:underline" href="https://enablebanking.com/data-sharing-consents/" rel="noreferrer" target="_blank">
+          <a className="text-primary hover:underline" href="https://enablebanking.com/data-sharing-consents/" rel="noreferrer" target="_blank">
             data-sharing consent portal
           </a>.
         </p>
@@ -95,18 +95,18 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           DeepSeek&apos;s privacy notice and is disabled unless the finance owner gives explicit, informed consent after reviewing the redacted
           information that will be sent. If a provider processes data outside the EEA, the operator must assess and use an applicable GDPR
           transfer mechanism or derogation and make further information available on request. See{' '}
-          <a className="text-cozy-primary hover:underline" href="https://tilisy.enablebanking.com/privacy" rel="noreferrer" target="_blank">
+          <a className="text-primary hover:underline" href="https://tilisy.enablebanking.com/privacy" rel="noreferrer" target="_blank">
             Enable Banking&apos;s privacy notice
           </a>{' '}
           and{' '}
-          <a className="text-cozy-primary hover:underline" href="https://www.bov.com/website-privacy-policy" rel="noreferrer" target="_blank">
+          <a className="text-primary hover:underline" href="https://www.bov.com/website-privacy-policy" rel="noreferrer" target="_blank">
             BOV&apos;s privacy notice
           </a>{' '}
           for their own processing.
         </p>
         <p>
           DeepSeek&apos;s{' '}
-          <a className="text-cozy-primary hover:underline" href="https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html?locale=en_US" rel="noreferrer" target="_blank">
+          <a className="text-primary hover:underline" href="https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html?locale=en_US" rel="noreferrer" target="_blank">
             privacy policy
           </a>{' '}
           states that submitted information may be used to improve its services. Clankeep therefore sends no raw transactions, account
@@ -136,7 +136,7 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
         </p>
         <p>
           You may also lodge a complaint with Malta&apos;s{' '}
-          <a className="text-cozy-primary hover:underline" href="https://idpc.org.mt/file-a-complaint/" rel="noreferrer" target="_blank">
+          <a className="text-primary hover:underline" href="https://idpc.org.mt/file-a-complaint/" rel="noreferrer" target="_blank">
             Information and Data Protection Commissioner
           </a>.
         </p>

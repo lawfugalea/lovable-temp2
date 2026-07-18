@@ -224,7 +224,7 @@ export default function DashboardPage() {
   return (
     <ModernAppShell title="Overview">
       <div className="space-y-6 sm:space-y-8">
-        <section className="relative overflow-hidden rounded-2xl border bg-card px-6 py-7 shadow-cozy-sm sm:px-8 sm:py-9">
+        <section className="relative overflow-hidden rounded-2xl border bg-card px-6 py-7 shadow-soft-sm sm:px-8 sm:py-9">
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-accent/80 blur-3xl" />
           <div className="relative flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">

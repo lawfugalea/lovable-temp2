@@ -112,13 +112,13 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
       {/* Progress indicator */}
       <div className="flex items-center justify-center space-x-4 mb-8">
         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-          step >= 1 ? 'bg-cozy-primary text-white' : 'bg-cozy-gray-200 text-cozy-text-muted'
+          step >= 1 ? 'bg-primary text-white' : 'bg-border text-muted-foreground'
         }`}>
           1
         </div>
-        <div className={`w-16 h-1 ${step >= 2 ? 'bg-cozy-primary' : 'bg-cozy-gray-200'}`}></div>
+        <div className={`w-16 h-1 ${step >= 2 ? 'bg-primary' : 'bg-border'}`}></div>
         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-          step >= 2 ? 'bg-cozy-primary text-white' : 'bg-cozy-gray-200 text-cozy-text-muted'
+          step >= 2 ? 'bg-primary text-white' : 'bg-border text-muted-foreground'
         }`}>
           2
         </div>
@@ -138,20 +138,20 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
           <CardContent className="space-y-6">
             {/* Suggested names */}
             <div>
-              <h3 className="text-sm font-medium text-cozy-text mb-3">Suggested Names</h3>
+              <h3 className="text-sm font-medium text-foreground mb-3">Suggested Names</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {suggestions.slice(0, 6).map((suggestion, index) => (
                   <button
                     key={index}
                     onClick={() => handleSuggestionSelect(suggestion)}
-                    className={`p-3 text-left border rounded-lg transition-all hover:border-cozy-primary hover:bg-cozy-primary/5 ${
+                    className={`p-3 text-left border rounded-lg transition-all hover:border-primary hover:bg-primary/5 ${
                       householdName === suggestion.name 
-                        ? 'border-cozy-primary bg-cozy-primary/10' 
-                        : 'border-cozy-gray-200'
+                        ? 'border-primary bg-primary/10' 
+                        : 'border-border'
                     }`}
                   >
-                    <div className="font-medium text-cozy-text">{suggestion.name}</div>
-                    <div className="text-xs text-cozy-text-muted mt-1">{suggestion.description}</div>
+                    <div className="font-medium text-foreground">{suggestion.name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{suggestion.description}</div>
                   </button>
                 ))}
               </div>
@@ -159,7 +159,7 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
 
             {/* Custom name input */}
             <div>
-              <h3 className="text-sm font-medium text-cozy-text mb-3">Or create your own</h3>
+              <h3 className="text-sm font-medium text-foreground mb-3">Or create your own</h3>
               <Input
                 type="text"
                 placeholder="Enter a custom household name"
@@ -198,14 +198,14 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Household summary */}
-            <div className="bg-cozy-primary/5 border border-cozy-primary/20 rounded-lg p-4">
+            <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-cozy-primary rounded-lg flex items-center justify-center text-white text-xl">
+                <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center text-white text-xl">
                   🏡
                 </div>
                 <div>
-                  <div className="font-semibold text-cozy-text text-lg">{householdName}</div>
-                  <div className="text-sm text-cozy-text-muted">
+                  <div className="font-semibold text-foreground text-lg">{householdName}</div>
+                  <div className="text-sm text-muted-foreground">
                     {householdTypes.find(t => t.id === householdType)?.description}
                   </div>
                 </div>
@@ -214,21 +214,21 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
 
             {/* Features preview */}
             <div>
-              <h3 className="text-sm font-medium text-cozy-text mb-3">What you&apos;ll get:</h3>
+              <h3 className="text-sm font-medium text-foreground mb-3">What you&apos;ll get:</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="flex items-center gap-2 text-sm text-cozy-text-muted">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Users className="w-4 h-4" />
                   Invite family members
                 </div>
-                <div className="flex items-center gap-2 text-sm text-cozy-text-muted">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Home className="w-4 h-4" />
                   Shared shopping lists
                 </div>
-                <div className="flex items-center gap-2 text-sm text-cozy-text-muted">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Heart className="w-4 h-4" />
                   Medicine tracking
                 </div>
-                <div className="flex items-center gap-2 text-sm text-cozy-text-muted">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <User className="w-4 h-4" />
                   Shared finance visibility
                 </div>

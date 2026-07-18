@@ -183,7 +183,7 @@ export default function SlashMenu({ editor, noteId, isOpen, onClose, position }:
   return (
     <div
       ref={menuRef}
-      className="fixed z-50 min-w-[280px] max-w-[320px] rounded-cozy-lg border border-border bg-popover shadow-cozy-md animate-cozy-fade-in"
+      className="fixed z-50 min-w-[280px] max-w-[320px] rounded-xl border border-border bg-popover shadow-soft animate-fade-in"
       style={{
         top: position.top,
         left: position.left,

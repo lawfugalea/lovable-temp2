@@ -644,7 +644,7 @@ export default function ShoppingPage() {
   return (
     <ModernAppShell title="Shopping">
       <div className="mx-auto max-w-6xl space-y-4 pb-12">
-        <header className="space-y-3 rounded-xl border bg-card p-3 shadow-cozy-sm sm:p-4">
+        <header className="space-y-3 rounded-xl border bg-card p-3 shadow-soft-sm sm:p-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div className="min-w-0 flex-1">
               <label htmlFor="shopping-list-select" className="sr-only">Current shopping list</label>
@@ -815,7 +815,7 @@ export default function ShoppingPage() {
             </Card>
           </div>
         ) : (
-          <div role="tabpanel" aria-label="Supermarket comparison" className="rounded-xl border bg-card p-4 shadow-cozy-sm sm:p-6">
+          <div role="tabpanel" aria-label="Supermarket comparison" className="rounded-xl border bg-card p-4 shadow-soft-sm sm:p-6">
             <SupermarketComparisonPanel comparison={comparison} loading={comparisonLoading} error={comparisonError} onRetry={refreshComparison} onMatch={openMatch} />
           </div>
         )}
