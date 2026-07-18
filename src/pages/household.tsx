@@ -129,7 +129,7 @@ export default function HouseholdPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Household</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground">Household</h1>
           <p className="text-muted-foreground">Manage your household members and settings</p>
         </div>
 

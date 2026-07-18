@@ -65,30 +65,44 @@ type SummaryCardProps = {
   href: string
   action: string
   icon: React.ComponentType<{ className?: string }>
-  tone: "sage" | "coral" | "amber"
+  tone: "shopping" | "finances" | "medicine"
+  delayClass?: string
 }
 
 const summaryTones = {
-  sage: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-  coral: "bg-primary/10 text-primary ring-primary/10",
-  amber: "bg-amber-50 text-amber-700 ring-amber-100",
+  shopping: {
+    tile: "bg-module-shopping/10 text-module-shopping ring-module-shopping/15",
+    link: "text-module-shopping hover:bg-module-shopping/10 hover:text-module-shopping",
+    hover: "hover:border-module-shopping/30",
+  },
+  finances: {
+    tile: "bg-module-finances/10 text-module-finances ring-module-finances/15",
+    link: "text-module-finances hover:bg-module-finances/10 hover:text-module-finances",
+    hover: "hover:border-module-finances/30",
+  },
+  medicine: {
+    tile: "bg-module-medicine/10 text-module-medicine ring-module-medicine/15",
+    link: "text-module-medicine hover:bg-module-medicine/10 hover:text-module-medicine",
+    hover: "hover:border-module-medicine/30",
+  },
 }
 
-function SummaryCard({ eyebrow, title, description, href, action, icon: Icon, tone }: SummaryCardProps) {
+function SummaryCard({ eyebrow, title, description, href, action, icon: Icon, tone, delayClass }: SummaryCardProps) {
+  const tones = summaryTones[tone]
   return (
-    <Card className="group overflow-hidden transition-colors hover:border-primary/25">
+    <Card className={cn("group animate-rise overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-soft", tones.hover, delayClass)}>
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between gap-4">
-          <div className={cn("grid h-11 w-11 place-items-center rounded-xl ring-1", summaryTones[tone])}>
+          <div className={cn("grid h-11 w-11 place-items-center rounded-xl ring-1", tones.tile)}>
             <Icon className="h-5 w-5" aria-hidden="true" />
           </div>
           <Badge variant="outline" className="font-medium text-muted-foreground">{eyebrow}</Badge>
         </div>
       </CardHeader>
       <CardContent>
-        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+        <h2 className="font-display text-xl font-semibold tracking-tight">{title}</h2>
         <p className="mt-2 min-h-[44px] text-sm leading-relaxed text-muted-foreground">{description}</p>
-        <Button asChild variant="ghost" className="mt-5 -ml-3 text-primary hover:bg-primary/10 hover:text-primary">
+        <Button asChild variant="ghost" className={cn("mt-5 -ml-3", tones.link)}>
           <Link href={href}>{action}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></Link>
         </Button>
       </CardContent>
@@ -232,7 +246,7 @@ export default function DashboardPage() {
               <div className="mb-3 flex items-center gap-2 text-sm font-medium text-primary">
                 <Sparkles className="h-4 w-4" aria-hidden="true" /> Your household at a glance
               </div>
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Welcome home{firstName ? `, ${firstName}` : ""}.</h2>
+              <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Welcome home{firstName ? `, ${firstName}` : ""}.</h2>
               <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground">
                 Keep today&apos;s lists, money, medicines and shared plans moving from one calm workspace.
               </p>
@@ -267,7 +281,7 @@ export default function DashboardPage() {
         <section aria-labelledby="household-summary-heading">
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
-              <h2 id="household-summary-heading" className="text-xl font-semibold tracking-tight">Household summary</h2>
+              <h2 id="household-summary-heading" className="font-display text-xl font-semibold tracking-tight">Household summary</h2>
               <p className="mt-1 text-sm text-muted-foreground">The things that may need your attention today.</p>
             </div>
           </div>
@@ -279,7 +293,7 @@ export default function DashboardPage() {
               href="/shopping"
               action="Open shopping"
               icon={ShoppingBasket}
-              tone="sage"
+              tone="shopping"
             />
             <SummaryCard
               eyebrow={`${financeSummary.accountCount} account${financeSummary.accountCount === 1 ? "" : "s"}`}
@@ -288,7 +302,8 @@ export default function DashboardPage() {
               href="/finances"
               action="View finances"
               icon={CircleDollarSign}
-              tone="coral"
+              tone="finances"
+              delayClass="animation-delay-100"
             />
             <SummaryCard
               eyebrow={dueMedicines.length ? `${dueMedicines.length} due` : "On schedule"}
@@ -297,7 +312,8 @@ export default function DashboardPage() {
               href="/medicine"
               action="Open medicine"
               icon={HeartPulse}
-              tone="amber"
+              tone="medicine"
+              delayClass="animation-delay-200"
             />
           </div>
         </section>
@@ -312,7 +328,7 @@ export default function DashboardPage() {
               <div className="divide-y rounded-lg border">
                 {recentDoses.slice(0, 3).map((dose) => (
                   <div key={dose.id} className="flex items-start gap-3 p-4">
-                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><HeartPulse className="h-4 w-4" /></span>
+                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-module-medicine/10 text-module-medicine"><HeartPulse className="h-4 w-4" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">{dose.medicine.name} recorded for {dose.child.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -323,7 +339,7 @@ export default function DashboardPage() {
                 ))}
                 {shoppingLists.slice(0, Math.max(1, 4 - recentDoses.slice(0, 3).length)).map((list) => (
                   <div key={list.id} className="flex items-start gap-3 p-4">
-                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-emerald-50 text-emerald-700"><ShoppingBasket className="h-4 w-4" /></span>
+                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-module-shopping/10 text-module-shopping"><ShoppingBasket className="h-4 w-4" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{list.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{list.itemCount} item{list.itemCount === 1 ? "" : "s"} in this shopping list</p>

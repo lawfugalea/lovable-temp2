@@ -437,7 +437,7 @@ export default function FinancesPage() {
               <ShieldCheck className="w-4 h-4" />
               Read-only open banking
             </div>
-            <h1 className="text-3xl font-bold text-foreground">Your money, in one calm view</h1>
+            <h1 className="font-display text-3xl font-bold text-foreground">Your money, in one calm view</h1>
             <p className="text-muted-foreground mt-1">Balances and activity from Bank of Valletta.</p>
           </div>
           {overview?.canManage && overview.connections.length > 0 && (
@@ -571,7 +571,7 @@ export default function FinancesPage() {
                   <p className="text-sm text-white/75">Total visible balance</p>
                   <div className="mt-3 space-y-1">
                     {overview.totals.map(total => (
-                      <div key={total.currency} className="text-3xl font-bold tracking-tight">
+                      <div key={total.currency} className="font-display text-3xl font-bold tabular-nums tracking-tight">
                         {currency(total.amount, total.currency)}
                       </div>
                     ))}
@@ -637,7 +637,7 @@ export default function FinancesPage() {
                           {account.shared ? 'Shared' : 'Private'}
                         </Badge>
                       </div>
-                      <div className="mt-5 text-2xl font-bold">
+                      <div className="mt-5 font-display text-2xl font-bold tabular-nums">
                         {account.balance ? currency(account.balance.amount, account.balance.currency) : '—'}
                       </div>
                       <div className="mt-4 flex items-center justify-between gap-2">

@@ -230,7 +230,7 @@ export default function MedicinePage() {
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-primary"><HeartPulse className="h-4 w-4" /> Child health journal</div>
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Doses, temperatures and context—in one timeline.</h1>
+              <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Doses, temperatures and context—in one timeline.</h1>
               <p className="mt-3 text-muted-foreground">Record what was actually given first. A schedule is optional and can be added from the exact packaging, leaflet, or clinician instruction when you want timing checks and reminders.</p>
             </div>
             <div className="flex flex-wrap gap-2">

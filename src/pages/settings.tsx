@@ -7,23 +7,84 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import {
-  User, 
-  Bell, 
-  Shield, 
+  User,
+  Bell,
+  Shield,
   Database,
   Save,
   Eye,
   EyeOff,
   LogOut,
-  Key
+  Key,
+  Monitor,
+  Moon,
+  Palette,
+  Sun
 } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { cn } from '@/lib/utils'
 
 const SETTINGS_TABS = [
   { id: 'profile', name: 'Profile', icon: User },
+  { id: 'appearance', name: 'Appearance', icon: Palette },
   { id: 'notifications', name: 'Notifications', icon: Bell },
   { id: 'privacy', name: 'Privacy & Security', icon: Shield },
   { id: 'data', name: 'Data & Storage', icon: Database },
 ]
+
+const THEME_OPTIONS = [
+  { value: 'light', name: 'Light', description: 'Bright and airy, all day', icon: Sun },
+  { value: 'dark', name: 'Dark', description: 'Easy on late-night eyes', icon: Moon },
+  { value: 'system', name: 'System', description: 'Follow this device', icon: Monitor },
+]
+
+function AppearanceCard() {
+  const { theme, setTheme } = useTheme()
+  const active = theme ?? 'system'
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Palette className="w-5 h-5" />
+          Theme
+        </CardTitle>
+        <CardDescription>Choose how Clankeep looks on this device</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Theme">
+          {THEME_OPTIONS.map((option) => {
+            const Icon = option.icon
+            const selected = active === option.value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => setTheme(option.value)}
+                className={cn(
+                  'flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-all',
+                  selected
+                    ? 'border-primary bg-primary/5 shadow-soft-sm'
+                    : 'hover:border-primary/30 hover:bg-accent/50'
+                )}
+              >
+                <span className={cn(
+                  'grid h-9 w-9 place-items-center rounded-lg',
+                  selected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                )}>
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span className="text-sm font-semibold">{option.name}</span>
+                <span className="text-xs text-muted-foreground">{option.description}</span>
+              </button>
+            )
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function SettingsPage() {
   const { data: session, status, update } = useSession()
@@ -183,7 +244,7 @@ export default function SettingsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Settings</h1>
+          <h1 className="font-display text-3xl font-bold text-foreground">Settings</h1>
           <p className="text-muted-foreground">Manage your account and preferences</p>
         </div>
 
@@ -311,6 +372,9 @@ export default function SettingsPage() {
                 </Card>
               </>
             )}
+
+            {/* Appearance Tab */}
+            {activeTab === 'appearance' && <AppearanceCard />}
 
             {activeTab === 'notifications' && (
               <Card>
