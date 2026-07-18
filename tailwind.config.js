@@ -32,6 +32,8 @@ module.exports = {
 				purple: 'hsl(var(--brand-purple) / <alpha-value>)',
 				teal: 'hsl(var(--brand-teal) / <alpha-value>)',
 				coral: 'hsl(var(--brand-coral) / <alpha-value>)',
+				amber: 'hsl(var(--brand-amber) / <alpha-value>)',
+				green: 'hsl(var(--brand-green) / <alpha-value>)',
 				dark: '#0F172A',
 				heading: '#111827',
 				body: '#4B5563',
@@ -77,7 +79,9 @@ module.exports = {
   				shopping: 'hsl(var(--module-shopping) / <alpha-value>)',
   				finances: 'hsl(var(--module-finances) / <alpha-value>)',
   				medicine: 'hsl(var(--module-medicine) / <alpha-value>)',
-  				notes: 'hsl(var(--module-notes) / <alpha-value>)'
+  				notes: 'hsl(var(--module-notes) / <alpha-value>)',
+  				meals: 'hsl(var(--module-meals) / <alpha-value>)',
+  				chores: 'hsl(var(--module-chores) / <alpha-value>)'
   			},
   		},
 		backgroundImage: {

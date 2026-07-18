@@ -33,12 +33,16 @@
     --brand-purple: 250 100% 69%;
     --brand-teal: 181 72% 45%;
     --brand-coral: 0 100% 71%;
+    --brand-amber: 32 95% 48%;
+    --brand-green: 152 60% 40%;
 
     /* Module colour coding. */
     --module-shopping: var(--brand-teal);
     --module-finances: var(--brand-blue);
     --module-medicine: var(--brand-coral);
     --module-notes: var(--brand-purple);
+    --module-meals: var(--brand-amber);
+    --module-chores: var(--brand-green);
 
     /* Shadows derive from this, never from --foreground. */
     --shadow-color: 221 39% 11%;
@@ -74,6 +78,8 @@
     --brand-purple: 250 100% 75%;
     --brand-teal: 181 65% 52%;
     --brand-coral: 0 90% 74%;
+    --brand-amber: 36 92% 58%;
+    --brand-green: 152 55% 52%;
 
     --shadow-color: 222 47% 4%;
   }

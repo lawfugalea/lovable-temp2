@@ -28,6 +28,8 @@ const moduleCommandMeta: Record<ModuleKey, { description: string; keywords: stri
   finances: { description: 'View connected balances and transactions', keywords: ['finances', 'money', 'bank', 'balance', 'transactions'] },
   medicine: { description: 'Track medicines and schedules', keywords: ['medicine', 'medication', 'children', 'kids', 'health'] },
   notes: { description: 'Manage your personal and shared notes', keywords: ['notes', 'writing', 'personal', 'shared', 'memo', 'journal'] },
+  meals: { description: "Plan the week's dinners and shop for ingredients", keywords: ['meals', 'dinner', 'recipes', 'cooking', 'ingredients', 'plan'] },
+  chores: { description: 'Manage recurring household chores', keywords: ['chores', 'tasks', 'cleaning', 'rota', 'housework'] },
 }
 
 interface CommandItem {

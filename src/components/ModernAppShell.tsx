@@ -317,6 +317,12 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="More navigation">
         <div>
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+            Household
+          </p>
+          {moduleLinks}
+        </div>
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
             Manage
           </p>
           {manageLinks}
@@ -373,7 +379,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
         </main>
       </div>
 
-      <BottomTabBar />
+      <BottomTabBar onOpenMore={() => setSidebarOpen(true)} />
       <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
     </div>
   )
