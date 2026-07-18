@@ -470,9 +470,9 @@ export default function FinancesPage() {
           <UpgradeGate
             icon={ShieldCheck}
             module="finances"
-            title="See the whole household&rsquo;s money in one calm view"
-            description="The Family plan connects your bank read-only through official open banking — balances, transactions, a subscription radar, and AI spending insights, shared on your terms."
-            bullets={['Read-only — Clankeep can never move money', 'Bank of Valletta via Enable Banking', 'You choose what the household sees']}
+            title="Plan the household&rsquo;s money in one calm view"
+            description="The Family plan adds a private money planner — map income and outgoings, set budgets and savings goals, and let the built-in coach keep the plan honest. Everything stays in your household."
+            bullets={['Income & outgoings in one view', 'Savings goals with progress', 'No bank logins needed']}
           />
         </div>
       </ModernAppShell>

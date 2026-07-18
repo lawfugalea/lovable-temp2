@@ -56,10 +56,10 @@ const bentoFeatures = [
   {
     icon: Landmark,
     tone: 'blue',
-    title: 'Finances, visible — never touchable',
+    title: 'A money planner that stays private',
     description:
-      'Connect Bank of Valletta read-only through official open banking. See balances and transactions together, catch subscriptions before they renew, get AI spending insights, and decide exactly what the household sees. Part of the Family plan.',
-    bullets: ['Read-only — can never move money', 'Subscription radar & AI insights', 'Per-account sharing controls', 'Family plan · €4.99/mo'],
+      'Map what comes in, what goes out, and what’s left to direct — with budgets, savings goals, and a coach that keeps the plan honest. No bank logins, no data leaving your home. Part of the Family plan.',
+    bullets: ['Income & outgoings in one view', 'Savings goals with progress', 'Built-in planning coach'],
   },
   {
     icon: FileText,
@@ -93,7 +93,7 @@ const steps = [
   {
     number: '03',
     title: 'Move the chaos in',
-    description: 'Shopping lists, medicine schedules, notes, and the optional bank connections your home actually uses.',
+    description: 'Shopping lists, medicine schedules, chores, and the notes your home actually uses.',
   },
 ]
 
@@ -177,7 +177,7 @@ export default function LandingPage() {
         <title>ClanKeep — Together. Organised. At home.</title>
         <meta
           name="description"
-          content="The self-hosted household HQ: shared shopping with Malta supermarket price comparison, medicine schedules with reminders, read-only bank visibility, and notes — all in one private home."
+          content="The self-hosted household HQ: shared shopping with Malta supermarket price comparison, meal planning, chores, medicine schedules with reminders, and notes — all in one private home."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/png" href={withBasePath('/logo.png')} />
@@ -247,7 +247,7 @@ export default function LandingPage() {
 
                 <p className="lp-rise mt-6 max-w-xl text-lg leading-relaxed text-brand-body sm:text-xl" style={{ animationDelay: '180ms' }}>
                   ClanKeep is the household HQ that keeps shopping lists, medicine
-                  schedules, family finances, and shared notes in one calm, private
+                  schedules, chores, and shared notes in one calm, private
                   place — and even tells you which Malta supermarket has the
                   cheapest basket this week.
                 </p>
@@ -501,7 +501,7 @@ export default function LandingPage() {
                   One calm HQ.
                 </h2>
                 <p className="mt-5 text-lg leading-relaxed text-brand-body">
-                  The shopping app, the pill reminder, the banking app, the notes
+                  The shopping app, the pill reminder, the chore rota, the notes
                   app, and the group chat that glues them together — replaced by
                   one place the whole household actually shares.
                 </p>
@@ -644,9 +644,7 @@ export default function LandingPage() {
                   <ul className="mt-6 flex-1 space-y-3 text-[15px] text-brand-body">
                     {[
                       'Everything in Free',
-                      'Shared finances — read-only open banking (BOV)',
-                      'Subscription radar for recurring payments',
-                      'AI spending insights',
+                      'Private money planner — budgets, goals & coach',
                       'Medicine for unlimited children',
                       'Push reminders for doses',
                       'PDF health reports for the doctor',
@@ -683,7 +681,7 @@ export default function LandingPage() {
                     Your family’s data sleeps at home too.
                   </h2>
                   <p className="mt-6 max-w-xl text-lg leading-relaxed text-brand-body">
-                    Medicine schedules, bank transactions, kids’ health journals —
+                    Medicine schedules, kids’ health journals, family routines —
                     this is the most personal data a family has. ClanKeep’s answer
                     is simple: it never leaves your house.
                   </p>

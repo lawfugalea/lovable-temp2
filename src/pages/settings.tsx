@@ -49,8 +49,7 @@ interface BillingSummary {
 }
 
 const FAMILY_FEATURES = [
-  'Shared finances with open banking (read-only)',
-  'Subscription radar & AI spending insights',
+  'Private money planner — budgets, goals & coach',
   'Medicine for unlimited children',
   'Push reminders for doses',
   'PDF health reports',
