@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
+import { rejectDemoUser } from '@/lib/demo';
 import type { InviteStatus, MemberRole } from '@prisma/client';
 import { sendInviteEmail } from '@/lib/mailer';
 import { requireMembershipIn } from '@/lib/api-guards';
@@ -58,6 +59,7 @@ async function createInvite(req: NextApiRequest, res: NextApiResponse) {
 
   const context = await requireMembershipIn(req, res, householdId, { ownerOnly: true });
   if (!context) return;
+  if (await rejectDemoUser(res, context.userId, 'Inviting people')) return;
 
   if (!role || (role !== 'OWNER' && role !== 'MEMBER')) {
     return res.status(400).json({ error: 'Invalid role' });

@@ -2,8 +2,11 @@ import { useEffect } from 'react'
 import Head from 'next/head'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { useState } from 'react'
+import { signIn } from 'next-auth/react'
 import {
   ArrowRight,
+  Loader2,
   BadgeCheck,
   BellRing,
   Check,
@@ -140,12 +143,32 @@ const toneStyles: Record<string, { chip: string; icon: string }> = {
   purple: { chip: 'bg-brand-purple/10', icon: 'text-brand-purple' },
 }
 
+const demoEnabled = process.env.NEXT_PUBLIC_DEMO_MODE_ENABLED === 'true'
+
 export default function LandingPage() {
   const router = useRouter()
+  const [demoBusy, setDemoBusy] = useState(false)
+  const [demoError, setDemoError] = useState('')
   useReveal()
 
   const handleGetStarted = () => router.push('/register')
   const handleLogin = () => router.push('/login')
+
+  const handleTryDemo = async () => {
+    setDemoBusy(true)
+    setDemoError('')
+    try {
+      const response = await fetch('/api/demo/start', { method: 'POST' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(typeof data.error === 'string' ? data.error : 'The demo is unavailable right now')
+      const result = await signIn('credentials', { email: data.email, password: data.password, redirect: false })
+      if (result?.error) throw new Error('The demo is unavailable right now')
+      void router.push('/dashboard')
+    } catch (error) {
+      setDemoError(error instanceof Error ? error.message : 'The demo is unavailable right now')
+      setDemoBusy(false)
+    }
+  }
 
   return (
     <>
@@ -243,7 +266,19 @@ export default function LandingPage() {
                   >
                     Sign in
                   </button>
+                  {demoEnabled && (
+                    <button
+                      type="button"
+                      onClick={() => void handleTryDemo()}
+                      disabled={demoBusy}
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-brand-purple/25 bg-brand-purple/5 px-8 py-4 text-base font-semibold text-brand-purple transition-all hover:-translate-y-0.5 hover:bg-brand-purple/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple disabled:opacity-60"
+                    >
+                      {demoBusy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+                      {demoBusy ? 'Setting up your demo…' : 'Try the demo'}
+                    </button>
+                  )}
                 </div>
+                {demoError && <p className="lp-rise mt-3 text-sm font-medium text-brand-coral">{demoError}</p>}
 
                 <div className="lp-rise mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm font-medium text-brand-body" style={{ animationDelay: '360ms' }}>
                   <span className="inline-flex items-center gap-2">

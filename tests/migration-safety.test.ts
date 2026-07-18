@@ -35,6 +35,10 @@ const mealsMigration = readFileSync(
   join(process.cwd(), 'prisma/migrations/20260718150000_meal_planner/migration.sql'),
   'utf8',
 )
+const demoMigration = readFileSync(
+  join(process.cwd(), 'prisma/migrations/20260718180000_demo_mode/migration.sql'),
+  'utf8',
+)
 
 test('schema reconciliation adds every missing application model', () => {
   assert.match(migration, /User_email_lower_key/)
@@ -128,4 +132,10 @@ test('meal planner migration is additive with correct cascade semantics', () => 
   assert.match(mealsMigration, /RecipeIngredient_canonicalProductId_fkey[\s\S]*ON DELETE SET NULL/)
   assert.match(mealsMigration, /MealPlanEntry_householdId_date_slot_key/)
   assert.doesNotMatch(mealsMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
+})
+
+test('demo mode migration is additive and defaults everyone to non-demo', () => {
+  assert.match(demoMigration, /ADD COLUMN "isDemo" BOOLEAN NOT NULL DEFAULT false/)
+  assert.match(demoMigration, /ADD COLUMN "demoExpiresAt" TIMESTAMP/)
+  assert.doesNotMatch(demoMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
 })

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getUserIdOr401 } from '@/lib/api-guards';
+import { rejectDemoUser } from '@/lib/demo';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -9,6 +10,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   const userId = await getUserIdOr401(req, res);
   if (!userId) return;
+  if (await rejectDemoUser(res, userId, 'Exporting data')) return;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },

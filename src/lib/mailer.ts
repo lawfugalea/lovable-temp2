@@ -19,6 +19,9 @@ export async function sendInviteEmail({
   inviterName,
   householdName,
 }: SendInviteArgs): Promise<MailResult> {
+  if (/@demo\.clankeep\.invalid$/i.test(String(to ?? ''))) {
+    throw new Error('Demo accounts cannot send email');
+  }
   const apiKey = process.env.RESEND_API_KEY;
   const fromHeader = (process.env.INVITES_FROM || process.env.MAIL_FROM || '').trim();
   const requiredDomain = (process.env.INVITES_FROM_DOMAIN || 'clankeep.com').trim().toLowerCase();

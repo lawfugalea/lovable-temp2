@@ -33,6 +33,7 @@ import {
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/Sheet"
 import CommandPalette from "./CommandPalette"
 import BottomTabBar from "./BottomTabBar"
+import DemoBanner from "./DemoBanner"
 import BrandLogo from "./BrandLogo"
 
 const manageItems = [
@@ -345,6 +346,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       </Sheet>
 
       <div className="min-w-0">
+        <DemoBanner />
         <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75">
           <div className="flex h-[72px] items-center gap-3 px-4 sm:px-6 lg:px-8">
             <Button variant="outline" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">

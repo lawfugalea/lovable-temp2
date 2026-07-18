@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import ModernAppShell from "@/components/ModernAppShell"
 import ChoreTodayList, { todayItemKey, type TodayChoreItem } from "@/components/chores/ChoreTodayList"
+import OnboardingChecklist from "@/components/OnboardingChecklist"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/Alert"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -349,6 +350,8 @@ export default function DashboardPage() {
             </AlertDescription>
           </Alert>
         )}
+
+        <OnboardingChecklist />
 
         <section aria-labelledby="household-summary-heading">
           <div className="mb-4 flex items-end justify-between gap-4">

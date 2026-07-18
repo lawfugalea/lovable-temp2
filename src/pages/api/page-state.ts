@@ -5,7 +5,7 @@ import { authOptions } from '@/pages/api/auth/[...nextauth]';
 
 // Legacy finance PageState rows are intentionally retained for export, but the
 // rebuilt finance feature no longer exposes a generic JSON state endpoint.
-const ALLOWED_PAGES = new Set<string>();
+const ALLOWED_PAGES = new Set<string>(['onboarding']);
 const MAX_STATE_BYTES = 750_000;
 
 async function requireUserId(req: NextApiRequest, res: NextApiResponse) {

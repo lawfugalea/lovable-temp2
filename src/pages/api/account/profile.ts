@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getUserIdOr401 } from '@/lib/api-guards';
+import { rejectDemoUser } from '@/lib/demo';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PATCH') {
@@ -10,6 +11,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const userId = await getUserIdOr401(req, res);
   if (!userId) return;
+  if (await rejectDemoUser(res, userId, 'Editing the profile')) return;
 
   const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
   if (name.length < 2 || name.length > 50) {

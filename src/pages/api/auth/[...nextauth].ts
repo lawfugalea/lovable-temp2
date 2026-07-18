@@ -101,7 +101,7 @@ export const authOptions: NextAuthOptions = {
       if (token?.id) {
         const u = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { activeHouseholdId: true, name: true, email: true, password: true },
+          select: { activeHouseholdId: true, name: true, email: true, password: true, isDemo: true },
         });
         if (!u || !isPasswordVersionCurrent(token.passwordVersion, u.password)) {
           return { invalidated: true };
@@ -110,6 +110,7 @@ export const authOptions: NextAuthOptions = {
         token.name = u.name ?? u.email;
         token.email = u.email;
         (token as any).isAdmin = isAdminEmail(u?.email ?? (token.email as string) ?? null);
+        (token as any).isDemo = u?.isDemo === true;
       }
 
       return token;
@@ -126,6 +127,7 @@ export const authOptions: NextAuthOptions = {
         session.user.name = (token.name as string) ?? "";
         (session.user as any).activeHouseholdId = (token as any).activeHouseholdId ?? null;
         (session.user as any).isAdmin = (token as any).isAdmin === true;
+        (session.user as any).isDemo = (token as any).isDemo === true;
         (session as any).activeHouseholdId = (token as any).activeHouseholdId ?? null;
       }
       return session;

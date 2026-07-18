@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { getUserIdOr401 } from '@/lib/api-guards';
+import { rejectDemoUser } from '@/lib/demo';
 import { validatePassword } from '@/lib/password-policy';
 import { clearLoginAttempts, consumeLoginAttempt } from '@/lib/rate-limiter';
 
@@ -13,6 +14,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const userId = await getUserIdOr401(req, res);
   if (!userId) return;
+  if (await rejectDemoUser(res, userId, 'Changing the password')) return;
   const attemptKey = `password-change:${userId}`;
   if (!consumeLoginAttempt(attemptKey)) {
     return res.status(429).json({ error: 'Too many password attempts. Try again later.' });

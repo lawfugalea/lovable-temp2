@@ -25,6 +25,8 @@ model User {
   name                      String?
   email                     String                       @unique
   password                  String
+  isDemo                    Boolean                      @default(false)
+  demoExpiresAt             DateTime?
   createdAt                 DateTime                     @default(now())
   updatedAt                 DateTime                     @updatedAt
   activeHouseholdId         String?
@@ -35,6 +37,8 @@ model User {
   shoppingItemsCreated      ShoppingItem[]               @relation("ShoppingItemCreatedBy")
   shoppingItemsCompleted    ShoppingItem[]               @relation("ShoppingItemDoneBy")
   activeHousehold           Household?                   @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id], onDelete: SetNull)
+
+  @@index([isDemo, demoExpiresAt])
   notesCreated              Note[]                       @relation("NoteCreatedBy")
   noteCollaborations        NoteCollaborator[]           @relation("NoteCollaborator")
   noteCollaborationsAdded   NoteCollaborator[]           @relation("NoteCollaboratorAddedBy")
