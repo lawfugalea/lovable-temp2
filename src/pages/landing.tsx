@@ -58,8 +58,8 @@ const bentoFeatures = [
     tone: 'blue',
     title: 'Finances, visible — never touchable',
     description:
-      'Connect supported bank accounts read-only. See balances and transactions together, catch subscriptions before they renew, and decide exactly what the household sees.',
-    bullets: ['Read-only open banking', 'Subscription radar', 'Per-account sharing controls'],
+      'Connect Bank of Valletta read-only through official open banking. See balances and transactions together, catch subscriptions before they renew, get AI spending insights, and decide exactly what the household sees. Part of the Family plan.',
+    bullets: ['Read-only — can never move money', 'Subscription radar & AI insights', 'Per-account sharing controls', 'Family plan · €4.99/mo'],
   },
   {
     icon: FileText,

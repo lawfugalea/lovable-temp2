@@ -82,6 +82,8 @@ services:
       target: runner
       args:
         NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+        NEXT_PUBLIC_KELMA_AGENT_ID: ${HOUSEFLOW_KELMA_AGENT_ID-}
+        NEXT_PUBLIC_DEMO_MODE_ENABLED: ${HOUSEFLOW_DEMO_MODE_ENABLED-}
     restart: unless-stopped
     init: true
     read_only: true
