@@ -270,7 +270,7 @@ export default function FinancesPage() {
   }, [status, loadOverview, loadPlanner])
 
   const loadTransactions = useCallback(async (append = false) => {
-    if (!householdId || !overview) return
+    if (!householdId || !overview?.bankEnabled || overview.accounts.length === 0) return
     setTransactionsLoading(true)
     try {
       const query = new URLSearchParams({ householdId })
