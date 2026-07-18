@@ -10,10 +10,12 @@ import {
   Clock3,
   HeartPulse,
   Home,
+  ListChecks,
   ShoppingBasket,
   Sparkles,
 } from "lucide-react"
 import ModernAppShell from "@/components/ModernAppShell"
+import ChoreTodayList, { todayItemKey, type TodayChoreItem } from "@/components/chores/ChoreTodayList"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/Alert"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -65,7 +67,7 @@ type SummaryCardProps = {
   href: string
   action: string
   icon: React.ComponentType<{ className?: string }>
-  tone: "shopping" | "finances" | "medicine"
+  tone: "shopping" | "finances" | "medicine" | "chores"
   delayClass?: string
 }
 
@@ -84,6 +86,11 @@ const summaryTones = {
     tile: "bg-module-medicine/10 text-module-medicine ring-module-medicine/15",
     link: "text-module-medicine hover:bg-module-medicine/10 hover:text-module-medicine",
     hover: "hover:border-module-medicine/30",
+  },
+  chores: {
+    tile: "bg-module-chores/10 text-module-chores ring-module-chores/15",
+    link: "text-module-chores hover:bg-module-chores/10 hover:text-module-chores",
+    hover: "hover:border-module-chores/30",
   },
 }
 
@@ -132,6 +139,8 @@ export default function DashboardPage() {
   const [recentDoses, setRecentDoses] = useState<MedicineDose[]>([])
   const [loading, setLoading] = useState(true)
   const [showJoinSuccess, setShowJoinSuccess] = useState(false)
+  const [todayChores, setTodayChores] = useState<TodayChoreItem[]>([])
+  const [choreBusyKey, setChoreBusyKey] = useState<string | null>(null)
 
   useEffect(() => {
     if (router.query.joined === "1") {
@@ -182,6 +191,46 @@ export default function DashboardPage() {
     }
   }, [])
 
+  const loadChoresData = useCallback(async () => {
+    try {
+      const today = new Date().toLocaleDateString("en-CA")
+      const response = await fetch(`/api/chores/today?date=${today}`)
+      if (!response.ok) return
+      const data = await response.json()
+      setTodayChores(Array.isArray(data.items) ? data.items : [])
+    } catch (error) {
+      console.error("Failed to load chores:", error)
+    }
+  }, [])
+
+  const resolveChore = useCallback(async (item: TodayChoreItem, resolveStatus: "DONE" | "SKIPPED") => {
+    setChoreBusyKey(todayItemKey(item))
+    try {
+      await fetch("/api/chores/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ choreId: item.chore.id, dueDate: item.dueDate, status: resolveStatus }),
+      })
+      await loadChoresData()
+    } finally {
+      setChoreBusyKey(null)
+    }
+  }, [loadChoresData])
+
+  const undoChore = useCallback(async (item: TodayChoreItem) => {
+    setChoreBusyKey(todayItemKey(item))
+    try {
+      await fetch("/api/chores/complete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ choreId: item.chore.id, dueDate: item.dueDate }),
+      })
+      await loadChoresData()
+    } finally {
+      setChoreBusyKey(null)
+    }
+  }, [loadChoresData])
+
   const loadFinanceData = useCallback(async (householdId: string) => {
     try {
       const response = await fetch(`/api/finance/overview?householdId=${encodeURIComponent(householdId)}`)
@@ -205,6 +254,7 @@ export default function DashboardPage() {
           loadShoppingData(data.householdId),
           loadMedicineData(data.householdId),
           loadFinanceData(data.householdId),
+          loadChoresData(),
         ])
       }
     } catch (error) {
@@ -212,7 +262,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false)
     }
-  }, [loadFinanceData, loadMedicineData, loadShoppingData])
+  }, [loadChoresData, loadFinanceData, loadMedicineData, loadShoppingData])
 
   useEffect(() => {
     if (status === "authenticated") {
@@ -227,6 +277,7 @@ export default function DashboardPage() {
     Boolean(medicine.scheduleVerifiedAt) && getMedicineSchedule(medicine, recentDoses, new Date()).isDue
   ))
   const firstName = session?.user?.name?.trim().split(/\s+/)[0]
+  const pendingChores = todayChores.filter((item) => item.status === "PENDING")
   const financeDetail = financeSummary.accountCount > 0
     ? `${financeSummary.accountCount} connected account${financeSummary.accountCount === 1 ? "" : "s"}${financeSummary.totals[0] ? ` · ${financeSummary.totals[0].amount} ${financeSummary.totals[0].currency}` : ""}`
     : "No connected accounts are visible to you yet"
@@ -315,8 +366,36 @@ export default function DashboardPage() {
               tone="medicine"
               delayClass="animation-delay-200"
             />
+            <SummaryCard
+              eyebrow={pendingChores.length ? `${pendingChores.length} to do` : "All done"}
+              title={pendingChores.length ? `${pendingChores.length} chore${pendingChores.length === 1 ? "" : "s"} today` : "Chores done"}
+              description={pendingChores.length ? "Tick off today's household jobs together." : "Nothing due right now — set up recurring chores for the whole clan."}
+              href="/chores"
+              action="Open chores"
+              icon={ListChecks}
+              tone="chores"
+              delayClass="animation-delay-300"
+            />
           </div>
         </section>
+
+        {todayChores.length > 0 && (
+          <section aria-labelledby="today-chores-heading">
+            <div className="mb-3 flex items-end justify-between gap-4">
+              <h2 id="today-chores-heading" className="font-display text-xl font-semibold tracking-tight">Today&apos;s chores</h2>
+              <Button asChild variant="ghost" size="sm" className="text-module-chores hover:bg-module-chores/10 hover:text-module-chores">
+                <Link href="/chores">Open chores <ArrowRight className="h-4 w-4" /></Link>
+              </Button>
+            </div>
+            <ChoreTodayList
+              items={todayChores}
+              busyKey={choreBusyKey}
+              compact
+              onResolve={(item, resolveStatus) => void resolveChore(item, resolveStatus)}
+              onUndo={(item) => void undoChore(item)}
+            />
+          </section>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
           <Card>

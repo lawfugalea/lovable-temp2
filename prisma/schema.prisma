@@ -30,6 +30,8 @@ model User {
   activeHouseholdId         String?
   ownedHouseholds           Household[]                  @relation("OwnerHouseholds")
   memberships               Membership[]
+  assignedChores            Chore[]                      @relation("ChoreAssignee")
+  choreCompletions          ChoreCompletion[]            @relation("ChoreCompletedBy")
   shoppingItemsCreated      ShoppingItem[]               @relation("ShoppingItemCreatedBy")
   shoppingItemsCompleted    ShoppingItem[]               @relation("ShoppingItemDoneBy")
   activeHousehold           Household?                   @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id], onDelete: SetNull)
@@ -59,6 +61,7 @@ model Household {
   owner                     User?                      @relation("OwnerHouseholds", fields: [ownerId], references: [id], onDelete: SetNull)
   invites                   Invite[]
   members                   Membership[]
+  chores                    Chore[]
   shoppingLists             ShoppingList[]
   shoppingTemplates         ShoppingTemplate[]
   activeForUsers            User[]                     @relation("ActiveHousehold")
@@ -900,4 +903,57 @@ model NoteCollaborator {
 enum NoteRole {
   VIEWER
   EDITOR
+}
+
+enum ChoreRecurrenceType {
+  WEEKLY
+  EVERY_N_DAYS
+  MONTHLY
+}
+
+enum ChoreCompletionStatus {
+  DONE
+  SKIPPED
+}
+
+model Chore {
+  id             String              @id @default(cuid())
+  householdId    String
+  title          String
+  notes          String?
+  recurrenceType ChoreRecurrenceType
+  /// Weekday numbers 1 (Monday) to 7 (Sunday); used when recurrenceType is WEEKLY.
+  daysOfWeek     Int[]               @default([])
+  /// Interval in days; used when recurrenceType is EVERY_N_DAYS.
+  intervalDays   Int?
+  /// Phase anchor for EVERY_N_DAYS; date-only.
+  anchorDate     DateTime?           @db.Date
+  /// Day of month 1-31 (clamped to month length); used when recurrenceType is MONTHLY.
+  dayOfMonth     Int?
+  assigneeId     String?
+  active         Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  household   Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  assignee    User?             @relation("ChoreAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  completions ChoreCompletion[]
+
+  @@index([householdId, active])
+}
+
+model ChoreCompletion {
+  id            String                @id @default(cuid())
+  choreId       String
+  /// The scheduled occurrence this resolves; date-only.
+  dueDate       DateTime              @db.Date
+  status        ChoreCompletionStatus @default(DONE)
+  completedById String?
+  completedAt   DateTime              @default(now())
+
+  chore       Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  completedBy User? @relation("ChoreCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@unique([choreId, dueDate])
+  @@index([choreId, dueDate])
 }

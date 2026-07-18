@@ -27,6 +27,10 @@ const healthJournalMigration = readFileSync(
   join(process.cwd(), 'prisma/migrations/20260717150000_health_journal_and_push/migration.sql'),
   'utf8',
 )
+const choresMigration = readFileSync(
+  join(process.cwd(), 'prisma/migrations/20260718120000_chores_and_recurrence/migration.sql'),
+  'utf8',
+)
 
 test('schema reconciliation adds every missing application model', () => {
   assert.match(migration, /User_email_lower_key/)
@@ -99,4 +103,15 @@ test('health journal push delivery is private and idempotent at the database bou
   assert.match(healthJournalMigration, /CREATE TABLE "PushDelivery"/)
   assert.match(healthJournalMigration, /PushDelivery_subscriptionId_medicineId_scheduledAt_key/)
   assert.match(healthJournalMigration, /MedicineDose_episodeId_fkey[\s\S]*ON DELETE RESTRICT/)
+})
+
+test('chores migration is additive with household-scoped cascade semantics', () => {
+  assert.match(choresMigration, /CREATE TABLE "Chore"/)
+  assert.match(choresMigration, /CREATE TABLE "ChoreCompletion"/)
+  assert.match(choresMigration, /Chore_householdId_fkey[\s\S]*ON DELETE CASCADE/)
+  assert.match(choresMigration, /ChoreCompletion_choreId_fkey[\s\S]*ON DELETE CASCADE/)
+  assert.match(choresMigration, /Chore_assigneeId_fkey[\s\S]*ON DELETE SET NULL/)
+  assert.match(choresMigration, /ChoreCompletion_completedById_fkey[\s\S]*ON DELETE SET NULL/)
+  assert.match(choresMigration, /ChoreCompletion_choreId_dueDate_key/)
+  assert.doesNotMatch(choresMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
 })
