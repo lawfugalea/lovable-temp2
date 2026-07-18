@@ -62,6 +62,14 @@ model Household {
   ownerId                   String? // Made nullable to support multiple owners
   createdAt                 DateTime                   @default(now())
   updatedAt                 DateTime                   @updatedAt
+  plan                      HouseholdPlan              @default(FREE)
+  planSource                PlanSource?
+  stripeCustomerId          String?                    @unique
+  stripeSubscriptionId      String?                    @unique
+  stripeSubscriptionStatus  String?
+  stripePriceId             String?
+  currentPeriodEnd          DateTime?
+  graceUntil                DateTime?
   owner                     User?                      @relation("OwnerHouseholds", fields: [ownerId], references: [id], onDelete: SetNull)
   invites                   Invite[]
   members                   Membership[]
@@ -1018,4 +1026,21 @@ model MealPlanEntry {
 
   @@unique([householdId, date, slot])
   @@index([householdId, date])
+}
+
+enum HouseholdPlan {
+  FREE
+  FAMILY
+}
+
+enum PlanSource {
+  STRIPE
+  ADMIN
+}
+
+/// Processed Stripe webhook events; the primary key is the Stripe event id.
+model BillingEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
 }

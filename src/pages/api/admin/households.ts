@@ -17,6 +17,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         select: {
           id: true,
           name: true,
+          plan: true,
+          planSource: true,
+          stripeSubscriptionStatus: true,
           createdAt: true,
           updatedAt: true,
           owner: {

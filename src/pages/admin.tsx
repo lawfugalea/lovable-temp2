@@ -49,6 +49,9 @@ interface User {
 interface Household {
   id: string;
   name: string;
+  plan?: 'FREE' | 'FAMILY';
+  planSource?: 'STRIPE' | 'ADMIN' | null;
+  stripeSubscriptionStatus?: string | null;
   createdAt: string;
   updatedAt: string;
   owner: {
@@ -226,6 +229,21 @@ export default function AdminPage() {
       alert('Failed to delete user');
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const setPlanOverride = async (householdId: string, plan: 'FREE' | 'FAMILY') => {
+    try {
+      const response = await fetch('/api/admin/billing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId, plan }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Could not update the plan');
+      await loadData();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Could not update the plan');
     }
   };
 
@@ -576,10 +594,21 @@ export default function AdminPage() {
                       <Badge variant="outline" className="text-xs">
                         {household.invites.length} invites
                       </Badge>
+                      <Badge variant="outline" className={`text-xs ${household.plan === 'FAMILY' ? 'border-primary/40 text-primary' : 'text-muted-foreground'}`}>
+                        {household.plan === 'FAMILY' ? `Family${household.planSource === 'ADMIN' ? ' (comp)' : ''}` : 'Free'}
+                      </Badge>
                     </div>
                     
                     {/* Action Buttons */}
                     <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title={household.plan === 'FAMILY' && household.planSource === 'ADMIN' ? 'Revoke comped Family plan' : 'Comp Family plan'}
+                        onClick={() => setPlanOverride(household.id, household.plan === 'FAMILY' && household.planSource === 'ADMIN' ? 'FREE' : 'FAMILY')}
+                      >
+                        {household.plan === 'FAMILY' && household.planSource === 'ADMIN' ? 'Revoke comp' : 'Comp Family'}
+                      </Button>
                       <Button variant="outline" size="sm" title="Transfer ownership" onClick={async () => {
                         const uid = prompt('Enter new owner userId:');
                         if (!uid) return; await transferOwnership(household.id, uid);

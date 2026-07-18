@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
-import { getFinanceOwnerEmail, isFinanceProviderConfigured } from '@/lib/finance/config'
+import { isFinanceProviderConfigured } from '@/lib/finance/config'
 import { isAvailableBalanceType, isBookedBalanceType } from '@/lib/finance/normalization'
 import { enrichStoredTransaction, loadFinanceMetadata } from '@/lib/finance/server-metadata'
 
@@ -100,7 +100,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'private, no-store')
   return res.status(200).json({
     canManage: access.canManage,
-    ownerConfigured: Boolean(getFinanceOwnerEmail()),
     providerConfigured: isFinanceProviderConfigured(),
     accounts: serializedAccounts,
     connections,

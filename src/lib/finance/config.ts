@@ -1,13 +1,3 @@
-export function getFinanceOwnerEmail(): string | null {
-  const configured = process.env.FINANCE_OWNER_EMAIL?.trim().toLowerCase()
-  return configured || null
-}
-
-export function isFinanceOwner(email: string | null | undefined): boolean {
-  const ownerEmail = getFinanceOwnerEmail()
-  return Boolean(ownerEmail && email && email.trim().toLowerCase() === ownerEmail)
-}
-
 export function isFinanceProviderConfigured(): boolean {
   return Boolean(
     process.env.ENABLE_BANKING_APPLICATION_ID?.trim()

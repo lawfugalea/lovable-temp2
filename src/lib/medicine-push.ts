@@ -1,5 +1,6 @@
 import webpush from 'web-push'
 import { prisma } from '@/lib/prisma'
+import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { getMedicineSchedule } from '@/lib/medicine'
 import { withBasePath } from '@/lib/base-path'
 
@@ -41,9 +42,17 @@ export async function queueDueMedicineDeliveries(now = new Date()): Promise<numb
   })
 
   let queued = 0
+  // Push reminders are a Family-plan feature; never queue for lapsed households.
+  const entitledCache = new Map<string, boolean>()
   for (const medicine of medicines) {
     const schedule = getMedicineSchedule(medicine, medicine.doses, now)
     if (!schedule.isDue || !schedule.nextDoseTime || !medicine.childId) continue
+    let entitled: boolean | undefined = entitledCache.get(medicine.householdId)
+    if (entitled === undefined) {
+      entitled = (await getHouseholdEntitlements(medicine.householdId)).canUsePushReminders
+      entitledCache.set(medicine.householdId, entitled)
+    }
+    if (!entitled) continue
     const subscriptions = await prisma.pushSubscription.findMany({
       where: {
         householdId: medicine.householdId,

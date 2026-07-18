@@ -10,7 +10,9 @@ import {
   User,
   Bell,
   Shield,
+  CreditCard,
   Database,
+  Loader2,
   Save,
   Eye,
   EyeOff,
@@ -19,6 +21,7 @@ import {
   Monitor,
   Moon,
   Palette,
+  Sparkles,
   Sun
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
@@ -26,11 +29,160 @@ import { cn } from '@/lib/utils'
 
 const SETTINGS_TABS = [
   { id: 'profile', name: 'Profile', icon: User },
+  { id: 'billing', name: 'Plan & Billing', icon: CreditCard },
   { id: 'appearance', name: 'Appearance', icon: Palette },
   { id: 'notifications', name: 'Notifications', icon: Bell },
   { id: 'privacy', name: 'Privacy & Security', icon: Shield },
   { id: 'data', name: 'Data & Storage', icon: Database },
 ]
+
+interface BillingSummary {
+  plan: 'FREE' | 'FAMILY'
+  effectiveVia: 'free' | 'stripe' | 'admin' | 'demo' | 'grace'
+  isOwner: boolean
+  currentPeriodEnd: string | null
+  graceUntil: string | null
+  status: string | null
+  hasBillingAccount: boolean
+  billingConfigured: boolean
+  prices: { monthly: string; annual: string }
+}
+
+const FAMILY_FEATURES = [
+  'Shared finances with open banking (read-only)',
+  'Subscription radar & AI spending insights',
+  'Medicine for unlimited children',
+  'Push reminders for doses',
+  'PDF health reports',
+]
+
+function BillingCard() {
+  const [summary, setSummary] = useState<BillingSummary | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch('/api/billing/summary')
+        if (response.ok) setSummary(await response.json())
+      } catch {
+        // summary stays null; card shows loading state
+      }
+    })()
+  }, [])
+
+  const startCheckout = async (interval: 'month' | 'year') => {
+    setBusy(interval)
+    setError('')
+    try {
+      const response = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interval }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Could not start checkout')
+      window.location.href = data.url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not start checkout')
+      setBusy(null)
+    }
+  }
+
+  const openPortal = async () => {
+    setBusy('portal')
+    setError('')
+    try {
+      const response = await fetch('/api/billing/portal', { method: 'POST' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Could not open the billing portal')
+      window.location.href = data.url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not open the billing portal')
+      setBusy(null)
+    }
+  }
+
+  if (!summary) {
+    return (
+      <Card><CardContent className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading your plan…
+      </CardContent></Card>
+    )
+  }
+
+  const isFamily = summary.plan === 'FAMILY'
+  const renewal = summary.currentPeriodEnd ? new Date(summary.currentPeriodEnd).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' }) : null
+  const grace = summary.graceUntil ? new Date(summary.graceUntil).toLocaleDateString(undefined, { day: 'numeric', month: 'long' }) : null
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><CreditCard className="w-5 h-5" />Your plan</CardTitle>
+          <CardDescription>Billing applies to the whole household.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={`rounded-full px-3 py-1 text-sm font-bold ${isFamily ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+              {isFamily ? 'Family' : 'Free'}
+            </span>
+            {summary.effectiveVia === 'admin' && <span className="text-xs text-muted-foreground">complimentary</span>}
+            {summary.effectiveVia === 'demo' && <span className="text-xs text-muted-foreground">demo households include Family features</span>}
+            {summary.effectiveVia === 'stripe' && renewal && <span className="text-xs text-muted-foreground">renews {renewal}</span>}
+          </div>
+          {summary.effectiveVia === 'grace' && (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              A payment failed — Family features stay on until {grace || 'the end of the grace period'}. Update your card in the billing portal.
+            </p>
+          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          {!isFamily && summary.effectiveVia !== 'demo' && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">The Family plan adds:</p>
+              <ul className="space-y-1.5">
+                {FAMILY_FEATURES.map(feature => (
+                  <li key={feature} className="flex items-center gap-2 text-sm">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />{feature}
+                  </li>
+                ))}
+              </ul>
+              {summary.billingConfigured ? (
+                summary.isOwner ? (
+                  <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+                    <Button onClick={() => void startCheckout('month')} disabled={busy !== null} className="min-h-11 flex-1">
+                      {busy === 'month' && <Loader2 className="animate-spin" />}Family — {summary.prices.monthly}/month
+                    </Button>
+                    <Button variant="outline" onClick={() => void startCheckout('year')} disabled={busy !== null} className="min-h-11 flex-1">
+                      {busy === 'year' && <Loader2 className="animate-spin" />}{summary.prices.annual}/year (2 months free)
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                    Only the household owner can manage the subscription — ask them to upgrade here.
+                  </p>
+                )
+              ) : (
+                <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                  Billing is not configured on this deployment yet.
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">Prices include VAT. Cancel anytime — your data stays, features return to the free tier.</p>
+            </div>
+          )}
+
+          {isFamily && summary.effectiveVia !== 'demo' && summary.hasBillingAccount && summary.isOwner && (
+            <Button variant="outline" onClick={() => void openPortal()} disabled={busy !== null} className="min-h-11">
+              {busy === 'portal' && <Loader2 className="animate-spin" />}Manage subscription
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
 
 const THEME_OPTIONS = [
   { value: 'light', name: 'Light', description: 'Bright and airy, all day', icon: Sun },
@@ -372,6 +524,9 @@ export default function SettingsPage() {
                 </Card>
               </>
             )}
+
+            {/* Billing Tab */}
+            {activeTab === 'billing' && <BillingCard />}
 
             {/* Appearance Tab */}
             {activeTab === 'appearance' && <AppearanceCard />}

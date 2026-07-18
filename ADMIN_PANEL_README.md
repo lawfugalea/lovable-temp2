@@ -86,3 +86,10 @@ The admin panel provides system administration capabilities for the Houseflow ap
 - Admin helpers provide reusable authentication logic
 - Responsive design works on all screen sizes
 - Follows existing app design patterns and styling
+
+## Plan overrides
+
+Each household card shows its plan (Free / Family, with "(comp)" for admin
+grants). "Comp Family" grants the Family plan without Stripe; "Revoke comp"
+returns an admin-comped household to Free. Households with a live Stripe
+subscription cannot be overridden — cancel the subscription in Stripe first.

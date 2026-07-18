@@ -2,7 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/pages/api/auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
-import { getFinanceOwnerEmail, isFinanceOwner } from './config'
+import { getHouseholdEntitlements } from '@/lib/entitlements'
+import { respondUpgradeRequired } from '@/lib/entitlements-core'
 import { buildAccessibleBankAccountWhere } from './visibility'
 
 type FinanceAccess = {
@@ -35,20 +36,23 @@ export async function requireFinanceAccess(
 
   const membership = await prisma.membership.findFirst({
     where: { userId, householdId },
-    select: { id: true },
+    select: { id: true, role: true },
   })
   if (!membership) {
     res.status(403).json({ error: 'You are not a member of this household' })
     return null
   }
 
-  const canManage = isFinanceOwner(email)
-  if (options.manage && !getFinanceOwnerEmail()) {
-    res.status(503).json({ error: 'Finance owner is not configured' })
+  const entitlements = await getHouseholdEntitlements(householdId)
+  if (!entitlements.canUseFinance) {
+    respondUpgradeRequired(res, 'finance')
     return null
   }
+
+  // Bank connections are managed by the household owner.
+  const canManage = membership.role === 'OWNER'
   if (options.manage && !canManage) {
-    res.status(403).json({ error: 'Only the designated finance owner can manage bank connections' })
+    res.status(403).json({ error: 'Only the household owner can manage bank connections' })
     return null
   }
 

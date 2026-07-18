@@ -5,8 +5,7 @@ import { format } from 'date-fns'
 import { toast } from 'sonner'
 import {
   Activity, AlertTriangle, Baby, Bell, BellOff, CheckCircle2, ChevronRight, Clock3,
-  FileText, HeartPulse, Pencil, Pill, Plus, Scale, Thermometer, Trash2,
-} from 'lucide-react'
+  FileText, HeartPulse, Pencil, Pill, Plus, Scale, Thermometer, Trash2, Lock } from 'lucide-react'
 import ModernAppShell from '@/components/ModernAppShell'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/Alert'
 import { Badge } from '@/components/ui/Badge'
@@ -72,7 +71,7 @@ export default function MedicinePage() {
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null)
   const [editingDose, setEditingDose] = useState<MedicineDose | null>(null)
   const [editingTemperature, setEditingTemperature] = useState<FeverReading | null>(null)
-  const [pushState, setPushState] = useState<{ configured: boolean; publicKey: string | null; activeDevices: number } | null>(null)
+  const [pushState, setPushState] = useState<{ configured: boolean; publicKey: string | null; activeDevices: number; entitled?: boolean } | null>(null)
   const [pushBusy, setPushBusy] = useState(false)
   const [now, setNow] = useState(() => new Date())
 
@@ -234,7 +233,8 @@ export default function MedicinePage() {
               <p className="mt-3 text-muted-foreground">Record what was actually given first. A schedule is optional and can be added from the exact packaging, leaflet, or clinician instruction when you want timing checks and reminders.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {pushState?.configured && pushState.activeDevices === 0 && <Button variant="outline" disabled={pushBusy} onClick={() => void enablePush()}><Bell className="h-4 w-4" /> Enable reminders</Button>}
+              {pushState?.configured && pushState.entitled === false && <Button variant="outline" onClick={() => void router.push('/settings?tab=billing')} title="Push reminders are part of the Family plan"><Lock className="h-4 w-4" /> Reminders — Family plan</Button>}
+              {pushState?.configured && pushState.entitled !== false && pushState.activeDevices === 0 && <Button variant="outline" disabled={pushBusy} onClick={() => void enablePush()}><Bell className="h-4 w-4" /> Enable reminders</Button>}
               {pushState?.configured && pushState.activeDevices > 0 && <Button variant="outline" disabled={pushBusy} onClick={() => void disablePush()}><BellOff className="h-4 w-4" /> Disable this device</Button>}
               <Button variant="outline" onClick={() => setShowReport(true)}><FileText className="h-4 w-4" /> PDF report</Button>
             </div>

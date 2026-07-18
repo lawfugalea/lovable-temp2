@@ -39,6 +39,10 @@ const demoMigration = readFileSync(
   join(process.cwd(), 'prisma/migrations/20260718180000_demo_mode/migration.sql'),
   'utf8',
 )
+const billingMigration = readFileSync(
+  join(process.cwd(), 'prisma/migrations/20260719120000_household_billing/migration.sql'),
+  'utf8',
+)
 
 test('schema reconciliation adds every missing application model', () => {
   assert.match(migration, /User_email_lower_key/)
@@ -138,4 +142,12 @@ test('demo mode migration is additive and defaults everyone to non-demo', () => 
   assert.match(demoMigration, /ADD COLUMN "isDemo" BOOLEAN NOT NULL DEFAULT false/)
   assert.match(demoMigration, /ADD COLUMN "demoExpiresAt" TIMESTAMP/)
   assert.doesNotMatch(demoMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
+})
+
+test('billing migration is additive, defaults to FREE, and only comps the known owner', () => {
+  assert.match(billingMigration, /ADD COLUMN "plan" "HouseholdPlan" NOT NULL DEFAULT 'FREE'/)
+  assert.match(billingMigration, /CREATE TABLE "BillingEvent"/)
+  assert.match(billingMigration, /UPDATE "Household" SET "plan" = 'FAMILY', "planSource" = 'ADMIN'/)
+  assert.match(billingMigration, /lower\(u\."email"\) = 'lawfinuu@gmail\.com'/)
+  assert.doesNotMatch(billingMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
 })

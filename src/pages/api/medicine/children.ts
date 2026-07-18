@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { requireMembershipIn } from '@/lib/api-guards';
+import { getHouseholdEntitlements } from '@/lib/entitlements';
+import { respondUpgradeRequired } from '@/lib/entitlements-core';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = String(req.method === 'GET' ? req.query.householdId || '' : req.body?.householdId || '');
@@ -24,6 +26,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (name.length > 80 || dateOfBirth > new Date() || (notes?.length || 0) > 2000) {
       return res.status(400).json({ error: 'Invalid child details' });
+    }
+
+    // Adding children is plan-limited; everything about existing children stays free.
+    const entitlements = await getHouseholdEntitlements(householdId);
+    const existingCount = await prisma.child.count({ where: { householdId } });
+    if (existingCount >= entitlements.maxChildren) {
+      return respondUpgradeRequired(res, 'children');
     }
 
     const child = await prisma.child.create({

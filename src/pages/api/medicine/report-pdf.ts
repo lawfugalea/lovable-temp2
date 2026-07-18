@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { format } from 'date-fns'
 import jsPDF from 'jspdf'
 import { requireMembershipIn } from '@/lib/api-guards'
+import { getHouseholdEntitlements } from '@/lib/entitlements'
+import { respondUpgradeRequired } from '@/lib/entitlements-core'
 import { parseRequiredDate } from '@/lib/medicine'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -11,6 +13,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const context = await requireMembershipIn(req, res, householdId as string)
     if (!context) return
+    const entitlements = await getHouseholdEntitlements(householdId as string)
+    if (!entitlements.canExportMedicinePdf) return respondUpgradeRequired(res, 'medicinePdf')
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Missing required parameters' })
     }

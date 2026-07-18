@@ -2,6 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { requireMembershipIn } from '@/lib/api-guards'
 import { isMedicinePushConfigured, medicinePushPublicKey } from '@/lib/medicine-push'
+import { getHouseholdEntitlements } from '@/lib/entitlements'
+import { respondUpgradeRequired } from '@/lib/entitlements-core'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = String(req.query.householdId || req.body?.householdId || '')
@@ -9,12 +11,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!context) return
 
   if (req.method === 'GET') {
-    const activeDevices = await prisma.pushSubscription.count({ where: { userId: context.userId, householdId, enabled: true } })
-    return res.status(200).json({ configured: isMedicinePushConfigured(), publicKey: medicinePushPublicKey(), activeDevices })
+    const [activeDevices, entitlements] = await Promise.all([
+      prisma.pushSubscription.count({ where: { userId: context.userId, householdId, enabled: true } }),
+      getHouseholdEntitlements(householdId),
+    ])
+    return res.status(200).json({
+      configured: isMedicinePushConfigured(),
+      publicKey: medicinePushPublicKey(),
+      activeDevices,
+      entitled: entitlements.canUsePushReminders,
+    })
   }
 
   if (req.method === 'POST') {
     if (!isMedicinePushConfigured()) return res.status(503).json({ error: 'Web Push is not configured' })
+    const entitlements = await getHouseholdEntitlements(householdId)
+    if (!entitlements.canUsePushReminders) return respondUpgradeRequired(res, 'pushReminders')
     const subscription = req.body?.subscription
     const endpoint = typeof subscription?.endpoint === 'string' ? subscription.endpoint.trim() : ''
     const p256dh = typeof subscription?.keys?.p256dh === 'string' ? subscription.keys.p256dh.trim() : ''

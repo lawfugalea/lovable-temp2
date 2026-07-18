@@ -26,6 +26,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-react'
+import UpgradeGate from '@/components/UpgradeGate'
 import ModernAppShell from '@/components/ModernAppShell'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -97,7 +98,6 @@ type Transaction = {
 
 type Overview = {
   canManage: boolean
-  ownerConfigured: boolean
   providerConfigured: boolean
   accounts: Account[]
   connections: Connection[]
@@ -152,6 +152,7 @@ export default function FinancesPage() {
   const [insightDays, setInsightDays] = useState(90)
   const [action, setAction] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [upgradeRequired, setUpgradeRequired] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [accountFilter, setAccountFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -203,7 +204,13 @@ export default function FinancesPage() {
     if (showLoader) setLoading(true)
     const response = await fetch(`/api/finance/overview?householdId=${encodeURIComponent(id)}`)
     const payload = await response.json().catch(() => null)
+    if (response.status === 403 && payload?.code === 'upgrade_required') {
+      setUpgradeRequired(true)
+      setLoading(false)
+      return
+    }
     if (!response.ok) throw new Error(payload?.error || 'Unable to load finances')
+    setUpgradeRequired(false)
     setOverview(payload as Overview)
     setLoading(false)
   }, [])
@@ -428,6 +435,22 @@ export default function FinancesPage() {
     )
   }
 
+  if (upgradeRequired) {
+    return (
+      <ModernAppShell title="Finance">
+        <div className="mx-auto max-w-3xl pt-8">
+          <UpgradeGate
+            icon={ShieldCheck}
+            module="finances"
+            title="See the whole household&rsquo;s money in one calm view"
+            description="The Family plan connects your bank read-only through official open banking — balances, transactions, a subscription radar, and AI spending insights, shared on your terms."
+            bullets={['Read-only — Clankeep can never move money', 'Bank of Valletta via Enable Banking', 'You choose what the household sees']}
+          />
+        </div>
+      </ModernAppShell>
+    )
+  }
+
   return (
     <ModernAppShell title="Finance">
       <div className="space-y-6 max-w-7xl mx-auto">
@@ -509,17 +532,6 @@ export default function FinancesPage() {
           </Card>
         )}
 
-        {householdId && overview && !overview.ownerConfigured && (
-          <Card className="border-amber-200">
-            <CardContent className="py-8">
-              <h2 className="font-semibold">Set the finance owner</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Configure <code className="px-1 py-0.5 rounded bg-secondary">FINANCE_OWNER_EMAIL</code> with your Clankeep email and restart the app.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         {householdId && overview?.canManage && !overview.providerConfigured && (
           <Card className="border-amber-200">
             <CardContent className="py-8">
@@ -531,7 +543,7 @@ export default function FinancesPage() {
           </Card>
         )}
 
-        {householdId && overview?.ownerConfigured && overview.accounts.length === 0 && (
+        {householdId && overview && overview.accounts.length === 0 && (
           <Card className="overflow-hidden">
             <CardContent className="py-14 text-center">
               <div className="w-14 h-14 rounded-2xl bg-primary/10 mx-auto mb-4 flex items-center justify-center">

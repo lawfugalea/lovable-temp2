@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { generateKeyPairSync, verify } from 'node:crypto'
 import test from 'node:test'
 import { createEnableBankingJwt } from '../src/lib/finance/enable-banking'
-import { getFinanceAspsp, isFinanceOwner, isFinanceProviderConfigured } from '../src/lib/finance/config'
+import { getFinanceAspsp, isFinanceProviderConfigured } from '../src/lib/finance/config'
 import {
   maskBankIdentifier,
   normalizeBalances,
@@ -16,18 +16,6 @@ import { enrichWithFinanceMetadata, normalizeMerchantKey } from '../src/lib/fina
 import { detectSubscriptions, subscriptionDueState } from '../src/lib/finance/subscriptions'
 import { buildCoachSignals, buildLimitProgress } from '../src/lib/finance/coach'
 import { buildDeepSeekRequestBody, buildRedactedFinancePayload, hashRedactedPayload } from "../src/lib/finance/deepseek"
-
-test('finance owner matching is explicit and case-insensitive', () => {
-  const previous = process.env.FINANCE_OWNER_EMAIL
-  process.env.FINANCE_OWNER_EMAIL = 'Owner@Example.com '
-  try {
-    assert.equal(isFinanceOwner('owner@example.com'), true)
-    assert.equal(isFinanceOwner('member@example.com'), false)
-  } finally {
-    if (previous === undefined) delete process.env.FINANCE_OWNER_EMAIL
-    else process.env.FINANCE_OWNER_EMAIL = previous
-  }
-})
 
 test('finance reads are scoped to ownership or an explicit household share', () => {
   assert.deepEqual(buildAccessibleBankAccountWhere('owner-id', 'household-id'), {

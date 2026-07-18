@@ -199,6 +199,7 @@ export default function LandingPage() {
             <div className="hidden items-center gap-8 text-[15px] font-medium text-brand-body md:flex">
               <a href="#features" className="transition-colors hover:text-brand-heading">Features</a>
               <a href="#prices" className="transition-colors hover:text-brand-heading">Price compare</a>
+              <a href="#pricing" className="transition-colors hover:text-brand-heading">Pricing</a>
               <a href="#privacy" className="transition-colors hover:text-brand-heading">Privacy</a>
             </div>
 
@@ -585,6 +586,92 @@ export default function LandingPage() {
             </div>
           </section>
 
+
+          {/* ── Pricing ───────────────────────────────────────── */}
+          <section id="pricing" className="scroll-mt-20 border-y border-slate-900/[0.06] bg-white py-24 sm:py-28">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="mx-auto max-w-2xl text-center" data-reveal>
+                <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-purple">Simple pricing</p>
+                <h2 className="lp-display mt-4 text-4xl font-bold leading-[1.08] tracking-[-0.03em] text-brand-heading sm:text-5xl">
+                  Free for the everyday. One plan for everything.
+                </h2>
+                <p className="mt-5 text-lg leading-relaxed text-brand-body">
+                  The price comparison alone typically saves more per week than the Family plan costs per month.
+                </p>
+              </div>
+
+              <div className="mx-auto mt-14 grid max-w-4xl gap-6 lg:grid-cols-2">
+                <div data-reveal className="flex flex-col rounded-3xl border border-slate-900/[0.07] bg-white p-8">
+                  <h3 className="lp-display text-xl font-bold">Free</h3>
+                  <p className="mt-1 text-sm text-brand-body">Everything a household needs, forever.</p>
+                  <p className="lp-display mt-5 text-4xl font-extrabold tracking-tight">€0</p>
+                  <ul className="mt-6 flex-1 space-y-3 text-[15px] text-brand-body">
+                    {[
+                      'Shared shopping lists',
+                      'Malta supermarket price comparison & offers',
+                      'Meal planner with priced ingredients',
+                      'Recurring chores for the whole clan',
+                      'Shared notes',
+                      'Unlimited household members',
+                      'Medicine tracking for one child',
+                    ].map(feature => (
+                      <li key={feature} className="flex items-start gap-2.5">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-teal" strokeWidth={3} aria-hidden="true" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={handleGetStarted}
+                    className="mt-8 inline-flex items-center justify-center rounded-full border border-slate-900/10 bg-white px-6 py-3.5 text-base font-semibold text-brand-heading shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+                  >
+                    Start free — no card needed
+                  </button>
+                </div>
+
+                <div data-reveal style={{ transitionDelay: '100ms' }} className="relative flex flex-col rounded-3xl border-2 border-brand-purple/30 bg-white p-8 shadow-xl shadow-brand-purple/10">
+                  <span className="absolute -top-3.5 left-8 rounded-full bg-gradient-to-r from-[#4D6BFF] to-[#7B61FF] px-3.5 py-1 text-xs font-bold text-white">
+                    Pays for itself
+                  </span>
+                  <h3 className="lp-display text-xl font-bold">Family</h3>
+                  <p className="mt-1 text-sm text-brand-body">Everything in Free, plus the money and health superpowers.</p>
+                  <p className="lp-display mt-5 text-4xl font-extrabold tracking-tight">
+                    €4.99<span className="text-lg font-semibold text-brand-muted">/month</span>
+                  </p>
+                  <p className="text-sm font-medium text-brand-body">or €49/year — two months free. VAT included.</p>
+                  <ul className="mt-6 flex-1 space-y-3 text-[15px] text-brand-body">
+                    {[
+                      'Everything in Free',
+                      'Shared finances — read-only open banking (BOV)',
+                      'Subscription radar for recurring payments',
+                      'AI spending insights',
+                      'Medicine for unlimited children',
+                      'Push reminders for doses',
+                      'PDF health reports for the doctor',
+                    ].map(feature => (
+                      <li key={feature} className="flex items-start gap-2.5">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-brand-purple" strokeWidth={3} aria-hidden="true" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={handleGetStarted}
+                    className="lp-cta mt-8 inline-flex items-center justify-center gap-2 rounded-full px-6 py-3.5 text-base font-semibold text-white"
+                  >
+                    Start free, upgrade in-app
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+              <p className="mt-8 text-center text-sm text-brand-muted" data-reveal>
+                Cancel anytime — your data stays and everything in Free keeps working.
+              </p>
+            </div>
+          </section>
+
           {/* ── Privacy ───────────────────────────────────────── */}
           <section id="privacy" className="scroll-mt-20 py-24 sm:py-28">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -685,6 +772,7 @@ export default function LandingPage() {
             <nav aria-label="Footer" className="flex flex-col gap-5 text-sm font-medium text-brand-body sm:flex-row sm:items-center">
               <a href="#features" className="transition-colors hover:text-brand-heading">Features</a>
               <a href="#prices" className="transition-colors hover:text-brand-heading">Price compare</a>
+              <a href="#pricing" className="transition-colors hover:text-brand-heading">Pricing</a>
               <a href="#privacy" className="transition-colors hover:text-brand-heading">Privacy</a>
               <Link href="/privacy" className="transition-colors hover:text-brand-heading">Privacy Policy</Link>
               <Link href="/terms" className="transition-colors hover:text-brand-heading">Terms</Link>
