@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
-import { 
-  Search, 
-  Home, 
-  ShoppingCart, 
-  DollarSign, 
-  Settings, 
+import { useTheme } from 'next-themes'
+import {
+  Search,
+  Settings,
   Users,
   Plus,
   FileText,
@@ -16,10 +14,21 @@ import {
   Database,
   Command,
   ArrowRight,
-  Pill,
+  Sun,
+  Moon,
+  Monitor,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { modules, type ModuleKey } from '@/lib/modules'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/Dialog'
+
+const moduleCommandMeta: Record<ModuleKey, { description: string; keywords: string[] }> = {
+  home: { description: 'View your home dashboard', keywords: ['dashboard', 'home', 'main', 'overview'] },
+  shopping: { description: 'Manage your shopping lists', keywords: ['shopping', 'lists', 'groceries', 'prices', 'supermarket'] },
+  finances: { description: 'View connected balances and transactions', keywords: ['finances', 'money', 'bank', 'balance', 'transactions'] },
+  medicine: { description: 'Track medicines and schedules', keywords: ['medicine', 'medication', 'children', 'kids', 'health'] },
+  notes: { description: 'Manage your personal and shared notes', keywords: ['notes', 'writing', 'personal', 'shared', 'memo', 'journal'] },
+}
 
 interface CommandItem {
   id: string
@@ -41,56 +50,21 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const router = useRouter()
   const { data: session } = useSession()
+  const { setTheme } = useTheme()
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
   const commands: CommandItem[] = [
-    // Navigation
-    {
-      id: 'nav-dashboard',
-      title: 'Go to Dashboard',
-      description: 'View your home dashboard',
-      icon: Home,
-      action: () => router.push('/dashboard'),
+    // Navigation — sourced from the shared module registry
+    ...modules.map((module) => ({
+      id: `nav-${module.key}`,
+      title: `Go to ${module.name}`,
+      description: moduleCommandMeta[module.key].description,
+      icon: module.icon,
+      action: () => router.push(module.href),
       category: 'Navigation',
-      keywords: ['dashboard', 'home', 'main']
-    },
-    {
-      id: 'nav-shopping',
-      title: 'Go to Shopping',
-      description: 'Manage your shopping lists',
-      icon: ShoppingCart,
-      action: () => router.push('/shopping'),
-      category: 'Navigation',
-      keywords: ['shopping', 'lists', 'groceries']
-    },
-    {
-      id: 'nav-finances',
-      title: 'Go to Finance',
-      description: 'View connected balances and transactions',
-      icon: DollarSign,
-      action: () => router.push('/finances'),
-      category: 'Navigation',
-      keywords: ['finances', 'money', 'bank', 'balance', 'transactions']
-    },
-    {
-      id: 'nav-medicine',
-      title: 'Go to Medicine',
-      description: 'Track children\'s medications',
-      icon: Pill,
-      action: () => router.push('/medicine'),
-      category: 'Navigation',
-      keywords: ['medicine', 'medication', 'children', 'kids', 'health']
-    },
-    {
-      id: 'nav-notes',
-      title: 'Go to Notes',
-      description: 'Manage your personal and shared notes',
-      icon: FileText,
-      action: () => router.push('/notes'),
-      category: 'Navigation',
-      keywords: ['notes', 'writing', 'personal', 'shared', 'memo', 'journal']
-    },
+      keywords: moduleCommandMeta[module.key].keywords,
+    })),
     {
       id: 'nav-settings',
       title: 'Go to Settings',
@@ -145,6 +119,32 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       },
       category: 'Quick Actions',
       keywords: ['add', 'note', 'writing', 'memo', 'personal', 'shared']
+    },
+
+    // Appearance
+    {
+      id: 'theme-light',
+      title: 'Switch to Light theme',
+      icon: Sun,
+      action: () => setTheme('light'),
+      category: 'Appearance',
+      keywords: ['theme', 'light', 'appearance', 'bright']
+    },
+    {
+      id: 'theme-dark',
+      title: 'Switch to Dark theme',
+      icon: Moon,
+      action: () => setTheme('dark'),
+      category: 'Appearance',
+      keywords: ['theme', 'dark', 'appearance', 'night']
+    },
+    {
+      id: 'theme-system',
+      title: 'Use System theme',
+      icon: Monitor,
+      action: () => setTheme('system'),
+      category: 'Appearance',
+      keywords: ['theme', 'system', 'appearance', 'auto']
     },
 
     // Settings

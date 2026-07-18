@@ -12,6 +12,8 @@ export type ModuleKey = 'home' | 'shopping' | 'finances' | 'medicine' | 'notes'
 export interface ModuleEntry {
   key: ModuleKey
   name: string
+  /** Short label for the mobile tab bar. */
+  shortName: string
   href: string
   icon: LucideIcon
   /** Icon tile in sidebars/cards: soft tinted background + module-coloured icon. */
@@ -28,6 +30,7 @@ export const modules: ModuleEntry[] = [
   {
     key: 'home',
     name: 'Overview',
+    shortName: 'Home',
     href: '/dashboard',
     icon: Home,
     tileClass: 'bg-primary/10 text-primary',
@@ -38,6 +41,7 @@ export const modules: ModuleEntry[] = [
   {
     key: 'shopping',
     name: 'Shopping',
+    shortName: 'Shopping',
     href: '/shopping',
     icon: ShoppingBasket,
     tileClass: 'bg-module-shopping/10 text-module-shopping',
@@ -48,6 +52,7 @@ export const modules: ModuleEntry[] = [
   {
     key: 'finances',
     name: 'Finances',
+    shortName: 'Finances',
     href: '/finances',
     icon: CircleDollarSign,
     tileClass: 'bg-module-finances/10 text-module-finances',
@@ -58,6 +63,7 @@ export const modules: ModuleEntry[] = [
   {
     key: 'medicine',
     name: 'Medicine',
+    shortName: 'Medicine',
     href: '/medicine',
     icon: HeartPulse,
     tileClass: 'bg-module-medicine/10 text-module-medicine',
@@ -68,6 +74,7 @@ export const modules: ModuleEntry[] = [
   {
     key: 'notes',
     name: 'Notes',
+    shortName: 'Notes',
     href: '/notes',
     icon: FileText,
     tileClass: 'bg-module-notes/10 text-module-notes',
