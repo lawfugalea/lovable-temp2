@@ -106,6 +106,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     void sendWelcomeEmail({ to: user.email, name: user.name, signInUrl: appUrl('/login') })
       .then(result => {
         if (!result.ok) console.warn('Welcome email not sent:', result.error);
+        else console.info(`Welcome email sent (resend id ${result.providerId ?? 'unknown'})`);
       })
       .catch(err => console.warn('Welcome email failed:', err));
 

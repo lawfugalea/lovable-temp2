@@ -55,6 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       expiresMinutes: RESET_TOKEN_TTL_MINUTES,
     });
     if (!result.ok) console.warn('Password reset email not sent:', result.error);
+    else console.info(`Password reset email sent (resend id ${result.providerId ?? 'unknown'})`);
 
     return res.status(200).json(generic);
   } catch (err) {
