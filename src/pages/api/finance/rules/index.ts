@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireFinanceAccess } from '@/lib/finance/access'
 import { isFinanceCategory, normalizeMerchantKey } from '@/lib/finance/metadata'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = req.method === 'GET'
     ? (typeof req.query.householdId === 'string' ? req.query.householdId : undefined)
     : (typeof req.body?.householdId === 'string' ? req.body.householdId : undefined)
@@ -43,3 +44,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['GET', 'POST'])
   return res.status(405).json({ error: 'Method not allowed' })
 }
+
+export default withApiHandler(handler)

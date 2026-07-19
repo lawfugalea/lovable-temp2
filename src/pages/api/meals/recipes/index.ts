@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { requireActiveHousehold } from '@/lib/chores'
 import { RECIPE_NAME_MAX, serializeRecipe, validateIngredients } from '@/lib/meals'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res)
   if (!userId) return
   const householdId = await requireActiveHousehold(req, res, userId)
@@ -59,3 +60,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', 'GET, POST')
   return res.status(405).json({ error: 'Method not allowed' })
 }
+
+export default withApiHandler(handler)

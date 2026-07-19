@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
@@ -10,7 +11,7 @@ function queryDate(value: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -97,3 +98,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     nextCursor: hasMore ? items.at(-1)?.id || null : null,
   })
 }
+
+export default withApiHandler(handler)

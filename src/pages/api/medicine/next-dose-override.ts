@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireMembershipIn } from '@/lib/api-guards'
 import { parseRequiredDate } from '@/lib/medicine'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = req.query.householdId as string
 
   const context = await requireMembershipIn(req, res, householdId)
@@ -96,3 +97,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(405).json({ error: 'Method not allowed' })
 }
+
+export default withApiHandler(handler)

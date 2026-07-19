@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
 import { enrichStoredTransaction, loadFinanceMetadata } from '@/lib/finance/server-metadata'
@@ -45,7 +46,7 @@ function numberValue(value: unknown): number | null {
   return Number.isFinite(number) && number >= 0 ? number : null
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = req.method === 'GET'
     ? (typeof req.query.householdId === 'string' ? req.query.householdId : undefined)
     : (typeof req.body?.householdId === 'string' ? req.body.householdId : undefined)
@@ -181,3 +182,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['GET', 'POST'])
   return res.status(405).json({ error: 'Method not allowed' })
 }
+
+export default withApiHandler(handler)

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { apiRateLimit } from '@/lib/rate-limiter'
@@ -7,7 +8,7 @@ import { loadEnabledComparisonStores, loadOffersByCanonicalProduct } from '@/lib
 import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { requirePriceComparison } from '@/lib/entitlements-core'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET')
     return res.status(405).json({ error: 'Method not allowed' })
@@ -61,3 +62,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'private, no-store')
   return res.status(200).json(buildBasketComparison(comparisonItems, stores))
 }
+
+export default withApiHandler(handler)

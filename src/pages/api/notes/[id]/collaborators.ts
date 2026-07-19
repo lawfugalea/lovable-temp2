@@ -1,10 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 
 type NoteUser = { id: string }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res)
   if (!userId) return
   const user: NoteUser = { id: userId }
@@ -219,3 +220,5 @@ async function handleRemoveCollaborator(req: NextApiRequest, res: NextApiRespons
     return res.status(500).json({ error: 'Failed to remove collaborator' })
   }
 }
+
+export default withApiHandler(handler)

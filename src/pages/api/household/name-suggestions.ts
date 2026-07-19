@@ -1,5 +1,6 @@
 // src/pages/api/household/name-suggestions.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 
@@ -9,7 +10,7 @@ interface NameSuggestion {
   description: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).end('Method Not Allowed');
@@ -89,3 +90,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     defaultType: 'personal'
   });
 }
+
+export default withApiHandler(handler)

@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { requireAdmin } from '@/lib/admin-helpers';
 import { prisma } from '@/lib/prisma';
 
 /** Admin plan override: comp a household onto Family, or revoke a comp. */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     await requireAdmin(req);
   } catch (error: any) {
@@ -47,3 +48,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
   return res.status(200).json({ household: updated });
 }
+
+export default withApiHandler(handler)

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { apiRateLimit } from '@/lib/rate-limiter';
 import { getUserIdOr401 } from '@/lib/api-guards';
@@ -104,7 +105,7 @@ function buildOrWhere(tokens: string[]) {
   return tokens.map((t) => ({ nameNormalized: { contains: t } }));
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -268,3 +269,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ results: {} });
   }
 }
+
+export default withApiHandler(handler)

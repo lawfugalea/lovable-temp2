@@ -1,9 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { parseRequiredDate } from '@/lib/medicine'
 import { requireMembershipIn } from '@/lib/api-guards'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { householdId: queryHouseholdId } = req.query
   const { householdId: bodyHouseholdId } = req.body || {}
   
@@ -234,3 +235,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Internal server error' })
   }
 }
+
+export default withApiHandler(handler)

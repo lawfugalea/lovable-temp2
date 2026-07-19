@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 
 import { requireDebugAccess } from '@/lib/debug-guards';
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!(await requireDebugAccess(req, res))) return;
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -40,3 +41,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: err.message });
   }
 }
+
+export default withApiHandler(handler)

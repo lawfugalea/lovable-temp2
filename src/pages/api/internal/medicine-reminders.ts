@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { timingSafeEqual } from 'node:crypto'
 import { dispatchMedicinePush } from '@/lib/medicine-push'
 
@@ -12,7 +13,7 @@ function authorized(req: NextApiRequest): boolean {
   return left.length === right.length && timingSafeEqual(left, right)
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -25,3 +26,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Reminder dispatch failed' })
   }
 }
+
+export default withApiHandler(handler)

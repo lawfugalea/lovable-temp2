@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { requireFinanceAccess } from '@/lib/finance/access'
 import { loadPlannerData } from '@/lib/finance/planner-data'
 import { suggestedEmergencyFundCents } from '@/lib/budget'
 import { isDeepSeekConfigured } from '@/lib/finance/deepseek'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -22,3 +23,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     bankEnabled: access.bankEnabled,
   })
 }
+
+export default withApiHandler(handler)

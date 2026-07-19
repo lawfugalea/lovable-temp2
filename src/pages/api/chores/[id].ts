@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { dateOnlyToDb, validateRecurrenceInput } from '@/lib/chore-recurrence'
 import { CHORE_NOTES_MAX, CHORE_TITLE_MAX, requireActiveHousehold, serializeChore } from '@/lib/chores'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res)
   if (!userId) return
   const householdId = await requireActiveHousehold(req, res, userId)
@@ -75,3 +76,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', 'PATCH, DELETE')
   return res.status(405).json({ error: 'Method not allowed' })
 }
+
+export default withApiHandler(handler)

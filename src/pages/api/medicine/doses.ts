@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { requireMembershipIn } from '@/lib/api-guards';
 import { normalizeDosage, parseRequiredDate, checkDoseSafety, serializableDoseWarnings } from '@/lib/medicine';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = String(req.method === 'GET' ? req.query.householdId || '' : req.body?.householdId || '');
   const context = await requireMembershipIn(req, res, householdId);
   if (!context) return;
@@ -112,3 +113,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['GET', 'POST']);
   return res.status(405).json({ error: 'Method not allowed' });
 }
+
+export default withApiHandler(handler)

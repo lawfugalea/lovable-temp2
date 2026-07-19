@@ -1,5 +1,6 @@
 // src/pages/api/household/create.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
@@ -20,7 +21,7 @@ interface CreateHouseholdResponse {
   message?: string;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
     return res.status(405).end('Method Not Allowed');
@@ -156,3 +157,5 @@ function generateSmartHouseholdName(
       return `${firstName}'s Household`;
   }
 }
+
+export default withApiHandler(handler)

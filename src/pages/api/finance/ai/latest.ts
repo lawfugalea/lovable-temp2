@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -17,3 +18,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const visible = analyses.find(item => Array.isArray(item.accountIds) && (item.accountIds as unknown[]).every(id => typeof id === 'string' && allowedIds.has(id)))
   return res.status(200).json({ analysis: visible?.result || null, createdAt: visible?.createdAt || null, canManage: access.canManage })
 }
+
+export default withApiHandler(handler)

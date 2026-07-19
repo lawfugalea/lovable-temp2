@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireFinanceAccess } from '@/lib/finance/access'
 import { isDeepSeekConfigured } from '@/lib/finance/deepseek'
@@ -8,7 +9,7 @@ import { createRateLimit } from '@/lib/rate-limiter'
 
 const plannerCoachRateLimit = createRateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 20 })
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -51,3 +52,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(502).json({ error: error instanceof Error ? error.message : 'AI analysis failed' })
   }
 }
+
+export default withApiHandler(handler)

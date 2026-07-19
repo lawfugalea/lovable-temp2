@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { sendInviteEmail } from '@/lib/mailer';
 import { appUrl } from '@/lib/links';
@@ -14,7 +15,7 @@ function makeAcceptUrl(token: string) {
   return appUrl(`/invites/accept?token=${encodeURIComponent(token)}`);
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -114,3 +115,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     emailStatus: { ok: true },
   });
 }
+
+export default withApiHandler(handler)

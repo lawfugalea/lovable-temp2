@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { isDateOnly } from '@/lib/chore-recurrence'
 import { buildTodayView, requireActiveHousehold } from '@/lib/chores'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET')
     return res.status(405).json({ error: 'Method not allowed' })
@@ -22,3 +23,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'no-store')
   return res.status(200).json({ items })
 }
+
+export default withApiHandler(handler)

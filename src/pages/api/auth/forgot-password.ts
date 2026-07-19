@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { createRateLimit, createEmailRateLimit } from '@/lib/rate-limiter';
 import { createInviteToken, hashInviteToken } from '@/lib/invite-tokens';
@@ -16,7 +17,7 @@ const emailRateLimit = createEmailRateLimit(60 * 60 * 1000, 3);
  * not the address has an account — the response must not leak which emails
  * are registered.
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -64,3 +65,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json(generic);
   }
 }
+
+export default withApiHandler(handler)

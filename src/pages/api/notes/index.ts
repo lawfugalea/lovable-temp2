@@ -1,4 +1,5 @@
 import { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import {
@@ -10,7 +11,7 @@ import {
 
 type NoteUser = { id: string; activeHouseholdId: string | null }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res)
   if (!userId) return
   const user = await prisma.user.findUnique({
@@ -221,3 +222,5 @@ async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user:
     return res.status(500).json({ error: 'Failed to create note' })
   }
 }
+
+export default withApiHandler(handler)

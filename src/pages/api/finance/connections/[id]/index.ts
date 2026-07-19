@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireFinanceAccess } from '@/lib/finance/access'
 import { deleteProviderSession, EnableBankingError } from '@/lib/finance/enable-banking'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'DELETE') {
     res.setHeader('Allow', ['DELETE'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -34,3 +35,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await prisma.bankConnection.delete({ where: { id: connection.id } })
   return res.status(200).json({ ok: true })
 }
+
+export default withApiHandler(handler)

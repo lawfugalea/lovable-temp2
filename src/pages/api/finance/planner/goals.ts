@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireFinanceAccess } from '@/lib/finance/access'
 import { parseAmountToCents } from '@/lib/budget'
@@ -40,7 +41,7 @@ function parseInput(res: NextApiResponse, body: Record<string, unknown>): Parsed
   return { name, targetCents, savedCents, targetDate }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!['POST', 'PATCH', 'DELETE'].includes(req.method || '')) {
     res.setHeader('Allow', ['POST', 'PATCH', 'DELETE'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -76,3 +77,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await prisma.savingsGoal.update({ where: { id }, data: input })
   return res.status(200).json({ ok: true })
 }
+
+export default withApiHandler(handler)

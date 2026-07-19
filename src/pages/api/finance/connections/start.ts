@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { withApiHandler } from '@/lib/api-handler'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
 import { appUrl } from '@/lib/links'
@@ -6,7 +7,7 @@ import { requireFinanceAccess } from '@/lib/finance/access'
 import { getFinanceAspsp, isFinanceProviderConfigured } from '@/lib/finance/config'
 import { startBovAuthorization } from '@/lib/finance/enable-banking'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -75,3 +76,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(502).json({ error: error instanceof Error ? error.message : 'Unable to start bank connection' })
   }
 }
+
+export default withApiHandler(handler)

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireFinanceAccess } from '@/lib/finance/access'
 import { isCommitmentCategory, isPlannerFrequency, parseAmountToCents } from '@/lib/budget'
@@ -46,7 +47,7 @@ async function parseInput(
   return { label, category, amountCents, frequency, essential, userId }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!['POST', 'PATCH', 'DELETE'].includes(req.method || '')) {
     res.setHeader('Allow', ['POST', 'PATCH', 'DELETE'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -84,3 +85,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await prisma.commitment.update({ where: { id }, data: { ...input, frequency: input.frequency as never } })
   return res.status(200).json({ ok: true })
 }
+
+export default withApiHandler(handler)

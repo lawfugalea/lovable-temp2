@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { apiRateLimit } from '@/lib/rate-limiter';
 
 const COUNTRY_RE = /^[A-Z]{2}$/;
@@ -12,7 +13,7 @@ const GEO_HEADERS = ['cf-ipcountry', 'x-vercel-ip-country', 'x-geo-country', 'x-
  * always the user's explicit choice. Returns { country: null } when the
  * proxy provides no signal — the client falls back to the browser timezone.
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -29,3 +30,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   return res.status(200).json({ country: null });
 }
+
+export default withApiHandler(handler)

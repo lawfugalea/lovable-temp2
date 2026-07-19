@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getUserIdOr401 } from '@/lib/api-guards';
 import { isPriceComparisonRegion } from '@/lib/entitlements-core';
@@ -14,7 +15,7 @@ const householdSelection = {
   updatedAt: true,
 } as const;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res);
   if (!userId) return;
   res.setHeader('Cache-Control', 'no-store');
@@ -115,3 +116,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['GET', 'POST', 'PATCH']);
   return res.status(405).json({ error: 'Method not allowed' });
 }
+
+export default withApiHandler(handler)

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { rejectDemoUser } from '@/lib/demo';
 import type { InviteStatus, MemberRole } from '@prisma/client';
@@ -8,7 +9,7 @@ import { appUrl } from '@/lib/links';
 import { createInviteToken, hashInviteToken } from '@/lib/invite-tokens';
 import { consumeInviteEmailAttempt } from '@/lib/rate-limiter';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method === 'GET') return listInvites(req, res);
   if (req.method === 'POST') return createInvite(req, res);
@@ -178,3 +179,5 @@ async function createInvite(req: NextApiRequest, res: NextApiResponse) {
     ...(emailStatus ? { emailStatus } : {}),
   });
 }
+
+export default withApiHandler(handler)

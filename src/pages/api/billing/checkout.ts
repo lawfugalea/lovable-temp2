@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { getUserIdOr401, requireMembershipIn } from '@/lib/api-guards'
 import { rejectDemoUser } from '@/lib/demo'
@@ -9,7 +10,7 @@ import { appUrl } from '@/lib/links'
 
 const checkoutRateLimit = createRateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 10 })
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
     return res.status(405).json({ error: 'Method not allowed' })
@@ -69,3 +70,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Cache-Control', 'no-store')
   return res.status(200).json({ url: session.url })
 }
+
+export default withApiHandler(handler)

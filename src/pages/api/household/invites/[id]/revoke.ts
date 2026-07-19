@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getUserIdOr401 } from '@/lib/api-guards';
 
 type Result = { ok: true } | { ok: false; status: number; error: string };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -55,3 +56,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!result.ok) return res.status(result.status).json({ error: result.error });
   return res.status(200).json({ ok: true });
 }
+
+export default withApiHandler(handler)

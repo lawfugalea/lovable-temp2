@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
 import { buildFinanceInsights, insightDateRange } from '@/lib/finance/insights'
@@ -6,7 +7,7 @@ import { enrichStoredTransaction, loadFinanceMetadata } from '@/lib/finance/serv
 
 const ALLOWED_PERIODS = new Set([30, 90, 180, 365])
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET'])
     return res.status(405).json({ error: 'Method not allowed' })
@@ -70,3 +71,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     now,
   ))
 }
+
+export default withApiHandler(handler)

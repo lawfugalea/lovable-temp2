@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
 import { createRateLimit } from '@/lib/rate-limiter'
 import { demoModeEnabled, purgeExpiredDemoUsers } from '@/lib/demo'
 import { createDemoHousehold } from '@/lib/demo-seed'
@@ -6,7 +7,7 @@ import { createDemoHousehold } from '@/lib/demo-seed'
 // Seeding a demo household is expensive; keep it to a handful per IP per hour.
 const demoRateLimit = createRateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 5 })
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   // Hidden entirely unless the deployment opted in.
   if (!demoModeEnabled()) return res.status(404).json({ error: 'Not found' })
   if (req.method !== 'POST') {
@@ -26,3 +27,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Could not start the demo right now' })
   }
 }
+
+export default withApiHandler(handler)

@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import type { InviteStatus, MemberRole } from '@prisma/client';
 import { getUserIdOr401 } from '@/lib/api-guards';
@@ -9,7 +10,7 @@ function httpError(status: number, message: string) {
   return Object.assign(new Error(message), { status });
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
   if (req.method !== 'POST') {
     res.setHeader('Allow', ['POST']);
@@ -118,3 +119,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+export default withApiHandler(handler)

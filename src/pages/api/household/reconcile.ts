@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withApiHandler } from '@/lib/api-handler'
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { reconcileActiveHousehold } from "@/lib/households";
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", ["POST"]);
     return res.status(405).end("Method Not Allowed");
@@ -19,3 +20,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { activeId, changed } = await reconcileActiveHousehold(uid, { write: true });
   return res.status(200).json({ ok: true, activeHouseholdId: activeId, changed });
 }
+
+export default withApiHandler(handler)

@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getUserIdOr401 } from '@/lib/api-guards';
 import { rejectDemoUser } from '@/lib/demo';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     return res.status(405).json({ error: 'Method not allowed' });
@@ -92,3 +93,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Content-Disposition', `attachment; filename="clankeep-export-${stamp}.json"`);
   return res.status(200).json({ exportedAt: new Date().toISOString(), user, notes });
 }
+
+export default withApiHandler(handler)
