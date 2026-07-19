@@ -23,10 +23,13 @@ import {
   Moon,
   Palette,
   Sparkles,
-  Sun
+  Sun,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 const SETTINGS_TABS = [
   { id: 'profile', name: 'Profile', icon: User },
@@ -247,6 +250,9 @@ export default function SettingsPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('unsupported')
   const [dataMessage, setDataMessage] = useState('')
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const confirm = useConfirm()
   
   // User profile state
   const [profile, setProfile] = useState({
@@ -357,6 +363,36 @@ export default function SettingsPage() {
       setDataMessage(error instanceof Error ? error.message : 'Failed to export data')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast.error('Enter your password to delete your account')
+      return
+    }
+    const confirmed = await confirm({
+      title: 'Delete your account?',
+      description:
+        'This permanently deletes your account. If you are the sole owner of a household, that household and all its shared data — including children’s medicine and health records — will be deleted for everyone. This cannot be undone.',
+      confirmText: 'Delete my account',
+      destructive: true,
+    })
+    if (!confirmed) return
+    setDeleting(true)
+    try {
+      const response = await fetch('/api/account/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to delete account')
+      toast.success('Your account has been deleted')
+      await signOut({ callbackUrl: withBasePath('/landing') })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete account')
+      setDeleting(false)
     }
   }
 
@@ -585,6 +621,37 @@ export default function SettingsPage() {
                   </div>
                   {dataMessage && <p className="text-sm text-muted-foreground">{dataMessage}</p>}
                   <p className="text-xs text-muted-foreground">Clearing local cache does not remove anything from the Clankeep server.</p>
+
+                  <div className="mt-2 rounded-xl border border-destructive/40 bg-destructive/5 p-4">
+                    <div className="flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                      <h3 className="font-semibold">Danger zone</h3>
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Permanently delete your account. If you are the sole owner of a household, that household and all its
+                      shared data — including children&apos;s medicine and health records — will be deleted for everyone. This
+                      cannot be undone.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <Input
+                        type="password"
+                        value={deletePassword}
+                        onChange={(event) => setDeletePassword(event.target.value)}
+                        placeholder="Confirm your password"
+                        autoComplete="current-password"
+                        className="sm:max-w-xs"
+                      />
+                      <Button
+                        variant="destructive"
+                        onClick={() => void handleDeleteAccount()}
+                        disabled={deleting || !deletePassword}
+                        className="gap-2"
+                      >
+                        {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        Delete my account
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )}

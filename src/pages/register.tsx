@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import Head from 'next/head'
+import Link from 'next/link'
 import { useRouter } from 'next/router'
 import { AlertCircle, ArrowRight, CheckCircle2, Mail, UserRound } from 'lucide-react'
 import AuthLayout from '@/components/AuthLayout'
@@ -18,12 +19,18 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [captcha, setCaptcha] = useState<{ id: string; answer: string } | null>(null)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!captcha) {
       setError('Please complete the security check')
+      return
+    }
+
+    if (!acceptedTerms) {
+      setError('Please accept the Terms and Privacy Policy')
       return
     }
 
@@ -35,7 +42,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, email, password, captchaId: captcha.id, captchaAnswer: captcha.answer })
+        body: JSON.stringify({ name, email, password, captchaId: captcha.id, captchaAnswer: captcha.answer, acceptedTerms })
       })
 
       const data = await res.json()
@@ -182,9 +189,25 @@ export default function RegisterPage() {
 
           <MathCaptcha onChange={setCaptcha} />
 
+          <label className="flex items-start gap-3 text-sm text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(event) => setAcceptedTerms(event.target.checked)}
+              required
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-input text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <span>
+              I agree to the{' '}
+              <Link href="/terms" target="_blank" className="font-medium text-primary hover:underline">Terms</Link>
+              {' '}and{' '}
+              <Link href="/privacy" target="_blank" className="font-medium text-primary hover:underline">Privacy Policy</Link>.
+            </span>
+          </label>
+
           <Button
             type="submit"
-            disabled={isLoading || !captcha}
+            disabled={isLoading || !captcha || !acceptedTerms}
             className="h-11 w-full gap-2"
           >
             {isLoading ? <><Spinner /> Creating account…</> : <>Create account <ArrowRight className="h-4 w-4" aria-hidden="true" /></>}

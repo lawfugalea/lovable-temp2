@@ -8,6 +8,7 @@ import { validatePassword } from '@/lib/password-policy';
 import { sendWelcomeEmail } from '@/lib/mailer';
 import { appUrl } from '@/lib/links';
 import { verifyCaptcha } from '@/lib/captcha';
+import { TERMS_VERSION } from '@/lib/public-legal';
 
 type RegistrationData = { name?: unknown; email?: unknown; password?: unknown };
 
@@ -53,13 +54,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const ipRateLimitPassed = await registrationRateLimit(req, res);
     if (!ipRateLimitPassed) return;
 
-    const { name, email, password, captchaId, captchaAnswer } = req.body ?? {};
+    const { name, email, password, captchaId, captchaAnswer, acceptedTerms } = req.body ?? {};
 
     // Verify the security check server-side. The client only holds the challenge
     // id; the answer is validated against the server-held challenge, so scripted
     // signups cannot bypass it.
     if (!verifyCaptcha(captchaId, captchaAnswer)) {
       return res.status(400).json({ ok: false, error: 'Security check failed. Please solve the calculation again.' });
+    }
+
+    // Require (and record) Terms/Privacy acceptance — mandatory for a public SaaS.
+    if (acceptedTerms !== true) {
+      return res.status(400).json({ ok: false, error: 'You must accept the Terms and Privacy Policy to create an account.' });
     }
 
     // Enhanced validation
@@ -98,10 +104,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
     // Create user
     const user = await prisma.user.create({
-      data: { 
-        name: _name, 
-        email: _email, 
-        password: hash 
+      data: {
+        name: _name,
+        email: _email,
+        password: hash,
+        acceptedTermsAt: new Date(),
+        termsVersion: TERMS_VERSION,
       },
       select: { 
         id: true, 

@@ -6,6 +6,13 @@ export type PublicLegalConfig = {
 }
 
 /**
+ * Version stamp recorded against a user's Terms/Privacy acceptance at signup.
+ * Bump this (and `lastUpdated`) whenever the legal terms materially change so a
+ * re-acceptance can be required.
+ */
+export const TERMS_VERSION = '2026-07-16'
+
+/**
  * Values shown on the public privacy and terms pages. The finance-owner fallback
  * keeps a personal deployment usable without inventing a separate DPO mailbox.
  * Both possible email values are public when this fallback is used.
