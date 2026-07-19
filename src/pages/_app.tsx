@@ -6,6 +6,7 @@ import "../components/ui/minimal-tiptap/styles/index.css";
 import AuthApp from "@/components/AuthApp";
 import ThemeColorSync from "@/components/ThemeColorSync";
 import { Toaster } from "@/components/ui/Toaster";
+import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import { bodyFont, displayFont } from "@/lib/fonts";
 import { installBasePathFetch, withBasePath } from "@/lib/base-path";
 
@@ -47,7 +48,9 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <FontVariables />
       <ThemeColorSync />
-      <AuthApp Component={Component} pageProps={pageProps} session={session} />
+      <ConfirmProvider>
+        <AuthApp Component={Component} pageProps={pageProps} session={session} />
+      </ConfirmProvider>
       <Toaster position="top-right" richColors closeButton />
     </ThemeProvider>
   );

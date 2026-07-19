@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { toast } from 'sonner'
 import { Plus, Search } from 'lucide-react'
 import ModernAppShell from '../components/ModernAppShell'
 import { Button } from '../components/ui/Button'
@@ -51,7 +52,7 @@ export default function NotesPage() {
       await deleteNote(note.id)
     } catch (err) {
       console.error('Error deleting note:', err)
-      alert('Failed to delete note. Please try again.')
+      toast.error('Failed to delete note. Please try again.')
     } finally {
       setDeleteTarget(null)
     }

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { toast } from 'sonner';
 import { withBasePath } from '@/lib/base-path';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
@@ -54,6 +56,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [inviteLinks, setInviteLinks] = useState<Record<string, string>>({});
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   const currentUserId = (session as any)?.user?.id;
 
@@ -95,7 +98,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
   }, [householdId, loadData]);
 
   const handleRevokeInvite = async (inviteId: string) => {
-    if (!confirm('Are you sure you want to revoke this invite?')) return;
+    if (!(await confirm({ title: 'Revoke invite', description: 'Are you sure you want to revoke this invite?', confirmText: 'Revoke', destructive: true }))) return;
     
     setActionLoading(inviteId);
     try {
@@ -116,7 +119,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
         return next;
       });
     } catch (error: any) {
-      alert(`Failed to revoke invite: ${error.message}`);
+      toast.error(`Failed to revoke invite: ${error.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -136,7 +139,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
       if (!response.ok) throw new Error(data.error || 'Failed to resend invite');
       await loadData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to resend invite');
+      toast.error(error instanceof Error ? error.message : 'Failed to resend invite');
     } finally {
       setActionLoading(null);
     }
@@ -150,12 +153,12 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
       setCopiedInviteId(inviteId);
       setTimeout(() => setCopiedInviteId(current => current === inviteId ? null : current), 2000);
     } catch {
-      alert('Could not copy the invite link');
+      toast.error('Could not copy the invite link');
     }
   };
 
   const handleRemoveMember = async (memberId: string, memberName: string) => {
-    if (!confirm(`Are you sure you want to remove ${memberName} from the household?`)) return;
+    if (!(await confirm({ title: 'Remove member', description: `Are you sure you want to remove ${memberName} from the household?`, confirmText: 'Remove', destructive: true }))) return;
     
     setActionLoading(memberId);
     try {
@@ -171,7 +174,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
       
       setMembers(prev => prev.filter(member => member.id !== memberId));
     } catch (error: any) {
-      alert(`Failed to remove member: ${error.message}`);
+      toast.error(`Failed to remove member: ${error.message}`);
     } finally {
       setActionLoading(null);
     }
@@ -179,7 +182,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
 
   const handleRoleChange = async (member: Member, role: 'OWNER' | 'MEMBER') => {
     const action = role === 'OWNER' ? 'promote' : 'demote';
-    if (!confirm(`Are you sure you want to ${action} ${member.user.name || member.user.email}?`)) return;
+    if (!(await confirm({ title: `${action === 'promote' ? 'Promote' : 'Demote'} member`, description: `Are you sure you want to ${action} ${member.user.name || member.user.email}?`, confirmText: action === 'promote' ? 'Promote' : 'Demote' }))) return;
 
     setActionLoading(`role-${member.id}`);
     try {
@@ -193,14 +196,14 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
       if (!response.ok) throw new Error(data.error || `Failed to ${action} member`);
       await loadData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : `Failed to ${action} member`);
+      toast.error(error instanceof Error ? error.message : `Failed to ${action} member`);
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleLeaveHousehold = async () => {
-    if (!confirm('Are you sure you want to leave this household? You will lose access to all household data.')) return;
+    if (!(await confirm({ title: 'Leave household', description: 'Are you sure you want to leave this household? You will lose access to all household data.', confirmText: 'Leave', destructive: true }))) return;
     
     setActionLoading('leave');
     try {
@@ -219,7 +222,7 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
       // Redirect to home page after leaving
       window.location.href = withBasePath('/');
     } catch (error: any) {
-      alert(`Failed to leave household: ${error.message}`);
+      toast.error(`Failed to leave household: ${error.message}`);
     } finally {
       setActionLoading(null);
     }

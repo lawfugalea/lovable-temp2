@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { useHouseholdId } from '@/lib/useHouseholdId'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { getMedicineSchedule, needsEpisodeDecision, formatTimeUntil } from '@/lib/medicine'
 import { apiRequest } from '@/components/medicine/hooks'
 import { ChildDialog, ReportDialog } from '@/components/medicine/dialogs'
@@ -55,6 +56,7 @@ export default function MedicinePage() {
   const { status } = useSession()
   const router = useRouter()
   const { householdId, loading: householdLoading } = useHouseholdId()
+  const confirm = useConfirm()
   const [journal, setJournal] = useState<JournalPayload>(emptyJournal)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -150,7 +152,7 @@ export default function MedicinePage() {
   }
 
   const stopMedicine = async (medicine: Medicine) => {
-    if (!householdId || !confirm(`Archive ${medicine.name}? Existing journal entries will remain.`)) return
+    if (!householdId || !(await confirm({ title: 'Archive medicine', description: `Archive ${medicine.name}? Existing journal entries will remain.`, confirmText: 'Archive' }))) return
     try {
       await apiRequest(`/api/medicine/medicines?householdId=${encodeURIComponent(householdId)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -162,7 +164,7 @@ export default function MedicinePage() {
   }
 
   const deleteDose = async (dose: MedicineDose) => {
-    if (!householdId || !confirm('Delete this dose record? Due times will be recalculated.')) return
+    if (!householdId || !(await confirm({ title: 'Delete dose', description: 'Delete this dose record? Due times will be recalculated.', confirmText: 'Delete', destructive: true }))) return
     try {
       await apiRequest(`/api/medicine/doses/${dose.id}?householdId=${encodeURIComponent(householdId)}`, { method: 'DELETE' })
       toast.success('Dose deleted')
@@ -171,7 +173,7 @@ export default function MedicinePage() {
   }
 
   const deleteTemperature = async (reading: FeverReading) => {
-    if (!householdId || !confirm('Delete this temperature reading?')) return
+    if (!householdId || !(await confirm({ title: 'Delete reading', description: 'Delete this temperature reading?', confirmText: 'Delete', destructive: true }))) return
     try {
       await apiRequest(`/api/medicine/fever-readings?id=${reading.id}&householdId=${encodeURIComponent(householdId)}`, { method: 'DELETE' })
       toast.success('Temperature deleted')

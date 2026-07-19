@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { signOut, useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { withBasePath } from '@/lib/base-path'
@@ -291,10 +292,10 @@ export default function SettingsPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update profile')
       await update({ refreshProfile: true })
-      alert('Profile updated successfully!')
+      toast.success('Profile updated successfully!')
     } catch (error: any) {
       console.error('Failed to update profile:', error)
-      alert(error?.message || 'Failed to update profile')
+      toast.error(error?.message || 'Failed to update profile')
     } finally {
       setLoading(false)
     }
@@ -302,7 +303,7 @@ export default function SettingsPage() {
 
   const handlePasswordUpdate = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      alert('New passwords do not match')
+      toast.error('New passwords do not match')
       return
     }
     setLoading(true)
@@ -315,9 +316,9 @@ export default function SettingsPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Failed to update password')
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
-      alert('Password updated successfully!')
+      toast.success('Password updated successfully!')
     } catch (error: any) {
-      alert(error?.message || 'Failed to update password')
+      toast.error(error?.message || 'Failed to update password')
     } finally {
       setLoading(false)
     }

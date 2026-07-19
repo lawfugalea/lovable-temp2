@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { CalendarDays, Loader2, Pencil, PiggyBank, Plus, ShieldPlus, Target, Trash2 } from 'lucide-react'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -24,6 +25,7 @@ const emptyGoal: GoalDraft = { name: '', target: '', saved: '', targetDate: '' }
 export default function PlannerGoalsPanel({ householdId, data, onChanged, onError }: PlannerGoalsPanelProps) {
   const [draft, setDraft] = useState<GoalDraft | null>(null)
   const [busy, setBusy] = useState(false)
+  const confirm = useConfirm()
 
   const hasEmergencyFund = data.goals.some(goal => /emergency/i.test(goal.name))
 
@@ -115,8 +117,8 @@ export default function PlannerGoalsPanel({ householdId, data, onChanged, onErro
                 saved: goal.savedCents ? (goal.savedCents / 100).toFixed(2) : '',
                 targetDate: goal.targetDate || '',
               })}
-              onDelete={() => {
-                if (window.confirm(`Delete the goal "${goal.name}"?`)) void submit({ id: goal.id }, 'DELETE')
+              onDelete={async () => {
+                if (await confirm({ title: 'Delete goal', description: `Delete the goal "${goal.name}"?`, confirmText: 'Delete', destructive: true })) void submit({ id: goal.id }, 'DELETE')
               }}
             />
           ))}

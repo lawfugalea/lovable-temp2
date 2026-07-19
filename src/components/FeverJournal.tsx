@@ -15,6 +15,8 @@ import {
   Activity
 } from 'lucide-react'
 import { format, parseISO, isToday, isYesterday } from 'date-fns'
+import { toast } from 'sonner'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface Child {
   id: string
@@ -85,6 +87,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingReading, setEditingReading] = useState<FeverReading | null>(null)
   const [selectedChildFilter, setSelectedChildFilter] = useState<string>('all')
+  const confirm = useConfirm()
 
   // Handle external trigger to open add modal
   useEffect(() => {
@@ -236,7 +239,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
     : readings.filter(reading => reading.childId === selectedChildFilter)
 
   const handleDeleteReading = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this reading?')) return
+    if (!(await confirm({ title: 'Delete reading', description: 'Are you sure you want to delete this reading?', confirmText: 'Delete', destructive: true }))) return
 
     try {
       const response = await fetch(`/api/medicine/fever-readings?id=${id}&householdId=${householdId}`, {
@@ -248,11 +251,11 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
       } else {
         const errorData = await response.json()
         console.error('Failed to delete fever reading:', response.status, errorData)
-        alert('Failed to delete fever reading. Please try again.')
+        toast.error('Failed to delete fever reading. Please try again.')
       }
     } catch (error) {
       console.error('Failed to delete fever reading:', error)
-      alert('Failed to delete fever reading. Please try again.')
+      toast.error('Failed to delete fever reading. Please try again.')
     }
   }
 

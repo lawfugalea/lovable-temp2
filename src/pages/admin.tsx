@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
+import { toast } from 'sonner';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import ModernAppShell from '../components/ModernAppShell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -121,6 +123,7 @@ interface Stats {
 export default function AdminPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState('overview');
   const [users, setUsers] = useState<User[]>([]);
   const [households, setHouseholds] = useState<Household[]>([]);
@@ -146,7 +149,7 @@ export default function AdminPage() {
       }
       await loadData();
     } catch (e: any) {
-      alert(e?.message || 'Action failed');
+      toast.error(e?.message || 'Action failed');
     }
   };
 
@@ -204,7 +207,7 @@ export default function AdminPage() {
   };
 
   const deleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (!(await confirm({ title: 'Delete user', description: 'Are you sure you want to delete this user? This action cannot be undone.', confirmText: 'Delete', destructive: true }))) {
       return;
     }
 
@@ -222,11 +225,11 @@ export default function AdminPage() {
         setUsers(users.filter(user => user.id !== userId));
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error}`);
+        toast.error(`Error: ${error.error}`);
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      alert('Failed to delete user');
+      toast.error('Failed to delete user');
     } finally {
       setDeleting(null);
     }
@@ -243,12 +246,12 @@ export default function AdminPage() {
       if (!response.ok) throw new Error(data.error || 'Could not update the plan');
       await loadData();
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'Could not update the plan');
+      toast.error(error instanceof Error ? error.message : 'Could not update the plan');
     }
   };
 
   const deleteHousehold = async (householdId: string) => {
-    if (!confirm('Are you sure you want to delete this household? This action cannot be undone.')) {
+    if (!(await confirm({ title: 'Delete household', description: 'Are you sure you want to delete this household? This action cannot be undone.', confirmText: 'Delete', destructive: true }))) {
       return;
     }
 
@@ -266,11 +269,11 @@ export default function AdminPage() {
         setHouseholds(households.filter(household => household.id !== householdId));
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error}`);
+        toast.error(`Error: ${error.error}`);
       }
     } catch (error) {
       console.error('Error deleting household:', error);
-      alert('Failed to delete household');
+      toast.error('Failed to delete household');
     } finally {
       setDeleting(null);
     }
@@ -289,7 +292,7 @@ export default function AdminPage() {
       }
       await loadData();
     } catch (e: any) {
-      alert(e?.message || 'Transfer failed');
+      toast.error(e?.message || 'Transfer failed');
     }
   };
 
@@ -306,7 +309,7 @@ export default function AdminPage() {
       }
       await loadData();
     } catch (e: any) {
-      alert(e?.message || 'Invite update failed');
+      toast.error(e?.message || 'Invite update failed');
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import {
   CalendarClock,
   CircleDollarSign,
@@ -52,6 +53,7 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
   const [incomeDraft, setIncomeDraft] = useState<IncomeDraft | null>(null)
   const [commitmentDraft, setCommitmentDraft] = useState<CommitmentDraft | null>(null)
   const [busy, setBusy] = useState(false)
+  const confirm = useConfirm()
 
   const memberName = (userId: string | null) =>
     userId ? data.members.find(member => member.userId === userId)?.name?.split(/\s+/)[0] : null
@@ -77,7 +79,7 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
   }
 
   const removeEntry = async (endpoint: 'income' | 'commitments', id: string) => {
-    if (!window.confirm('Remove this entry from the plan?')) return
+    if (!(await confirm({ title: 'Remove entry', description: 'Remove this entry from the plan?', confirmText: 'Remove', destructive: true }))) return
     await submit(endpoint, { id }, 'DELETE')
   }
 

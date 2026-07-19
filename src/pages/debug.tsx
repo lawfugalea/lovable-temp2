@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
@@ -48,7 +49,7 @@ export default function DebugLab() {
       const ok = r.ok;
       await update({ reason: "debug-activate" } as any); // force JWT/session refresh
       await load();
-      alert(ok ? "Activated & session refreshed." : "Activate failed.");
+      if (ok) toast.success("Activated & session refreshed."); else toast.error("Activate failed.");
     } finally {
       setLoading(false);
     }

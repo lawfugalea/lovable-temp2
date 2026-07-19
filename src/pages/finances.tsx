@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 import {
   AlertCircle,
   ArrowDownLeft,
@@ -148,6 +149,7 @@ function connectionTone(status: ConnectionStatus) {
 export default function FinancesPage() {
   const { status } = useSession()
   const router = useRouter()
+  const confirm = useConfirm()
   const [householdId, setHouseholdId] = useState('')
   const [overview, setOverview] = useState<Overview | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -400,9 +402,12 @@ export default function FinancesPage() {
   }
 
   const disconnect = async (connection: Connection) => {
-    if (!householdId || !window.confirm(
-      'Disconnect Bank of Valletta? This revokes consent and permanently removes every imported balance and transaction from Clankeep.',
-    )) return
+    if (!householdId || !(await confirm({
+      title: 'Disconnect bank',
+      description: 'Disconnect Bank of Valletta? This revokes consent and permanently removes every imported balance and transaction from Clankeep.',
+      confirmText: 'Disconnect',
+      destructive: true,
+    }))) return
     setAction(`disconnect:${connection.id}`)
     setError(null)
     try {
