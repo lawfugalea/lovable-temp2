@@ -1,6 +1,5 @@
 import type { AppProps } from "next/app";
 import Head from "next/head";
-import { useRouter } from "next/router";
 import { ThemeProvider } from "next-themes";
 import "../styles/globals.css";
 import "../components/ui/minimal-tiptap/styles/index.css";
@@ -24,13 +23,10 @@ function FontVariables() {
 }
 
 export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
-  const router = useRouter();
-  // The landing page is a deliberately light marketing surface.
-  const forcedTheme = router.pathname === "/landing" ? "light" : undefined;
 
   if (process.env.NEXT_PUBLIC_SAFE_MODE === '1') {
     return (
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange forcedTheme={forcedTheme}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         <Head>
           <link rel="manifest" href={withBasePath("/manifest.json")} />
           <meta name="theme-color" content="#4D6BFF" />
@@ -48,7 +44,7 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
   }
 
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange forcedTheme={forcedTheme}>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <FontVariables />
       <ThemeColorSync />
       <AuthApp Component={Component} pageProps={pageProps} session={session} />

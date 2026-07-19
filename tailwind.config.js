@@ -26,22 +26,22 @@ module.exports = {
   				'sans-serif'
   			]
   		},
-		colors: {
-			brand: {
-				blue: 'hsl(var(--brand-blue) / <alpha-value>)',
-				purple: 'hsl(var(--brand-purple) / <alpha-value>)',
-				teal: 'hsl(var(--brand-teal) / <alpha-value>)',
-				coral: 'hsl(var(--brand-coral) / <alpha-value>)',
-				amber: 'hsl(var(--brand-amber) / <alpha-value>)',
-				green: 'hsl(var(--brand-green) / <alpha-value>)',
-				dark: '#0F172A',
-				heading: '#111827',
-				body: '#4B5563',
-				muted: '#94A3B8',
-				success: '#22C55E',
-				warning: '#F59E0B',
-				error: '#EF4444'
-			},
+  		colors: {
+  			brand: {
+  				blue: 'hsl(var(--brand-blue) / <alpha-value>)',
+  				purple: 'hsl(var(--brand-purple) / <alpha-value>)',
+  				teal: 'hsl(var(--brand-teal) / <alpha-value>)',
+  				coral: 'hsl(var(--brand-coral) / <alpha-value>)',
+  				amber: 'hsl(var(--brand-amber) / <alpha-value>)',
+  				green: 'hsl(var(--brand-green) / <alpha-value>)',
+  				dark: '#0F172A',
+  				heading: '#111827',
+  				body: '#4B5563',
+  				muted: '#94A3B8',
+  				success: '#22C55E',
+  				warning: '#F59E0B',
+  				error: '#EF4444'
+  			},
   			border: 'hsl(var(--border) / <alpha-value>)',
   			input: 'hsl(var(--input) / <alpha-value>)',
   			ring: 'hsl(var(--ring) / <alpha-value>)',
@@ -82,12 +82,12 @@ module.exports = {
   				notes: 'hsl(var(--module-notes) / <alpha-value>)',
   				meals: 'hsl(var(--module-meals) / <alpha-value>)',
   				chores: 'hsl(var(--module-chores) / <alpha-value>)'
-  			},
+  			}
   		},
-		backgroundImage: {
-			'brand-primary': 'linear-gradient(135deg, #4D6BFF, #7B61FF)',
-			'brand-secondary': 'linear-gradient(135deg, #20C5C8, #4D6BFF)',
-			'brand-accent': 'linear-gradient(135deg, #FF6B6B, #7B61FF)'
+  		backgroundImage: {
+  			'brand-primary': 'linear-gradient(135deg, #4D6BFF, #7B61FF)',
+  			'brand-secondary': 'linear-gradient(135deg, #20C5C8, #4D6BFF)',
+  			'brand-accent': 'linear-gradient(135deg, #FF6B6B, #7B61FF)'
   		},
   		boxShadow: {
   			'soft-sm': '0 1px 2px hsl(var(--shadow-color) / .05), 0 1px 8px hsl(var(--shadow-color) / .035)',
@@ -103,7 +103,9 @@ module.exports = {
   		animation: {
   			'fade-in': 'fade-in 0.4s ease-out',
   			rise: 'rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
-  			'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both'
+  			'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			'accordion-down': 'accordion-down 0.2s ease-out',
+  			'accordion-up': 'accordion-up 0.2s ease-out'
   		},
   		keyframes: {
   			rise: {
@@ -136,6 +138,22 @@ module.exports = {
   					transform: 'translateY(0)'
   				}
   			},
+  			'accordion-down': {
+  				from: {
+  					height: '0'
+  				},
+  				to: {
+  					height: 'var(--radix-accordion-content-height)'
+  				}
+  			},
+  			'accordion-up': {
+  				from: {
+  					height: 'var(--radix-accordion-content-height)'
+  				},
+  				to: {
+  					height: '0'
+  				}
+  			}
   		},
   		typography: {
   			DEFAULT: {
