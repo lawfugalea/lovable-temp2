@@ -21,6 +21,7 @@ export async function getHouseholdEntitlements(householdId: string): Promise<Hou
       stripeSubscriptionStatus: true,
       currentPeriodEnd: true,
       graceUntil: true,
+      country: true,
       owner: { select: { isDemo: true } },
     },
   })
@@ -37,6 +38,7 @@ export async function getHouseholdEntitlements(householdId: string): Promise<Hou
     currentPeriodEnd: household.currentPeriodEnd,
     graceUntil: household.graceUntil,
     ownerIsDemo: household.owner?.isDemo === true,
+    country: household.country,
   })
 }
 

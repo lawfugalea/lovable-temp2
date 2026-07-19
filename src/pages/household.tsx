@@ -8,12 +8,14 @@ import { Badge } from '../components/ui/Badge'
 import HouseholdCreationWizard from '../components/HouseholdCreationWizard'
 import EnhancedInvitePanel from '../components/EnhancedInvitePanel'
 import HouseholdManagement from '../components/HouseholdManagement'
-import { Users, Settings, RefreshCw, Home, Save, X } from 'lucide-react'
+import { Users, Settings, RefreshCw, Home, Save, X, MapPin } from 'lucide-react'
+import { COUNTRY_OPTIONS, countryLabel } from '@/lib/countries'
 
 interface Household {
   id: string
   name: string
   ownerId: string | null
+  country: string
   createdAt: string
   updatedAt: string
   role: 'OWNER' | 'MEMBER'
@@ -28,6 +30,7 @@ export default function HouseholdPage() {
   const [editingName, setEditingName] = useState(false)
   const [householdName, setHouseholdName] = useState('')
   const [savingName, setSavingName] = useState(false)
+  const [savingCountry, setSavingCountry] = useState(false)
 
   // Load household data
   useEffect(() => {
@@ -53,6 +56,7 @@ export default function HouseholdPage() {
           id: householdData.householdId,
           name: householdData.name,
           ownerId: householdData.ownerId,
+          country: householdData.country || 'MT',
           createdAt: householdData.createdAt,
           updatedAt: householdData.updatedAt,
           role: householdData.role,
@@ -96,6 +100,26 @@ export default function HouseholdPage() {
       setHouseholdError(error instanceof Error ? error.message : 'Failed to rename household')
     } finally {
       setSavingName(false)
+    }
+  }
+
+  const handleCountryChange = async (country: string) => {
+    if (!household || country === household.country) return
+    setSavingCountry(true)
+    setHouseholdError('')
+    try {
+      const response = await fetch('/api/household/active', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId: household.id, country }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to update the household country')
+      setHousehold(current => current ? { ...current, ...data.household } : current)
+    } catch (error) {
+      setHouseholdError(error instanceof Error ? error.message : 'Failed to update the household country')
+    } finally {
+      setSavingCountry(false)
     }
   }
 
@@ -184,6 +208,27 @@ export default function HouseholdPage() {
                     </Button>
                   </div>
                 )}
+                <div className="mt-4 flex flex-col gap-2 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4" aria-hidden="true" />
+                    {household.role === 'OWNER'
+                      ? 'Location — Malta households get supermarket price comparison'
+                      : `Location: ${countryLabel(household.country)}`}
+                  </div>
+                  {household.role === 'OWNER' && (
+                    <select
+                      value={household.country}
+                      onChange={(event) => void handleCountryChange(event.target.value)}
+                      disabled={savingCountry}
+                      aria-label="Household country"
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                    >
+                      {COUNTRY_OPTIONS.map(option => (
+                        <option key={option.code} value={option.code}>{option.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
                 {householdError && <p className="mt-3 text-sm text-red-600">{householdError}</p>}
               </CardContent>
             </Card>

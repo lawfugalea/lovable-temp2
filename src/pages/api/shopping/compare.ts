@@ -5,7 +5,7 @@ import { apiRateLimit } from '@/lib/rate-limiter'
 import { buildBasketComparison, type ComparisonItemInput } from '@/lib/shopping-price-comparison'
 import { loadEnabledComparisonStores, loadOffersByCanonicalProduct } from '@/lib/shopping-offers'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
-import { respondUpgradeRequired } from '@/lib/entitlements-core'
+import { requirePriceComparison } from '@/lib/entitlements-core'
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!membership) return res.status(403).json({ error: 'Forbidden' })
 
   const entitlements = await getHouseholdEntitlements(list.householdId)
-  if (!entitlements.canUsePriceComparison) return respondUpgradeRequired(res, 'priceComparison')
+  if (!requirePriceComparison(res, entitlements)) return
 
   const items = await prisma.shoppingItem.findMany({
     where: { listId, status: 'ACTIVE' },

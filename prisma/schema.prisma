@@ -66,6 +66,8 @@ model Household {
   updatedAt                 DateTime                   @updatedAt
   plan                      HouseholdPlan              @default(FREE)
   planSource                PlanSource?
+  /// ISO 3166-1 alpha-2. Gates region-specific features (Malta price comparison).
+  country                   String                     @default("MT")
   stripeCustomerId          String?                    @unique
   stripeSubscriptionId      String?                    @unique
   stripeSubscriptionStatus  String?

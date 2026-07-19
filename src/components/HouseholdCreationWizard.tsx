@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Badge } from './ui/Badge';
-import { Home, Users, Heart, User, Sparkles, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Home, Users, Heart, User, Sparkles, ArrowRight, ArrowLeft, MapPin } from 'lucide-react';
+import { COUNTRY_OPTIONS, FALLBACK_COUNTRY } from '@/lib/countries';
 
 interface NameSuggestion {
   name: string;
@@ -22,12 +23,39 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
   const [householdType, setHouseholdType] = useState('personal');
   const [customName, setCustomName] = useState('');
   const [suggestions, setSuggestions] = useState<NameSuggestion[]>([]);
+  const [country, setCountry] = useState('MT');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   // Load name suggestions on mount
   useEffect(() => {
     loadSuggestions();
+  }, []);
+
+  // Prefill the country from infrastructure geo headers, falling back to the
+  // browser timezone. Only a default — the user confirms it in step 2.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      let detected: string | null = null;
+      try {
+        const response = await fetch('/api/geo/country');
+        const data = await response.json().catch(() => ({}));
+        if (typeof data.country === 'string') detected = data.country.toUpperCase();
+      } catch {
+        // No geo signal; fall through to the timezone check.
+      }
+      if (!detected) {
+        try {
+          detected = Intl.DateTimeFormat().resolvedOptions().timeZone === 'Europe/Malta' ? 'MT' : FALLBACK_COUNTRY;
+        } catch {
+          return;
+        }
+      }
+      if (cancelled) return;
+      setCountry(COUNTRY_OPTIONS.some(option => option.code === detected) ? detected : FALLBACK_COUNTRY);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const loadSuggestions = async () => {
@@ -81,6 +109,7 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
         body: JSON.stringify({
           name: householdName,
           type: householdType,
+          country,
           description: customName ? 'Custom name' : undefined
         })
       });
@@ -210,6 +239,29 @@ export default function HouseholdCreationWizard({ onComplete, onCancel }: Househ
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Household country */}
+            <div>
+              <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Where is your home?
+              </h3>
+              <select
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                aria-label="Household country"
+                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {COUNTRY_OPTIONS.map(option => (
+                  <option key={option.code} value={option.code}>{option.label}</option>
+                ))}
+              </select>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {country === 'MT'
+                  ? 'Households in Malta get supermarket price comparison across Smart, Greens & Welbee’s.'
+                  : 'Supermarket price comparison covers Maltese supermarkets only, so it stays hidden outside Malta — everything else works everywhere.'}
+              </p>
             </div>
 
             {/* Features preview */}

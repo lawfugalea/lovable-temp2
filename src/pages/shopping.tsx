@@ -176,6 +176,8 @@ export default function ShoppingPage() {
   const [offersError, setOffersError] = useState('')
   const [addingOfferId, setAddingOfferId] = useState<string | null>(null)
   const [pricesLocked, setPricesLocked] = useState(false)
+  // Malta-only feature: optimistic until /api/household/active says otherwise.
+  const [regionSupported, setRegionSupported] = useState(true)
   const offersLoadedRef = useRef(false)
 
   const [query, setQuery] = useState('')
@@ -269,9 +271,10 @@ export default function ShoppingPage() {
       const response = await fetch(`/api/shopping/compare?listId=${encodeURIComponent(listId)}`)
       if (!response.ok) {
         const data = await responseJson(response)
-        if (response.status === 403 && data.code === 'upgrade_required') {
+        if (response.status === 403 && (data.code === 'upgrade_required' || data.code === 'unavailable_region')) {
           if (requestId === comparisonRequestId.current) {
-            setPricesLocked(true)
+            if (data.code === 'unavailable_region') setRegionSupported(false)
+            else setPricesLocked(true)
             setComparison(null)
           }
           return
@@ -293,7 +296,20 @@ export default function ShoppingPage() {
     if (status !== 'authenticated') return
     void loadLists()
     void loadTemplates()
+    void (async () => {
+      try {
+        const response = await fetch('/api/household/active')
+        const data = await responseJson(response)
+        if (response.ok && data.priceComparisonRegionSupported === false) setRegionSupported(false)
+      } catch {
+        // Stay optimistic; the price endpoints answer authoritatively via 403 codes.
+      }
+    })()
   }, [loadLists, loadTemplates, status])
+
+  useEffect(() => {
+    if (!regionSupported && tab !== 'list') setTab('list')
+  }, [regionSupported, tab])
 
   useEffect(() => {
     setItems([])
@@ -307,7 +323,7 @@ export default function ShoppingPage() {
 
   useEffect(() => {
     const cleanQuery = query.trim()
-    if (pricesLocked) return
+    if (pricesLocked || !regionSupported) return
     if (cleanQuery.length < 2) {
       searchRequestId.current += 1
       setSearchResults([])
@@ -323,9 +339,10 @@ export default function ShoppingPage() {
       try {
         const response = await fetch(`/api/prices/search?q=${encodeURIComponent(cleanQuery)}`)
         const data = await responseJson(response)
-        if (response.status === 403 && data.code === 'upgrade_required') {
+        if (response.status === 403 && (data.code === 'upgrade_required' || data.code === 'unavailable_region')) {
           if (requestId === searchRequestId.current) {
-            setPricesLocked(true)
+            if (data.code === 'unavailable_region') setRegionSupported(false)
+            else setPricesLocked(true)
             setSearchResults([])
             setSearchLoading(false)
           }
@@ -344,7 +361,7 @@ export default function ShoppingPage() {
       }
     }, 300)
     return () => window.clearTimeout(timeout)
-  }, [query, pricesLocked])
+  }, [query, pricesLocked, regionSupported])
 
   const refreshComparison = useCallback(() => {
     void loadComparison(selectedListId)
@@ -356,8 +373,9 @@ export default function ShoppingPage() {
     try {
       const response = await fetch('/api/prices/offers')
       const data = await responseJson(response)
-      if (response.status === 403 && data.code === 'upgrade_required') {
-        setPricesLocked(true)
+      if (response.status === 403 && (data.code === 'upgrade_required' || data.code === 'unavailable_region')) {
+        if (data.code === 'unavailable_region') setRegionSupported(false)
+        else setPricesLocked(true)
         offersLoadedRef.current = true
         return
       }
@@ -780,11 +798,11 @@ export default function ShoppingPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 rounded-lg bg-muted p-1" role="tablist" aria-label="Shopping view">
+          {regionSupported && <div className="grid grid-cols-3 rounded-lg bg-muted p-1" role="tablist" aria-label="Shopping view">
             <button type="button" role="tab" aria-selected={tab === 'list'} onClick={() => setTab('list')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><ListChecks className="mr-2 inline h-4 w-4" />List</button>
             <button type="button" role="tab" aria-selected={tab === 'compare'} onClick={() => setTab('compare')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'compare' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Scale className="mr-2 inline h-4 w-4" />Compare{comparison && comparison.items.some(item => item.matchStatus !== 'MATCHED') && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-amber-500" />}</button>
             <button type="button" role="tab" aria-selected={tab === 'offers'} onClick={() => setTab('offers')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'offers' ? 'bg-background text-module-shopping shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Percent className="mr-2 inline h-4 w-4" />Offers</button>
-          </div>
+          </div>}
         </header>
 
         {notice && <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><span>{notice}</span><button type="button" onClick={() => setNotice('')} className="min-h-11 min-w-11 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Dismiss message"><X className="mx-auto h-4 w-4" /></button></div>}
@@ -817,7 +835,7 @@ export default function ShoppingPage() {
                         value={query}
                         onChange={event => setQuery(event.target.value)}
                         onKeyDown={handleComposerKeyDown}
-                        placeholder={matchingItem ? 'Search for the exact catalogue product' : 'Search products or type an item'}
+                        placeholder={matchingItem ? 'Search for the exact catalogue product' : regionSupported ? 'Search products or type an item' : 'Type an item to add'}
                         aria-label={matchingItem ? `Search catalogue to match ${matchingItem.title}` : 'Add a shopping item'}
                         aria-controls="catalogue-results"
                         aria-activedescendant={highlightedResult >= 0 ? `catalogue-result-${highlightedResult}` : undefined}
@@ -835,7 +853,7 @@ export default function ShoppingPage() {
                     )}
                   </div>
 
-                  {(query.trim().length >= 2 || searchError) && (
+                  {regionSupported && (query.trim().length >= 2 || searchError) && (
                     <div id="catalogue-results" role="listbox" aria-label="Catalogue results" className="mt-4 overflow-hidden rounded-lg border">
                       {searchError && <div className="border-b bg-amber-50 p-3 text-sm text-amber-800">{searchError}. You can still add the item as written.</div>}
                       {!searchLoading && !searchError && searchResults.length === 0 && <div className="p-4 text-sm text-muted-foreground">No exact catalogue products found. Add the item as written instead.</div>}
@@ -885,14 +903,14 @@ export default function ShoppingPage() {
                   <div className="p-10 text-center"><h2 className="font-semibold">{filter ? 'No matching active items' : 'Nothing left to buy'}</h2><p className="mt-1 text-sm text-muted-foreground">{filter ? 'Try a different filter.' : totalDone > 0 ? 'Everything on this list is complete.' : archived ? 'This archived list is empty.' : 'Add an item above to get started.'}</p></div>
                 ) : (
                   <div className="divide-y">
-                    {activeItems.map(item => <ShoppingItemRow key={item.id} item={item} comparisonItem={comparisonItems.get(item.id)} archived={archived} updating={updatingCounts.has(item.id)} showPrices={!pricesLocked} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}
+                    {activeItems.map(item => <ShoppingItemRow key={item.id} item={item} comparisonItem={comparisonItems.get(item.id)} archived={archived} updating={updatingCounts.has(item.id)} showPrices={!pricesLocked && regionSupported} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}
                   </div>
                 )}
 
                 {doneItems.length > 0 && (
                   <div className="border-t">
                     <button type="button" onClick={() => setCompletedOpen(open => !open)} className="flex min-h-11 w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5" aria-expanded={completedOpen}>Completed <span className="flex items-center gap-2 text-muted-foreground">{doneItems.length}<ChevronDown className={`h-4 w-4 transition-transform ${completedOpen ? 'rotate-180' : ''}`} /></span></button>
-                    {completedOpen && <div className="divide-y border-t">{doneItems.map(item => <ShoppingItemRow key={item.id} item={item} archived={archived} updating={false} showPrices={!pricesLocked} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}</div>}
+                    {completedOpen && <div className="divide-y border-t">{doneItems.map(item => <ShoppingItemRow key={item.id} item={item} archived={archived} updating={false} showPrices={!pricesLocked && regionSupported} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}</div>}
                   </div>
                 )}
               </CardContent>

@@ -74,6 +74,28 @@ test('demo households experience the Family feature set', () => {
   assert.equal(ent.canUseAi, true)
 })
 
+test('price comparison requires a Maltese household', () => {
+  const familyAbroad = base({ plan: 'FAMILY', planSource: 'ADMIN', country: 'DE' })
+  assert.equal(familyAbroad.plan, 'FAMILY')
+  assert.equal(familyAbroad.priceComparisonRegionSupported, false)
+  assert.equal(familyAbroad.canUsePriceComparison, false)
+  // Other Family features are unaffected by the region.
+  assert.equal(familyAbroad.canUseFinance, true)
+  assert.equal(familyAbroad.canUsePushReminders, true)
+
+  const familyMalta = base({ plan: 'FAMILY', planSource: 'ADMIN', country: 'MT' })
+  assert.equal(familyMalta.priceComparisonRegionSupported, true)
+  assert.equal(familyMalta.canUsePriceComparison, true)
+
+  // Lower-case codes and the legacy no-country case are treated as Malta.
+  assert.equal(base({ country: 'mt' }).priceComparisonRegionSupported, true)
+  assert.equal(base().priceComparisonRegionSupported, true)
+
+  const freeAbroad = base({ country: 'ZZ' })
+  assert.equal(freeAbroad.priceComparisonRegionSupported, false)
+  assert.equal(freeAbroad.canUsePriceComparison, false)
+})
+
 test('featureAllowed maps features to capabilities', () => {
   const free = base()
   const family = base({ plan: 'FAMILY', planSource: 'ADMIN' })

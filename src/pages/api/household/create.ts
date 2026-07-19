@@ -8,7 +8,11 @@ interface CreateHouseholdRequest {
   name?: string;
   type?: 'family' | 'roommates' | 'couple' | 'personal' | 'other';
   description?: string;
+  /** ISO 3166-1 alpha-2; defaults to MT. */
+  country?: string;
 }
+
+const COUNTRY_RE = /^[A-Z]{2}$/;
 
 interface CreateHouseholdResponse {
   householdId: string;
@@ -66,7 +70,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // 4) Parse request body
-  const { name, type, description }: CreateHouseholdRequest = req.body || {};
+  const { name, type, description, country: countryRaw }: CreateHouseholdRequest = req.body || {};
+  const country = typeof countryRaw === 'string' ? countryRaw.trim().toUpperCase() : 'MT';
+  if (!COUNTRY_RE.test(country)) {
+    return res.status(400).json({ error: 'Country must be a two-letter ISO code' });
+  }
 
   // 5) Generate smart household name
   const householdName = generateSmartHouseholdName(user, name, type);
@@ -85,9 +93,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         throw Object.assign(new Error('User already belongs to a household'), { status: 409 });
       }
       const h = await tx.household.create({
-        data: { 
-          name: householdName, 
-          ownerId: user!.id 
+        data: {
+          name: householdName,
+          ownerId: user!.id,
+          country,
         },
         select: { id: true, name: true },
       });

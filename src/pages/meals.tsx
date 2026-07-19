@@ -61,6 +61,8 @@ export default function MealsPage() {
   const [priceLoading, setPriceLoading] = useState(false)
   const [priceError, setPriceError] = useState('')
   const [priceLocked, setPriceLocked] = useState(false)
+  // Malta-only feature: optimistic until /api/household/active says otherwise.
+  const [regionSupported, setRegionSupported] = useState(true)
 
   const weekDates = useMemo(
     () => Array.from({ length: 7 }, (_, index) => localDateOnly(addDays(weekStart, index))),
@@ -100,6 +102,15 @@ export default function MealsPage() {
     void (async () => {
       await Promise.all([loadWeek(from, to), loadRecipes()])
       setLoading(false)
+    })()
+    void (async () => {
+      try {
+        const response = await fetch('/api/household/active')
+        const data = await response.json().catch(() => ({}))
+        if (response.ok && data.priceComparisonRegionSupported === false) setRegionSupported(false)
+      } catch {
+        // Stay optimistic; plan-price answers authoritatively via 403 codes.
+      }
     })()
   }, [status, from, to, loadWeek, loadRecipes])
 
@@ -147,8 +158,13 @@ export default function MealsPage() {
     try {
       const response = await fetch(`/api/meals/plan-price?from=${from}&to=${to}`)
       const data = await response.json().catch(() => ({}))
-      if (response.status === 403 && data.code === 'upgrade_required') {
-        setPriceLocked(true)
+      if (response.status === 403 && (data.code === 'upgrade_required' || data.code === 'unavailable_region')) {
+        if (data.code === 'unavailable_region') {
+          setRegionSupported(false)
+          setPriceOpen(false)
+        } else {
+          setPriceLocked(true)
+        }
         setPriceComparison(null)
         return
       }
@@ -252,9 +268,11 @@ export default function MealsPage() {
               <Button type="button" onClick={() => setGenerateOpen(true)} disabled={!plannedCount} className="min-h-11 flex-1">
                 <ShoppingBasket />Add ingredients to shopping list
               </Button>
-              <Button type="button" variant="outline" onClick={() => void priceWeek()} disabled={!plannedCount || priceLoading} className="min-h-11 flex-1">
-                {priceLoading ? <Loader2 className="animate-spin" /> : <Scale />}Price this week
-              </Button>
+              {regionSupported && (
+                <Button type="button" variant="outline" onClick={() => void priceWeek()} disabled={!plannedCount || priceLoading} className="min-h-11 flex-1">
+                  {priceLoading ? <Loader2 className="animate-spin" /> : <Scale />}Price this week
+                </Button>
+              )}
             </div>
 
             {priceOpen && priceLocked && (

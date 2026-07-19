@@ -1,6 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { apiRateLimit } from '@/lib/rate-limiter';
+import { getUserIdOr401 } from '@/lib/api-guards';
+import { requireActiveHousehold } from '@/lib/chores';
+import { getHouseholdEntitlements } from '@/lib/entitlements';
+import { requirePriceComparison } from '@/lib/entitlements-core';
 
 const MAX_TITLES = 25;
 const MAX_TITLE_LENGTH = 200;
@@ -12,8 +16,6 @@ const MAX_TITLE_LENGTH = 200;
  * {
  *   results: Record<string, { priceCents: number; name: string; url: string }>
  * }
- *
- * No auth requirement (public).
  */
 
 // --- Normalization utilities ---
@@ -103,12 +105,17 @@ function buildOrWhere(tokens: string[]) {
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Public endpoint: do not enforce auth here
   if (req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  const userId = await getUserIdOr401(req, res);
+  if (!userId) return;
   if (!(await apiRateLimit(req, res))) return;
+  const householdId = await requireActiveHousehold(req, res, userId);
+  if (!householdId) return;
+  const entitlements = await getHouseholdEntitlements(householdId);
+  if (!requirePriceComparison(res, entitlements)) return;
 
   const qInput =
     req.method === 'GET'

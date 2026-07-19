@@ -1,11 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getUserIdOr401 } from '@/lib/api-guards';
+import { isPriceComparisonRegion } from '@/lib/entitlements-core';
+
+const COUNTRY_RE = /^[A-Z]{2}$/;
 
 const householdSelection = {
   id: true,
   name: true,
   ownerId: true,
+  country: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -48,6 +52,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       householdId: membership.household.id,
       name: membership.household.name,
       ownerId: membership.household.ownerId,
+      country: membership.household.country,
+      priceComparisonRegionSupported: isPriceComparisonRegion(membership.household.country),
       createdAt: membership.household.createdAt,
       updatedAt: membership.household.updatedAt,
       role: membership.role,
@@ -70,12 +76,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'PATCH') {
     const householdId = typeof req.body?.householdId === 'string' ? req.body.householdId : '';
+    if (!householdId) return res.status(400).json({ error: 'Missing householdId' });
+
     const name = typeof req.body?.name === 'string'
       ? req.body.name.trim().replace(/\s+/g, ' ')
-      : '';
-    if (!householdId) return res.status(400).json({ error: 'Missing householdId' });
-    if (name.length < 2 || name.length > 100) {
+      : undefined;
+    const country = typeof req.body?.country === 'string'
+      ? req.body.country.trim().toUpperCase()
+      : undefined;
+    if (name === undefined && country === undefined) {
+      return res.status(400).json({ error: 'Nothing to update' });
+    }
+    if (name !== undefined && (name.length < 2 || name.length > 100)) {
       return res.status(400).json({ error: 'Household name must be between 2 and 100 characters' });
+    }
+    if (country !== undefined && !COUNTRY_RE.test(country)) {
+      return res.status(400).json({ error: 'Country must be a two-letter ISO code' });
     }
 
     const membership = await prisma.membership.findUnique({
@@ -87,7 +103,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const household = await prisma.household.update({
       where: { id: householdId },
-      data: { name },
+      data: {
+        ...(name !== undefined ? { name } : {}),
+        ...(country !== undefined ? { country } : {}),
+      },
       select: householdSelection,
     });
     return res.status(200).json({ household });
