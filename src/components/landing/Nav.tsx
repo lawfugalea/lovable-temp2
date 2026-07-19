@@ -1,6 +1,32 @@
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight } from 'lucide-react'
+import { useTheme } from 'next-themes'
+import { ArrowRight, Moon, Sun } from 'lucide-react'
 import BrandLogo from '@/components/BrandLogo'
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  // Avoid a hydration mismatch: the resolved theme is unknown until mounted.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  const isDark = resolvedTheme === 'dark'
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+      aria-label={mounted ? (isDark ? 'Switch to light mode' : 'Switch to dark mode') : 'Toggle theme'}
+      title={mounted ? (isDark ? 'Switch to light mode' : 'Switch to dark mode') : undefined}
+      className="grid h-10 w-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {mounted
+        ? isDark
+          ? <Sun className="h-[18px] w-[18px]" aria-hidden="true" />
+          : <Moon className="h-[18px] w-[18px]" aria-hidden="true" />
+        : <span className="h-[18px] w-[18px]" aria-hidden="true" />}
+    </button>
+  )
+}
 
 const links = [
   { href: '#features', label: 'Features' },
@@ -34,6 +60,7 @@ export default function Nav() {
         </div>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link
             href="/login"
             className="rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
