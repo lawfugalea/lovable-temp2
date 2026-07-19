@@ -1,7 +1,17 @@
+# Cap container log files so a noisy or crash-looping service cannot fill the
+# host disk (Docker's json-file driver is unbounded by default).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1024m
     environment:
       POSTGRES_DB: houseflow
       POSTGRES_USER: houseflow
@@ -17,6 +27,8 @@ services:
       retries: 10
 
   migrate:
+    logging: *default-logging
+    mem_limit: 1024m
     build:
       context: .
       target: builder
@@ -40,6 +52,8 @@ services:
   backup:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
     environment:
       PGPASSWORD: ${HOUSEFLOW_POSTGRES_PASSWORD}
       HOUSEFLOW_BACKUP_KEEP_DAYS: ${HOUSEFLOW_BACKUP_KEEP_DAYS:-30}
@@ -85,6 +99,8 @@ services:
         NEXT_PUBLIC_KELMA_AGENT_ID: ${HOUSEFLOW_KELMA_AGENT_ID-}
         NEXT_PUBLIC_DEMO_MODE_ENABLED: ${HOUSEFLOW_DEMO_MODE_ENABLED-}
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1536m
     init: true
     read_only: true
     cap_drop:
@@ -139,6 +155,8 @@ services:
   reminder:
     image: alpine:3.21
     restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
     init: true
     read_only: true
     cap_drop:
@@ -152,12 +170,16 @@ services:
       - /bin/sh
       - -ec
       - |
+        if [ -z "$${REMINDER_WORKER_SECRET}" ]; then
+          echo "[reminder] WARNING: REMINDER_WORKER_SECRET is not set — medicine dose reminders are DISABLED"
+        fi
         while true; do
           if [ -n "$${REMINDER_WORKER_SECRET}" ]; then
             wget -q -O /dev/null \
               --header="Authorization: Bearer $${REMINDER_WORKER_SECRET}" \
               --post-data='' \
-              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/medicine-reminders" || true
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/medicine-reminders" \
+              || echo "[reminder] WARNING: dispatch poll failed at $$(date -u +%FT%TZ)"
           fi
           sleep 60
         done
@@ -170,6 +192,11 @@ services:
       context: .
       target: price-worker
     restart: unless-stopped
+    logging: *default-logging
+    # Headless Chromium is memory-hungry; cap it so a scraper leak restarts this
+    # container instead of OOM-ing the shared host (and the database with it).
+    mem_limit: 1536m
+    cpus: 1.5
     init: true
     read_only: true
     security_opt:

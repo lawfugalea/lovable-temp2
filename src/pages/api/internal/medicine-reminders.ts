@@ -2,6 +2,9 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { timingSafeEqual } from 'node:crypto'
 import { dispatchMedicinePush } from '@/lib/medicine-push'
+import { markReminderRun } from '@/lib/reminder-heartbeat'
+
+let warnedNoVapid = false
 
 function authorized(req: NextApiRequest): boolean {
   const expected = process.env.REMINDER_WORKER_SECRET?.trim()
@@ -19,8 +22,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
   if (!authorized(req)) return res.status(401).json({ error: 'Unauthorized' })
+  if (!process.env.VAPID_PRIVATE_KEY?.trim() && !warnedNoVapid) {
+    console.warn('[medicine-reminders] VAPID keys are not configured — dose reminders will NOT be delivered')
+    warnedNoVapid = true
+  }
   try {
-    return res.status(200).json(await dispatchMedicinePush())
+    const result = await dispatchMedicinePush()
+    markReminderRun()
+    return res.status(200).json(result)
   } catch (error) {
     console.error('[medicine-reminders] dispatch failed', error instanceof Error ? error.message : error)
     return res.status(500).json({ error: 'Reminder dispatch failed' })

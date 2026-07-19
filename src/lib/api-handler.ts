@@ -1,4 +1,5 @@
 import type { NextApiHandler, NextApiRequest, NextApiResponse } from 'next'
+import { captureException } from '@/lib/observability'
 
 /**
  * Wrap an API route handler so an unexpected throw returns a JSON 500 envelope
@@ -12,7 +13,7 @@ export function withApiHandler(handler: NextApiHandler): NextApiHandler {
     try {
       await handler(req, res)
     } catch (error) {
-      console.error(`Unhandled API error in ${req.method ?? 'REQ'} ${req.url ?? ''}:`, error)
+      captureException(error, { method: req.method, url: req.url })
       if (!res.headersSent) {
         res.status(500).json({ ok: false, error: 'Internal server error' })
       }
