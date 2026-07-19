@@ -298,6 +298,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
         <div className="flex items-center gap-3">
           {/* Child Filter */}
           <select
+            aria-label="Filter by child"
             value={selectedChildFilter}
             onChange={(e) => setSelectedChildFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"

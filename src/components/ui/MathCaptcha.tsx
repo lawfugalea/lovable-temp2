@@ -1,63 +1,60 @@
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import { CheckCircle2, RefreshCw, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { Label } from "@/components/ui/Label"
 import { cn } from "@/lib/utils"
+import { withBasePath } from "@/lib/base-path"
+
+export type CaptchaSolution = { id: string; answer: string }
 
 interface MathCaptchaProps {
-  onVerify: (isValid: boolean) => void
+  /**
+   * Called with the challenge id and the user's current answer whenever the
+   * input changes, or `null` when there is no usable answer. The parent submits
+   * this to the server, which holds the real answer — the check is authoritative
+   * server-side, not in this component.
+   */
+  onChange: (solution: CaptchaSolution | null) => void
   className?: string
 }
 
-export default function MathCaptcha({ onVerify, className }: MathCaptchaProps) {
+export default function MathCaptcha({ onChange, className }: MathCaptchaProps) {
   const questionId = React.useId()
+  const [challengeId, setChallengeId] = useState("")
   const [question, setQuestion] = useState("")
-  const [answer, setAnswer] = useState("")
   const [userAnswer, setUserAnswer] = useState("")
-  const [isVerified, setIsVerified] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const generateQuestion = () => {
-    const operations = ["+", "-", "×"]
-    const operation = operations[Math.floor(Math.random() * operations.length)]
-    let num1: number
-    let num2: number
-    let result: number
-
-    if (operation === "+") {
-      num1 = Math.floor(Math.random() * 20) + 1
-      num2 = Math.floor(Math.random() * 20) + 1
-      result = num1 + num2
-    } else if (operation === "-") {
-      num1 = Math.floor(Math.random() * 20) + 10
-      num2 = Math.floor(Math.random() * 10) + 1
-      result = num1 - num2
-    } else {
-      num1 = Math.floor(Math.random() * 10) + 1
-      num2 = Math.floor(Math.random() * 10) + 1
-      result = num1 * num2
-    }
-
-    setQuestion(`${num1} ${operation} ${num2} = ?`)
-    setAnswer(result.toString())
+  const loadChallenge = useCallback(async () => {
+    setLoading(true)
     setUserAnswer("")
-    setIsVerified(false)
-    onVerify(false)
-  }
+    onChange(null)
+    try {
+      const response = await fetch(withBasePath("/api/captcha/challenge"), { headers: { accept: "application/json" } })
+      const data = await response.json()
+      if (!response.ok || typeof data.id !== "string") throw new Error("challenge unavailable")
+      setChallengeId(data.id)
+      setQuestion(data.question)
+    } catch {
+      setChallengeId("")
+      setQuestion("Could not load the security check. Please refresh.")
+    } finally {
+      setLoading(false)
+    }
+  }, [onChange])
 
   useEffect(() => {
-    generateQuestion()
-    // The challenge should be generated once on mount, not whenever the callback identity changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    void loadChallenge()
+  }, [loadChallenge])
 
   const handleAnswerChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value
-    const verified = value === answer
     setUserAnswer(value)
-    setIsVerified(verified)
-    onVerify(verified)
+    onChange(challengeId && value.trim() ? { id: challengeId, answer: value.trim() } : null)
   }
+
+  const hasAnswer = Boolean(userAnswer.trim())
 
   return (
     <fieldset className={cn("space-y-3 rounded-lg border bg-muted/35 p-4", className)}>
@@ -68,10 +65,10 @@ export default function MathCaptcha({ onVerify, className }: MathCaptchaProps) {
       </div>
       <div className="flex items-center gap-2">
         <div id={questionId} className="flex h-10 flex-1 items-center justify-center rounded-md border bg-background px-3 font-mono text-base font-semibold">
-          {question}
+          {loading ? "Loading…" : question}
         </div>
-        <Button type="button" variant="outline" size="icon" onClick={generateQuestion} aria-label="Generate a new question">
-          <RefreshCw className="h-4 w-4" />
+        <Button type="button" variant="outline" size="icon" onClick={() => void loadChallenge()} aria-label="Generate a new question" disabled={loading}>
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
         </Button>
       </div>
       <Input
@@ -81,18 +78,15 @@ export default function MathCaptcha({ onVerify, className }: MathCaptchaProps) {
         inputMode="numeric"
         value={userAnswer}
         onChange={handleAnswerChange}
-        className={cn(
-          isVerified && "border-emerald-500 focus-visible:ring-emerald-500",
-          userAnswer && !isVerified && "border-destructive focus-visible:ring-destructive"
-        )}
+        disabled={loading || !challengeId}
+        className={cn(hasAnswer && "border-emerald-500 focus-visible:ring-emerald-500")}
         placeholder="Enter the answer"
         aria-describedby={questionId}
-        aria-invalid={Boolean(userAnswer && !isVerified)}
         required
       />
       <div className="min-h-5 text-xs" aria-live="polite">
-        {isVerified ? (
-          <span className="flex items-center gap-1.5 font-medium text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Check complete</span>
+        {hasAnswer ? (
+          <span className="flex items-center gap-1.5 font-medium text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Ready to submit</span>
         ) : (
           <span className="text-muted-foreground">Solve the short calculation to continue.</span>
         )}

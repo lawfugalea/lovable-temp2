@@ -109,7 +109,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
       <>
         <Head><title>Invite Error – Clankeep</title></Head>
         <main className="min-h-screen flex items-center justify-center p-6">
-          <div className="max-w-md w-full rounded-3xl border border-black/5 bg-white shadow p-6">
+          <div className="max-w-md w-full rounded-3xl border border-border bg-card shadow p-6">
             <h1 className="text-lg font-semibold mb-2 text-red-600">Invite Error</h1>
             <p className="text-sm text-gray-700 mb-3">{error}</p>
             <Link href="/" className="text-sm text-fuchsia-600 underline">Go to Home</Link>
@@ -124,7 +124,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
       <>
         <Head><title>Invite Error – Clankeep</title></Head>
         <main className="min-h-screen flex items-center justify-center p-6">
-          <div className="max-w-md w-full rounded-3xl border border-black/5 bg-white shadow p-6">
+          <div className="max-w-md w-full rounded-3xl border border-border bg-card shadow p-6">
             <h1 className="text-lg font-semibold mb-2 text-red-600">Error</h1>
             <p className="text-sm text-gray-700 mb-3">{processError}</p>
             <div className="flex gap-2">
@@ -146,7 +146,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
     <>
       <Head><title>Accept Invite – Clankeep</title></Head>
       <main className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md w-full rounded-3xl border border-black/5 bg-white shadow p-6">
+        <div className="max-w-md w-full rounded-3xl border border-border bg-card shadow p-6">
             <h1 className="text-lg font-semibold mb-2">Join household</h1>
           {inviteInfo && (
             <div className="mb-4">

@@ -99,7 +99,7 @@ export default function SupermarketComparisonPanel({
       {error && (
         <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>
-          <Button type="button" variant="outline" size="sm" onClick={onRetry} className="min-h-11 bg-white">Try again</Button>
+          <Button type="button" variant="outline" size="sm" onClick={onRetry} className="min-h-11 bg-background">Try again</Button>
         </div>
       )}
 
@@ -191,7 +191,7 @@ export default function SupermarketComparisonPanel({
                       : 'No supermarket lists a current price for this product'}
                   </div>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => onMatch(item.id, item.title)} className="min-h-11 shrink-0 bg-white">
+                <Button type="button" variant="outline" size="sm" onClick={() => onMatch(item.id, item.title)} className="min-h-11 shrink-0 bg-background">
                   {item.matchStatus === 'UNMATCHED' ? 'Match product' : 'Rematch'}
                 </Button>
               </div>

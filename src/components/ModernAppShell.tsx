@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react"
+import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { signOut, useSession } from "next-auth/react"
@@ -337,6 +338,9 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
 
   return (
     <div className="min-h-screen bg-background md:grid md:grid-cols-[76px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)]">
+      <Head>
+        <title>{`${activeTitle} · Clankeep`}</title>
+      </Head>
       <aside className="sticky top-0 hidden h-screen border-r bg-card md:block lg:hidden">{rail}</aside>
       <aside className="sticky top-0 hidden h-screen border-r bg-card lg:block">{sidebar}</aside>
 

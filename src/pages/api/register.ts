@@ -6,6 +6,7 @@ import { registrationRateLimit, emailRegistrationRateLimit } from '@/lib/rate-li
 import { validatePassword } from '@/lib/password-policy';
 import { sendWelcomeEmail } from '@/lib/mailer';
 import { appUrl } from '@/lib/links';
+import { verifyCaptcha } from '@/lib/captcha';
 
 type RegistrationData = { name?: unknown; email?: unknown; password?: unknown };
 
@@ -50,8 +51,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Apply rate limiting
     const ipRateLimitPassed = await registrationRateLimit(req, res);
     if (!ipRateLimitPassed) return;
-    
-    const { name, email, password } = req.body ?? {};
+
+    const { name, email, password, captchaId, captchaAnswer } = req.body ?? {};
+
+    // Verify the security check server-side. The client only holds the challenge
+    // id; the answer is validated against the server-held challenge, so scripted
+    // signups cannot bypass it.
+    if (!verifyCaptcha(captchaId, captchaAnswer)) {
+      return res.status(400).json({ ok: false, error: 'Security check failed. Please solve the calculation again.' });
+    }
 
     // Enhanced validation
     const validationErrors = validateRegistrationData({ name, email, password });

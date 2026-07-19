@@ -21,7 +21,7 @@ export default function CourseCard({
   medicine, schedule, onGiveDose, onStop, onEdit, onOverride, onClearOverride, busy,
 }: CourseCardProps) {
   return (
-    <div className={`p-4 border rounded-lg ${schedule.isDue ? 'border-orange-200 bg-orange-50' : 'border-border bg-white'}`}>
+    <div className={`p-4 border rounded-lg ${schedule.isDue ? 'border-orange-200 bg-orange-50' : 'border-border bg-card'}`}>
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">

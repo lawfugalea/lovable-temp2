@@ -17,12 +17,12 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const [isCaptchaVerified, setIsCaptchaVerified] = useState(false)
+  const [captcha, setCaptcha] = useState<{ id: string; answer: string } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!isCaptchaVerified) {
+    if (!captcha) {
       setError('Please complete the security check')
       return
     }
@@ -35,7 +35,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ name, email, password, captchaId: captcha.id, captchaAnswer: captcha.answer })
       })
 
       const data = await res.json()
@@ -180,11 +180,11 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <MathCaptcha onVerify={setIsCaptchaVerified} />
+          <MathCaptcha onChange={setCaptcha} />
 
           <Button
             type="submit"
-            disabled={isLoading || !isCaptchaVerified}
+            disabled={isLoading || !captcha}
             className="h-11 w-full gap-2"
           >
             {isLoading ? <><Spinner /> Creating account…</> : <>Create account <ArrowRight className="h-4 w-4" aria-hidden="true" /></>}

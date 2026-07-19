@@ -72,7 +72,7 @@ export default function DebugLab() {
     <div className="mx-auto max-w-4xl p-6">
       <h1 className="mb-3 text-2xl font-semibold">Debug Lab</h1>
 
-      <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="mb-4 rounded-2xl border bg-card p-4 shadow-sm">
         <div className="mb-2 text-sm opacity-70">
           Signed in as:{" "}
           <span className="font-mono">
@@ -126,7 +126,7 @@ export default function DebugLab() {
         </div>
       </div>
 
-      <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="mb-4 rounded-2xl border bg-card p-4 shadow-sm">
         <div className="mb-2 text-sm opacity-70">
           Test actions (use a known <code>householdId</code> below)
         </div>
@@ -162,7 +162,7 @@ export default function DebugLab() {
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <div className="mb-2 text-sm opacity-70">Raw payload</div>
         <pre className="max-h-[40vh] overflow-auto rounded-lg bg-gray-50 p-3 text-xs">
 {JSON.stringify(payload, null, 2)}

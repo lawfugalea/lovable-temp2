@@ -42,7 +42,7 @@ export default function TemplateSection({ templates, onAdd, onStartCourse, onEdi
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {templates.map((template) => (
-              <div key={template.id} className="p-4 border border-border rounded-lg bg-white">
+              <div key={template.id} className="p-4 border border-border rounded-lg bg-card">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-foreground truncate">{template.name}</h3>
