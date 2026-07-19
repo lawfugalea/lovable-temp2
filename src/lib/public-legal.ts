@@ -10,7 +10,7 @@ export type PublicLegalConfig = {
  * Bump this (and `lastUpdated`) whenever the legal terms materially change so a
  * re-acceptance can be required.
  */
-export const TERMS_VERSION = '2026-07-16'
+export const TERMS_VERSION = '2026-07-19'
 
 /**
  * Values shown on the public privacy and terms pages. The finance-owner fallback
@@ -25,6 +25,6 @@ export function getPublicLegalConfig(): PublicLegalConfig {
     controllerName: process.env.PRIVACY_CONTROLLER_NAME?.trim() || 'Clankeep deployment operator',
     contactEmail: dedicatedEmail || financeOwnerEmail || '',
     contactConfigured: Boolean(dedicatedEmail || financeOwnerEmail),
-    lastUpdated: '16 July 2026',
+    lastUpdated: '19 July 2026',
   }
 }

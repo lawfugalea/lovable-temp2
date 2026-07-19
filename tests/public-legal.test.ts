@@ -20,7 +20,7 @@ test('public legal details use the dedicated contact when configured', () => {
       controllerName: 'Personal Operator',
       contactEmail: 'privacy@example.com',
       contactConfigured: true,
-      lastUpdated: '16 July 2026',
+      lastUpdated: '19 July 2026',
     })
   } finally {
     restore('PRIVACY_CONTROLLER_NAME', previousName)
