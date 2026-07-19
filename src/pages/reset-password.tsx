@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
       <AuthLayout
         eyebrow="Account recovery"
         title="Choose a new password"
-        description="Make it at least 12 characters with upper and lower case letters and a number."
+        description="At least 8 characters — a few unrelated words make a strong, memorable password."
       >
         {done ? (
           <>
@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-11 border-border bg-background text-foreground focus:border-primary focus:ring-ring"
-                  placeholder="At least 12 characters"
+                  placeholder="At least 8 characters"
                   autoComplete="new-password"
                   required
                 />

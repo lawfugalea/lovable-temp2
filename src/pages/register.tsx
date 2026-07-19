@@ -179,11 +179,11 @@ export default function RegisterPage() {
               placeholder="Create a strong password"
               autoComplete="new-password"
               required
-              minLength={12}
+              minLength={8}
               maxLength={128}
             />
             <p className="text-xs leading-5 text-muted-foreground">
-              Use 12–128 characters with uppercase, lowercase, and numbers.
+              At least 8 characters. A few unrelated words work great.
             </p>
           </div>
 
