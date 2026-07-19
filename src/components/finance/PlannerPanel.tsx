@@ -115,7 +115,7 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
       {/* Summary hero */}
       <Card className="border-0 bg-gradient-to-br from-brand-blue to-brand-purple text-white hover:-translate-y-0">
         <CardContent className="p-6">
-          <div className="grid gap-5 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
             <div>
               <p className="text-sm text-white/75">Comes in monthly</p>
               <p className="mt-1 font-display text-3xl font-bold tabular-nums tracking-tight">
@@ -152,7 +152,7 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
         </CardContent>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Income */}
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -255,7 +255,7 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {summary.setAsides.map(item => (
                 <div key={item.id} className="flex items-center justify-between gap-2 rounded-xl bg-muted/60 px-3.5 py-2.5">
                   <div className="min-w-0">

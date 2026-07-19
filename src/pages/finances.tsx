@@ -644,7 +644,7 @@ export default function FinancesPage() {
         {overview && overview.accounts.length > 0 && (
           <>
             {activeTab === 'overview' && <>
-            <div className="grid gap-4 lg:grid-cols-[1.15fr_2fr]">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_2fr]">
               <Card className="bg-gradient-to-br from-brand-blue to-brand-purple text-white border-0">
                 <CardContent className="p-6">
                   <p className="text-sm text-white/75">Total visible balance</p>
@@ -662,7 +662,7 @@ export default function FinancesPage() {
                 </CardContent>
               </Card>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {overview.accounts.map(account => (
                   <Card key={account.id} className="hover:-translate-y-0">
                     <CardContent className="p-5">
@@ -821,7 +821,7 @@ export default function FinancesPage() {
                 <CardDescription>Merchant-enriched BOV activity with account and date filters.</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr]">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[2fr_1fr_1fr_1fr_1fr]">
                   <div className="relative">
                     <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
                     <Input

@@ -103,7 +103,7 @@ export default function PlannerGoalsPanel({ householdId, data, onChanged, onErro
           description="A holiday, a car, a rainy-day fund — give the disposable money a job and watch it add up."
         />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {data.goals.map(goal => (
             <GoalCard
               key={goal.id}

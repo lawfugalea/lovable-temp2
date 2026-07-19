@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { registrationRateLimit, emailRegistrationRateLimit } from '@/lib/rate-limiter';
 import { validatePassword } from '@/lib/password-policy';
+import { sendWelcomeEmail } from '@/lib/mailer';
+import { appUrl } from '@/lib/links';
 
 type RegistrationData = { name?: unknown; email?: unknown; password?: unknown };
 
@@ -100,9 +102,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    // Log successful registration for monitoring
+    // Fire-and-forget: a failed welcome email must never fail the signup.
+    void sendWelcomeEmail({ to: user.email, name: user.name, signInUrl: appUrl('/login') })
+      .then(result => {
+        if (!result.ok) console.warn('Welcome email not sent:', result.error);
+      })
+      .catch(err => console.warn('Welcome email failed:', err));
 
-    return res.status(201).json({ 
+    return res.status(201).json({
       ok: true, 
       user,
       message: 'Account created successfully. You can now sign in.' 

@@ -56,6 +56,20 @@ model User {
   financeAiPreference       FinanceAiPreference?
   financeAiAnalyses         FinanceAiAnalysis[]
   pushSubscriptions         PushSubscription[]
+  passwordResetTokens       PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  /// SHA-256 of the raw token; the raw value only ever travels in the email link.
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Household {

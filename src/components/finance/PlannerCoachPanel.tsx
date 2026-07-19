@@ -138,7 +138,7 @@ export default function PlannerCoachPanel({ householdId, data, onError }: Planne
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {state.result.observations.map((observation, index) => (
           <Card key={index} className="hover:-translate-y-0">
             <CardContent className="p-5">
