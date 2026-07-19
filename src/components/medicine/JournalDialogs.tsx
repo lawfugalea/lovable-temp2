@@ -63,7 +63,7 @@ export function EpisodeDecisionDialog({
               : `Start ${child?.name || 'this child'}’s first illness episode before recording health events.`}
           </DialogDescription>
         </DialogHeader>
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
           Episode grouping keeps doses, temperatures, and notes together. It does not diagnose an illness.
         </div>
         <DialogFooter>
@@ -198,7 +198,7 @@ export function RegimenDialog({ open, onOpenChange, householdId, child, episode,
   return (
     <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="max-h-[92vh] overflow-y-auto">
       <DialogHeader><DialogTitle>{medicine ? 'Edit medicine schedule' : 'Add medicine schedule'}</DialogTitle><DialogDescription>This is optional for journal entries. Copy these values from the exact packaging, leaflet, or clinician instruction to enable timing checks and reminders.</DialogDescription></DialogHeader>
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><AlertTriangle className="mr-2 inline h-4 w-4" />Check the exact formulation and concentration. Different products with the same brand can have different strengths.</div>
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"><AlertTriangle className="mr-2 inline h-4 w-4" />Check the exact formulation and concentration. Different products with the same brand can have different strengths.</div>
       <div className="space-y-4">
         <div className="space-y-1.5"><Label htmlFor="regimen-name">Product name *</Label><Input id="regimen-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="e.g., Calpol Infant Suspension" /></div>
         <div className="grid gap-4 sm:grid-cols-2"><div className="space-y-1.5"><Label htmlFor="regimen-ingredient">Active ingredient *</Label><Input id="regimen-ingredient" value={form.activeIngredient} onChange={(event) => setForm({ ...form, activeIngredient: event.target.value })} placeholder="e.g., paracetamol" /></div><div className="space-y-1.5"><Label htmlFor="regimen-form">Formulation *</Label><Input id="regimen-form" value={form.formulation} onChange={(event) => setForm({ ...form, formulation: event.target.value })} placeholder="oral liquid, tablet…" /></div></div>

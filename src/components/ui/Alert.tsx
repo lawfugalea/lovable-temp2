@@ -9,8 +9,8 @@ const alertVariants = cva(
       variant: {
         default: "bg-card text-card-foreground",
         destructive: "border-destructive/40 bg-destructive/5 text-destructive [&>svg]:text-destructive",
-        success: "border-emerald-200 bg-emerald-50 text-emerald-900 [&>svg]:text-emerald-700",
-        warning: "border-amber-200 bg-amber-50 text-amber-950 [&>svg]:text-amber-700",
+        success: "border-emerald-200 bg-emerald-50 text-emerald-900 [&>svg]:text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200 dark:[&>svg]:text-emerald-400",
+        warning: "border-amber-200 bg-amber-50 text-amber-950 [&>svg]:text-amber-700 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100 dark:[&>svg]:text-amber-400",
       },
     },
     defaultVariants: { variant: "default" },

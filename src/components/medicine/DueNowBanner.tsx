@@ -13,7 +13,7 @@ interface DueNowBannerProps {
 export default function DueNowBanner({ dueMedicines, children, onGiveDose }: DueNowBannerProps) {
   if (dueMedicines.length === 0) return null
   return (
-    <Card className="border-orange-200 bg-orange-50">
+    <Card className="border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/40">
       <CardContent className="p-4 sm:p-6">
         <div className="flex items-center gap-3 mb-3">
           <AlertTriangle className="h-6 w-6 text-orange-500 flex-shrink-0" />

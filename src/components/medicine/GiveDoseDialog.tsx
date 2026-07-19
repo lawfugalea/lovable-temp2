@@ -209,11 +209,11 @@ export default function GiveDoseDialog({
                   onChange={(e) => setForm({ ...form, medicineName: e.target.value })} />
                 <p className="text-xs text-muted-foreground">We will save this medicine for next time. You can add timing and reminder details later.</p>
               </div>}
-              {selectedMedicine?.scheduleVerifiedAt && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">
+              {selectedMedicine?.scheduleVerifiedAt && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-100">
                 <p className="flex items-center gap-2 font-medium"><CheckCircle2 className="h-4 w-4" /> Timing checks are on</p>
                 <p className="mt-1 text-emerald-800">Saved schedule: {selectedMedicine.dosage} · {selectedMedicine.frequency}</p>
               </div>}
-              {selectedMedicine && !selectedMedicine.scheduleVerifiedAt && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+              {selectedMedicine && !selectedMedicine.scheduleVerifiedAt && <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
                 <p className="flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4" /> No schedule set</p>
                 <p className="mt-1 text-amber-800">This dose will be recorded, but timing checks and reminders are unavailable until the product schedule is added.</p>
               </div>}
@@ -239,7 +239,7 @@ export default function GiveDoseDialog({
               onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
           {safety && !safety.ok && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-1">
+            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 space-y-1 dark:border-amber-800 dark:bg-amber-950/40">
               <p className="flex items-center gap-2 text-sm font-medium text-amber-800">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0" /> Safety warning
               </p>

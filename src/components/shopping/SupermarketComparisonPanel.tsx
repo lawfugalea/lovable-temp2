@@ -97,7 +97,7 @@ export default function SupermarketComparisonPanel({
       </div>
 
       {error && (
-        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2"><AlertCircle className="h-4 w-4 shrink-0" />{error}</div>
           <Button type="button" variant="outline" size="sm" onClick={onRetry} className="min-h-11 bg-background">Try again</Button>
         </div>
@@ -175,7 +175,7 @@ export default function SupermarketComparisonPanel({
 
       {/* Items that can't be priced yet */}
       {comparison && needsAttention.length > 0 && (
-        <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4">
+        <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 dark:border-amber-900 dark:bg-amber-950/40">
           <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-900">
             <AlertCircle className="h-4 w-4" />
             {needsAttention.length} {needsAttention.length === 1 ? 'item isn’t' : 'items aren’t'} in the totals yet
