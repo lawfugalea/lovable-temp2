@@ -75,7 +75,8 @@ Invitation email requires `RESEND_API_KEY` in `.env` and a verified sender in
 configured in `.env.deploy`). Link-only invitations remain available when
 email delivery is not configured.
 
-See [docs/HOUSEFLOW_BACKUPS.md](docs/HOUSEFLOW_BACKUPS.md) for backup and restore procedures.
+See [docs/HOUSEFLOW_BACKUPS.md](docs/HOUSEFLOW_BACKUPS.md) for backup procedures
+and [docs/CLANKEEP_RESTORE_RUNBOOK.md](docs/CLANKEEP_RESTORE_RUNBOOK.md) for the restore runbook.
 
 For the child health journal and private Web Push setup, see
 [docs/HOUSEFLOW_HEALTH_JOURNAL.md](docs/HOUSEFLOW_HEALTH_JOURNAL.md).

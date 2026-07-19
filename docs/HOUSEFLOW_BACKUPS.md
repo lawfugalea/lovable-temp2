@@ -57,13 +57,8 @@ docker run --rm \
 17 3 * * * cd /home/ryan/lovable-temp2 && ./scripts/backup-houseflow-db.sh >> /home/ryan/backups/houseflow/backup.log 2>&1
 ```
 
-## Restore sketch
+## Restoring
 
-Stop the app first if doing a destructive restore.
-
-```bash
-gunzip -c /home/ryan/backups/houseflow/houseflow-YYYYMMDDTHHMMSSZ.sql.gz \
-  | docker compose --env-file .env.deploy exec -T db psql -U houseflow -d houseflow
-```
-
-For a full clean restore, recreate the DB/volume deliberately first. Do not run destructive restore commands without checking the target.
+Follow [CLANKEEP_RESTORE_RUNBOOK.md](CLANKEEP_RESTORE_RUNBOOK.md) — it covers
+verifying a dump, rolling back bad data, rebuilding after total host loss,
+and a non-destructive restore drill. Do not improvise destructive restores.
