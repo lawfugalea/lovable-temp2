@@ -18,6 +18,7 @@ import {
 import ModernAppShell from "@/components/ModernAppShell"
 import ChoreTodayList, { todayItemKey, type TodayChoreItem } from "@/components/chores/ChoreTodayList"
 import OnboardingChecklist from "@/components/OnboardingChecklist"
+import HouseholdCreationWizard from "@/components/HouseholdCreationWizard"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/Alert"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
@@ -145,6 +146,7 @@ export default function DashboardPage() {
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [recentDoses, setRecentDoses] = useState<MedicineDose[]>([])
   const [loading, setLoading] = useState(true)
+  const [hasHousehold, setHasHousehold] = useState<boolean | null>(null)
   const [showJoinSuccess, setShowJoinSuccess] = useState(false)
   const [todayChores, setTodayChores] = useState<TodayChoreItem[]>([])
   const [tonight, setTonight] = useState<{ recipeName: string | null; freeText: string | null } | null>(null)
@@ -284,6 +286,7 @@ export default function DashboardPage() {
       const response = await fetch("/api/household/active")
       const data = await response.json()
       if (data.householdId) {
+        setHasHousehold(true)
         await Promise.all([
           loadShoppingData(data.householdId),
           loadMedicineData(data.householdId),
@@ -291,6 +294,9 @@ export default function DashboardPage() {
           loadChoresData(),
           loadMealsData(),
         ])
+      } else if (response.status === 404) {
+        // Brand-new account: guide them straight into household setup.
+        setHasHousehold(false)
       }
     } catch (error) {
       console.error("Failed to load household data:", error)
@@ -321,6 +327,36 @@ export default function DashboardPage() {
 
   if (status === "loading" || loading) {
     return <ModernAppShell title="Overview"><DashboardSkeleton /></ModernAppShell>
+  }
+
+  if (hasHousehold === false) {
+    return (
+      <ModernAppShell title="Welcome">
+        <div className="mx-auto max-w-2xl space-y-8 py-4">
+          <div className="text-center">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary">
+              <Sparkles className="h-4 w-4" aria-hidden="true" /> Let&apos;s set up your home
+            </div>
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
+              Welcome to Clankeep{firstName ? `, ${firstName}` : ""}!
+            </h2>
+            <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-muted-foreground">
+              Everything in Clankeep lives inside your household — create yours in two quick
+              steps, then invite the rest of the clan. If someone already invited you, open
+              their invite link instead.
+            </p>
+          </div>
+          <HouseholdCreationWizard
+            onComplete={() => {
+              setHasHousehold(true)
+              setLoading(true)
+              void loadHouseholdData()
+            }}
+            onCancel={() => { /* first-run setup has nowhere to cancel to */ }}
+          />
+        </div>
+      </ModernAppShell>
+    )
   }
 
   return (
