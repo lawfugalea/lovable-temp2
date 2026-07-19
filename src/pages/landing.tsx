@@ -1,6 +1,7 @@
 import Head from 'next/head'
 import { withBasePath } from '@/lib/base-path'
 import KelmaWidget from '@/components/KelmaWidget'
+import CookieConsent from '@/components/CookieConsent'
 import Nav from '@/components/landing/Nav'
 import Hero from '@/components/landing/Hero'
 import TrustStrip from '@/components/landing/TrustStrip'
@@ -69,6 +70,7 @@ export default function LandingPage() {
       </div>
 
       <KelmaWidget />
+      <CookieConsent />
     </>
   )
 }

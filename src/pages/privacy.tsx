@@ -82,7 +82,10 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           <li>members of your Clankeep household, for content and bank accounts that are shared with that household;</li>
           <li>Enable Banking and Bank of Valletta, to authorise and operate the read-only bank connection;</li>
           <li>DeepSeek, only when the finance owner explicitly requests optional AI analysis after previewing a redacted aggregate payload;</li>
-          <li>the deployment&apos;s hosting, database, backup and email providers, where those services are configured; and</li>
+          <li>Stripe, our payment processor, to take and manage subscription payments (Stripe receives your email and billing details; Clankeep never sees or stores your full card number);</li>
+          <li>Resend, our email provider, to deliver account, household-invitation and password-reset emails (it receives the recipient name and email address);</li>
+          <li>Kelma, the optional chat assistant embedded on our public pages, which loads only if you accept non-essential cookies and then receives what you type into the chat and basic connection data;</li>
+          <li>the deployment&apos;s hosting, database and backup providers, where those services are configured; and</li>
           <li>public authorities where disclosure is legally required.</li>
         </ul>
         <p>Clankeep does not sell personal data and does not use connected banking data for advertising.</p>
@@ -112,14 +115,29 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           states that submitted information may be used to improve its services. Clankeep therefore sends no raw transactions, account
           identifiers, exact dates, bank notes, references or user identity through this optional feature.
         </p>
+        <p>
+          Stripe and Resend are established under EU frameworks but may process limited billing or email-delivery data outside the EEA
+          under their own safeguards; see the{' '}
+          <a className="text-primary hover:underline" href="https://stripe.com/privacy" rel="noreferrer" target="_blank">Stripe</a>{' '}
+          and{' '}
+          <a className="text-primary hover:underline" href="https://resend.com/legal/privacy-policy" rel="noreferrer" target="_blank">Resend</a>{' '}
+          privacy notices for details.
+        </p>
       </LegalSection>
 
       <LegalSection title="7. Retention and deletion">
         <p>
-          Clankeep keeps account and household data while the relevant account and household use the service. Disconnecting a bank
-          connection requests revocation of the provider session and permanently removes that connection&apos;s cached accounts, balances,
-          transactions and sharing records from the live Clankeep database. Older copies may remain temporarily in protected backups
-          until they expire under the deployment&apos;s backup-retention schedule. Legal or security records may be kept longer when required.
+          Clankeep keeps your account and household data for as long as your account is active. You can delete your account at any time
+          from Settings; this permanently removes your account from the live database and, where you are the sole remaining owner of a
+          household, deletes that household&apos;s shared data — including shopping, notes, finance records and children&apos;s medicine and
+          health records — as well. Health records for a child are kept only while the household maintains them or until the account or
+          household is deleted.
+        </p>
+        <p>
+          Disconnecting a bank connection requests revocation of the provider session and permanently removes that connection&apos;s cached
+          accounts, balances, transactions and sharing records from the live database. Deleted data may remain temporarily in protected
+          backups until they expire under the deployment&apos;s backup-retention schedule (currently 30 days). Billing records required for
+          tax and accounting, and limited legal or security records, may be kept longer where the law requires it.
         </p>
       </LegalSection>
 
@@ -145,7 +163,9 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
       <LegalSection title="9. Security, cookies and automated decisions">
         <p>
           Clankeep uses access controls, authentication and deployment security measures intended to protect the data. No internet service
-          can guarantee absolute security. Clankeep uses essential session and security cookies; it does not use advertising cookies.
+          can guarantee absolute security. Clankeep uses essential session and security cookies, which do not require consent. The optional
+          Kelma chat assistant on our public pages is a third-party service that may set its own cookies; it loads only if you accept
+          non-essential cookies through the cookie banner, and you can decline. Clankeep does not use advertising cookies.
           Clankeep calculates recurring-payment candidates and neutral spending observations locally. These are explainable convenience
           features that users can correct, dismiss or disable. Optional AI output is shown only as a suggestion and never changes financial
           records automatically. Clankeep does not make automated decisions with legal or similarly significant effects.
