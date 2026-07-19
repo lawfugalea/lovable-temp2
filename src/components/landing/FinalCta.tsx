@@ -1,13 +1,25 @@
+'use client'
+
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import Reveal from '@/components/landing/Reveal'
 
 export default function FinalCta() {
+  const reduce = useReducedMotion() ?? false
+  const drift = (delay: number) =>
+    reduce
+      ? {}
+      : {
+          animate: { x: [0, 24, 0], y: [0, -18, 0] },
+          transition: { duration: 16, repeat: Infinity, ease: 'easeInOut' as const, delay },
+        }
+
   return (
     <section className="px-4 pb-24 sm:px-6 lg:px-8">
       <Reveal className="relative mx-auto max-w-7xl overflow-hidden rounded-[2.5rem] bg-brand-primary px-6 py-20 text-center text-white sm:py-24">
-        <div aria-hidden="true" className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-        <div aria-hidden="true" className="absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-[#2EE6C8]/20 blur-3xl" />
+        <motion.div aria-hidden="true" {...drift(0)} className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+        <motion.div aria-hidden="true" {...drift(4)} className="absolute -bottom-32 -right-16 h-80 w-80 rounded-full bg-[#2EE6C8]/20 blur-3xl" />
 
         <h2 className="relative mx-auto max-w-3xl font-display text-4xl font-bold leading-[1.08] tracking-[-0.03em] sm:text-6xl">
           Bring your clan together tonight.

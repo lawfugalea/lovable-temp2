@@ -121,7 +121,7 @@ export default function FeaturesBento() {
                   tone.halo,
                 )}
               />
-              <span className={cn('relative grid h-12 w-12 place-items-center rounded-2xl', tone.chip, tone.icon)}>
+              <span className={cn('relative grid h-12 w-12 place-items-center rounded-2xl transition-transform duration-300 group-hover:-rotate-3 group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:transform-none', tone.chip, tone.icon)}>
                 <feature.icon className="h-6 w-6" aria-hidden="true" />
               </span>
               <h3 className="relative mt-6 font-display text-xl font-bold tracking-tight text-foreground md:text-2xl">

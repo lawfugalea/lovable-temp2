@@ -13,7 +13,7 @@ const links = [
 
 export default function Nav() {
   return (
-    <header className="sticky top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 animate-fade-in border-b border-border/70 bg-background/80 backdrop-blur-xl">
       <nav
         aria-label="Primary navigation"
         className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8"

@@ -9,6 +9,7 @@ import Medicine from '@/components/landing/Medicine'
 import FeaturesBento from '@/components/landing/FeaturesBento'
 import HowItWorks from '@/components/landing/HowItWorks'
 import Screenshots from '@/components/landing/Screenshots'
+import Pipeline from '@/components/landing/Pipeline'
 import Pricing from '@/components/landing/Pricing'
 import Faq from '@/components/landing/Faq'
 import Privacy from '@/components/landing/Privacy'
@@ -38,6 +39,7 @@ export default function LandingPage() {
           <Medicine />
           <HowItWorks />
           <Screenshots />
+          <Pipeline />
           <Pricing />
           <Faq />
           <Privacy />

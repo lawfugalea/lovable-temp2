@@ -56,10 +56,16 @@ export default function Hero() {
 
   return (
     <section className="relative overflow-hidden">
-      {/* Ambient glow */}
-      <div
+      {/* Ambient glow — breathes very slowly */}
+      <motion.div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
+        {...(reduce
+          ? {}
+          : {
+              animate: { opacity: [1, 0.75, 1], scale: [1, 1.04, 1] },
+              transition: { duration: 14, repeat: Infinity, ease: 'easeInOut' as const },
+            })}
         style={{
           background:
             'radial-gradient(560px 380px at 12% -8%, hsl(var(--brand-blue) / 0.14), transparent 65%), radial-gradient(640px 420px at 88% 4%, hsl(var(--brand-purple) / 0.13), transparent 65%), radial-gradient(520px 380px at 62% 96%, hsl(var(--brand-teal) / 0.10), transparent 65%)',

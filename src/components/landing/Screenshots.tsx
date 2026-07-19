@@ -54,7 +54,12 @@ export default function Screenshots() {
                 <span className="h-2.5 w-2.5 rounded-full bg-brand-teal/70" />
                 <span className="ml-3 truncate text-xs font-medium text-muted-foreground">clankeep.com</span>
               </div>
-              <Image src={shot.image} alt={shot.alt} className="h-auto w-full" sizes="(min-width: 1024px) 590px, 100vw" />
+              <Image
+                src={shot.image}
+                alt={shot.alt}
+                className="h-auto w-full transition-transform duration-700 ease-out group-hover:scale-[1.015] motion-reduce:transition-none motion-reduce:group-hover:transform-none"
+                sizes="(min-width: 1024px) 590px, 100vw"
+              />
             </div>
             <figcaption className="mt-4 px-1">
               <p className="font-display text-lg font-bold text-foreground">{shot.title}</p>
