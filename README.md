@@ -59,7 +59,7 @@ npm run build
 The production stack contains the application, PostgreSQL, a one-shot migration service, daily backup and supermarket-price workers, and a medicine-reminder worker:
 
 ```bash
-docker compose --env-file .env.deploy up -d --build db migrate app backup reminder price-sync
+docker compose --env-file .env.deploy up -d --build db migrate app backup backup-offsite reminder price-sync
 ```
 
 Before deploying a new migration, take and verify a backup:

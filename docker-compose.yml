@@ -90,6 +90,56 @@ services:
     tmpfs:
       - /tmp:rw,noexec,nosuid,nodev,size=16m
 
+  # Pushes the local dumps to Cloudflare R2 (S3-compatible) so a dead host
+  # disk cannot take the data and the backups with it. No-ops loudly until
+  # the CLANKEEP_R2_* variables are set in .env.deploy.
+  backup-offsite:
+    image: rclone/rclone:1.68
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    environment:
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: ${CLANKEEP_R2_ENDPOINT-}
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${CLANKEEP_R2_ACCESS_KEY_ID-}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${CLANKEEP_R2_SECRET_ACCESS_KEY-}
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+      CLANKEEP_R2_BUCKET: ${CLANKEEP_R2_BUCKET-}
+      HOUSEFLOW_BACKUP_KEEP_DAYS: ${HOUSEFLOW_BACKUP_KEEP_DAYS:-30}
+    volumes:
+      - ${HOUSEFLOW_BACKUP_DIR:-/home/ryan/backups/houseflow}:/backups:ro
+    depends_on:
+      - backup
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        while true; do
+          if [ -z "$${CLANKEEP_R2_BUCKET}" ] || [ -z "$${RCLONE_CONFIG_R2_ENDPOINT}" ] || [ -z "$${RCLONE_CONFIG_R2_ACCESS_KEY_ID}" ]; then
+            echo "WARNING: offsite backups DISABLED - set CLANKEEP_R2_ENDPOINT, CLANKEEP_R2_ACCESS_KEY_ID, CLANKEEP_R2_SECRET_ACCESS_KEY and CLANKEEP_R2_BUCKET in .env.deploy"
+            sleep 21600
+            continue
+          fi
+          # copy (not sync): local pruning must never delete remote history.
+          if rclone copy /backups "r2:$${CLANKEEP_R2_BUCKET}/clankeep" \
+              --include 'houseflow-*.sql.gz' --include 'houseflow-*.sql.gz.sha256' \
+              --s3-no-check-bucket --transfers 2 --contimeout 30s --timeout 5m; then
+            rclone delete "r2:$${CLANKEEP_R2_BUCKET}/clankeep" --min-age "$${HOUSEFLOW_BACKUP_KEEP_DAYS:-30}d" || true
+            echo "offsite backup sync OK at $$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          else
+            echo "ERROR: offsite backup sync FAILED at $$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          fi
+          sleep 21600
+        done
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+      - /root/.cache:rw,noexec,nosuid,nodev,size=16m
+
   app:
     build:
       context: .
