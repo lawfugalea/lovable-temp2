@@ -73,7 +73,7 @@ const stats = [
   { value: '5', label: 'supermarket catalogues compared' },
   { value: '24h', label: 'automatic price refresh cycle' },
   { value: '1', label: 'shared home for every routine' },
-  { value: '100%', label: 'of your data on your own server' },
+  { value: '100%', label: 'private — your data is never sold or shared' },
 ]
 
 const bentoFeatures = [
@@ -132,8 +132,8 @@ const steps = [
 const privacyPoints = [
   {
     icon: Server,
-    title: 'Self-hosted, full stop',
-    description: 'ClanKeep runs on your own server with your own PostgreSQL database. Your family’s life never becomes someone else’s dataset.',
+    title: 'Privately hosted, no big-tech clouds',
+    description: 'ClanKeep runs on our own servers with our own database — your family’s life is never sold, never used for advertising, and never becomes someone else’s dataset.',
   },
   {
     icon: LockKeyhole,
@@ -209,7 +209,7 @@ export default function LandingPage() {
         <title>ClanKeep — Together. Organised. At home.</title>
         <meta
           name="description"
-          content="The self-hosted household HQ: shared shopping with Malta supermarket price comparison, meal planning, chores, medicine schedules with reminders, and notes — all in one private home."
+          content="The private household HQ: shared shopping with Malta supermarket price comparison, meal planning, chores, medicine schedules with reminders, and notes — all in one private home."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/png" href={withBasePath('/logo.png')} />
@@ -232,6 +232,7 @@ export default function LandingPage() {
             <div className="hidden items-center gap-8 text-[15px] font-medium text-brand-body md:flex">
               <a href="#features" className="transition-colors hover:text-brand-heading">Features</a>
               <a href="#prices" className="transition-colors hover:text-brand-heading">Price compare</a>
+              <a href="#medicine" className="transition-colors hover:text-brand-heading">Medicine</a>
               <a href="#tour" className="transition-colors hover:text-brand-heading">Screenshots</a>
               <a href="#pricing" className="transition-colors hover:text-brand-heading">Pricing</a>
               <a href="#privacy" className="transition-colors hover:text-brand-heading">Privacy</a>
@@ -318,7 +319,7 @@ export default function LandingPage() {
                 <div className="lp-rise mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm font-medium text-brand-body" style={{ animationDelay: '360ms' }}>
                   <span className="inline-flex items-center gap-2">
                     <Check className="h-4 w-4 text-brand-teal" strokeWidth={3} aria-hidden="true" />
-                    Self-hosted &amp; private
+                    Private by design
                   </span>
                   <span className="inline-flex items-center gap-2">
                     <Check className="h-4 w-4 text-brand-teal" strokeWidth={3} aria-hidden="true" />
@@ -523,6 +524,97 @@ export default function LandingPage() {
             </div>
           </section>
 
+          {/* ── Medicine deep dive ────────────────────────────── */}
+          <section id="medicine" className="scroll-mt-20 border-b border-slate-900/[0.06] bg-white py-24 sm:py-28">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+              <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
+                <div data-reveal className="order-2 lg:order-1">
+                  <div className="relative mx-auto w-full max-w-[520px]">
+                    <div aria-hidden="true" className="absolute -inset-8 rounded-[3rem] bg-gradient-to-br from-brand-coral/15 via-brand-purple/10 to-transparent blur-3xl" />
+                    <div className="relative rounded-[1.75rem] border border-slate-900/[0.07] bg-white p-1.5 shadow-[0_40px_90px_-30px_rgba(15,23,42,0.3)]">
+                      <div className="rounded-[1.4rem] bg-white">
+                        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-brand-muted">Health journal</p>
+                            <p className="lp-display mt-0.5 text-lg font-bold tracking-tight">Nina · 4 years</p>
+                          </div>
+                          <span className="rounded-full bg-brand-coral/10 px-3 py-1 text-xs font-bold text-brand-coral">Antibiotics · day 3 of 7</span>
+                        </div>
+
+                        <div className="space-y-3 p-5">
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-bold text-amber-900">Amoxicillin 250mg/5ml</p>
+                                <p className="mt-0.5 text-xs font-medium text-amber-800">5 ml · every 8 hours</p>
+                              </div>
+                              <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-white">Due now</span>
+                            </div>
+                            <p className="mt-3 text-xs text-amber-800">Last dose 10:15 — given by Maria</p>
+                          </div>
+
+                          <div className="flex items-center justify-between rounded-2xl border border-slate-100 p-4">
+                            <div className="flex items-center gap-3">
+                              <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand-coral/10 text-brand-coral">
+                                <BellRing className="h-4 w-4" aria-hidden="true" />
+                              </span>
+                              <div>
+                                <p className="text-sm font-semibold">Reminder sent to both phones</p>
+                                <p className="text-xs text-brand-muted">Sam &amp; Maria · 18:00</p>
+                              </div>
+                            </div>
+                            <Check className="h-5 w-5 text-brand-teal" strokeWidth={3} aria-hidden="true" />
+                          </div>
+
+                          <div className="flex items-center justify-between rounded-2xl border border-slate-100 p-4">
+                            <div>
+                              <p className="text-sm font-semibold">Fever journal</p>
+                              <p className="mt-0.5 text-xs text-brand-muted">38.4° at 07:30 · 37.6° at 12:00 · 37.1° at 17:45</p>
+                            </div>
+                            <span className="text-xs font-bold text-brand-teal">Trending down</span>
+                          </div>
+
+                          <button type="button" tabIndex={-1} aria-hidden="true" className="pointer-events-none flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-brand-body">
+                            <FileText className="h-4 w-4" aria-hidden="true" />
+                            Export PDF report for the paediatrician
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div data-reveal style={{ transitionDelay: '120ms' }} className="order-1 lg:order-2">
+                  <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-coral">For the hard weeks</p>
+                  <h2 className="lp-display mt-4 text-4xl font-bold leading-[1.08] tracking-[-0.03em] text-brand-heading sm:text-5xl">
+                    When a child is sick, nobody should be doing maths at 3am.
+                  </h2>
+                  <p className="mt-6 max-w-xl text-lg leading-relaxed text-brand-body">
+                    ClanKeep keeps the whole sick-week in one place: every dose logged
+                    with who gave it and when, timing checks taken from the actual
+                    packaging, and a fever journal that shows the trend at a glance —
+                    shared live between both parents, so nobody double-doses and
+                    nobody wakes the other to ask.
+                  </p>
+                  <ul className="mt-8 space-y-4 text-[15px] font-medium text-brand-body">
+                    <li className="flex items-start gap-3">
+                      <Check className="mt-0.5 h-5 w-5 shrink-0 text-brand-coral" strokeWidth={3} aria-hidden="true" />
+                      Every dose logged — who, when, how much. Free for one child, forever.
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="mt-0.5 h-5 w-5 shrink-0 text-brand-coral" strokeWidth={3} aria-hidden="true" />
+                      Push reminders to every parent&rsquo;s phone when a dose is due — Family plan
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <Check className="mt-0.5 h-5 w-5 shrink-0 text-brand-coral" strokeWidth={3} aria-hidden="true" />
+                      Fever journal and a printable PDF report your paediatrician will actually thank you for
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* ── Features bento ────────────────────────────────── */}
           <section id="features" className="scroll-mt-20 py-24 sm:py-28">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -619,6 +711,7 @@ export default function LandingPage() {
               </ol>
             </div>
           </section>
+
 
 
 
@@ -748,12 +841,13 @@ export default function LandingPage() {
                 <div data-reveal>
                   <p className="text-sm font-bold uppercase tracking-[0.18em] text-brand-teal">Privacy, properly</p>
                   <h2 className="lp-display mt-4 text-4xl font-bold leading-[1.08] tracking-[-0.03em] text-brand-heading sm:text-5xl">
-                    Your family’s data sleeps at home too.
+                    Private, like family matters should be.
                   </h2>
                   <p className="mt-6 max-w-xl text-lg leading-relaxed text-brand-body">
                     Medicine schedules, kids’ health journals, family routines —
                     this is the most personal data a family has. ClanKeep’s answer
-                    is simple: it never leaves your house.
+                    is simple: it is never sold, never mined for advertising, and
+                    never shared with anyone outside your household.
                   </p>
                   <div className="mt-8 flex flex-wrap gap-4 text-[15px] font-semibold">
                     <Link href="/privacy" className="text-brand-blue underline decoration-brand-blue/30 decoration-2 underline-offset-4 transition-colors hover:text-brand-purple">
@@ -833,7 +927,7 @@ export default function LandingPage() {
                 <BrandLogo />
               </Link>
               <p className="mt-4 max-w-sm text-sm leading-relaxed text-brand-body">
-                The self-hosted HQ for everything your household shares.
+                The private HQ for everything your household shares.
                 Together. Organised. At home.
               </p>
             </div>
@@ -841,6 +935,7 @@ export default function LandingPage() {
             <nav aria-label="Footer" className="flex flex-col gap-5 text-sm font-medium text-brand-body sm:flex-row sm:items-center">
               <a href="#features" className="transition-colors hover:text-brand-heading">Features</a>
               <a href="#prices" className="transition-colors hover:text-brand-heading">Price compare</a>
+              <a href="#medicine" className="transition-colors hover:text-brand-heading">Medicine</a>
               <a href="#tour" className="transition-colors hover:text-brand-heading">Screenshots</a>
               <a href="#pricing" className="transition-colors hover:text-brand-heading">Pricing</a>
               <a href="#privacy" className="transition-colors hover:text-brand-heading">Privacy</a>

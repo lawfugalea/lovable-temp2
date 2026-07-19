@@ -40,7 +40,7 @@ regular income and commitments once is all it takes.
 
 ### Privacy
 
-The planner's figures live in the household's own ClanKeep database — never
+The planner's figures live in ClanKeep's own private database — never
 sold, never used for advertising, never sent to third parties. This chat
 assistant has no access to any household's data; it can only explain how the
 product works. If a household cancels the Family plan, planner data is not
@@ -81,4 +81,4 @@ A: Yes — the "Try the demo" button on clankeep.com creates a fully furnished s
 A: You record doses and optional schedules per child. With a schedule set, ClanKeep shows what's due and, on the Family plan, sends private push notifications to your devices at dose time. Dose logging itself is always free.
 
 **Q: Is my data safe? Where is it stored?**
-A: ClanKeep is self-hosted — your household's data lives in ClanKeep's own database, is never sold, and is never used for advertising. Access requires authenticated household membership on every request, and the money planner's figures never leave your household.
+A: ClanKeep runs on its own private servers — your household's data lives in ClanKeep's own database, is never sold, and is never used for advertising. Access requires authenticated household membership on every request, and the money planner's figures never leave your household.
