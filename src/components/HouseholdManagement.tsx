@@ -280,12 +280,12 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
                 {invites.map((invite) => (
                   <div key={invite.id} className="space-y-2 p-3 border rounded-lg bg-gray-50">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="w-8 h-8 shrink-0 bg-primary/20 rounded-full flex items-center justify-center">
                           <Mail className="w-4 h-4 text-primary" />
                         </div>
-                        <div>
-                          <div className="font-medium text-foreground">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium text-foreground">
                             {invite.email || 'Link-only invite'}
                           </div>
                           <div className="text-sm text-muted-foreground flex items-center gap-2">
@@ -364,26 +364,26 @@ export default function HouseholdManagement({ householdId, householdName }: Hous
         <CardContent>
           <div className="space-y-3">
             {members.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-3 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+              <div key={member.id} className="flex flex-col gap-3 p-3 border rounded-lg sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="w-8 h-8 shrink-0 bg-primary rounded-full flex items-center justify-center">
                     <span className="text-xs font-medium text-white">
                       {member.user.name?.charAt(0)?.toUpperCase() || 'U'}
                     </span>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="font-medium text-foreground">
                       {member.user.name || 'Unknown User'}
                       {member.user.id === currentUserId && (
                         <span className="text-sm text-muted-foreground ml-2">(You)</span>
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground">
+                    <div className="truncate text-sm text-muted-foreground">
                       {member.user.email}
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={member.role === 'OWNER' ? 'default' : 'secondary'}>
                     {member.role}
                   </Badge>
