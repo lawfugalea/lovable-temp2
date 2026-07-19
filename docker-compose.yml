@@ -114,8 +114,6 @@ services:
       INVITES_REPLY_TO: ${INVITES_REPLY_TO:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:?set ADMIN_EMAILS in .env.deploy}
-      # Also supplied via env_file, but guard here so the app never boots without it.
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?set NEXTAUTH_SECRET in .env}
       UPLOAD_DIR: /app/uploads
       PUPPETEER_SKIP_DOWNLOAD: "1"
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
