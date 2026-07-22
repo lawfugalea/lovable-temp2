@@ -17,6 +17,9 @@ out
 # Builds / coverage
 dist
 coverage
+.expo
+apps/mobile/.expo
+apps/mobile/.eas
 
 # Env
 .env

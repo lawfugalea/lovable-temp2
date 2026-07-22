@@ -59,6 +59,26 @@ model User {
   financeAiAnalyses         FinanceAiAnalysis[]
   pushSubscriptions         PushSubscription[]
   passwordResetTokens       PasswordResetToken[]
+  mobileSessions            MobileSession[]
+}
+
+model MobileSession {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  passwordVersion  String
+  deviceName       String?
+  platform         String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastUsedAt       DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
 }
 
 model PasswordResetToken {

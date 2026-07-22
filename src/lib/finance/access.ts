@@ -3,15 +3,19 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/pages/api/auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
-import { respondUpgradeRequired } from '@/lib/entitlements-core'
 import { buildAccessibleBankAccountWhere } from './visibility'
 
-type FinanceAccess = {
+export type FinanceAccess = {
   userId: string
   email: string
   householdId: string
   canManage: boolean
   bankEnabled: boolean
+}
+
+export type FinanceAccessDenied = {
+  status: 400 | 403
+  body: { error: string; code?: string; feature?: 'finance' }
 }
 
 /**
@@ -45,40 +49,37 @@ export async function requireFinanceAccess(
     res.status(401).json({ error: 'Sign in required' })
     return null
   }
-  if (!householdId) {
-    res.status(400).json({ error: 'Missing householdId' })
+  const result = await financeAccessForIdentity({ userId, email }, householdId, options)
+  if ('status' in result) {
+    res.status(result.status).json(result.body)
     return null
   }
+  return result
+}
 
+/** Shared authorization used by both browser-session and bearer-token finance APIs. */
+export async function financeAccessForIdentity(
+  identity: { userId: string; email: string },
+  householdId: string | undefined,
+  options: { manage?: boolean; bank?: boolean } = {},
+): Promise<FinanceAccess | FinanceAccessDenied> {
+  if (!householdId) return { status: 400, body: { error: 'Missing householdId' } }
   const membership = await prisma.membership.findFirst({
-    where: { userId, householdId },
+    where: { userId: identity.userId, householdId },
     select: { id: true, role: true },
   })
-  if (!membership) {
-    res.status(403).json({ error: 'You are not a member of this household' })
-    return null
-  }
+  if (!membership) return { status: 403, body: { error: 'You are not a member of this household' } }
 
   const entitlements = await getHouseholdEntitlements(householdId)
   if (!entitlements.canUseFinance) {
-    respondUpgradeRequired(res, 'finance')
-    return null
+    return { status: 403, body: { error: 'Finances are part of the Family plan', code: 'upgrade_required', feature: 'finance' } }
   }
 
-  // Bank connections are managed by the household owner.
   const canManage = membership.role === 'OWNER'
-  if (options.manage && !canManage) {
-    res.status(403).json({ error: 'Only the household owner can manage bank connections' })
-    return null
-  }
-
+  if (options.manage && !canManage) return { status: 403, body: { error: 'Only the household owner can manage bank connections' } }
   const bankEnabled = await isBankFeaturesEnabled(householdId)
-  if (options.bank && !bankEnabled) {
-    res.status(403).json({ error: 'Bank connections are not available for this household yet' })
-    return null
-  }
-
-  return { userId, email, householdId, canManage, bankEnabled }
+  if (options.bank && !bankEnabled) return { status: 403, body: { error: 'Bank connections are not available for this household yet' } }
+  return { userId: identity.userId, email: identity.email, householdId, canManage, bankEnabled }
 }
 
 export function accessibleBankAccountWhere(access: FinanceAccess) {

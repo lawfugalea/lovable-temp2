@@ -16,6 +16,7 @@ export default defineConfig([
     '.next/**',
     'node_modules/**',
     'public/smart-images/**',
+    'apps/mobile/**',
     '.claude/**',
   ]),
 ])

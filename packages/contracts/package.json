@@ -1,0 +1,11 @@
+{
+  "name": "@clankeep/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "types": "index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts"
+    }
+  }
+}
