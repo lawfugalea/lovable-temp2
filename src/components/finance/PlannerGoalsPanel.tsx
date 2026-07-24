@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { cn } from '@/lib/utils'
 import type { GoalPlan } from '@/lib/budget'
 import { euros, type PlannerData } from './planner-types'
+import PlanAccountSelect from './PlanAccountSelect'
 
 interface PlannerGoalsPanelProps {
   householdId: string
@@ -18,9 +19,9 @@ interface PlannerGoalsPanelProps {
   onError: (message: string) => void
 }
 
-type GoalDraft = { id?: string; name: string; target: string; saved: string; targetDate: string }
+type GoalDraft = { id?: string; name: string; target: string; saved: string; targetDate: string; monthlyContribution: string; planAccountId: string }
 
-const emptyGoal: GoalDraft = { name: '', target: '', saved: '', targetDate: '' }
+const emptyGoal: GoalDraft = { name: '', target: '', saved: '', targetDate: '', monthlyContribution: '', planAccountId: '' }
 
 export default function PlannerGoalsPanel({ householdId, data, onChanged, onError }: PlannerGoalsPanelProps) {
   const [draft, setDraft] = useState<GoalDraft | null>(null)
@@ -55,6 +56,8 @@ export default function PlannerGoalsPanel({ householdId, data, onChanged, onErro
         target: (data.suggestedEmergencyFundCents / 100).toFixed(2),
         saved: '',
         targetDate: '',
+        monthlyContribution: '',
+        planAccountId: '',
       },
       'POST',
     )
@@ -116,6 +119,8 @@ export default function PlannerGoalsPanel({ householdId, data, onChanged, onErro
                 target: (goal.targetCents / 100).toFixed(2),
                 saved: goal.savedCents ? (goal.savedCents / 100).toFixed(2) : '',
                 targetDate: goal.targetDate || '',
+                monthlyContribution: goal.monthlyContributionOverrideCents === null ? '' : (goal.monthlyContributionOverrideCents / 100).toFixed(2),
+                planAccountId: goal.planAccountId || '',
               })}
               onDelete={async () => {
                 if (await confirm({ title: 'Delete goal', description: `Delete the goal "${goal.name}"?`, confirmText: 'Delete', destructive: true })) void submit({ id: goal.id }, 'DELETE')
@@ -143,6 +148,8 @@ export default function PlannerGoalsPanel({ householdId, data, onChanged, onErro
                     target: draft.target,
                     saved: draft.saved,
                     targetDate: draft.targetDate,
+                    monthlyContribution: draft.monthlyContribution,
+                    planAccountId: draft.planAccountId || null,
                   },
                   draft.id ? 'PATCH' : 'POST',
                 )
@@ -191,6 +198,19 @@ export default function PlannerGoalsPanel({ householdId, data, onChanged, onErro
                   onChange={event => setDraft({ ...draft, targetDate: event.target.value })}
                 />
               </label>
+              <div>
+                <label className="block">
+                  <span className="text-sm font-medium">Monthly contribution (optional)</span>
+                  <Input className="mt-1" inputMode="decimal" placeholder="Use target-date pace" value={draft.monthlyContribution} onChange={event => setDraft({ ...draft, monthlyContribution: event.target.value })} />
+                </label>
+              </div>
+              <PlanAccountSelect
+                accounts={data.accounts}
+                label="Saved in"
+                hint="Which account this goal builds up in."
+                value={draft.planAccountId}
+                onChange={value => setDraft({ ...draft, planAccountId: value })}
+              />
               <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
                 <Button type="button" variant="outline" onClick={() => setDraft(null)}>Cancel</Button>
                 <Button type="submit" disabled={busy}>

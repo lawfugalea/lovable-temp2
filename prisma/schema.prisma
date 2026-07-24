@@ -57,6 +57,7 @@ model User {
   financeCoachFeedback      FinanceCoachFeedback[]
   financeAiPreference       FinanceAiPreference?
   financeAiAnalyses         FinanceAiAnalysis[]
+  financePlanAccountsOwned  FinancePlanAccount[]          @relation("FinancePlanAccountOwner")
   pushSubscriptions         PushSubscription[]
   passwordResetTokens       PasswordResetToken[]
 }
@@ -84,6 +85,8 @@ model Household {
   planSource                PlanSource?
   /// ISO 3166-1 alpha-2. Gates region-specific features (Malta price comparison).
   country                   String                     @default("MT")
+  /// Shared aisle/category order used by shopping lists. Validated by the application.
+  shoppingCategoryOrder     Json?
   stripeCustomerId          String?                    @unique
   stripeSubscriptionId      String?                    @unique
   stripeSubscriptionStatus  String?
@@ -99,6 +102,7 @@ model Household {
   incomeSources             IncomeSource[]
   commitments               Commitment[]
   savingsGoals              SavingsGoal[]
+  financePlanAccounts       FinancePlanAccount[]
   shoppingLists             ShoppingList[]
   shoppingTemplates         ShoppingTemplate[]
   activeForUsers            User[]                     @relation("ActiveHousehold")
@@ -1106,6 +1110,10 @@ model Commitment {
   amountCents Int
   frequency   PlannerFrequency @default(MONTHLY)
   essential   Boolean          @default(true)
+  /// Whether the household puts money aside monthly for this commitment. Set per
+  /// commitment rather than derived from frequency: a bill entered as monthly can
+  /// still be one you save up for, and an irregular one may be paid from income.
+  setAside    Boolean          @default(false)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
@@ -1123,10 +1131,45 @@ model SavingsGoal {
   savedCents  Int       @default(0)
   /// Date-only; when the household wants the goal reached.
   targetDate  DateTime? @db.Date
+  monthlyContributionCents Int?
+  planAccountId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  planAccount FinancePlanAccount? @relation(fields: [planAccountId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
+  @@index([planAccountId])
+}
+
+enum FinancePlanAccountVisibility {
+  SHARED
+  PRIVATE
+}
+
+/// A savings pot: what it holds today, and what goes into it each month.
+model FinancePlanAccount {
+  id                 String                       @id @default(cuid())
+  householdId        String
+  ownerUserId        String
+  name               String
+  visibility         FinancePlanAccountVisibility @default(SHARED)
+  /// Balance the household last stated for this account; the starting point for forecasts.
+  openingBalanceCents Int                         @default(0)
+  /// Date-only; when openingBalanceCents was last stated.
+  openingBalanceAt   DateTime?                    @db.Date
+  /// What the household puts into this account every month.
+  monthlyContributionCents Int                    @default(0)
+  sortOrder          Int                          @default(0)
+  archivedAt         DateTime?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  household      Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  owner          User                   @relation("FinancePlanAccountOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  savingsGoals   SavingsGoal[]
+
+  @@index([householdId, archivedAt])
+  @@index([ownerUserId])
 }

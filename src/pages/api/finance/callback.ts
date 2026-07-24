@@ -9,7 +9,7 @@ import { normalizeBankAccount, type NormalizedBankAccount } from '@/lib/finance/
 import { isReauthorizationError, publicSyncError, syncBankConnection } from '@/lib/finance/sync'
 
 function redirect(res: NextApiResponse, params: Record<string, string>) {
-  const target = new URL(appUrl('/finances'))
+  const target = new URL(appUrl('/banking'))
   for (const [key, value] of Object.entries(params)) target.searchParams.set(key, value)
   res.setHeader('Cache-Control', 'no-store')
   return res.redirect(303, target.toString())

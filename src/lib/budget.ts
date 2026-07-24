@@ -67,6 +67,17 @@ export interface CommitmentEntry extends PlannerEntry {
   label: string
   category: string
   essential: boolean
+  /** Whether the household puts money aside monthly for this commitment. */
+  setAside: boolean
+}
+
+/**
+ * Whether to offer a set-aside by default for a new commitment. Bills that are
+ * not billed monthly or weekly are the usual candidates to save up for, but the
+ * household always has the final say.
+ */
+export function suggestsSetAside(frequency: PlannerFrequency): boolean {
+  return frequency !== 'MONTHLY' && frequency !== 'WEEKLY'
 }
 
 export interface GoalEntry {
@@ -109,7 +120,7 @@ export interface PlanSummary {
   /** Commitments as a share of income, 0..1; null when income is zero. */
   commitmentRatio: number | null
   categories: CategoryTotal[]
-  /** Non-monthly commitments translated into monthly set-asides. */
+  /** Commitments the household saves up for, as monthly slices. */
   setAsides: SetAside[]
 }
 
@@ -135,7 +146,7 @@ export function buildPlanSummary(incomes: PlannerEntry[], commitments: Commitmen
     if (commitment.essential) bucket.essentialCents += monthly
     categoryTotals.set(commitment.category, bucket)
 
-    if (commitment.frequency !== 'MONTHLY' && commitment.frequency !== 'WEEKLY' && monthly > 0) {
+    if (commitment.setAside && monthly > 0) {
       setAsides.push({
         id: commitment.id,
         label: commitment.label,

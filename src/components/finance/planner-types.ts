@@ -1,4 +1,5 @@
 import type { GoalPlan, PlanSummary, PlannerFrequency } from '@/lib/budget'
+import type { SavingsAccount, SavingsGoalMarker } from '@/lib/finance/savings'
 
 export interface PlannerMember {
   userId: string
@@ -21,14 +22,18 @@ export interface PlannerCommitment {
   amountCents: number
   frequency: PlannerFrequency
   essential: boolean
+  setAside: boolean
 }
 
 export interface PlannerData {
   members: PlannerMember[]
   incomes: PlannerIncome[]
   commitments: PlannerCommitment[]
-  goals: GoalPlan[]
+  goals: Array<GoalPlan & { planAccountId: string | null; monthlyContributionCents: number; monthlyContributionOverrideCents: number | null }>
   summary: PlanSummary
+  period: string
+  accounts: SavingsAccount[]
+  goalMarkers: SavingsGoalMarker[]
   suggestedEmergencyFundCents: number
   aiConfigured: boolean
   bankEnabled: boolean

@@ -10,6 +10,7 @@ type ParsedInput = {
   amountCents: number
   frequency: string
   essential: boolean
+  setAside: boolean
   userId: string | null
 }
 
@@ -35,6 +36,8 @@ async function parseInput(
   }
   const category = typeof body.category === 'string' && isCommitmentCategory(body.category) ? body.category : 'other'
   const essential = body.essential !== false
+  // Set-asides are opt-in: only an explicit true marks one.
+  const setAside = body.setAside === true
   let userId: string | null = null
   if (typeof body.userId === 'string' && body.userId) {
     const member = await prisma.membership.findFirst({ where: { householdId, userId: body.userId }, select: { id: true } })
@@ -44,7 +47,7 @@ async function parseInput(
     }
     userId = body.userId
   }
-  return { label, category, amountCents, frequency, essential, userId }
+  return { label, category, amountCents, frequency, essential, setAside, userId }
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {

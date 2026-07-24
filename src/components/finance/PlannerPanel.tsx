@@ -25,9 +25,11 @@ import {
   PLANNER_FREQUENCIES,
   commitmentRatioBand,
   monthlyCents,
+  parseAmountToCents,
+  suggestsSetAside,
   type PlannerFrequency,
 } from '@/lib/budget'
-import { euros, type PlannerCommitment, type PlannerData, type PlannerIncome } from './planner-types'
+import { euros, type PlannerData } from './planner-types'
 
 interface PlannerPanelProps {
   householdId: string
@@ -37,10 +39,22 @@ interface PlannerPanelProps {
 }
 
 type IncomeDraft = { id?: string; label: string; amount: string; frequency: PlannerFrequency; userId: string }
-type CommitmentDraft = IncomeDraft & { category: string; essential: boolean }
+/** `setAsideTouched` stops the frequency default from overriding a deliberate choice. */
+type CommitmentDraft = IncomeDraft & {
+  category: string
+  essential: boolean
+  setAside: boolean
+  setAsideTouched: boolean
+}
 
 const emptyIncome: IncomeDraft = { label: '', amount: '', frequency: 'MONTHLY', userId: '' }
-const emptyCommitment: CommitmentDraft = { ...emptyIncome, category: 'housing', essential: true }
+const emptyCommitment: CommitmentDraft = {
+  ...emptyIncome,
+  category: 'housing',
+  essential: true,
+  setAside: false,
+  setAsideTouched: false,
+}
 
 const ratioCopy: Record<ReturnType<typeof commitmentRatioBand>, { label: string; className: string }> = {
   unknown: { label: 'Add income to see your ratio', className: 'bg-white/15 text-white' },
@@ -57,6 +71,7 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
 
   const memberName = (userId: string | null) =>
     userId ? data.members.find(member => member.userId === userId)?.name?.split(/\s+/)[0] : null
+
 
   const submit = async (endpoint: 'income' | 'commitments', body: Record<string, unknown>, method: string) => {
     setBusy(true)
@@ -220,6 +235,11 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-semibold">{item.label}</p>
                     {!item.essential && <Badge variant="outline" className="shrink-0 text-[10px]">Lifestyle</Badge>}
+                    {item.setAside && (
+                      <Badge variant="outline" className="shrink-0 gap-1 text-[10px] text-module-finances">
+                        <PiggyBank className="h-3 w-3" /> Set aside
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {categoryLabel(item.category)} · {euros(item.amountCents)} {FREQUENCY_LABELS[item.frequency].toLowerCase()}
@@ -236,6 +256,8 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
                     userId: item.userId || '',
                     category: item.category,
                     essential: item.essential,
+                    setAside: item.setAside,
+                    setAsideTouched: true,
                   })}
                   onDelete={() => removeEntry('commitments', item.id)}
                 />
@@ -246,17 +268,25 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
       </div>
 
       {/* Set-asides */}
-      {summary.setAsides.length > 0 && (
+      {data.commitments.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <CalendarClock className="h-5 w-5 text-module-finances" /> Monthly set-asides
             </CardTitle>
             <CardDescription>
-              Put these aside monthly so irregular bills never sting: {euros(summary.setAsides.reduce((total, item) => total + item.monthlyCents, 0))}/month in total.
+              {summary.setAsides.length > 0
+                ? `Put these aside monthly so the bills never sting: ${euros(summary.setAsides.reduce((total, item) => total + item.monthlyCents, 0))}/month in total.`
+                : 'Tick “set aside for this” on any commitment and it lands here with its monthly slice.'}
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {summary.setAsides.length === 0 && (
+              <p className="py-2 text-sm text-muted-foreground">
+                Edit any commitment you save up for — a yearly premium, the car service, school books — and tick
+                <span className="font-medium"> Set aside for this monthly</span>. Any frequency works.
+              </p>
+            )}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {summary.setAsides.map(item => (
                 <div key={item.id} className="flex items-center justify-between gap-2 rounded-xl bg-muted/60 px-3.5 py-2.5">
@@ -353,6 +383,7 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
                   frequency: commitmentDraft.frequency,
                   category: commitmentDraft.category,
                   essential: commitmentDraft.essential,
+                  setAside: commitmentDraft.setAside,
                   userId: commitmentDraft.userId || null,
                 },
                 commitmentDraft.id ? 'PATCH' : 'POST',
@@ -369,7 +400,11 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
               amount={commitmentDraft.amount}
               frequency={commitmentDraft.frequency}
               onAmount={value => setCommitmentDraft({ ...commitmentDraft, amount: value })}
-              onFrequency={value => setCommitmentDraft({ ...commitmentDraft, frequency: value })}
+              onFrequency={value => setCommitmentDraft({
+                ...commitmentDraft,
+                frequency: value,
+                setAside: commitmentDraft.setAsideTouched ? commitmentDraft.setAside : suggestsSetAside(value),
+              })}
             />
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
@@ -396,6 +431,11 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
                 </select>
               </label>
             </div>
+            <SetAsideToggle
+              checked={commitmentDraft.setAside}
+              monthlyCents={draftMonthlyCents(commitmentDraft)}
+              onChange={value => setCommitmentDraft({ ...commitmentDraft, setAside: value, setAsideTouched: true })}
+            />
             <MemberSelect
               members={data.members}
               value={commitmentDraft.userId}
@@ -411,6 +451,37 @@ export default function PlannerPanel({ householdId, data, onChanged, onError }: 
 
 function categoryLabel(key: string): string {
   return COMMITMENT_CATEGORIES.find(category => category.key === key)?.label ?? 'Other'
+}
+
+/** The monthly slice a draft would contribute; null until the amount is valid. */
+function draftMonthlyCents(draft: { amount: string; frequency: PlannerFrequency }): number | null {
+  const amountCents = parseAmountToCents(draft.amount)
+  return amountCents === null ? null : monthlyCents({ amountCents, frequency: draft.frequency })
+}
+
+function SetAsideToggle({ checked, monthlyCents: monthly, onChange }: {
+  checked: boolean
+  monthlyCents: number | null
+  onChange: (value: boolean) => void
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border p-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={event => onChange(event.target.checked)}
+        className="mt-0.5 h-4 w-4 accent-primary"
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">Set aside for this monthly</span>
+        <span className="mt-0.5 block text-xs text-muted-foreground">
+          {monthly === null
+            ? 'Adds it to Monthly set-asides with the amount to put by each month.'
+            : `Adds it to Monthly set-asides as ${euros(monthly)} a month.`}
+        </span>
+      </span>
+    </label>
+  )
 }
 
 function EntryActions({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {

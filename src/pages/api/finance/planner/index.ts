@@ -14,7 +14,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const access = await requireFinanceAccess(req, res, householdId)
   if (!access) return
 
-  const data = await loadPlannerData(access.householdId)
+  const data = await loadPlannerData(access.householdId, new Date(), access.userId)
   res.setHeader('Cache-Control', 'private, no-store')
   return res.status(200).json({
     ...data,

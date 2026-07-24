@@ -7,6 +7,7 @@ import {
   monthlyCents,
   parseAmountToCents,
   suggestedEmergencyFundCents,
+  suggestsSetAside,
   type CommitmentEntry,
 } from '../src/lib/budget'
 
@@ -17,6 +18,7 @@ const commitment = (over: Partial<CommitmentEntry>): CommitmentEntry => ({
   amountCents: 90000,
   frequency: 'MONTHLY',
   essential: true,
+  setAside: false,
   ...over,
 })
 
@@ -56,14 +58,27 @@ test('buildPlanSummary computes disposable, split, ratio, and safe-to-spend', ()
   assert.equal(summary.categories[0].category, 'housing')
 })
 
-test('set-asides list non-monthly commitments with their monthly slice', () => {
+test('set-asides list exactly the commitments marked for it, at any frequency', () => {
   const summary = buildPlanSummary([], [
-    commitment({ id: 'ins', label: 'Car insurance', category: 'insurance', amountCents: 42000, frequency: 'ANNUAL' }),
+    commitment({ id: 'ins', label: 'Car insurance', category: 'insurance', amountCents: 42000, frequency: 'ANNUAL', setAside: true }),
+    // A monthly bill the household saves up for still belongs in the list.
+    commitment({ id: 'school', label: 'School fees', category: 'education', amountCents: 20000, setAside: true }),
+    // An annual bill they pay straight from income does not.
+    commitment({ id: 'licence', label: 'Road licence', category: 'transport', amountCents: 10000, frequency: 'ANNUAL' }),
     commitment({ id: 'rent' }),
   ])
-  assert.equal(summary.setAsides.length, 1)
-  assert.equal(summary.setAsides[0].label, 'Car insurance')
-  assert.equal(summary.setAsides[0].monthlyCents, 3500)
+  assert.deepEqual(summary.setAsides.map(item => item.label), ['School fees', 'Car insurance'])
+  assert.equal(summary.setAsides[1].monthlyCents, 3500)
+  // Marking a set-aside never changes what the plan costs each month.
+  assert.equal(summary.monthlyCommitmentsCents, 3500 + 20000 + 833 + 90000)
+})
+
+test('suggestsSetAside offers a default only for bills that are not monthly or weekly', () => {
+  assert.equal(suggestsSetAside('ANNUAL'), true)
+  assert.equal(suggestsSetAside('QUARTERLY'), true)
+  assert.equal(suggestsSetAside('FOUR_WEEKLY'), true)
+  assert.equal(suggestsSetAside('MONTHLY'), false)
+  assert.equal(suggestsSetAside('WEEKLY'), false)
 })
 
 test('zero income yields null ratio and zero safe-to-spend when overdrawn', () => {
