@@ -3,6 +3,8 @@ import Head from "next/head";
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { APP_BASE_PATH, withBasePath } from "@/lib/base-path";
+import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
+import { TourProvider } from "@/components/onboarding/TourProvider";
 
 const InviteBanner = dynamic(() => import("@/components/InviteBanner"), { ssr: false });
 
@@ -51,7 +53,15 @@ export default function AuthApp({ Component, pageProps, session }: Props) {
         <RevokedSessionGuard />
         <ServiceWorkerRegistrar />
         <InviteBanner />
-        <Component {...pageProps} />
+        {/* Above the page, not inside ModernAppShell. The shell is rendered per
+            page in the pages router, so providers there would remount — and
+            refetch — on every navigation, and pages could not read them at all
+            since each page renders the shell rather than the other way round. */}
+        <OnboardingProvider>
+          <TourProvider>
+            <Component {...pageProps} />
+          </TourProvider>
+        </OnboardingProvider>
       </SessionProvider>
     </>
   );

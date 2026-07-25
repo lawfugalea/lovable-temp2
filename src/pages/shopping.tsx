@@ -6,6 +6,8 @@ import ModernAppShell from '@/components/ModernAppShell'
 import SupermarketComparisonPanel from '@/components/shopping/SupermarketComparisonPanel'
 import UpgradeGate from '@/components/UpgradeGate'
 import OffersPanel, { type SupermarketOffer } from '@/components/shopping/OffersPanel'
+import { ShoppingAiDialog } from '@/components/shopping/ShoppingAiDialog'
+import { ShoppingRouteDialog } from '@/components/shopping/ShoppingRouteDialog'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -27,6 +29,7 @@ import {
 } from '@/components/ui/DropdownMenu'
 import { Input } from '@/components/ui/Input'
 import type { BasketComparison, ComparedItem } from '@/lib/shopping-price-comparison'
+import { DEFAULT_SHOPPING_CATEGORY_ORDER, normalizeShoppingItemCategory, shoppingCategoryLabel, type ShoppingCategoryKey } from '@/lib/shopping-categories'
 import {
   Archive,
   ArchiveRestore,
@@ -36,6 +39,7 @@ import {
   FilePlus2,
   ListChecks,
   Loader2,
+  MapPinned,
   Minus,
   MoreHorizontal,
   Package,
@@ -44,10 +48,14 @@ import {
   Plus,
   RefreshCw,
   Search,
+  ShoppingBasket,
+  Sparkles,
   Scale,
   Trash2,
   X,
 } from 'lucide-react'
+import { EmptyState } from '@/components/ui/EmptyState'
+import ModuleFirstRun from '@/components/onboarding/ModuleFirstRun'
 
 interface CatalogueOffer {
   storeId: string
@@ -80,6 +88,7 @@ interface ShoppingItem {
   notes?: string | null
   status: 'ACTIVE' | 'DONE'
   quantityCount: number
+  category?: string | null
   canonicalProductId?: string | null
   createdBy: { id: string; name: string; email: string }
   doneBy?: { id: string; name: string; email: string } | null
@@ -176,7 +185,8 @@ export default function ShoppingPage() {
   const [offersError, setOffersError] = useState('')
   const [addingOfferId, setAddingOfferId] = useState<string | null>(null)
   const [pricesLocked, setPricesLocked] = useState(false)
-  // Malta-only feature: optimistic until /api/household/active says otherwise.
+  // Catalogue features are deny-by-default until the server confirms consented retailers.
+  const [comparisonAvailable, setComparisonAvailable] = useState(false)
   const [regionSupported, setRegionSupported] = useState(true)
   const offersLoadedRef = useRef(false)
 
@@ -196,6 +206,9 @@ export default function ShoppingPage() {
   const [filter, setFilter] = useState('')
   const [completedOpen, setCompletedOpen] = useState(false)
   const [updatingCounts, setUpdatingCounts] = useState<Set<string>>(new Set())
+  const [categoryOrder, setCategoryOrder] = useState<ShoppingCategoryKey[]>(DEFAULT_SHOPPING_CATEGORY_ORDER)
+  const [routeDialogOpen, setRouteDialogOpen] = useState(false)
+  const [aiDialogOpen, setAiDialogOpen] = useState(false)
 
   const [listDialog, setListDialog] = useState<ListDialogMode>(null)
   const [listName, setListName] = useState('')
@@ -271,6 +284,13 @@ export default function ShoppingPage() {
       const response = await fetch(`/api/shopping/compare?listId=${encodeURIComponent(listId)}`)
       if (!response.ok) {
         const data = await responseJson(response)
+        if (response.status === 503 && data.code === 'feature_unavailable') {
+          if (requestId === comparisonRequestId.current) {
+            setComparisonAvailable(false)
+            setComparison(null)
+          }
+          return
+        }
         if (response.status === 403 && (data.code === 'upgrade_required' || data.code === 'unavailable_region')) {
           if (requestId === comparisonRequestId.current) {
             if (data.code === 'unavailable_region') setRegionSupported(false)
@@ -300,16 +320,19 @@ export default function ShoppingPage() {
       try {
         const response = await fetch('/api/household/active')
         const data = await responseJson(response)
-        if (response.ok && data.priceComparisonRegionSupported === false) setRegionSupported(false)
+        if (response.ok) {
+          setComparisonAvailable(data.priceComparisonAvailable === true)
+          if (data.priceComparisonRegionSupported === false) setRegionSupported(false)
+        }
       } catch {
-        // Stay optimistic; the price endpoints answer authoritatively via 403 codes.
+        // Keep catalogue features hidden when availability cannot be confirmed.
       }
     })()
   }, [loadLists, loadTemplates, status])
 
   useEffect(() => {
-    if (!regionSupported && tab !== 'list') setTab('list')
-  }, [regionSupported, tab])
+    if ((!comparisonAvailable || !regionSupported) && tab !== 'list') setTab('list')
+  }, [comparisonAvailable, regionSupported, tab])
 
   useEffect(() => {
     setItems([])
@@ -318,12 +341,29 @@ export default function ShoppingPage() {
     setFilter('')
     setCompletedOpen(false)
     void loadItems(selectedListId)
-    void loadComparison(selectedListId)
-  }, [loadComparison, loadItems, selectedListId])
+    if (selectedListId) void (async () => {
+      try {
+        const response = await fetch(`/api/shopping/category-order?listId=${encodeURIComponent(selectedListId)}`)
+        const data = await responseJson(response)
+        if (response.ok) setCategoryOrder((data.order || DEFAULT_SHOPPING_CATEGORY_ORDER) as ShoppingCategoryKey[])
+      } catch { /* The default route remains usable offline from this preference. */ }
+    })()
+  }, [loadItems, selectedListId])
+
+  useEffect(() => {
+    if (comparisonAvailable && regionSupported) void loadComparison(selectedListId)
+  }, [comparisonAvailable, loadComparison, regionSupported, selectedListId])
 
   useEffect(() => {
     const cleanQuery = query.trim()
-    if (pricesLocked || !regionSupported) return
+    if (pricesLocked || !comparisonAvailable || !regionSupported) {
+      searchRequestId.current += 1
+      setSearchResults([])
+      setSearchError('')
+      setSearchLoading(false)
+      setHighlightedResult(-1)
+      return
+    }
     if (cleanQuery.length < 2) {
       searchRequestId.current += 1
       setSearchResults([])
@@ -339,6 +379,14 @@ export default function ShoppingPage() {
       try {
         const response = await fetch(`/api/prices/search?q=${encodeURIComponent(cleanQuery)}`)
         const data = await responseJson(response)
+        if (response.status === 503 && data.code === 'feature_unavailable') {
+          if (requestId === searchRequestId.current) {
+            setComparisonAvailable(false)
+            setSearchResults([])
+            setSearchLoading(false)
+          }
+          return
+        }
         if (response.status === 403 && (data.code === 'upgrade_required' || data.code === 'unavailable_region')) {
           if (requestId === searchRequestId.current) {
             if (data.code === 'unavailable_region') setRegionSupported(false)
@@ -361,11 +409,11 @@ export default function ShoppingPage() {
       }
     }, 300)
     return () => window.clearTimeout(timeout)
-  }, [query, pricesLocked, regionSupported])
+  }, [comparisonAvailable, query, pricesLocked, regionSupported])
 
   const refreshComparison = useCallback(() => {
-    void loadComparison(selectedListId)
-  }, [loadComparison, selectedListId])
+    if (comparisonAvailable) void loadComparison(selectedListId)
+  }, [comparisonAvailable, loadComparison, selectedListId])
 
   const loadOffers = useCallback(async () => {
     setOffersLoading(true)
@@ -373,6 +421,11 @@ export default function ShoppingPage() {
     try {
       const response = await fetch('/api/prices/offers')
       const data = await responseJson(response)
+      if (response.status === 503 && data.code === 'feature_unavailable') {
+        setComparisonAvailable(false)
+        offersLoadedRef.current = true
+        return
+      }
       if (response.status === 403 && (data.code === 'upgrade_required' || data.code === 'unavailable_region')) {
         if (data.code === 'unavailable_region') setRegionSupported(false)
         else setPricesLocked(true)
@@ -597,6 +650,16 @@ export default function ShoppingPage() {
     }
   }
 
+  const updateItemCategory = async (item: ShoppingItem, category: ShoppingCategoryKey) => {
+    if (archived || normalizeShoppingItemCategory(item.category) === category) return
+    try {
+      const response = await fetch(`/api/shopping/items/${encodeURIComponent(item.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category }) })
+      const data = await responseJson(response)
+      if (!response.ok) throw new Error(errorMessage(data, 'Could not change the category'))
+      setItems(current => current.map(existing => existing.id === item.id ? data.item as unknown as ShoppingItem : existing))
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not change the category') }
+  }
+
   const openListDialog = (mode: Exclude<ListDialogMode, null>) => {
     setListDialogError('')
     setListName(mode === 'rename' ? selectedList?.name || '' : '')
@@ -733,6 +796,9 @@ export default function ShoppingPage() {
   const totalItems = totalActive + totalDone
   const progress = totalItems > 0 ? Math.round((totalDone / totalItems) * 100) : 0
   const comparisonItems = useMemo(() => new Map((comparison?.items || []).map(item => [item.id, item])), [comparison])
+  const activeGroups = useMemo(() => categoryOrder
+    .map(category => ({ category, items: activeItems.filter(item => normalizeShoppingItemCategory(item.category) === category) }))
+    .filter(group => group.items.length > 0), [activeItems, categoryOrder])
 
   if (status === 'loading') {
     return <ModernAppShell title="Shopping"><div className="flex min-h-[420px] items-center justify-center text-sm text-muted-foreground"><Loader2 className="mr-2 h-5 w-5 animate-spin" />Loading shopping lists…</div></ModernAppShell>
@@ -770,6 +836,8 @@ export default function ShoppingPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="outline" className="min-h-11" disabled={!selectedListId || archived} onClick={() => setAiDialogOpen(true)}><Sparkles />Tidy with AI</Button>
+              <Button type="button" variant="outline" className="min-h-11" disabled={!selectedListId} onClick={() => setRouteDialogOpen(true)}><MapPinned />Aisle route</Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild><Button variant="outline" className="min-h-11"><ListChecks />List<ChevronDown /></Button></DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -798,7 +866,7 @@ export default function ShoppingPage() {
             </div>
           </div>
 
-          {regionSupported && <div className="grid grid-cols-3 rounded-lg bg-muted p-1" role="tablist" aria-label="Shopping view">
+          {comparisonAvailable && regionSupported && <div className="grid grid-cols-3 rounded-lg bg-muted p-1" role="tablist" aria-label="Shopping view">
             <button type="button" role="tab" aria-selected={tab === 'list'} onClick={() => setTab('list')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'list' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><ListChecks className="mr-2 inline h-4 w-4" />List</button>
             <button type="button" role="tab" aria-selected={tab === 'compare'} onClick={() => setTab('compare')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'compare' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Scale className="mr-2 inline h-4 w-4" />Compare{comparison && comparison.items.some(item => item.matchStatus !== 'MATCHED') && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-amber-500" />}</button>
             <button type="button" role="tab" aria-selected={tab === 'offers'} onClick={() => setTab('offers')} className={`min-h-11 rounded-md px-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:px-4 ${tab === 'offers' ? 'bg-background text-module-shopping shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}><Percent className="mr-2 inline h-4 w-4" />Offers</button>
@@ -815,7 +883,21 @@ export default function ShoppingPage() {
         )}
 
         {!selectedListId && !listsLoading ? (
-          <Card><CardContent className="p-10 text-center"><h1 className="text-lg font-semibold">Create your first shopping list</h1><p className="mt-2 text-sm text-muted-foreground">Keep household shopping in one shared place.</p><Button type="button" onClick={() => openListDialog('create')} className="mt-5 min-h-11"><Plus />New list</Button></CardContent></Card>
+          lists.length === 0 ? (
+            <ModuleFirstRun
+              module="shopping"
+              title="Create your first shopping list"
+              action={<Button type="button" onClick={() => openListDialog('create')} className="min-h-11"><Plus />New list</Button>}
+            />
+          ) : (
+            // Lists exist, just none picked — not a first run, so no explainer.
+            <EmptyState
+              module="shopping"
+              icon={ShoppingBasket}
+              title="Pick a list"
+              description="Choose one of your shopping lists above to see what is on it."
+            />
+          )
         ) : tab === 'list' ? (
           <div className="space-y-4" role="tabpanel" aria-label="Shopping list">
             {!archived && selectedListId && (
@@ -835,7 +917,7 @@ export default function ShoppingPage() {
                         value={query}
                         onChange={event => setQuery(event.target.value)}
                         onKeyDown={handleComposerKeyDown}
-                        placeholder={matchingItem ? 'Search for the exact catalogue product' : regionSupported ? 'Search products or type an item' : 'Type an item to add'}
+                        placeholder={matchingItem ? 'Search for the exact catalogue product' : comparisonAvailable && regionSupported ? 'Search products or type an item' : 'Type an item to add'}
                         aria-label={matchingItem ? `Search catalogue to match ${matchingItem.title}` : 'Add a shopping item'}
                         aria-controls="catalogue-results"
                         aria-activedescendant={highlightedResult >= 0 ? `catalogue-result-${highlightedResult}` : undefined}
@@ -853,7 +935,7 @@ export default function ShoppingPage() {
                     )}
                   </div>
 
-                  {regionSupported && (query.trim().length >= 2 || searchError) && (
+                  {comparisonAvailable && regionSupported && (query.trim().length >= 2 || searchError) && (
                     <div id="catalogue-results" role="listbox" aria-label="Catalogue results" className="mt-4 overflow-hidden rounded-lg border">
                       {searchError && <div className="border-b bg-amber-50 p-3 text-sm text-amber-800">{searchError}. You can still add the item as written.</div>}
                       {!searchLoading && !searchError && searchResults.length === 0 && <div className="p-4 text-sm text-muted-foreground">No exact catalogue products found. Add the item as written instead.</div>}
@@ -900,17 +982,28 @@ export default function ShoppingPage() {
                 {itemsLoading ? (
                   <div className="flex items-center justify-center p-10 text-sm text-muted-foreground"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading items…</div>
                 ) : activeItems.length === 0 ? (
-                  <div className="p-10 text-center"><h2 className="font-semibold">{filter ? 'No matching active items' : 'Nothing left to buy'}</h2><p className="mt-1 text-sm text-muted-foreground">{filter ? 'Try a different filter.' : totalDone > 0 ? 'Everything on this list is complete.' : archived ? 'This archived list is empty.' : 'Add an item above to get started.'}</p></div>
+                  // Transient, not first-run: the list exists, it just has nothing
+                  // active on it right now. No "what is shopping for" explainer.
+                  <EmptyState
+                    className="border-0 bg-transparent"
+                    module="shopping"
+                    icon={filter ? Search : Check}
+                    title={filter ? 'No matching active items' : 'Nothing left to buy'}
+                    description={filter ? 'Try a different filter.' : totalDone > 0 ? 'Everything on this list is complete.' : archived ? 'This archived list is empty.' : 'Add an item above to get started.'}
+                  />
                 ) : (
-                  <div className="divide-y">
-                    {activeItems.map(item => <ShoppingItemRow key={item.id} item={item} comparisonItem={comparisonItems.get(item.id)} archived={archived} updating={updatingCounts.has(item.id)} showPrices={!pricesLocked && regionSupported} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}
+                  <div>
+                    {activeGroups.map(group => <section key={group.category} aria-labelledby={`shopping-category-${group.category}`}>
+                      <div id={`shopping-category-${group.category}`} className="border-b border-t bg-muted/50 px-4 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground first:border-t-0 sm:px-5">{shoppingCategoryLabel(group.category)} <span className="ml-1 font-normal">{group.items.length}</span></div>
+                      <div className="divide-y">{group.items.map(item => <ShoppingItemRow key={item.id} item={item} comparisonItem={comparisonItems.get(item.id)} archived={archived} updating={updatingCounts.has(item.id)} showPrices={comparisonAvailable && !pricesLocked && regionSupported} onToggle={toggleItem} onCount={updateItemCount} onCategory={updateItemCategory} onMatch={openMatch} onDelete={deleteItem} />)}</div>
+                    </section>)}
                   </div>
                 )}
 
                 {doneItems.length > 0 && (
                   <div className="border-t">
                     <button type="button" onClick={() => setCompletedOpen(open => !open)} className="flex min-h-11 w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-5" aria-expanded={completedOpen}>Completed <span className="flex items-center gap-2 text-muted-foreground">{doneItems.length}<ChevronDown className={`h-4 w-4 transition-transform ${completedOpen ? 'rotate-180' : ''}`} /></span></button>
-                    {completedOpen && <div className="divide-y border-t">{doneItems.map(item => <ShoppingItemRow key={item.id} item={item} archived={archived} updating={false} showPrices={!pricesLocked && regionSupported} onToggle={toggleItem} onCount={updateItemCount} onMatch={openMatch} onDelete={deleteItem} />)}</div>}
+                    {completedOpen && <div className="divide-y border-t">{doneItems.map(item => <ShoppingItemRow key={item.id} item={item} archived={archived} updating={false} showPrices={comparisonAvailable && !pricesLocked && regionSupported} onToggle={toggleItem} onCount={updateItemCount} onCategory={updateItemCategory} onMatch={openMatch} onDelete={deleteItem} />)}</div>}
                   </div>
                 )}
               </CardContent>
@@ -991,11 +1084,13 @@ export default function ShoppingPage() {
           <DialogFooter><Button type="button" variant="outline" onClick={() => setSelectedTemplate(null)} className="min-h-11">Cancel</Button><Button type="button" onClick={() => void importTemplate()} disabled={selectedTemplateItems.length === 0 || templateBusy} className="min-h-11">{templateBusy && <Loader2 className="animate-spin" />}Import {selectedTemplateItems.length}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <ShoppingRouteDialog listId={selectedListId} open={routeDialogOpen} onOpenChange={setRouteDialogOpen} order={categoryOrder} onOrderChange={setCategoryOrder} />
+      <ShoppingAiDialog listId={selectedListId} listName={selectedList?.name || 'this list'} open={aiDialogOpen} onOpenChange={setAiDialogOpen} onApplied={() => loadItems(selectedListId)} />
     </ModernAppShell>
   )
 }
 
-function ShoppingItemRow({ item, comparisonItem, archived, updating, showPrices, onToggle, onCount, onMatch, onDelete }: {
+function ShoppingItemRow({ item, comparisonItem, archived, updating, showPrices, onToggle, onCount, onCategory, onMatch, onDelete }: {
   item: ShoppingItem
   comparisonItem?: ComparedItem
   archived: boolean
@@ -1003,6 +1098,7 @@ function ShoppingItemRow({ item, comparisonItem, archived, updating, showPrices,
   showPrices: boolean
   onToggle: (item: ShoppingItem) => Promise<void>
   onCount: (item: ShoppingItem, count: number) => Promise<void>
+  onCategory: (item: ShoppingItem, category: ShoppingCategoryKey) => Promise<void>
   onMatch: (id: string, title: string) => void
   onDelete: (id: string) => Promise<void>
 }) {
@@ -1025,6 +1121,9 @@ function ShoppingItemRow({ item, comparisonItem, archived, updating, showPrices,
           </div>
         )}
         {done && item.doneBy?.name && <div className="mt-1 text-xs text-muted-foreground">Completed by {item.doneBy.name}</div>}
+        {!done && <select value={normalizeShoppingItemCategory(item.category)} onChange={event => void onCategory(item, event.target.value as ShoppingCategoryKey)} disabled={archived} aria-label={`Category for ${item.title}`} className="mt-2 h-8 max-w-44 rounded-md border border-input bg-background px-2 text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          {DEFAULT_SHOPPING_CATEGORY_ORDER.map(category => <option key={category} value={category}>{shoppingCategoryLabel(category)}</option>)}
+        </select>}
       </div>
       {!done && (
         <div className="flex h-11 shrink-0 items-center rounded-md border bg-background">

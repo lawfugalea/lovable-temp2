@@ -32,6 +32,14 @@ model User {
   acceptedTermsAt           DateTime?
   termsVersion              String?
   activeHouseholdId         String?
+  /// Guided product tour: the step the user paused on. Null when not mid-tour.
+  tourStepId                String?
+  /// Set when the tour was finished or skipped. Backfilled for accounts that
+  /// predate the tour so it never ambushes an existing user. Null = tour owed.
+  tourCompletedAt           DateTime?
+  /// Per-user dismissal of the dashboard getting-started checklist. Replaces the
+  /// household-scoped PageState flag, which hid the card for every member at once.
+  checklistDismissedAt      DateTime?
   ownedHouseholds           Household[]                  @relation("OwnerHouseholds")
   memberships               Membership[]
   assignedChores            Chore[]                      @relation("ChoreAssignee")

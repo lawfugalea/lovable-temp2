@@ -10,6 +10,7 @@ import {
   Clock3,
   HeartPulse,
   Home,
+  Landmark,
   ListChecks,
   ShoppingBasket,
   Sparkles,
@@ -18,11 +19,14 @@ import {
 import ModernAppShell from "@/components/ModernAppShell"
 import ChoreTodayList, { todayItemKey, type TodayChoreItem } from "@/components/chores/ChoreTodayList"
 import OnboardingChecklist from "@/components/OnboardingChecklist"
-import HouseholdCreationWizard from "@/components/HouseholdCreationWizard"
+import WelcomeFlow from "@/components/onboarding/WelcomeFlow"
+import { useOnboarding } from "@/components/onboarding/OnboardingProvider"
+import { useTour } from "@/components/onboarding/TourProvider"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/Alert"
 import { Badge } from "@/components/ui/Badge"
 import { Button } from "@/components/ui/Button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card"
+import { EmptyState } from "@/components/ui/EmptyState"
 import { Skeleton } from "@/components/ui/Skeleton"
 import { cn } from "@/lib/utils"
 import { getMedicineSchedule } from "@/lib/medicine"
@@ -140,13 +144,15 @@ function DashboardSkeleton() {
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [financeSummary, setFinanceSummary] = useState<{ accountCount: number; totals: Array<{ currency: string; amount: string }>; plannerDisposableCents: number | null }>({ accountCount: 0, totals: [], plannerDisposableCents: null })
+  const [financeSummary, setFinanceSummary] = useState<{ planEntryCount: number; plannerDisposableCents: number | null }>({ planEntryCount: 0, plannerDisposableCents: null })
+  const [bankingSummary, setBankingSummary] = useState<{ accountCount: number; totals: Array<{ currency: string; amount: string }> }>({ accountCount: 0, totals: [] })
   const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([])
   const [totalItems, setTotalItems] = useState(0)
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [recentDoses, setRecentDoses] = useState<MedicineDose[]>([])
   const [loading, setLoading] = useState(true)
-  const [hasHousehold, setHasHousehold] = useState<boolean | null>(null)
+  const onboarding = useOnboarding()
+  const tour = useTour()
   const [showJoinSuccess, setShowJoinSuccess] = useState(false)
   const [todayChores, setTodayChores] = useState<TodayChoreItem[]>([])
   const [tonight, setTonight] = useState<{ recipeName: string | null; freeText: string | null } | null>(null)
@@ -256,48 +262,41 @@ export default function DashboardPage() {
 
   const loadFinanceData = useCallback(async (householdId: string) => {
     try {
-      const response = await fetch(`/api/finance/overview?householdId=${encodeURIComponent(householdId)}`)
-      if (!response.ok) return
-      const data = await response.json()
-      const accountCount = Array.isArray(data.accounts) ? data.accounts.length : 0
-      let plannerDisposableCents: number | null = null
-      if (!data.bankEnabled) {
-        const plannerResponse = await fetch(`/api/finance/planner?householdId=${encodeURIComponent(householdId)}`)
-        if (plannerResponse.ok) {
-          const planner = await plannerResponse.json()
-          const hasPlan = (planner.incomes?.length || 0) + (planner.commitments?.length || 0) > 0
-          plannerDisposableCents = hasPlan && typeof planner.summary?.disposableCents === "number"
+      const [plannerResponse, bankingResponse] = await Promise.all([
+        fetch(`/api/finance/planner?householdId=${encodeURIComponent(householdId)}`),
+        fetch(`/api/finance/overview?householdId=${encodeURIComponent(householdId)}`),
+      ])
+      if (plannerResponse.ok) {
+        const planner = await plannerResponse.json()
+        const planEntryCount = (planner.incomes?.length || 0) + (planner.commitments?.length || 0) + (planner.goals?.length || 0)
+        setFinanceSummary({
+          planEntryCount,
+          plannerDisposableCents: planEntryCount > 0 && typeof planner.summary?.disposableCents === "number"
             ? planner.summary.disposableCents
-            : null
-        }
+            : null,
+        })
       }
-      setFinanceSummary({
-        accountCount,
-        totals: Array.isArray(data.totals) ? data.totals : [],
-        plannerDisposableCents,
-      })
+      if (bankingResponse.ok) {
+        const banking = await bankingResponse.json()
+        setBankingSummary({
+          accountCount: Array.isArray(banking.accounts) ? banking.accounts.length : 0,
+          totals: Array.isArray(banking.totals) ? banking.totals : [],
+        })
+      }
     } catch (error) {
       console.error("Failed to load finance summary:", error)
     }
   }, [])
 
-  const loadHouseholdData = useCallback(async () => {
+  const loadHouseholdData = useCallback(async (householdId: string) => {
     try {
-      const response = await fetch("/api/household/active")
-      const data = await response.json()
-      if (data.householdId) {
-        setHasHousehold(true)
-        await Promise.all([
-          loadShoppingData(data.householdId),
-          loadMedicineData(data.householdId),
-          loadFinanceData(data.householdId),
-          loadChoresData(),
-          loadMealsData(),
-        ])
-      } else if (response.status === 404) {
-        // Brand-new account: guide them straight into household setup.
-        setHasHousehold(false)
-      }
+      await Promise.all([
+        loadShoppingData(householdId),
+        loadMedicineData(householdId),
+        loadFinanceData(householdId),
+        loadChoresData(),
+        loadMealsData(),
+      ])
     } catch (error) {
       console.error("Failed to load household data:", error)
     } finally {
@@ -305,13 +304,29 @@ export default function DashboardPage() {
     }
   }, [loadChoresData, loadFinanceData, loadMealsData, loadMedicineData, loadShoppingData])
 
+  // Whether this is a brand-new account comes from /api/onboarding/state, which
+  // returns 200 with household:null rather than an error code. The previous
+  // version inferred it from a 404, so a 401 or a dropped connection rendered an
+  // empty dashboard instead of either the welcome flow or an error.
+  const householdId = onboarding?.state?.household?.id ?? null
+  const onboardingStatus = onboarding?.status ?? "loading"
+
   useEffect(() => {
-    if (status === "authenticated") {
-      void loadHouseholdData()
-    } else if (status === "unauthenticated") {
+    if (status === "unauthenticated") {
       setLoading(false)
+      return
     }
-  }, [status, loadHouseholdData])
+    if (onboardingStatus === "error") {
+      setLoading(false)
+      return
+    }
+    if (onboardingStatus !== "ready") return
+    if (!householdId) {
+      setLoading(false)
+      return
+    }
+    void loadHouseholdData(householdId)
+  }, [status, onboardingStatus, householdId, loadHouseholdData])
 
   const activeMedicines = medicines.filter((medicine) => medicine.isActive && !medicine.isTemplate)
   const dueMedicines = activeMedicines.filter((medicine) => (
@@ -319,42 +334,49 @@ export default function DashboardPage() {
   ))
   const firstName = session?.user?.name?.trim().split(/\s+/)[0]
   const pendingChores = todayChores.filter((item) => item.status === "PENDING")
-  const financeDetail = financeSummary.accountCount > 0
-    ? `${financeSummary.accountCount} connected account${financeSummary.accountCount === 1 ? "" : "s"}${financeSummary.totals[0] ? ` · ${financeSummary.totals[0].amount} ${financeSummary.totals[0].currency}` : ""}`
-    : financeSummary.plannerDisposableCents !== null
-      ? `${new Intl.NumberFormat("en-MT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(financeSummary.plannerDisposableCents / 100)}/month yours to direct`
-      : "Map your income and commitments in the money planner"
+  const financeDetail = financeSummary.plannerDisposableCents !== null
+    ? `${new Intl.NumberFormat("en-MT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(financeSummary.plannerDisposableCents / 100)}/month yours to direct`
+    : "Map your income and commitments in the money planner"
+  const bankingDetail = bankingSummary.accountCount > 0
+    ? `${bankingSummary.accountCount} connected account${bankingSummary.accountCount === 1 ? "" : "s"}${bankingSummary.totals[0] ? ` · ${bankingSummary.totals[0].amount} ${bankingSummary.totals[0].currency}` : ""}`
+    : "Connected balances and transactions stay separate from your plan."
 
-  if (status === "loading" || loading) {
+  // A genuine failure (401, 500, network) must never be mistaken for either a
+  // brand-new account or an empty household.
+  if (onboardingStatus === "error") {
+    return (
+      <ModernAppShell title="Overview">
+        <div className="mx-auto max-w-xl py-8">
+          <Alert variant="destructive">
+            <AlertTitle>We couldn&apos;t load your household</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <p>Something went wrong reaching ClanKeep. Your data is safe — this is just this page.</p>
+              <Button variant="outline" size="sm" onClick={() => void onboarding?.refresh()}>
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </ModernAppShell>
+    )
+  }
+
+  if (status === "loading" || onboardingStatus !== "ready" || loading) {
     return <ModernAppShell title="Overview"><DashboardSkeleton /></ModernAppShell>
   }
 
-  if (hasHousehold === false) {
+  if (!householdId) {
     return (
       <ModernAppShell title="Welcome">
-        <div className="mx-auto max-w-2xl space-y-8 py-4">
-          <div className="text-center">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-semibold text-primary">
-              <Sparkles className="h-4 w-4" aria-hidden="true" /> Let&apos;s set up your home
-            </div>
-            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-              Welcome to Clankeep{firstName ? `, ${firstName}` : ""}!
-            </h2>
-            <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-muted-foreground">
-              Everything in Clankeep lives inside your household — create yours in two quick
-              steps, then invite the rest of the clan. If someone already invited you, open
-              their invite link instead.
-            </p>
-          </div>
-          <HouseholdCreationWizard
-            onComplete={() => {
-              setHasHousehold(true)
-              setLoading(true)
-              void loadHouseholdData()
-            }}
-            onCancel={() => { /* first-run setup has nowhere to cancel to */ }}
-          />
-        </div>
+        <WelcomeFlow
+          firstName={firstName}
+          onCreated={() => {
+            setLoading(true)
+            void onboarding?.refresh()
+          }}
+          onStartTour={tour ? () => void tour.startTour() : undefined}
+          onSkipTour={() => void onboarding?.update({ tourCompleted: true }).catch(() => {})}
+        />
       </ModernAppShell>
     )
   }
@@ -402,7 +424,7 @@ export default function DashboardPage() {
           </Alert>
         )}
 
-        <OnboardingChecklist />
+        <OnboardingChecklist onStartTour={tour ? () => void tour.startTour() : undefined} />
 
         <section aria-labelledby="household-summary-heading">
           <div className="mb-4 flex items-end justify-between gap-4">
@@ -422,12 +444,22 @@ export default function DashboardPage() {
               tone="shopping"
             />
             <SummaryCard
-              eyebrow={`${financeSummary.accountCount} account${financeSummary.accountCount === 1 ? "" : "s"}`}
-              title="Finances visible to you"
+              eyebrow={`${financeSummary.planEntryCount} plan entr${financeSummary.planEntryCount === 1 ? "y" : "ies"}`}
+              title="Household finance plan"
               description={financeDetail}
               href="/finances"
-              action="View finances"
+              action="Open finance"
               icon={CircleDollarSign}
+              tone="finances"
+              delayClass="animation-delay-100"
+            />
+            <SummaryCard
+              eyebrow={`${bankingSummary.accountCount} account${bankingSummary.accountCount === 1 ? "" : "s"}`}
+              title="Connected banking"
+              description={bankingDetail}
+              href="/banking"
+              action="Open banking"
+              icon={Landmark}
               tone="finances"
               delayClass="animation-delay-100"
             />
@@ -444,7 +476,7 @@ export default function DashboardPage() {
             <SummaryCard
               eyebrow={tonight ? "Planned" : "Unplanned"}
               title={tonight ? `Tonight: ${tonight.recipeName || tonight.freeText}` : "Nothing planned tonight"}
-              description={tonight ? "The plan for dinner is set — ingredients are one tap from the list." : "Pick tonight's dinner and Clankeep prices the ingredients."}
+              description={tonight ? "The plan for dinner is set — ingredients are one tap from the list." : "Pick tonight's dinner and keep the week organised."}
               href="/meals"
               action="Open meals"
               icon={UtensilsCrossed}
@@ -511,11 +543,12 @@ export default function DashboardPage() {
                   </div>
                 ))}
                 {recentDoses.length === 0 && shoppingLists.length === 0 && (
-                  <div className="px-5 py-10 text-center">
-                    <Activity className="mx-auto h-8 w-8 text-muted-foreground/50" />
-                    <p className="mt-3 text-sm font-medium">No recent household activity</p>
-                    <p className="mt-1 text-sm text-muted-foreground">New list and medicine activity will appear here.</p>
-                  </div>
+                  <EmptyState
+                    className="border-0 bg-transparent py-10"
+                    icon={Activity}
+                    title="No recent household activity"
+                    description="New list and medicine activity will appear here."
+                  />
                 )}
               </div>
             </CardContent>
@@ -529,7 +562,8 @@ export default function DashboardPage() {
             <CardContent className="space-y-2">
               {[
                 { href: "/shopping", label: "Update a shopping list", icon: ShoppingBasket },
-                { href: "/finances", label: "Review your finance view", icon: CircleDollarSign },
+                { href: "/finances", label: "Review your household plan", icon: CircleDollarSign },
+                { href: "/banking", label: "Review connected banking", icon: Landmark },
                 { href: "/medicine", label: "Record medicine", icon: HeartPulse },
               ].map((item) => (
                 <Button key={item.href} asChild variant="ghost" className="w-full justify-between text-background hover:bg-background/10 hover:text-background">

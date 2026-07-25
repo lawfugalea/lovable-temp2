@@ -25,11 +25,15 @@ import {
   Sparkles,
   Sun,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Compass,
+  ListChecks
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/confirm-dialog'
+import { useOnboarding } from '@/components/onboarding/OnboardingProvider'
+import { useTour } from '@/components/onboarding/TourProvider'
 
 const SETTINGS_TABS = [
   { id: 'profile', name: 'Profile', icon: User },
@@ -53,7 +57,6 @@ interface BillingSummary {
 }
 
 const FAMILY_FEATURES = [
-  'Malta supermarket price comparison & offers',
   'Money planner with AI savings coach',
   'Medicine for unlimited children',
   'Push reminders for doses',
@@ -246,6 +249,10 @@ export default function SettingsPage() {
   const { data: session, status, update } = useSession()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('profile')
+  const onboarding = useOnboarding()
+  const tour = useTour()
+  const hasHousehold = onboarding?.state?.household != null
+  const checklistDismissed = onboarding?.state?.user.checklistDismissedAt != null
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('unsupported')
@@ -505,6 +512,50 @@ export default function SettingsPage() {
                       <Button onClick={handleProfileUpdate} disabled={loading}>
                         <Save className="w-4 h-4 mr-2" />
                         Save Changes
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Compass className="w-5 h-5" />
+                      Guidance
+                    </CardTitle>
+                    <CardDescription>Replay the tour or bring back the setup checklist</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">Product tour</p>
+                        <p className="text-sm text-muted-foreground">A 90-second look around the app.</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => void tour?.startTour()}
+                        disabled={!tour || !hasHousehold}
+                      >
+                        <Compass className="mr-2 h-4 w-4" />
+                        Replay the tour
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">Getting-started checklist</p>
+                        <p className="text-sm text-muted-foreground">
+                          {checklistDismissed
+                            ? 'Hidden on your overview. This only affects you, not the rest of your household.'
+                            : 'Currently showing on your overview.'}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        disabled={!checklistDismissed || !hasHousehold}
+                        onClick={() => void onboarding?.update({ checklistDismissed: false }).catch(() => {})}
+                      >
+                        <ListChecks className="mr-2 h-4 w-4" />
+                        Show it again
                       </Button>
                     </div>
                   </CardContent>

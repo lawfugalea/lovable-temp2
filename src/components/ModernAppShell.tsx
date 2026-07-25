@@ -6,6 +6,7 @@ import { signOut, useSession } from "next-auth/react"
 import { useTheme } from "next-themes"
 import {
   ChevronsUpDown,
+  HelpCircle,
   LogOut,
   Menu,
   Monitor,
@@ -35,13 +36,14 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/Sheet"
 import CommandPalette from "./CommandPalette"
 import BottomTabBar from "./BottomTabBar"
 import DemoBanner from "./DemoBanner"
-import HelpChat from "./HelpChat"
+import TourOverlay from "./onboarding/TourOverlay"
 import UpgradeButton from "./UpgradeButton"
 import BrandLogo from "./BrandLogo"
 
 const manageItems = [
   { name: "Household", href: "/household", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Help", href: "/help", icon: HelpCircle },
 ]
 
 interface ModernAppShellProps {
@@ -188,7 +190,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       <Link href="/dashboard" aria-label="Overview" className="mb-4">
         <BrandLogo compact priority />
       </Link>
-      <nav className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto" aria-label="Main navigation">
+      <nav data-tour="nav" className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto" aria-label="Main navigation">
         {modules.map((module) => {
           const active = router.pathname === module.href
           const Icon = module.icon
@@ -292,7 +294,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Main navigation">
+      <nav data-tour="nav" className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Main navigation">
         <div>
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
             Household
@@ -318,7 +320,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
           <BrandLogo priority />
         </Link>
       </div>
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="More navigation">
+      <nav data-tour="nav" className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="More navigation">
         <div>
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
             Household
@@ -358,7 +360,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
             <Button variant="outline" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
               <Menu className="h-5 w-5" />
             </Button>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1" data-tour="header-title">
               <p className="text-xs font-medium text-muted-foreground">Household workspace</p>
               <h1 className="truncate font-display text-lg font-semibold tracking-tight">
                 {activeTitle}
@@ -370,17 +372,22 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
             </div>
             <Button
               variant="outline"
+              data-tour="search"
               className="hidden min-w-[210px] justify-between bg-card text-muted-foreground shadow-soft-sm sm:flex"
               onClick={() => setCommandPaletteOpen(true)}
             >
               <span className="flex items-center gap-2"><Search className="h-4 w-4" /> Search</span>
               <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
             </Button>
-            <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search Clankeep">
+            <Button variant="outline" size="icon" data-tour="search" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search Clankeep">
               <Search className="h-4 w-4" />
             </Button>
+            {/* The tour's `upgrade` anchor lives on UpgradeButton itself, which
+                only renders for free households — matching that step's `when`. */}
             <UpgradeButton />
-            <HelpChat />
+            <Button asChild variant="outline" size="icon" data-tour="help" className="hidden sm:inline-flex" aria-label="Help">
+              <Link href="/help" title="Help"><HelpCircle className="h-4 w-4" /></Link>
+            </Button>
           </div>
         </header>
 
@@ -391,6 +398,9 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
 
       <BottomTabBar onOpenMore={() => setSidebarOpen(true)} />
       <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
+      {/* Mounted here rather than in AuthApp so the tour only ever appears on
+          shell pages, never over login or the landing page. */}
+      <TourOverlay />
     </div>
   )
 }

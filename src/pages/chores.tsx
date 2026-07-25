@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
 import { EmptyState } from '@/components/ui/EmptyState'
+import ModuleFirstRun from '@/components/onboarding/ModuleFirstRun'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
@@ -197,25 +198,37 @@ export default function ChoresPage() {
     <ModernAppShell title="Chores">
       <Head><title>Chores – Clankeep</title></Head>
       <div className="mx-auto max-w-4xl space-y-4 pb-12">
-        <header className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-soft-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="font-display text-xl font-bold tracking-tight">Household chores</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {pendingToday > 0 ? `${pendingToday} thing${pendingToday === 1 ? '' : 's'} to do today` : 'All caught up for today'}
-            </p>
+        <header className="overflow-hidden rounded-xl border bg-card shadow-soft-sm">
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="font-display text-xl font-bold tracking-tight">Household chores</h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {pendingToday > 0 ? `${pendingToday} thing${pendingToday === 1 ? '' : 's'} to do today` : 'All caught up for today'}
+              </p>
+            </div>
+            <Button type="button" onClick={openCreate} className="min-h-11">
+              <Plus />New chore
+            </Button>
           </div>
-          <Button type="button" onClick={openCreate} className="min-h-11">
-            <Plus />New chore
-          </Button>
+          <Tabs value={tab} onValueChange={value => setTab(value as ChoresTab)} className="border-t px-2 sm:px-4">
+            <TabsList aria-label="Chores sections" className="grid h-auto w-full grid-cols-3 rounded-none bg-transparent p-0 sm:flex sm:w-auto sm:justify-start">
+              <TabsTrigger value="today" className="min-h-12 gap-2 rounded-none border-b-2 border-transparent px-3 font-semibold hover:text-foreground data-[state=active]:border-module-chores data-[state=active]:bg-transparent data-[state=active]:text-module-chores data-[state=active]:shadow-none sm:px-4">
+                Today
+                {pendingToday > 0 && (
+                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-module-chores/10 px-1.5 py-0.5 text-[11px] font-bold leading-none text-module-chores">
+                    {pendingToday}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="all" className="min-h-12 rounded-none border-b-2 border-transparent px-3 font-semibold hover:text-foreground data-[state=active]:border-module-chores data-[state=active]:bg-transparent data-[state=active]:text-module-chores data-[state=active]:shadow-none sm:px-4">
+                All chores
+              </TabsTrigger>
+              <TabsTrigger value="log" className="min-h-12 rounded-none border-b-2 border-transparent px-3 font-semibold hover:text-foreground data-[state=active]:border-module-chores data-[state=active]:bg-transparent data-[state=active]:text-module-chores data-[state=active]:shadow-none sm:px-4">
+                Log
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </header>
-
-        <Tabs value={tab} onValueChange={value => setTab(value as ChoresTab)}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="today" className="min-h-10">Today{pendingToday > 0 && <Badge variant="outline" className="ml-2 border-module-chores/40 text-module-chores">{pendingToday}</Badge>}</TabsTrigger>
-            <TabsTrigger value="all" className="min-h-10">All chores</TabsTrigger>
-            <TabsTrigger value="log" className="min-h-10">Log</TabsTrigger>
-          </TabsList>
-        </Tabs>
 
         {loading ? (
           <div className="space-y-2">{[0, 1, 2].map(index => <Skeleton key={index} className="h-14 rounded-xl" />)}</div>
@@ -231,11 +244,9 @@ export default function ChoresPage() {
           />
         ) : tab === 'all' ? (
           chores.length === 0 ? (
-            <EmptyState
-              icon={ListChecks}
+            <ModuleFirstRun
               module="chores"
               title="No chores yet"
-              description="Set up the recurring jobs your home runs on — bins, laundry, watering the plants — and tick them off together."
               action={<Button type="button" onClick={openCreate} className="min-h-11"><Plus />Create your first chore</Button>}
             />
           ) : (

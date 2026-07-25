@@ -88,6 +88,14 @@
     @apply border-border;
   }
 
+  :root {
+    /* Overwritten from the visual viewport by useVisualViewport; these fallbacks
+       hold on the server, before hydration, and wherever the API is missing. */
+    --viewport-height: 100dvh;
+    --viewport-offset-top: 0px;
+    --keyboard-inset: 0px;
+  }
+
   html {
     min-width: 320px;
     background: hsl(var(--background));
@@ -173,4 +181,13 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/*
+ * The tour's spotlight is a very large box-shadow spread. Safari composites that
+ * incorrectly over an element with backdrop-filter, so the sticky header drops
+ * its blur for as long as a tour step is open.
+ */
+html[data-tour-active] header {
+  backdrop-filter: none;
 }

@@ -17,20 +17,16 @@ import {
   Sun,
   Moon,
   Monitor,
+  HelpCircle,
+  Compass,
+  ListChecks,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { modules, type ModuleKey } from '@/lib/modules'
+import { modules } from '@/lib/modules'
+import { moduleHelp } from '@/lib/help-content'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/Dialog'
-
-const moduleCommandMeta: Record<ModuleKey, { description: string; keywords: string[] }> = {
-  home: { description: 'View your home dashboard', keywords: ['dashboard', 'home', 'main', 'overview'] },
-  shopping: { description: 'Manage your shopping lists', keywords: ['shopping', 'lists', 'groceries', 'prices', 'supermarket'] },
-  finances: { description: 'View connected balances and transactions', keywords: ['finances', 'money', 'bank', 'balance', 'transactions'] },
-  medicine: { description: 'Track medicines and schedules', keywords: ['medicine', 'medication', 'children', 'kids', 'health'] },
-  notes: { description: 'Manage your personal and shared notes', keywords: ['notes', 'writing', 'personal', 'shared', 'memo', 'journal'] },
-  meals: { description: "Plan the week's dinners and shop for ingredients", keywords: ['meals', 'dinner', 'recipes', 'cooking', 'ingredients', 'plan'] },
-  chores: { description: 'Manage recurring household chores', keywords: ['chores', 'tasks', 'cleaning', 'rota', 'housework'] },
-}
+import { useOnboarding } from '@/components/onboarding/OnboardingProvider'
+import { useTour } from '@/components/onboarding/TourProvider'
 
 interface CommandItem {
   id: string
@@ -53,6 +49,10 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const router = useRouter()
   const { data: session } = useSession()
   const { setTheme } = useTheme()
+  const onboarding = useOnboarding()
+  const tour = useTour()
+  const hasHousehold = onboarding?.state?.household != null
+  const checklistDismissed = onboarding?.state?.user.checklistDismissedAt != null
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
@@ -61,11 +61,11 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     ...modules.map((module) => ({
       id: `nav-${module.key}`,
       title: `Go to ${module.name}`,
-      description: moduleCommandMeta[module.key].description,
+      description: moduleHelp[module.key].tagline,
       icon: module.icon,
       action: () => router.push(module.href),
       category: 'Navigation',
-      keywords: moduleCommandMeta[module.key].keywords,
+      keywords: moduleHelp[module.key].keywords,
     })),
     {
       id: 'nav-settings',
@@ -122,6 +122,47 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       category: 'Quick Actions',
       keywords: ['add', 'note', 'writing', 'memo', 'personal', 'shared']
     },
+
+    // Help
+    {
+      id: 'help-open',
+      title: 'Open Help',
+      description: 'How every area of ClanKeep works',
+      icon: HelpCircle,
+      action: () => router.push('/help'),
+      category: 'Help',
+      keywords: ['help', 'docs', 'guide', 'support', 'how', 'faq', 'questions'],
+    },
+    ...modules.map((module) => ({
+      id: `help-${module.key}`,
+      title: `Help: ${module.name}`,
+      description: moduleHelp[module.key].summary,
+      icon: HelpCircle,
+      action: () => router.push(`/help#${module.key}`),
+      category: 'Help',
+      keywords: ['help', 'how', 'guide', ...moduleHelp[module.key].keywords],
+    })),
+    ...(tour && hasHousehold ? [{
+      id: 'help-tour',
+      title: 'Replay the product tour',
+      description: 'A 90-second look around the app',
+      icon: Compass,
+      action: () => { void tour.startTour() },
+      category: 'Help',
+      keywords: ['tour', 'walkthrough', 'guide', 'onboarding', 'replay', 'intro'],
+    }] : []),
+    ...(checklistDismissed && hasHousehold ? [{
+      id: 'help-checklist',
+      title: 'Show the getting-started checklist',
+      description: 'Bring back the setup steps on your overview',
+      icon: ListChecks,
+      action: () => {
+        void onboarding?.update({ checklistDismissed: false }).catch(() => {})
+        void router.push('/dashboard')
+      },
+      category: 'Help',
+      keywords: ['checklist', 'getting started', 'setup', 'onboarding', 'steps'],
+    }] : []),
 
     // Appearance
     {
@@ -257,7 +298,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="top-[18vh] max-w-2xl translate-y-0 gap-0 overflow-hidden p-0 max-sm:bottom-auto max-sm:top-0 max-sm:max-h-[80dvh] max-sm:rounded-b-2xl max-sm:rounded-t-none max-sm:border-t-0 max-sm:border-x-0 max-sm:pb-0 max-sm:data-[state=open]:slide-in-from-top-6 max-sm:data-[state=closed]:slide-out-to-top-6">
+      <DialogContent className="top-[18vh] max-w-2xl translate-y-0 gap-0 overflow-hidden p-0 max-sm:bottom-auto max-sm:top-0 max-sm:max-h-[calc(var(--viewport-height)_-_1rem)] max-sm:rounded-b-2xl max-sm:rounded-t-none max-sm:border-t-0 max-sm:border-x-0 max-sm:pb-0 max-sm:data-[state=open]:slide-in-from-top-6 max-sm:data-[state=closed]:slide-out-to-top-6">
         <DialogTitle className="sr-only">Search Clankeep</DialogTitle>
         <DialogDescription className="sr-only">Navigate to a page or choose a quick action.</DialogDescription>
           {/* Search Input */}
@@ -282,7 +323,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
             ref={listRef}
             id="houseflow-command-results"
             role="listbox"
-            className="max-h-96 overflow-y-auto"
+            // Shrinks with the keyboard so results never sit under it.
+            className="max-h-[min(24rem,calc(var(--viewport-height)_-_9rem))] overflow-y-auto overscroll-contain"
           >
             {Object.keys(groupedCommands).length === 0 ? (
               <div className="px-4 py-10 text-center text-muted-foreground">

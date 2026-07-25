@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import HouseholdCreationWizard from '../components/HouseholdCreationWizard'
+import WelcomeFlow from '../components/onboarding/WelcomeFlow'
 import EnhancedInvitePanel from '../components/EnhancedInvitePanel'
 import HouseholdManagement from '../components/HouseholdManagement'
 import { Users, Settings, RefreshCw, Home, Save, X, MapPin } from 'lucide-react'
@@ -75,7 +76,7 @@ export default function HouseholdPage() {
   }
 
 
-  const handleHouseholdCreated = (householdId: string) => {
+  const handleHouseholdCreated = () => {
     setShowCreationWizard(false)
     // Reload household data to show the new household
     loadHouseholdData()
@@ -212,7 +213,7 @@ export default function HouseholdPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4" aria-hidden="true" />
                     {household.role === 'OWNER'
-                      ? 'Location — Malta households get supermarket price comparison'
+                      ? `Household location: ${countryLabel(household.country)}`
                       : `Location: ${countryLabel(household.country)}`}
                   </div>
                   {household.role === 'OWNER' && (
@@ -280,29 +281,10 @@ export default function HouseholdPage() {
                 onCancel={() => setShowCreationWizard(false)}
               />
             ) : (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
-                    <Home className="h-7 w-7" aria-hidden="true" />
-                  </span>
-                  <h2 className="font-display text-xl font-semibold text-foreground mb-2">Welcome to Clankeep!</h2>
-                  <p className="text-muted-foreground mb-6">
-                    Create your household to start managing your home, family, and daily tasks together.
-                  </p>
-                  <div className="space-y-3">
-                    <Button 
-                      onClick={() => setShowCreationWizard(true)}
-                      className="w-full"
-                    >
-                      <Home className="w-4 h-4 mr-2" />
-                      Create Your Household
-                    </Button>
-                    <p className="text-sm text-muted-foreground">
-                      Or join an existing household with an invite link
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              // Same first-run experience as the dashboard, including the
+              // "I was invited" path — this page used to offer only a create
+              // button and a sentence about invite links with nowhere to paste one.
+              <WelcomeFlow onCreated={handleHouseholdCreated} />
             )}
           </>
         )}
