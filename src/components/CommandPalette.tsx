@@ -145,7 +145,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     ...(tour && hasHousehold ? [{
       id: 'help-tour',
       title: 'Replay the product tour',
-      description: 'A 90-second look around the app',
+      description: 'A short walk through each part of the app',
       icon: Compass,
       action: () => { void tour.startTour() },
       category: 'Help',

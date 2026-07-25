@@ -208,7 +208,7 @@ export default function MealsPage() {
                 Plan the week&rsquo;s dinners, then add every ingredient to your shopping list in one tap.
               </p>
             </div>
-            <Button type="button" onClick={() => { setEditingRecipe(null); setRecipeFormOpen(true) }} className="min-h-11">
+            <Button type="button" data-tour="page-meals" onClick={() => { setEditingRecipe(null); setRecipeFormOpen(true) }} className="min-h-11">
               <Plus />New recipe
             </Button>
           </div>

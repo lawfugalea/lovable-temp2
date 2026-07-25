@@ -13,6 +13,7 @@ import { usePrefersReducedMotion } from '@/hooks/useMediaQuery'
  */
 export default function TourOverlay() {
   const tour = useTour()
+  const navigating = tour?.navigating ?? false
   const reducedMotion = usePrefersReducedMotion()
   const [compact, setCompact] = useState(false)
   const [rect, setRect] = useState<AnchorRect | null>(null)
@@ -57,6 +58,9 @@ export default function TourOverlay() {
     setRect(null)
 
     if (!step.target) return
+    // Mid-route the destination page has not mounted, so its anchor genuinely
+    // does not exist yet. Resolving now would wrongly skip an optional step.
+    if (navigating) return
 
     void resolveAnchorWithRetry(step.target).then((element) => {
       if (cancelled) return
@@ -73,9 +77,11 @@ export default function TourOverlay() {
     })
 
     return () => { cancelled = true }
-    // `tour` changes identity every render; only the step should retrigger this.
+    // `tour` changes identity every render; only the step and route state should
+    // retrigger this. Re-runs when `navigating` clears, which is what resolves
+    // the anchor on the page the tour has just moved to.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step?.id, step?.target, step?.optional, reducedMotion, remeasure])
+  }, [step?.id, step?.target, step?.optional, navigating, reducedMotion, remeasure])
 
   // Keep the ring on the element as the page moves under it.
   useEffect(() => {

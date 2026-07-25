@@ -360,7 +360,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
             <Button variant="outline" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
               <Menu className="h-5 w-5" />
             </Button>
-            <div className="min-w-0 flex-1" data-tour="header-title">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-muted-foreground">Household workspace</p>
               <h1 className="truncate font-display text-lg font-semibold tracking-tight">
                 {activeTitle}
@@ -372,14 +372,13 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
             </div>
             <Button
               variant="outline"
-              data-tour="search"
               className="hidden min-w-[210px] justify-between bg-card text-muted-foreground shadow-soft-sm sm:flex"
               onClick={() => setCommandPaletteOpen(true)}
             >
               <span className="flex items-center gap-2"><Search className="h-4 w-4" /> Search</span>
               <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
             </Button>
-            <Button variant="outline" size="icon" data-tour="search" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search Clankeep">
+            <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search Clankeep">
               <Search className="h-4 w-4" />
             </Button>
             {/* The tour's `upgrade` anchor lives on UpgradeButton itself, which

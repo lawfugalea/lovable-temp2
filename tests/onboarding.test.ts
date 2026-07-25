@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import test from 'node:test'
 import {
   FIRST_TOUR_STEP_ID,
+  TOUR_ROUTES,
   TOUR_STEPS,
   TOUR_STEP_IDS,
   applicableSteps,
@@ -29,6 +31,73 @@ test('every anchored step declares a target and every step has copy', () => {
     if (step.side !== undefined) {
       assert.ok(step.target, `${step.id} declares a side but no target`)
     }
+  }
+})
+
+test('every step declares an internal page for the walkthrough to route to', () => {
+  for (const step of TOUR_STEPS) {
+    assert.ok(step.href.startsWith('/'), `${step.id} href must be an internal path`)
+    assert.ok(!step.href.includes('//'), `${step.id} href must not be protocol-relative`)
+  }
+})
+
+test('copy never leaks HTML entities into plain strings', () => {
+  // These are rendered as React text, not dangerouslySetInnerHTML, so an entity
+  // would show up literally as "&rsquo;" on screen.
+  for (const step of TOUR_STEPS) {
+    for (const [field, value] of Object.entries({ title: step.title, body: step.body, bodyMobile: step.bodyMobile })) {
+      if (typeof value !== 'string') continue
+      assert.doesNotMatch(value, /&[a-z]+;|&#\d+;/i, `${step.id}.${field} contains an HTML entity`)
+    }
+  }
+})
+
+test('the walkthrough actually visits the main modules', () => {
+  // Regression guard: the tour was once a dashboard-only orientation that never
+  // showed the user a single feature page.
+  const visited = new Set(TOUR_STEPS.map((step) => step.href))
+  for (const route of ['/shopping', '/meals', '/chores', '/notes']) {
+    assert.ok(visited.has(route), `the tour never visits ${route}`)
+  }
+  assert.ok(TOUR_ROUTES.includes('/dashboard'))
+})
+
+test('the tour starts and ends on the dashboard', () => {
+  assert.equal(TOUR_STEPS[0].href, '/dashboard')
+  assert.equal(TOUR_STEPS[TOUR_STEPS.length - 1].href, '/dashboard')
+})
+
+test('every target the tour asks for exists as a data-tour anchor in the source', () => {
+  // The anchor lookup is a runtime string match, so a renamed or mistyped target
+  // fails silently — the step just loses its highlight and falls back to a
+  // centred card. This catches it at build time instead.
+  const output = execFileSync(
+    'grep',
+    ['-rhoE', 'data-tour="[a-z-]+"', 'src/'],
+    { cwd: process.cwd(), encoding: 'utf8' },
+  )
+  const anchors = new Set(
+    output.split('\n').filter(Boolean).map((line) => line.replace(/^data-tour="|"$/g, '')),
+  )
+  for (const step of TOUR_STEPS) {
+    if (!step.target) continue
+    assert.ok(anchors.has(step.target), `no data-tour="${step.target}" anchor exists for step "${step.id}"`)
+  }
+})
+
+test('steps that route to a module page anchor to that page', () => {
+  // A step pointing at a target that only exists on another page would fall back
+  // to a centred card, silently losing the highlight.
+  const pageAnchors: Record<string, string> = {
+    '/shopping': 'page-shopping',
+    '/meals': 'page-meals',
+    '/chores': 'page-chores',
+    '/notes': 'page-notes',
+  }
+  for (const step of TOUR_STEPS) {
+    const expected = pageAnchors[step.href]
+    if (!expected) continue
+    assert.equal(step.target, expected, `${step.id} should anchor to ${expected}`)
   }
 })
 

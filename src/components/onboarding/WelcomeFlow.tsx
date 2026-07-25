@@ -88,7 +88,7 @@ export default function WelcomeFlow({ firstName, onCreated, onStartTour, onSkipT
         <div className="flex flex-col justify-center gap-3 sm:flex-row">
           {onStartTour && (
             <Button size="lg" onClick={() => { onCreated(); onStartTour() }}>
-              <Compass className="h-4 w-4" /> Take the 90-second tour
+              <Compass className="h-4 w-4" /> Take the tour
             </Button>
           )}
           <Button

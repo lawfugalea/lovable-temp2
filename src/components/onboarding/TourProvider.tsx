@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import { useOnboarding } from './OnboardingProvider'
 import {
   FIRST_TOUR_STEP_ID,
+  TOUR_ROUTES,
   getTourStep,
   isTourStepId,
   nextStepId,
@@ -30,8 +31,10 @@ interface TourContextValue {
   /** The step being shown, or null when the tour is closed. */
   step: TourStep | null
   position: { index: number; total: number }
+  /** True while routing between steps — the anchor for the new page is not up yet. */
+  navigating: boolean
   /** Start (or restart) the tour from the beginning. */
-  startTour: () => Promise<void>
+  startTour: () => void
   next: () => void
   back: () => void
   /** Close and remember where we got to. */
@@ -48,8 +51,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
   const onboarding = useOnboarding()
   const [activeId, setActiveId] = useState<TourStepId | null>(null)
+  const [navigating, setNavigating] = useState(false)
   const autoStarted = useRef(false)
   const persistTimer = useRef<number | null>(null)
+  // Distinguishes routing the tour asked for from the user clicking a link or
+  // pressing browser-back, which should pause rather than fight them.
+  const selfNavigating = useRef(false)
 
   const state = onboarding?.state ?? null
   const ctx: TourCtx = useMemo(
@@ -62,43 +69,63 @@ export function TourProvider({ children }: { children: ReactNode }) {
     void onboarding?.update(body).catch(() => {})
   }, [onboarding])
 
+  const clearPersistTimer = useCallback(() => {
+    if (persistTimer.current !== null) {
+      window.clearTimeout(persistTimer.current)
+      persistTimer.current = null
+    }
+  }, [])
+
   const persistStepDebounced = useCallback((id: TourStepId) => {
-    if (persistTimer.current !== null) window.clearTimeout(persistTimer.current)
+    clearPersistTimer()
     persistTimer.current = window.setTimeout(() => {
       persistTimer.current = null
       persist({ tourStepId: id })
     }, PERSIST_DEBOUNCE_MS)
-  }, [persist])
+  }, [persist, clearPersistTimer])
 
-  useEffect(() => () => {
-    if (persistTimer.current !== null) window.clearTimeout(persistTimer.current)
-  }, [])
+  useEffect(() => clearPersistTimer, [clearPersistTimer])
 
-  const goTo = useCallback((id: TourStepId | null) => {
+  /**
+   * Show a step, routing to its page first when we are not already there. The
+   * card updates immediately so the copy is never stale mid-navigation; the
+   * overlay holds off on resolving the anchor until `navigating` clears.
+   */
+  const goTo = useCallback((id: TourStepId) => {
+    const step = getTourStep(id)
     setActiveId(id)
-    if (id) persistStepDebounced(id)
-  }, [persistStepDebounced])
+    persistStepDebounced(id)
+    if (!step || step.href === router.pathname) return
+
+    selfNavigating.current = true
+    setNavigating(true)
+    void router.push(step.href)
+      .catch(() => {})
+      .finally(() => {
+        selfNavigating.current = false
+        setNavigating(false)
+      })
+  }, [router, persistStepDebounced])
 
   const finish = useCallback(() => {
-    if (persistTimer.current !== null) {
-      window.clearTimeout(persistTimer.current)
-      persistTimer.current = null
-    }
+    clearPersistTimer()
     setActiveId(null)
+    setNavigating(false)
     persist({ tourCompleted: true })
-  }, [persist])
+  }, [persist, clearPersistTimer])
 
   const pause = useCallback(() => {
-    const current = activeId
+    // Side effects stay outside the setState updater: React may invoke an
+    // updater twice in StrictMode, which would double-toast and double-write.
+    if (!activeId) return
+    clearPersistTimer()
     setActiveId(null)
-    if (!current) return
-    if (persistTimer.current !== null) {
-      window.clearTimeout(persistTimer.current)
-      persistTimer.current = null
-    }
-    persist({ tourStepId: current })
-    toast('Tour paused', { description: 'Pick it up again from Help, or press ⌘K and search for the tour.' })
-  }, [activeId, persist])
+    setNavigating(false)
+    persist({ tourStepId: activeId })
+    toast('Tour paused', {
+      description: 'Pick it up again from Help, or press ⌘K and search for the tour.',
+    })
+  }, [activeId, persist, clearPersistTimer])
 
   const next = useCallback(() => {
     if (!activeId) return
@@ -116,15 +143,17 @@ export function TourProvider({ children }: { children: ReactNode }) {
     if (previous !== null) goTo(previous)
   }, [activeId, ctx, goTo])
 
-  const startTour = useCallback(async () => {
+  const startTour = useCallback(() => {
     autoStarted.current = true
-    // Every anchor lives on the dashboard, so make sure we are there first.
-    if (router.pathname !== '/dashboard') {
-      await router.push('/dashboard')
-    }
     persist({ tourCompleted: false, tourStepId: FIRST_TOUR_STEP_ID })
-    setActiveId(FIRST_TOUR_STEP_ID)
-  }, [router, persist])
+    goTo(FIRST_TOUR_STEP_ID)
+  }, [persist, goTo])
+
+  // Warm the routes the tour visits so steps do not stall on a cold chunk fetch.
+  useEffect(() => {
+    if (!activeId) return
+    for (const route of TOUR_ROUTES) void router.prefetch(route).catch(() => {})
+  }, [activeId, router])
 
   // Auto-start (or resume) once, for a user who has a household and has never
   // finished the tour. Existing accounts were backfilled as completed by the
@@ -137,24 +166,29 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
     autoStarted.current = true
     const resumeAt = isTourStepId(state.user.tourStepId) ? state.user.tourStepId : FIRST_TOUR_STEP_ID
-    const timer = window.setTimeout(() => setActiveId(resumeAt), AUTO_START_DELAY_MS)
+    const timer = window.setTimeout(() => goTo(resumeAt), AUTO_START_DELAY_MS)
     return () => window.clearTimeout(timer)
-  }, [state, router.pathname])
+  }, [state, router.pathname, goTo])
 
-  // Leaving the dashboard mid-tour keeps the position but closes the overlay —
-  // the anchors it points at do not exist anywhere else.
+  // Any navigation the tour did not initiate — a nav click, a link in the page,
+  // browser back — means the user has their own plans. Pause rather than yank
+  // them back to the step's page, which would trap them.
   useEffect(() => {
     if (!activeId) return
-    if (router.pathname === '/dashboard') return
-    setActiveId(null)
-    persist({ tourStepId: activeId })
-  }, [router.pathname, activeId, persist])
+    const onRouteChangeStart = () => {
+      if (selfNavigating.current) return
+      pause()
+    }
+    router.events.on('routeChangeStart', onRouteChangeStart)
+    return () => router.events.off('routeChangeStart', onRouteChangeStart)
+  }, [activeId, pause, router.events])
 
   const step = activeId ? getTourStep(activeId) : null
 
   const value = useMemo<TourContextValue>(() => ({
     step,
     position: activeId ? stepPosition(activeId, ctx) : { index: 0, total: 0 },
+    navigating,
     startTour,
     next,
     back,
@@ -162,7 +196,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     finish,
     canGoBack: activeId ? prevStepId(activeId, ctx) !== null : false,
     isLastStep: activeId ? nextStepId(activeId, ctx) === null : false,
-  }), [step, activeId, ctx, startTour, next, back, pause, finish])
+  }), [step, activeId, ctx, navigating, startTour, next, back, pause, finish])
 
   return <TourContext.Provider value={value}>{children}</TourContext.Provider>
 }

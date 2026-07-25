@@ -206,7 +206,7 @@ export default function ChoresPage() {
                 {pendingToday > 0 ? `${pendingToday} thing${pendingToday === 1 ? '' : 's'} to do today` : 'All caught up for today'}
               </p>
             </div>
-            <Button type="button" onClick={openCreate} className="min-h-11">
+            <Button type="button" data-tour="page-chores" onClick={openCreate} className="min-h-11">
               <Plus />New chore
             </Button>
           </div>

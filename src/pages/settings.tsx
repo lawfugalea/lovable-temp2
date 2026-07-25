@@ -529,7 +529,7 @@ export default function SettingsPage() {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground">Product tour</p>
-                        <p className="text-sm text-muted-foreground">A 90-second look around the app.</p>
+                        <p className="text-sm text-muted-foreground">A short walk through each part of the app.</p>
                       </div>
                       <Button
                         variant="outline"

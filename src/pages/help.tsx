@@ -105,7 +105,7 @@ export default function HelpPage({ contactEmail, contactConfigured }: HelpPagePr
             </div>
             {tour && hasHousehold && (
               <Button variant="outline" onClick={() => void tour.startTour()}>
-                <Compass className="h-4 w-4" /> Take the 90-second tour
+                <Compass className="h-4 w-4" /> Take the tour
               </Button>
             )}
             {checklistDismissed && hasHousehold && (
