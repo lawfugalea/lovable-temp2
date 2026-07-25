@@ -1,0 +1,20 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import { withApiHandler } from '@/lib/api-handler'
+import { getUserIdOr401 } from '@/lib/api-guards'
+import { generateShoppingAiProposal, ShoppingAiHttpError } from '@/lib/shopping-ai-server'
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return res.status(405).json({ error: 'Method not allowed' }) }
+  const userId = await getUserIdOr401(req, res); if (!userId) return
+  if (req.body?.consent !== true) return res.status(409).json({ error: 'Review the payload and provide consent first', code: 'consent_required' })
+  try {
+    const result = await generateShoppingAiProposal(userId, typeof req.body?.listId === 'string' ? req.body.listId : '', req.body || {}, req.body?.inputHash)
+    res.setHeader('Cache-Control', 'private, no-store')
+    return res.status(200).json(result)
+  } catch (error) {
+    if (error instanceof ShoppingAiHttpError) return res.status(error.status).json({ error: error.message, code: error.code })
+    console.error('[shopping-ai] generation failed:', error)
+    return res.status(502).json({ error: error instanceof Error ? error.message : 'AI tidying failed' })
+  }
+}
+export default withApiHandler(handler)

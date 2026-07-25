@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { normalizeShoppingCategoryOrder } from '../src/lib/shopping-categories'
+import { parseShoppingAiResult, shoppingListFingerprint, signShoppingAiProposal, verifyShoppingAiProposal, type ShoppingAiSourceItem } from '../src/lib/shopping-ai'
+
+function item(overrides: Partial<ShoppingAiSourceItem> = {}): ShoppingAiSourceItem {
+  return {
+    id: 'item-a', title: 'milk', qty: '2l', quantityCount: 1, category: null,
+    notes: null, store: null, canonicalProductId: null, updatedAt: new Date('2026-07-22T12:00:00Z'),
+    ...overrides,
+  }
+}
+
+test('shopping category order keeps valid preferences and repairs missing categories', () => {
+  const order = normalizeShoppingCategoryOrder(['frozen', 'chilled_dairy', 'frozen', 'not-real'])
+  assert.deepEqual(order.slice(0, 2), ['frozen', 'chilled_dairy'])
+  assert.equal(order.length, 11)
+  assert.equal(new Set(order).size, 11)
+})
+
+test('AI proposals categorise active items and ground additions in selected meal ingredients', () => {
+  const result = parseShoppingAiResult({ summary: 'Grouped by aisle', changes: [
+    { kind: 'update', itemRef: 'item-1', title: 'Milk', qty: '2 L', quantityCount: 1, category: 'chilled_dairy', reason: 'Dairy aisle' },
+    { kind: 'add', mealRef: 'meal-1', category: 'fruit_veg', reason: 'Selected recipe ingredient' },
+    { kind: 'add', mealRef: 'meal-999', category: 'pantry', reason: 'Invented' },
+  ] }, [item()], [{ ref: 'meal-1', title: 'Onions', qty: '3', quantityCount: 3 }])
+  assert.equal(result.operations.length, 2)
+  assert.equal(result.operations[0]?.kind, 'update')
+  assert.equal(result.operations[0]?.after.category, 'chilled_dairy')
+  assert.equal(result.operations[1]?.kind, 'add')
+  assert.equal(result.operations[1]?.after.title, 'Onions')
+})
+
+test('AI merge proposals cannot discard notes or conflicting catalogue metadata', () => {
+  const blockedByNotes = parseShoppingAiResult({ changes: [{ kind: 'merge', itemRefs: ['item-1', 'item-2'], title: 'Milk', qty: null, quantityCount: 2, category: 'chilled_dairy' }] }, [item(), item({ id: 'item-b', notes: 'lactose free' })], [])
+  assert.equal(blockedByNotes.operations.length, 0)
+  const blockedByProducts = parseShoppingAiResult({ changes: [{ kind: 'merge', itemRefs: ['item-1', 'item-2'], title: 'Milk', qty: null, quantityCount: 2, category: 'chilled_dairy' }] }, [item({ canonicalProductId: 'product-a' }), item({ id: 'item-b', canonicalProductId: 'product-b' })], [])
+  assert.equal(blockedByProducts.operations.length, 0)
+  const blockedByPack = parseShoppingAiResult({ changes: [{ kind: 'merge', itemRefs: ['item-1', 'item-2'], title: 'Milk', qty: null, quantityCount: 2, category: 'chilled_dairy' }] }, [item({ qty: '1 L' }), item({ id: 'item-b', qty: '2 L' })], [])
+  assert.equal(blockedByPack.operations.length, 0)
+})
+
+test('list fingerprint changes when a concurrent edit changes relevant state', () => {
+  assert.notEqual(shoppingListFingerprint([item()]), shoppingListFingerprint([item({ quantityCount: 2 })]))
+  assert.notEqual(shoppingListFingerprint([item()]), shoppingListFingerprint([item({ updatedAt: new Date('2026-07-22T12:01:00Z') })]))
+})
+
+test('signed proposals reject tampering and expiry', () => {
+  const previous = process.env.SHOPPING_AI_SIGNING_SECRET
+  process.env.SHOPPING_AI_SIGNING_SECRET = 'shopping-ai-test-secret'
+  try {
+    const base = { version: 1 as const, userId: 'user-a', householdId: 'house-a', listId: 'list-a', fingerprint: 'fingerprint', inputHash: 'hash', operations: [] }
+    const token = signShoppingAiProposal({ ...base, expiresAt: new Date(Date.now() + 60_000).toISOString() })
+    assert.equal(verifyShoppingAiProposal(token)?.listId, 'list-a')
+    assert.equal(verifyShoppingAiProposal(token + 'x'), null)
+    const expired = signShoppingAiProposal({ ...base, expiresAt: new Date(Date.now() - 1).toISOString() })
+    assert.equal(verifyShoppingAiProposal(expired), null)
+  } finally {
+    if (previous === undefined) delete process.env.SHOPPING_AI_SIGNING_SECRET
+    else process.env.SHOPPING_AI_SIGNING_SECRET = previous
+  }
+})
