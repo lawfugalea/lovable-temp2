@@ -1,0 +1,32 @@
+{
+  "ad": [
+    {"id":"hook","duration":4.2,"text":"Running a home takes five apps, three group chats, and a miracle."},
+    {"id":"mess","duration":4.6,"text":"Who's got the shopping list? Who gave the medicine? Nobody knows."},
+    {"id":"demo","duration":6.9,"text":"ClanKeep puts it all in one place — your whole family, in sync, live."},
+    {"id":"money","duration":6.4,"text":"In Malta, it even finds the cheapest shop for your basket. It pays for itself."},
+    {"id":"calm","duration":3.9,"text":"Everything your home juggles — finally, in one calm place."},
+    {"id":"cta","duration":3.8,"text":"Start your household free — at ClanKeep dot com."}
+  ],
+  "kinetic": [
+    {"id":"open","duration":3.6,"text":"Running a home can actually feel calm."},
+    {"id":"lists","duration":3.8,"text":"Shared shopping lists everyone updates live."},
+    {"id":"meals","duration":3.8,"text":"Plan the week's meals and split the chores."},
+    {"id":"medicine","duration":3.6,"text":"Track medicine and never miss a dose."},
+    {"id":"money","duration":7.0,"text":"In Malta it even finds the cheapest shop for your basket. It pays for itself."},
+    {"id":"calm","duration":3.4,"text":"Everything your home needs, in one calm place."},
+    {"id":"cta","duration":4.8,"text":"Start your household free at ClanKeep dot com."}
+  ],
+  "walkthrough": [
+    {"id":"intro","duration":6,"text":"Welcome to ClanKeep: one calm home for the practical things family life throws at you."},
+    {"id":"overview","duration":10,"text":"Your overview brings today’s shopping, meals, chores and medicine into one quick glance."},
+    {"id":"shopping","duration":16,"text":"Shopping lists are included on Free. Add an item, set the quantity, and tick it off in the aisle. Family households in Malta can also compare the available basket across supported supermarkets and spot the lowest total."},
+    {"id":"meals","duration":12,"text":"Meal planning and your recipe collection are Free. Plan the week, then send ingredients straight to shopping. Family can price the whole week by supermarket."},
+    {"id":"chores","duration":11,"text":"Chores are Free too. Assign repeating jobs, see what is due today, and finish each one with a satisfying check."},
+    {"id":"notes","duration":11,"text":"Keep a babysitter brief, packing list or household instructions in shared or private notes, all included on Free."},
+    {"id":"medicine","duration":17,"text":"Free tracks medicine for one child, with doses and temperatures in a clear timeline. Family adds unlimited children, private reminders for verified schedules and printable PDF reports. ClanKeep records and reminds; it does not replace medical advice."},
+    {"id":"finance","duration":16,"text":"Family also unlocks the money planner: map income and commitments, set budgets and savings goals, and use the AI savings coach with only the redacted summary you approve."},
+    {"id":"household","duration":10,"text":"Invite unlimited household members on Free, so everyone works from the same live information."},
+    {"id":"pricing","duration":8,"text":"Free is zero euro forever. Family adds price, money and advanced medicine tools from four euro ninety-nine monthly."},
+    {"id":"finish","duration":5,"text":"Start your household free at ClanKeep dot com."}
+  ]
+}
