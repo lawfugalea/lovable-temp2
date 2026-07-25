@@ -31,6 +31,29 @@ export async function detachUserFromHouseholds(
       account: { connection: { userId } },
     },
   });
+  const privateAccounts = await tx.financePlanAccount.findMany({
+    where: { householdId: { in: uniqueIds }, ownerUserId: userId, visibility: 'PRIVATE' },
+    select: { id: true },
+  });
+  const privateAccountIds = privateAccounts.map(account => account.id);
+  if (privateAccountIds.length) {
+    // Goals kept in a private account must never become shared through an ON DELETE SET NULL.
+    await tx.savingsGoal.deleteMany({ where: { planAccountId: { in: privateAccountIds } } });
+    await tx.financePlanAccount.deleteMany({ where: { id: { in: privateAccountIds } } });
+  }
+  for (const householdId of uniqueIds) {
+    const replacement = await tx.membership.findFirst({
+      where: { householdId, userId: { not: userId } },
+      orderBy: [{ role: 'asc' }, { createdAt: 'asc' }],
+      select: { userId: true },
+    });
+    if (replacement) {
+      await tx.financePlanAccount.updateMany({
+        where: { householdId, ownerUserId: userId, visibility: 'SHARED' },
+        data: { ownerUserId: replacement.userId },
+      });
+    }
+  }
   await tx.membership.deleteMany({
     where: { userId, householdId: { in: uniqueIds } },
   });

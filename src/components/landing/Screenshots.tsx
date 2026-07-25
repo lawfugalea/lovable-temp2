@@ -2,7 +2,6 @@ import Image from 'next/image'
 import { Section, SectionHeading } from '@/components/landing/Section'
 import Reveal from '@/components/landing/Reveal'
 import shotDashboard from '@/assets/marketing/dashboard.jpg'
-import shotCompare from '@/assets/marketing/compare.jpg'
 import shotMeals from '@/assets/marketing/meals.jpg'
 import shotChores from '@/assets/marketing/chores.jpg'
 
@@ -12,12 +11,6 @@ const shots = [
     alt: 'ClanKeep dashboard showing the household overview',
     title: 'Your household at a glance',
     caption: 'Tonight’s dinner, today’s chores, and the next shop — one calm overview for the whole clan.',
-  },
-  {
-    image: shotCompare,
-    alt: 'Shopping list priced across Malta supermarkets',
-    title: 'Where is this list cheapest?',
-    caption: 'Your actual list priced item-by-item per supermarket, cheapest basket highlighted. Family plan.',
   },
   {
     image: shotMeals,

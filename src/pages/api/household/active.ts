@@ -3,6 +3,7 @@ import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getUserIdOr401 } from '@/lib/api-guards';
 import { isPriceComparisonRegion } from '@/lib/entitlements-core';
+import { isSupermarketComparisonAvailable } from '@/lib/supermarket-consent';
 
 const COUNTRY_RE = /^[A-Z]{2}$/;
 
@@ -55,6 +56,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       ownerId: membership.household.ownerId,
       country: membership.household.country,
       priceComparisonRegionSupported: isPriceComparisonRegion(membership.household.country),
+      priceComparisonAvailable: isSupermarketComparisonAvailable(),
       createdAt: membership.household.createdAt,
       updatedAt: membership.household.updatedAt,
       role: membership.role,

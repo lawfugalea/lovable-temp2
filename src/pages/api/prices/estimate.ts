@@ -6,6 +6,7 @@ import { getUserIdOr401 } from '@/lib/api-guards';
 import { requireActiveHousehold } from '@/lib/chores';
 import { getHouseholdEntitlements } from '@/lib/entitlements';
 import { requirePriceComparison } from '@/lib/entitlements-core';
+import { isSupermarketConsented } from '@/lib/supermarket-consent';
 
 const MAX_TITLES = 25;
 const MAX_TITLE_LENGTH = 200;
@@ -117,6 +118,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!householdId) return;
   const entitlements = await getHouseholdEntitlements(householdId);
   if (!requirePriceComparison(res, entitlements)) return;
+  if (!isSupermarketConsented('smart')) return res.status(200).json({ results: {} });
 
   const qInput =
     req.method === 'GET'
@@ -170,6 +172,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       const candidates = await prisma.priceProduct.findMany({
         where: {
           sourceUrl: { contains: 'smart.com.mt' },
+          store: { slug: 'smart', enabled: true },
           OR: orTokens.length ? buildOrWhere(orTokens) : undefined,
         },
         select: {

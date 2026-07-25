@@ -18,8 +18,6 @@ const freeFeatures = [
 
 const familyFeatures = [
   'Everything in Free',
-  'Malta supermarket price comparison & offers',
-  'Weekly meal plan priced per store',
   'Money planner with AI savings coach',
   'Medicine for unlimited children',
   'Push reminders for doses',
@@ -35,7 +33,7 @@ export default function Pricing() {
         eyebrow="Simple pricing"
         eyebrowClassName="text-brand-purple"
         title="Free for the everyday. One plan for everything."
-        lede="The price comparison alone typically saves more per week than the Family plan costs per month."
+        lede="Start with the household essentials for free, then add the money and health tools when you need them."
         align="center"
       />
 
@@ -90,7 +88,7 @@ export default function Pricing() {
 
         <Reveal delay={0.1} className="relative flex flex-col rounded-3xl border-2 border-brand-purple/30 bg-background p-8 shadow-soft-lg">
           <span className="absolute -top-3.5 left-8 rounded-full bg-brand-primary px-3.5 py-1 text-xs font-bold text-white">
-            Pays for itself
+            Best value
           </span>
           <h3 className="font-display text-xl font-bold text-foreground">Family</h3>
           <p className="mt-1 text-sm text-muted-foreground">Everything in Free, plus the money and health superpowers.</p>

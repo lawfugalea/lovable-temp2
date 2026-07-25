@@ -3,7 +3,7 @@ import { ChevronLeft, Eye, Lock, Share2, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { Separator } from '@/components/ui/Separator'
+import { Card } from '@/components/ui/Card'
 import ClientOnly from '@/components/ClientOnly'
 import NoteEditor from './NoteEditor'
 import ColorPicker from './ColorPicker'
@@ -44,25 +44,69 @@ export default function NoteEditorView({
   }, [])
 
   return (
-    <div className="flex flex-1 flex-col">
-      {/* Header */}
-      <div className={cn('flex items-center justify-between border-b border-border p-3 md:p-4', getNoteColor(note.color).accent)}>
+    <Card className="flex h-full min-h-0 flex-col overflow-hidden">
+      {/* Title, over the note's own colour wash. */}
+      <div className={cn('flex items-start gap-2 px-4 py-3', getNoteColor(note.color).tint)}>
+        {/* The rail is right there on desktop, so back is only useful below lg. */}
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-primary transition-colors hover:text-brand-purple md:gap-2"
+          className="mt-1.5 flex shrink-0 items-center gap-1 text-primary transition-colors hover:text-brand-purple lg:hidden"
         >
           <ChevronLeft className="h-4 w-4" />
-          <span className="hidden text-sm font-medium sm:inline">All Notes</span>
-          <span className="text-sm font-medium sm:hidden">Back</span>
+          <span className="text-sm font-medium">Back</span>
         </button>
+        <span className={cn('mt-3.5 h-2.5 w-2.5 shrink-0 rounded-full', getNoteColor(note.color).dot)} aria-hidden="true" />
+        <textarea
+          ref={titleRef}
+          value={note.title}
+          readOnly={!canEdit}
+          onChange={(e) => {
+            onUpdate(note.id, { title: e.target.value })
+            autoResize(e.target)
+          }}
+          placeholder="Title"
+          rows={1}
+          className="w-full resize-none border-0 bg-transparent font-display text-2xl font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none md:text-3xl"
+        />
+      </div>
 
-        <div className="flex items-center gap-1.5 md:gap-2">
+      {/* One meta row: state on the left, everything you can do on the right. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-y border-border bg-muted/30 px-4 py-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          {saveState === 'saving' && (
+            <>
+              <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-primary" />
+              <span>Saving…</span>
+            </>
+          )}
+          {saveState === 'saved' && lastSaved && (
+            <>
+              <div className="h-2 w-2 rounded-full bg-brand-green" />
+              <span>
+                Saved · {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </>
+          )}
+          {saveState === 'error' && (
+            <>
+              <div className="h-2 w-2 rounded-full bg-destructive" />
+              <span>Save failed</span>
+            </>
+          )}
           {!canEdit && (
             <Badge variant="secondary" className="gap-1">
               <Eye className="h-3 w-3" />
               View only
             </Badge>
           )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <ColorPicker
+            value={note.color}
+            disabled={!canEdit}
+            onChange={(color: NoteColor) => onUpdate(note.id, { color })}
+          />
           <Button variant="ghost" size="sm" onClick={() => onShare(note)}>
             {note.isShared ? (
               <Share2 className="h-4 w-4 text-primary" />
@@ -79,71 +123,17 @@ export default function NoteEditorView({
               size="sm"
               className="text-muted-foreground hover:text-destructive"
               onClick={() => onDelete(note)}
+              aria-label="Delete note"
             >
               <Trash2 className="h-4 w-4" />
-              <span className="ml-1.5 hidden sm:inline">Delete</span>
             </Button>
           )}
-          <Separator orientation="vertical" className="h-6" />
-          <Button variant="ghost" size="sm" className="font-medium text-primary" onClick={onBack}>
-            Done
-          </Button>
         </div>
       </div>
 
-      {/* Title */}
-      <div className="border-b border-border p-3 md:p-4">
-        <textarea
-          ref={titleRef}
-          value={note.title}
-          readOnly={!canEdit}
-          onChange={(e) => {
-            onUpdate(note.id, { title: e.target.value })
-            autoResize(e.target)
-          }}
-          placeholder="Title"
-          rows={1}
-          className="w-full resize-none border-0 bg-transparent text-2xl font-bold text-foreground placeholder:text-muted-foreground/60 focus:outline-none md:text-3xl"
-          style={{ minHeight: '40px' }}
-        />
-      </div>
-
-      {/* Save state + controls */}
-      <div className="border-b border-border bg-muted/30 px-3 py-2 md:px-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            {saveState === 'saving' && (
-              <>
-                <div className="h-3 w-3 animate-spin rounded-full border-b-2 border-primary" />
-                <span>Saving…</span>
-              </>
-            )}
-            {saveState === 'saved' && lastSaved && (
-              <>
-                <div className="h-2 w-2 rounded-full bg-green-500" />
-                <span>
-                  Saved · {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </>
-            )}
-            {saveState === 'error' && (
-              <>
-                <div className="h-2 w-2 rounded-full bg-destructive" />
-                <span>Save failed</span>
-              </>
-            )}
-          </div>
-
-          <ColorPicker
-            value={note.color}
-            disabled={!canEdit}
-            onChange={(color: NoteColor) => onUpdate(note.id, { color })}
-          />
-        </div>
-      </div>
-
-      {/* Content editor */}
-      <div className="flex-1 overflow-y-auto p-3 md:p-4">
+      {/* Below lg the card sizes to content, so claim the viewport; at lg the pane bounds it.
+          The editor scrolls internally, so this wrapper just gives it a box to fill. */}
+      <div className="min-h-[60vh] flex-1 overflow-hidden p-3 md:p-4 lg:min-h-0">
         <ClientOnly
           fallback={
             <div className="flex min-h-[300px] items-center justify-center rounded-xl border border-border bg-muted/30">
@@ -162,6 +152,6 @@ export default function NoteEditorView({
           />
         </ClientOnly>
       </div>
-    </div>
+    </Card>
   )
 }

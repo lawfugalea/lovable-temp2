@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withApiHandler } from '@/lib/api-handler'
 import { apiRateLimit } from '@/lib/rate-limiter';
+import { isSupermarketConsented } from '@/lib/supermarket-consent';
 
 const ALLOWED_HOSTS = new Set(['www.smart.com.mt', 'smart.com.mt']);
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -74,6 +75,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   if (!(await apiRateLimit(req, res))) return;
+  if (!isSupermarketConsented('smart')) {
+    return res.status(404).json({ error: 'Image source is unavailable' });
+  }
 
   const rawUrl = typeof req.query.url === 'string' ? req.query.url : '';
   const url = parseAllowedUrl(rawUrl);

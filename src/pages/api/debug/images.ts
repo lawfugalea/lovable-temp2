@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
+import { isSupermarketConsented } from '@/lib/supermarket-consent';
 
 import { requireDebugAccess } from '@/lib/debug-guards';
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -9,6 +10,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  if (!isSupermarketConsented('smart')) return res.status(200).json({ products: [], domains: [] });
 
   try {
     // Get a few sample products with images

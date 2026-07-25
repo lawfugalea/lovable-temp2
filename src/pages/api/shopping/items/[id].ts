@@ -3,6 +3,7 @@ import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import { isShoppingCategory } from '@/lib/shopping-categories';
 
 // Use a local union so we don't depend on enum import caching in editors
 type ItemStatus = 'ACTIVE' | 'DONE';
@@ -81,8 +82,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       data.notes = patch.notes;
     }
     if (typeof patch.category === 'string') {
-      if (patch.category.length > 100) return res.status(400).json({ error: 'Category is too long' });
-      data.category = patch.category.trim() || null;
+      if (!isShoppingCategory(patch.category)) return res.status(400).json({ error: 'Invalid shopping category' });
+      data.category = patch.category;
     }
     if (typeof patch.store === 'string') {
       if (patch.store.length > 100) return res.status(400).json({ error: 'Store is too long' });

@@ -24,9 +24,14 @@ const {
 }
 
 test('retailer permission gates default to the conservative setting', () => {
-  assert.equal(isStorePermitted('greens', {}), true)
+  assert.equal(isStorePermitted('greens', {}), false)
   assert.equal(isStorePermitted('pavipama', {}), false)
-  assert.equal(isStorePermitted('pavipama', { PAVIPAMA_PERMISSION_CONFIRMED: 'true' }), true)
+  assert.equal(isStorePermitted('greens', { SUPERMARKET_CONSENTED_STORES: 'greens' }), true)
+  assert.equal(isStorePermitted('smart', { SUPERMARKET_CONSENTED_STORES: 'greens' }), false)
+  assert.equal(isStorePermitted('pavipama', {
+    SUPERMARKET_CONSENTED_STORES: 'pavipama',
+    PAVIPAMA_PERMISSION_CONFIRMED: 'true',
+  }), true)
   assert.equal(mayUseGreensImages({}), false)
   assert.equal(mayUseGreensImages({ GREENS_IMAGE_USE_CONFIRMED: 'true' }), true)
 })

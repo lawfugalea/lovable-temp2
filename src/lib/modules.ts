@@ -3,13 +3,14 @@ import {
   FileText,
   HeartPulse,
   Home,
+  Landmark,
   ListChecks,
   ShoppingBasket,
   UtensilsCrossed,
   type LucideIcon,
 } from 'lucide-react'
 
-export type ModuleKey = 'home' | 'shopping' | 'meals' | 'chores' | 'finances' | 'medicine' | 'notes'
+export type ModuleKey = 'home' | 'shopping' | 'meals' | 'chores' | 'finances' | 'banking' | 'medicine' | 'notes'
 
 export interface ModuleEntry {
   key: ModuleKey
@@ -81,10 +82,22 @@ export const modules: ModuleEntry[] = [
   },
   {
     key: 'finances',
-    name: 'Finances',
-    shortName: 'Finances',
+    name: 'Finance',
+    shortName: 'Finance',
     href: '/finances',
     icon: CircleDollarSign,
+    mobileTab: false,
+    tileClass: 'bg-module-finances/10 text-module-finances',
+    activeClass: 'bg-module-finances/10 text-module-finances',
+    barClass: 'bg-module-finances',
+    textClass: 'text-module-finances',
+  },
+  {
+    key: 'banking',
+    name: 'Banking',
+    shortName: 'Banking',
+    href: '/banking',
+    icon: Landmark,
     mobileTab: false,
     tileClass: 'bg-module-finances/10 text-module-finances',
     activeClass: 'bg-module-finances/10 text-module-finances',

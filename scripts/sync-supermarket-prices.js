@@ -4,13 +4,25 @@ const { prisma } = require('./prisma');
 
 const REQUEST_DELAY_MS = Math.max(0, Number(process.env.CATALOG_REQUEST_DELAY_MS || 250));
 const STORE_FILTER = new Set(
-  String(process.env.CATALOG_SYNC_STORES || 'smart,welbees,greens')
+  String(
+    process.env.CATALOG_SYNC_STORES
+      || process.env.SUPERMARKET_CONSENTED_STORES
+      || process.env.HOUSEFLOW_CONSENTED_SUPERMARKET_STORES
+      || ''
+  )
     .split(',')
     .map(value => value.trim().toLowerCase())
     .filter(Boolean)
 );
 
 function isStorePermitted(slug, env = process.env) {
+  const consentedStores = new Set(
+    String(env.SUPERMARKET_CONSENTED_STORES || env.HOUSEFLOW_CONSENTED_SUPERMARKET_STORES || '')
+      .split(',')
+      .map(value => value.trim().toLowerCase())
+      .filter(Boolean)
+  );
+  if (!consentedStores.has(slug)) return false;
   if (slug !== 'pavipama') return true;
   return String(env.PAVIPAMA_PERMISSION_CONFIRMED || '').toLowerCase() === 'true';
 }
@@ -720,12 +732,12 @@ async function main() {
   const requestedStores = stores.filter(store => STORE_FILTER.has(store.slug));
   const selectedStores = requestedStores.filter(store => isStorePermitted(store.slug));
   for (const store of requestedStores.filter(store => !isStorePermitted(store.slug))) {
-    console.warn(`${store.name} sync skipped: set PAVIPAMA_PERMISSION_CONFIRMED=true only after obtaining written permission`);
+    console.warn(`${store.name} sync skipped: add its slug to SUPERMARKET_CONSENTED_STORES only after obtaining written permission`);
   }
-  const selectedSlugs = new Set(selectedStores.map(store => store.slug));
+  const permittedSlugs = new Set(stores.filter(store => isStorePermitted(store.slug)).map(store => store.slug));
   const disabledSlugs = stores
     .map(store => store.slug)
-    .filter(slug => !selectedSlugs.has(slug));
+    .filter(slug => !permittedSlugs.has(slug));
   if (disabledSlugs.length) {
     await prisma.store.updateMany({
       where: { slug: { in: disabledSlugs }, enabled: true },
