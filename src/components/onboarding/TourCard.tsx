@@ -15,6 +15,8 @@ export interface TourCardProps {
   rect: AnchorRect | null
   /** Below `sm` the card is a fixed bottom sheet and only the spotlight moves. */
   compact: boolean
+  /** True while routing between steps — advancing again now would desync. */
+  busy: boolean
   canGoBack: boolean
   isLastStep: boolean
   onNext: () => void
@@ -25,7 +27,7 @@ export interface TourCardProps {
 
 /** Shared body of the card in both presentations. */
 function CardBody({
-  step, body, position, titleId, bodyId, headingRef, canGoBack, isLastStep, onNext, onBack, onPause, onFinish,
+  step, body, position, titleId, bodyId, headingRef, busy, canGoBack, isLastStep, onNext, onBack, onPause, onFinish,
 }: TourCardProps & { titleId: string; bodyId: string; headingRef: React.RefObject<HTMLDivElement> }) {
   return (
     <>
@@ -46,11 +48,11 @@ function CardBody({
         </Button>
         <div className="flex-1" />
         {canGoBack && (
-          <Button variant="outline" size="sm" onClick={onBack}>
+          <Button variant="outline" size="sm" onClick={onBack} disabled={busy}>
             Back
           </Button>
         )}
-        <Button size="sm" onClick={isLastStep ? onFinish : onNext}>
+        <Button size="sm" onClick={isLastStep ? onFinish : onNext} disabled={busy}>
           {isLastStep ? 'Finish' : 'Next'}
         </Button>
       </div>
@@ -72,9 +74,11 @@ export default function TourCard(props: TourCardProps) {
   }, [step.id])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+    if (props.busy) return
     if (event.key === 'ArrowRight') {
       event.preventDefault()
-      props.isLastStep ? props.onFinish() : props.onNext()
+      if (props.isLastStep) props.onFinish()
+      else props.onNext()
     } else if (event.key === 'ArrowLeft') {
       event.preventDefault()
       if (props.canGoBack) props.onBack()

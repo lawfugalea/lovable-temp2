@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import { APP_BASE_PATH, withBasePath } from "@/lib/base-path";
 import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
 import { TourProvider } from "@/components/onboarding/TourProvider";
+import TourOverlay from "@/components/onboarding/TourOverlay";
 
 const InviteBanner = dynamic(() => import("@/components/InviteBanner"), { ssr: false });
 
@@ -60,6 +61,11 @@ export default function AuthApp({ Component, pageProps, session }: Props) {
         <OnboardingProvider>
           <TourProvider>
             <Component {...pageProps} />
+            {/* Sibling of the page, not inside ModernAppShell: the shell
+                remounts on every navigation, which would tear the overlay down
+                mid-step and flash the page undimmed. It renders nothing unless
+                a tour is running, and a tour only ever runs on app pages. */}
+            <TourOverlay />
           </TourProvider>
         </OnboardingProvider>
       </SessionProvider>

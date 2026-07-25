@@ -127,21 +127,23 @@ export function TourProvider({ children }: { children: ReactNode }) {
     })
   }, [activeId, persist, clearPersistTimer])
 
+  // Advancing while a route change is still in flight would leave the step and
+  // the page disagreeing, so both directions no-op until it settles.
   const next = useCallback(() => {
-    if (!activeId) return
+    if (!activeId || navigating) return
     const following = nextStepId(activeId, ctx)
     if (following === null) {
       finish()
       return
     }
     goTo(following)
-  }, [activeId, ctx, finish, goTo])
+  }, [activeId, navigating, ctx, finish, goTo])
 
   const back = useCallback(() => {
-    if (!activeId) return
+    if (!activeId || navigating) return
     const previous = prevStepId(activeId, ctx)
     if (previous !== null) goTo(previous)
-  }, [activeId, ctx, goTo])
+  }, [activeId, navigating, ctx, goTo])
 
   const startTour = useCallback(() => {
     autoStarted.current = true

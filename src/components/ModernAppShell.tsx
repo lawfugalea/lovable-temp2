@@ -36,7 +36,6 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/Sheet"
 import CommandPalette from "./CommandPalette"
 import BottomTabBar from "./BottomTabBar"
 import DemoBanner from "./DemoBanner"
-import TourOverlay from "./onboarding/TourOverlay"
 import UpgradeButton from "./UpgradeButton"
 import BrandLogo from "./BrandLogo"
 
@@ -397,9 +396,6 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
 
       <BottomTabBar onOpenMore={() => setSidebarOpen(true)} />
       <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
-      {/* Mounted here rather than in AuthApp so the tour only ever appears on
-          shell pages, never over login or the landing page. */}
-      <TourOverlay />
     </div>
   )
 }
