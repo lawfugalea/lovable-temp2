@@ -187,6 +187,9 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       REMINDER_WORKER_SECRET: ${REMINDER_WORKER_SECRET:-}
+      # Must match what the shopping-recurrence worker sends, or the endpoint
+      # answers 401 and scheduled templates silently never refill.
+      SHOPPING_RECURRENCE_SECRET: ${SHOPPING_RECURRENCE_SECRET:-}
     volumes:
       - houseflow-uploads:/app/uploads
     ports:
