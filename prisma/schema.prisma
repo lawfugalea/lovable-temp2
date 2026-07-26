@@ -70,6 +70,19 @@ model User {
   passwordResetTokens       PasswordResetToken[]
 }
 
+/// Abuse counters that must survive a deploy and hold across app replicas.
+/// The in-memory limiter they replaced reset on every restart and counted
+/// per-process, so N containers meant N times the intended allowance.
+model RateLimitCounter {
+  /// Caller-scoped identity, e.g. "login:account:someone@example.com".
+  key     String   @id
+  count   Int      @default(0)
+  /// When the window ends; the row is reusable (and sweepable) after this.
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
 model PasswordResetToken {
   id        String    @id @default(cuid())
   userId    String
@@ -133,7 +146,6 @@ model Membership {
   household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId])
   @@unique([userId, householdId], name: "userId_householdId")
   @@index([householdId])
 }
@@ -163,6 +175,8 @@ model ShoppingList {
   updatedAt   DateTime       @updatedAt
   items       ShoppingItem[]
   household   Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  /// Templates scheduled to refill this list.
+  autoTemplates ShoppingTemplate[] @relation("TemplateAutoList")
 
   @@unique([householdId, name], name: "householdId_name_unique")
   @@index([householdId])
@@ -624,10 +638,33 @@ model ShoppingTemplate {
   householdId String
   name        String
   createdAt   DateTime               @default(now())
-  items       ShoppingTemplateItem[] // <-- one-to-many
-  household   Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  /// Null means the template is imported by hand only, which is how every
+  /// template behaved before scheduling existed. Set it and the worker refills
+  /// `autoList` on each due date. Shares ChoreRecurrenceType deliberately: the
+  /// schedule semantics and the tested engine in lib/chore-recurrence are the
+  /// same, and a second identical enum would only drift.
+  recurrenceType ChoreRecurrenceType?
+  /// ISO weekday numbers 1 (Monday) to 7 (Sunday); used when WEEKLY.
+  daysOfWeek     Int[]               @default([])
+  /// Interval in days; used when EVERY_N_DAYS.
+  intervalDays   Int?
+  /// Phase anchor for EVERY_N_DAYS; date-only.
+  anchorDate     DateTime?           @db.Date
+  /// Day of month 1-31 (clamped to month length); used when MONTHLY.
+  dayOfMonth     Int?
+  /// Which list a scheduled run fills. Cleared if that list is deleted, which
+  /// also stops the schedule — refilling an arbitrary other list would be worse.
+  autoListId     String?
+  /// Guards against a double run when the worker is retried; date-only.
+  lastRunOn      DateTime?           @db.Date
+
+  items     ShoppingTemplateItem[] // <-- one-to-many
+  household Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  autoList  ShoppingList?          @relation("TemplateAutoList", fields: [autoListId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
+  @@index([recurrenceType])
 }
 
 model ShoppingTemplateItem {

@@ -11,6 +11,14 @@ const integrityMigration = readFileSync(
   join(process.cwd(), 'prisma/migrations/20260715213000_household_integrity_and_cascades/migration.sql'),
   'utf8',
 )
+const multiHouseholdMigration = readFileSync(
+  join(process.cwd(), 'prisma/migrations/20260726120000_multi_household_membership/migration.sql'),
+  'utf8',
+)
+const durableRateLimitMigration = readFileSync(
+  join(process.cwd(), 'prisma/migrations/20260726140000_durable_rate_limits/migration.sql'),
+  'utf8',
+)
 const financeMigration = readFileSync(
   join(process.cwd(), 'prisma/migrations/20260716090000_finance_open_banking/migration.sql'),
   'utf8',
@@ -88,6 +96,29 @@ test('household integrity migration refuses ambiguous legacy memberships', () =>
   assert.match(integrityMigration, /HAVING COUNT\(\*\) > 1/)
   assert.match(integrityMigration, /RAISE EXCEPTION/)
   assert.match(integrityMigration, /CREATE UNIQUE INDEX "Membership_userId_key"/)
+})
+
+test('multi-household migration drops only the single-household constraint', () => {
+  // The composite unique is what stops a user being added to the same household
+  // twice. Dropping it by accident would let duplicate memberships through, so
+  // the migration must touch the per-user index and nothing else. Comments are
+  // stripped first: the migration explains itself by naming both indexes, and
+  // only executable SQL is in scope here.
+  const sql = multiHouseholdMigration.replace(/^\s*--.*$/gm, '')
+  assert.match(sql, /DROP INDEX IF EXISTS "Membership_userId_key"/)
+  assert.doesNotMatch(sql, /Membership_userId_householdId_key/)
+  assert.doesNotMatch(sql, /DELETE FROM/)
+  assert.doesNotMatch(sql, /DROP TABLE/)
+})
+
+test('durable rate limit migration is additive and indexed for sweeping', () => {
+  const sql = durableRateLimitMigration.replace(/^\s*--.*$/gm, '')
+  assert.match(sql, /CREATE TABLE "RateLimitCounter"/)
+  assert.match(sql, /CREATE INDEX "RateLimitCounter_resetAt_idx"/)
+  // Nothing existing may be touched: this ships alongside a live auth path.
+  assert.doesNotMatch(sql, /ALTER TABLE "User"/)
+  assert.doesNotMatch(sql, /DROP/)
+  assert.doesNotMatch(sql, /DELETE FROM/)
 })
 
 test('household integrity migration protects orphan-prone relations', () => {

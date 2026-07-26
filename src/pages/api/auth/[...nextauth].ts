@@ -4,8 +4,9 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { isAdminEmail } from "@/lib/admin-config";
-import { clearLoginAttempts, consumeLoginAttempt } from "@/lib/rate-limiter";
+import { clearLoginAttempts, consumeLoginAttempt } from "@/lib/rate-limit-store";
 import { isPasswordVersionCurrent, passwordVersion } from "@/lib/session-security";
+import { getSessionUser } from "@/lib/session-user-cache";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
@@ -54,7 +55,12 @@ export const authOptions: NextAuthOptions = {
           const loginKey = `${ip}:${email}`;
           const accountKey = `account:${email}`;
           const ipKey = `ip:${ip}`;
-          if (!consumeLoginAttempt(ipKey) || !consumeLoginAttempt(accountKey) || !consumeLoginAttempt(loginKey)) return null;
+          // Sequential, not Promise.all: each call increments its own counter,
+          // and short-circuiting on the first breach avoids charging the others
+          // for an attempt that was already refused.
+          if (!(await consumeLoginAttempt(ipKey))) return null;
+          if (!(await consumeLoginAttempt(accountKey))) return null;
+          if (!(await consumeLoginAttempt(loginKey))) return null;
 
           const user = await prisma.user.findFirst({
             where: { email: { equals: email, mode: 'insensitive' } },
@@ -72,8 +78,8 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          clearLoginAttempts(loginKey);
-          clearLoginAttempts(accountKey);
+          await clearLoginAttempts(loginKey);
+          await clearLoginAttempts(accountKey);
           return {
             id: user.id,
             email: user.email,
@@ -99,10 +105,11 @@ export const authOptions: NextAuthOptions = {
       }
 
       if (token?.id) {
-        const u = await prisma.user.findUnique({
-          where: { id: token.id as string },
-          select: { activeHouseholdId: true, name: true, email: true, password: true, isDemo: true },
-        });
+        // Read-through cache with a ten-second TTL: this callback runs on every
+        // authenticated request, and one page load makes about ten of them.
+        // Password changes invalidate the entry directly, so revocation is
+        // still immediate.
+        const u = await getSessionUser(token.id as string);
         if (!u || !isPasswordVersionCurrent(token.passwordVersion, u.password)) {
           return { invalidated: true };
         }

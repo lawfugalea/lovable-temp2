@@ -1,0 +1,26 @@
+-- Allow a user to belong to more than one household.
+--
+-- 20260715213000_household_integrity_and_cascades added
+-- "Membership_userId_key" to enforce one household per user at the database
+-- layer. That constraint is what forced joining a household to first *leave*
+-- (and irreversibly delete finance data from) the previous one. People who
+-- share more than one home — separated parents, a family home plus a flat,
+-- carers — could never model that.
+--
+-- Dropping the index is the whole change. "Membership_userId_householdId_key"
+-- (from 20250819133233_invites_schema) remains and still prevents duplicate
+-- memberships in the *same* household, which is the constraint that actually
+-- protects correctness. Every membership lookup in the application already
+-- goes through that composite key or an explicit householdId filter.
+--
+-- This is a pure index drop: no table rewrite, no row is read or written, and
+-- it takes only a brief ACCESS EXCLUSIVE lock on "Membership". Rolling it back
+-- is possible only while no user has taken advantage of it, so the down path
+-- is the reconciliation described in the original migration rather than a
+-- plain CREATE UNIQUE INDEX.
+DROP INDEX IF EXISTS "Membership_userId_key";
+
+-- Every user keeps exactly the membership they already had, so activeHouseholdId
+-- stays valid for the entire existing population and no backfill is required.
+-- The column now means "which household this user is currently looking at"
+-- rather than "the household this user belongs to".

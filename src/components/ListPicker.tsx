@@ -69,7 +69,7 @@ export default function ListPicker({ selectedId, onChange }: Props) {
       {/* Row 1: Select (full width on mobile) */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex-1">
-          <label className="block text-xs text-gray-600 mb-1">Current list</label>
+          <label className="block text-xs text-muted-foreground mb-1">Current list</label>
           <select
             className="w-full rounded-xl px-3 py-2 bg-white/10 min-h-[40px]"
             disabled={isLoading || lists.length === 0}

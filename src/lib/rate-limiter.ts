@@ -1,7 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-const loginAttemptStore = new Map<string, { count: number; resetTime: number }>();
-const inviteEmailAttemptStore = new Map<string, { count: number; resetTime: number }>();
+/**
+ * In-process throttles for cheap, non-security endpoints (catalogue search,
+ * image proxy). Losing these counters on a deploy is harmless.
+ *
+ * The security-critical counters — login, password change, account deletion,
+ * invitation email — live in lib/rate-limit-store.ts and are backed by the
+ * database, because those must survive restarts and hold across replicas.
+ * Keeping the two apart also keeps this module free of a Prisma import.
+ */
+
 const MAX_TRACKED_KEYS = 10_000;
 
 interface RateLimitOptions {
@@ -109,66 +117,6 @@ export const loginRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   maxRequests: 10, // 10 login attempts per 15 minutes per IP
 });
-
-/**
- * CredentialsProvider cannot return a custom API response, so it uses this
- * boolean limiter and returns the same generic login failure when throttled.
- */
-export function consumeLoginAttempt(identifier: string): boolean {
-  const key = identifier.trim().toLowerCase() || 'unknown';
-  const now = Date.now();
-  const windowMs = 15 * 60 * 1000;
-  const maxAttempts = 10;
-  const current = loginAttemptStore.get(key);
-
-  if (loginAttemptStore.size >= MAX_TRACKED_KEYS && !current) {
-    for (const [storedKey, entry] of loginAttemptStore.entries()) {
-      if (entry.resetTime <= now) loginAttemptStore.delete(storedKey);
-    }
-    if (loginAttemptStore.size >= MAX_TRACKED_KEYS) {
-      const oldestKey = loginAttemptStore.keys().next().value as string | undefined;
-      if (oldestKey) loginAttemptStore.delete(oldestKey);
-    }
-  }
-
-  if (!current || current.resetTime <= now) {
-    loginAttemptStore.set(key, { count: 1, resetTime: now + windowMs });
-    return true;
-  }
-
-  if (current.count >= maxAttempts) return false;
-  current.count += 1;
-  return true;
-}
-
-export function clearLoginAttempts(identifier: string): void {
-  loginAttemptStore.delete(identifier.trim().toLowerCase() || 'unknown');
-}
-
-/** Limit invitation email sends/resends per authenticated owner. */
-export function consumeInviteEmailAttempt(userId: string): boolean {
-  const key = userId || 'unknown';
-  const now = Date.now();
-  const current = inviteEmailAttemptStore.get(key);
-
-  if (inviteEmailAttemptStore.size >= MAX_TRACKED_KEYS && !current) {
-    for (const [storedKey, entry] of inviteEmailAttemptStore.entries()) {
-      if (entry.resetTime <= now) inviteEmailAttemptStore.delete(storedKey);
-    }
-    if (inviteEmailAttemptStore.size >= MAX_TRACKED_KEYS) {
-      const oldestKey = inviteEmailAttemptStore.keys().next().value as string | undefined;
-      if (oldestKey) inviteEmailAttemptStore.delete(oldestKey);
-    }
-  }
-
-  if (!current || current.resetTime <= now) {
-    inviteEmailAttemptStore.set(key, { count: 1, resetTime: now + 60 * 60 * 1000 });
-    return true;
-  }
-  if (current.count >= 10) return false;
-  current.count += 1;
-  return true;
-}
 
 export const apiRateLimit = createRateLimit({
   windowMs: 60 * 1000, // 1 minute

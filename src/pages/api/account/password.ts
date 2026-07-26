@@ -1,11 +1,12 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withApiHandler } from '@/lib/api-handler'
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/prisma'
+import { invalidateSessionUser } from '@/lib/session-user-cache';
 import { getUserIdOr401 } from '@/lib/api-guards';
 import { rejectDemoUser } from '@/lib/demo';
 import { validatePassword } from '@/lib/password-policy';
-import { clearLoginAttempts, consumeLoginAttempt } from '@/lib/rate-limiter';
+import { clearLoginAttempts, consumeLoginAttempt } from '@/lib/rate-limit-store';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'PATCH') {
@@ -17,7 +18,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!userId) return;
   if (await rejectDemoUser(res, userId, 'Changing the password')) return;
   const attemptKey = `password-change:${userId}`;
-  if (!consumeLoginAttempt(attemptKey)) {
+  if (!(await consumeLoginAttempt(attemptKey))) {
     return res.status(429).json({ error: 'Too many password attempts. Try again later.' });
   }
 
@@ -40,7 +41,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     where: { id: userId },
     data: { password: await bcrypt.hash(newPassword, 12) },
   });
-  clearLoginAttempts(attemptKey);
+  // Rotating the hash rotates passwordVersion, which is what revokes every
+  // other session. Drop the cached row so that takes effect on the very next
+  // request rather than after the cache TTL.
+  invalidateSessionUser(userId);
+  await clearLoginAttempts(attemptKey);
   return res.status(200).json({ ok: true });
 }
 

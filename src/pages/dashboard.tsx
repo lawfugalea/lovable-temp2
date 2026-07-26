@@ -34,7 +34,8 @@ import { getMedicineSchedule } from "@/lib/medicine"
 interface ShoppingList {
   id: string
   name: string
-  itemCount: number
+  /** Unbought items, counted server-side by /api/shopping/lists. */
+  activeItemCount: number
 }
 
 interface Medicine {
@@ -175,13 +176,12 @@ export default function DashboardPage() {
       const lists = Array.isArray(data.lists) ? data.lists : []
       setShoppingLists(lists)
 
-      const itemCounts = await Promise.all(lists.map(async (list: ShoppingList) => {
-        const itemsResponse = await fetch(`/api/shopping/items?listId=${encodeURIComponent(list.id)}`)
-        if (!itemsResponse.ok) return 0
-        const itemsData = await itemsResponse.json()
-        return Array.isArray(itemsData.items) ? itemsData.items.length : 0
-      }))
-      setTotalItems(itemCounts.reduce((total: number, count: number) => total + count, 0))
+      // The count comes from the list rows themselves. This used to issue one
+      // request per list and download every item just to read `.length`.
+      setTotalItems(lists.reduce(
+        (total: number, list: ShoppingList) => total + (list.activeItemCount ?? 0),
+        0,
+      ))
     } catch (error) {
       console.error("Failed to load shopping data:", error)
     }
@@ -538,7 +538,7 @@ export default function DashboardPage() {
                     <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-module-shopping/10 text-module-shopping"><ShoppingBasket className="h-4 w-4" /></span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{list.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{list.itemCount} item{list.itemCount === 1 ? "" : "s"} in this shopping list</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{list.activeItemCount} item{list.activeItemCount === 1 ? "" : "s"} still to buy</p>
                     </div>
                   </div>
                 ))}

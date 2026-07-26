@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { ListChecks, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import ModernAppShell from '@/components/ModernAppShell'
 import ChoreFormDialog, { type ChoreDto, type HouseholdMemberOption } from '@/components/chores/ChoreFormDialog'
+import ChoreFairnessPanel from '@/components/chores/ChoreFairnessPanel'
 import ChoreTodayList, { todayItemKey, type TodayChoreItem } from '@/components/chores/ChoreTodayList'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -54,6 +55,8 @@ export default function ChoresPage() {
   const [editingChore, setEditingChore] = useState<ChoreDto | null>(null)
   const [deletingChore, setDeletingChore] = useState<ChoreDto | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  /** Bumped whenever an occurrence is resolved, so the fairness panel refetches. */
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0)
 
   const loadToday = useCallback(async () => {
     const response = await fetch(`/api/chores/today?date=${localDateOnly()}`)
@@ -119,6 +122,7 @@ export default function ChoresPage() {
       const data = await responseJson(response)
       if (!response.ok) throw new Error(errorMessage(data, 'Could not update this chore'))
       setLogLoaded(false)
+      setStatsRefreshKey(current => current + 1)
       await loadToday()
       if (resolveStatus === 'DONE') toast.success(`${item.chore.title} done`)
     } catch (error) {
@@ -139,6 +143,7 @@ export default function ChoresPage() {
       })
       if (!response.ok) throw new Error('Could not undo')
       setLogLoaded(false)
+      setStatsRefreshKey(current => current + 1)
       await loadToday()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not undo')
@@ -233,15 +238,18 @@ export default function ChoresPage() {
         {loading ? (
           <div className="space-y-2">{[0, 1, 2].map(index => <Skeleton key={index} className="h-14 rounded-xl" />)}</div>
         ) : tab === 'today' ? (
-          <ChoreTodayList
-            items={todayItems}
-            busyKey={busyKey}
-            onResolve={(item, resolveStatus) => void resolveItem(item, resolveStatus)}
-            onUndo={item => void undoItem(item)}
-            emptyAction={chores.length === 0 ? (
-              <Button type="button" onClick={openCreate} className="min-h-11"><Plus />Create your first chore</Button>
-            ) : undefined}
-          />
+          <>
+            <ChoreTodayList
+              items={todayItems}
+              busyKey={busyKey}
+              onResolve={(item, resolveStatus) => void resolveItem(item, resolveStatus)}
+              onUndo={item => void undoItem(item)}
+              emptyAction={chores.length === 0 ? (
+                <Button type="button" onClick={openCreate} className="min-h-11"><Plus />Create your first chore</Button>
+              ) : undefined}
+            />
+            {chores.length > 0 && <ChoreFairnessPanel refreshKey={statsRefreshKey} />}
+          </>
         ) : tab === 'all' ? (
           chores.length === 0 ? (
             <ModuleFirstRun

@@ -1,8 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withApiHandler } from '@/lib/api-handler'
 import bcrypt from 'bcryptjs';
-import { prisma } from '@/lib/prisma';
-import { createRateLimit, clearLoginAttempts } from '@/lib/rate-limiter';
+import { prisma } from '@/lib/prisma'
+import { invalidateSessionUser } from '@/lib/session-user-cache';
+import { createRateLimit } from '@/lib/rate-limiter';
+import { clearLoginAttempts } from '@/lib/rate-limit-store';
 import { hashInviteToken, normalizeInviteToken } from '@/lib/invite-tokens';
 import { validatePassword } from '@/lib/password-policy';
 
@@ -47,7 +49,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       prisma.user.update({ where: { id: record.userId }, data: { password: hash } }),
       prisma.passwordResetToken.deleteMany({ where: { userId: record.userId, usedAt: null } }),
     ]);
-    clearLoginAttempts(`account:${record.user.email.toLowerCase()}`);
+    // See the comment above: revocation must not wait for the cache TTL.
+    invalidateSessionUser(record.userId);
+    await clearLoginAttempts(`account:${record.user.email.toLowerCase()}`);
 
     return res.status(200).json({ ok: true, message: 'Password updated. You can sign in with your new password.' });
   } catch (err) {

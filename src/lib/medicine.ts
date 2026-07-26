@@ -42,8 +42,28 @@ export function parseFrequencyHours(frequency: string): number | null {
   return Number.isFinite(hours) && hours > 0 ? hours : null;
 }
 
+/**
+ * Fallback gap, in hours, when a frequency string cannot be parsed.
+ *
+ * Six hours is the conservative choice among the frequencies this app accepts —
+ * long enough that it never suggests a dose earlier than a 4-, 8- or 12-hourly
+ * schedule would, without being so long that the reminder is useless.
+ */
+export const UNPARSEABLE_FREQUENCY_FALLBACK_HOURS = 6;
+
 export function calculateNextDoseTime(frequency: string, lastDoseTime: Date): Date {
-  const hours = parseFrequencyHours(frequency) ?? 6;
+  const parsed = parseFrequencyHours(frequency);
+  if (parsed === null) {
+    // Guessing silently in a dosing calculation is the wrong default. The value
+    // is still returned so the schedule renders, but the guess is recorded —
+    // an unparseable frequency means a medicine was saved with a format the
+    // parser does not know, and that is a data problem worth seeing.
+    console.warn(
+      `[medicine] unparseable frequency ${JSON.stringify(frequency)}; ` +
+      `assuming ${UNPARSEABLE_FREQUENCY_FALLBACK_HOURS}h until the next dose`,
+    );
+  }
+  const hours = parsed ?? UNPARSEABLE_FREQUENCY_FALLBACK_HOURS;
   return new Date(lastDoseTime.getTime() + hours * HOUR_MS);
 }
 

@@ -341,7 +341,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium">{child.name}</h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {formatTemperature(latestReading.temperature, latestReading.unit)}
                     </p>
                     <Badge className={`mt-1 ${feverLevel.color}`}>
@@ -388,7 +388,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
                         <Badge className={feverLevel.color}>
                           {feverLevel.label}
                         </Badge>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-muted-foreground">
                           {reading.child.name} ({ageInMonths}mo)
                         </div>
                         <div className="text-sm text-gray-500">
@@ -401,7 +401,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
                           {format(parseISO(reading.takenAt), 'h:mm a')}
                         </div>
                         {reading.notes && (
-                          <div className="text-sm text-gray-600 max-w-xs truncate">
+                          <div className="text-sm text-muted-foreground max-w-xs truncate">
                             {reading.notes}
                           </div>
                         )}
@@ -439,8 +439,8 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
         <Card>
           <CardContent className="text-center py-8">
             <Thermometer className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No fever readings yet</h3>
-            <p className="text-gray-600 mb-4">Start tracking your child&apos;s temperature to monitor their health</p>
+            <h3 className="text-lg font-medium text-foreground mb-2">No fever readings yet</h3>
+            <p className="text-muted-foreground mb-4">Start tracking your child&apos;s temperature to monitor their health</p>
             <Button onClick={() => setShowAddModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add First Reading

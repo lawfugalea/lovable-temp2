@@ -37,12 +37,21 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   if (req.method === 'GET') {
+    // activeItemCount is here so callers that only need a total — the dashboard
+    // summary card — do not have to fetch every item of every list and count
+    // them client-side. That turned one dashboard load into one request per
+    // list, each returning the full item collection to read `.length`.
     const lists = await prisma.shoppingList.findMany({
       where: { householdId },
       orderBy: [{ archivedAt: 'asc' }, { updatedAt: 'desc' }],
+      include: {
+        _count: { select: { items: { where: { status: 'ACTIVE' } } } },
+      },
     });
     res.setHeader('Cache-Control', 'no-store');
-    return res.status(200).json({ lists });
+    return res.status(200).json({
+      lists: lists.map(({ _count, ...list }) => ({ ...list, activeItemCount: _count.items })),
+    });
   }
 
   if (req.method === 'POST') {

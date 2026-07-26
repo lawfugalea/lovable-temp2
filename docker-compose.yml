@@ -238,6 +238,46 @@ services:
       app:
         condition: service_healthy
 
+  shopping-recurrence:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      SHOPPING_RECURRENCE_SECRET: ${SHOPPING_RECURRENCE_SECRET:-}
+      TZ: ${HOUSEFLOW_TZ:-Europe/Malta}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${SHOPPING_RECURRENCE_SECRET}" ]; then
+          echo "[shopping-recurrence] WARNING: SHOPPING_RECURRENCE_SECRET is not set — scheduled shopping templates are DISABLED"
+        fi
+        # Hourly rather than daily: the endpoint is idempotent per date, so an
+        # hourly poll simply refills soon after local midnight and recovers on
+        # its own if the container was down when the day rolled over.
+        while true; do
+          if [ -n "$${SHOPPING_RECURRENCE_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${SHOPPING_RECURRENCE_SECRET}" \
+              --header="Content-Type: application/json" \
+              --post-data="{\"date\":\"$$(date +%Y-%m-%d)\"}" \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/shopping-recurrence" \
+              || echo "[shopping-recurrence] WARNING: refill poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
   price-sync:
     build:
       context: .

@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Scale, ShoppingBasket, Trash2, UtensilsCrossed } from 'lucide-react'
 import ModernAppShell from '@/components/ModernAppShell'
 import GenerateListDialog from '@/components/meals/GenerateListDialog'
+import WeekCostSummary from '@/components/meals/WeekCostSummary'
 import MealSlotPicker, { type PlanEntryDto, type RecipeOption } from '@/components/meals/MealSlotPicker'
 import RecipeFormDialog, { type RecipeDto } from '@/components/meals/RecipeFormDialog'
 import SupermarketComparisonPanel from '@/components/shopping/SupermarketComparisonPanel'
@@ -45,6 +47,7 @@ function errorMessage(value: unknown, fallback: string) {
 
 export default function MealsPage() {
   const { status } = useSession()
+  const router = useRouter()
   const [tab, setTab] = useState<MealsTab>('week')
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()))
   const [entries, setEntries] = useState<Map<string, PlanEntryDto>>(new Map())
@@ -57,6 +60,7 @@ export default function MealsPage() {
   const [deletingRecipe, setDeletingRecipe] = useState<RecipeDto | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [addAndShopBusy, setAddAndShopBusy] = useState(false)
   const [priceOpen, setPriceOpen] = useState(false)
   const [priceComparison, setPriceComparison] = useState<BasketComparison | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
@@ -189,6 +193,44 @@ export default function MealsPage() {
     }
   }, [from, to])
 
+  /**
+   * The whole point of pricing a week: turn "Store X is cheapest" into a list
+   * you can actually walk around with. Fills the household's first active list
+   * and opens it on the compare tab, where the per-store breakdown lives.
+   */
+  const addWeekAndShop = useCallback(async () => {
+    setAddAndShopBusy(true)
+    try {
+      const listsResponse = await fetch('/api/shopping/lists')
+      const listsData = await listsResponse.json().catch(() => ({}))
+      if (!listsResponse.ok) throw new Error(errorMessage(listsData, 'Could not load your shopping lists'))
+      const active = (Array.isArray(listsData.lists) ? listsData.lists : [])
+        .filter((list: { archivedAt: string | null }) => !list.archivedAt)
+      const target = active[0]
+      if (!target) {
+        toast.error('Create a shopping list in Shopping first')
+        return
+      }
+
+      const response = await fetch('/api/meals/generate-shopping-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to, listId: target.id }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(errorMessage(data, 'Could not update the shopping list'))
+
+      const created = Number(data.created) || 0
+      const merged = Number(data.merged) || 0
+      toast.success(`${data.listName}: ${created} item${created === 1 ? '' : 's'} added${merged ? `, ${merged} topped up` : ''}`)
+      await router.push(`/shopping?list=${encodeURIComponent(target.id)}&tab=compare`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update the shopping list')
+    } finally {
+      setAddAndShopBusy(false)
+    }
+  }, [from, to, router])
+
   const recipeOptions: RecipeOption[] = recipes.map(recipe => ({ id: recipe.id, name: recipe.name, servings: recipe.servings }))
   const weekLabel = `${new Date(`${from}T12:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} – ${new Date(`${to}T12:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
 
@@ -300,6 +342,13 @@ export default function MealsPage() {
                 module="meals"
                 title="Price the whole week before you shop"
                 description="The Family plan prices every planned ingredient across Malta's supermarket catalogues, so you know what the week costs per store."
+              />
+            )}
+            {priceOpen && !priceLocked && priceComparison && !priceLoading && (
+              <WeekCostSummary
+                comparison={priceComparison}
+                busy={addAndShopBusy}
+                onAddAndShop={() => void addWeekAndShop()}
               />
             )}
             {priceOpen && !priceLocked && (

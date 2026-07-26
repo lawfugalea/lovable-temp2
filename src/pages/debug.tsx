@@ -4,11 +4,30 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
 import { withBasePath } from "@/lib/base-path";
+import type { GetServerSideProps } from "next";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/pages/api/auth/[...nextauth]";
 
 type DebugPayload = {
   when: string;
   session: any;
   dbUser: any;
+};
+
+/**
+ * Server-side admin gate.
+ *
+ * Every endpoint this page calls is already admin-only, so a non-admin could
+ * never read anything here — but the page still rendered for anyone who typed
+ * the URL, showing a wall of diagnostic controls that all return 403. Deciding
+ * on the server means non-admins get a plain 404 instead.
+ */
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const session = (await getServerSession(ctx.req, ctx.res, authOptions as never)) as
+    | { user?: { isAdmin?: boolean } }
+    | null;
+  if (session?.user?.isAdmin !== true) return { notFound: true };
+  return { props: {} };
 };
 
 export default function DebugLab() {

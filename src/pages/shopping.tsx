@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { toast } from 'sonner'
+import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
 import ModernAppShell from '@/components/ModernAppShell'
 import SupermarketComparisonPanel from '@/components/shopping/SupermarketComparisonPanel'
@@ -8,6 +9,7 @@ import UpgradeGate from '@/components/UpgradeGate'
 import OffersPanel, { type SupermarketOffer } from '@/components/shopping/OffersPanel'
 import { ShoppingAiDialog } from '@/components/shopping/ShoppingAiDialog'
 import { ShoppingRouteDialog } from '@/components/shopping/ShoppingRouteDialog'
+import TemplateScheduleDialog from '@/components/shopping/TemplateScheduleDialog'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
@@ -51,11 +53,15 @@ import {
   ShoppingBasket,
   Sparkles,
   Scale,
+  CalendarClock,
   Trash2,
+  WifiOff,
   X,
 } from 'lucide-react'
 import { EmptyState } from '@/components/ui/EmptyState'
 import ModuleFirstRun from '@/components/onboarding/ModuleFirstRun'
+import { useListSync } from '@/hooks/useListSync'
+import { pendingCount, queueOperation, replayOutbox } from '@/lib/shopping-outbox'
 
 interface CatalogueOffer {
   storeId: string
@@ -116,6 +122,13 @@ interface ShoppingTemplate {
   name: string
   createdAt: string
   items: ShoppingTemplateItem[]
+  /** Null when the template is imported by hand only. */
+  recurrenceType?: 'WEEKLY' | 'EVERY_N_DAYS' | 'MONTHLY' | null
+  daysOfWeek?: number[]
+  intervalDays?: number | null
+  anchorDate?: string | null
+  dayOfMonth?: number | null
+  autoListId?: string | null
 }
 
 type ListDialogMode = 'create' | 'rename' | 'archive' | 'delete' | null
@@ -166,6 +179,7 @@ function matchLabel(item: ComparedItem | undefined, canonicalProductId?: string 
 
 export default function ShoppingPage() {
   const { status } = useSession()
+  const router = useRouter()
   const [lists, setLists] = useState<ShoppingList[]>([])
   const [selectedListId, setSelectedListId] = useState('')
   const [items, setItems] = useState<ShoppingItem[]>([])
@@ -209,6 +223,9 @@ export default function ShoppingPage() {
   const [categoryOrder, setCategoryOrder] = useState<ShoppingCategoryKey[]>(DEFAULT_SHOPPING_CATEGORY_ORDER)
   const [routeDialogOpen, setRouteDialogOpen] = useState(false)
   const [aiDialogOpen, setAiDialogOpen] = useState(false)
+  /** Ticks made while offline that have not reached the server yet. */
+  const [pendingWrites, setPendingWrites] = useState(0)
+  const [online, setOnline] = useState(true)
 
   const [listDialog, setListDialog] = useState<ListDialogMode>(null)
   const [listName, setListName] = useState('')
@@ -220,6 +237,7 @@ export default function ShoppingPage() {
   const [templateBusy, setTemplateBusy] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<ShoppingTemplate | null>(null)
   const [selectedTemplateItems, setSelectedTemplateItems] = useState<string[]>([])
+  const [schedulingTemplate, setSchedulingTemplate] = useState<ShoppingTemplate | null>(null)
 
   const selectedList = lists.find(list => list.id === selectedListId)
   const archived = Boolean(selectedList?.archivedAt)
@@ -330,6 +348,24 @@ export default function ShoppingPage() {
     })()
   }, [loadLists, loadTemplates, status])
 
+  // Deep link target for the meal planner's "add the week and shop here" hand-off,
+  // so arriving from Meals opens the list that was just filled, already on the
+  // tab that answers "where do I buy this?".
+  useEffect(() => {
+    if (!router.isReady || listsLoading) return
+    const requestedList = typeof router.query.list === 'string' ? router.query.list : ''
+    const requestedTab = typeof router.query.tab === 'string' ? router.query.tab : ''
+    if (!requestedList && !requestedTab) return
+
+    if (requestedList && lists.some(list => list.id === requestedList)) setSelectedListId(requestedList)
+    if (requestedTab === 'compare' || requestedTab === 'offers' || requestedTab === 'list') {
+      setTab(requestedTab)
+    }
+    // Consume the params so a later refresh or back navigation does not snap the
+    // user back to this list after they have moved on.
+    void router.replace('/shopping', undefined, { shallow: true })
+  }, [lists, listsLoading, router])
+
   useEffect(() => {
     if ((!comparisonAvailable || !regionSupported) && tab !== 'list') setTab('list')
   }, [comparisonAvailable, regionSupported, tab])
@@ -414,6 +450,46 @@ export default function ShoppingPage() {
   const refreshComparison = useCallback(() => {
     if (comparisonAvailable) void loadComparison(selectedListId)
   }, [comparisonAvailable, loadComparison, selectedListId])
+
+  // Pull in edits made by whoever else is shopping from this list. Archived
+  // lists are read-only, so nobody can be changing them underneath us.
+  const handleRemoteChange = useCallback(() => {
+    void loadItems(selectedListId)
+    refreshComparison()
+  }, [loadItems, refreshComparison, selectedListId])
+
+  useListSync(selectedListId, handleRemoteChange, status === 'authenticated' && !archived)
+
+  // Flush anything queued while offline, then reload so the list reflects what
+  // the server actually accepted rather than the optimistic local copy.
+  useEffect(() => {
+    setOnline(navigator.onLine)
+    setPendingWrites(pendingCount())
+
+    const flush = async () => {
+      setOnline(true)
+      if (pendingCount() === 0) return
+      const result = await replayOutbox()
+      setPendingWrites(result.remaining)
+      if (result.dropped > 0) {
+        setNotice(
+          `${result.dropped} offline ${result.dropped === 1 ? 'change' : 'changes'} could not be applied — those items were changed or removed by someone else.`,
+        )
+      }
+      if (result.applied > 0 || result.dropped > 0) void loadItems(selectedListId)
+    }
+
+    const handleOnline = () => void flush()
+    const handleOffline = () => setOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    if (navigator.onLine) void flush()
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [loadItems, selectedListId])
 
   const loadOffers = useCallback(async () => {
     setOffersLoading(true)
@@ -595,32 +671,54 @@ export default function ShoppingPage() {
     }
   }
 
+  // Ticking an item is the one thing people do standing in a shop, usually on a
+  // weak connection. Waiting for the round trip before the checkbox moved made
+  // the app feel broken and produced double taps, so the tick lands immediately
+  // and rolls back only if the server rejects it.
   const toggleItem = async (item: ShoppingItem) => {
     if (archived) return
+    const nextStatus = item.status === 'ACTIVE' ? 'DONE' : 'ACTIVE'
+    const previous = items
+    setItems(current => current.map(existing => (
+      existing.id === item.id ? { ...existing, status: nextStatus } as ShoppingItem : existing
+    )))
     try {
       const response = await fetch(`/api/shopping/items/${encodeURIComponent(item.id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: item.status === 'ACTIVE' ? 'DONE' : 'ACTIVE' }),
+        body: JSON.stringify({ status: nextStatus }),
       })
       const data = await responseJson(response)
       if (!response.ok) throw new Error(errorMessage(data, 'Could not update this item'))
+      // Replace with the server's row so doneBy/doneAt and any server-side
+      // normalisation are reflected rather than the optimistic guess.
       setItems(current => current.map(existing => existing.id === item.id ? data.item as unknown as ShoppingItem : existing))
       refreshComparison()
     } catch (error) {
+      // A failed *request* (offline in an aisle) is different from a rejected
+      // one: keep the tick on screen and queue it, rather than snapping the
+      // checkbox back and losing what the shopper just did.
+      if (!navigator.onLine) {
+        queueOperation({ kind: 'set-status', itemId: item.id, status: nextStatus, queuedAt: Date.now() })
+        setPendingWrites(pendingCount())
+        return
+      }
+      setItems(previous)
       setNotice(error instanceof Error ? error.message : 'Could not update this item')
     }
   }
 
   const deleteItem = async (itemId: string) => {
     if (archived) return
+    const previous = items
+    setItems(current => current.filter(item => item.id !== itemId))
     try {
       const response = await fetch(`/api/shopping/items/${encodeURIComponent(itemId)}`, { method: 'DELETE' })
       const data = await responseJson(response)
       if (!response.ok) throw new Error(errorMessage(data, 'Could not delete this item'))
-      setItems(current => current.filter(item => item.id !== itemId))
       refreshComparison()
     } catch (error) {
+      setItems(previous)
       setNotice(error instanceof Error ? error.message : 'Could not delete this item')
     }
   }
@@ -628,6 +726,10 @@ export default function ShoppingPage() {
   const updateItemCount = async (item: ShoppingItem, nextCount: number) => {
     const normalizedCount = Math.max(1, Math.min(999, nextCount))
     if (archived || normalizedCount === item.quantityCount || updatingCounts.has(item.id)) return
+    const previous = items
+    setItems(current => current.map(existing => (
+      existing.id === item.id ? { ...existing, quantityCount: normalizedCount } : existing
+    )))
     setUpdatingCounts(current => new Set(current).add(item.id))
     try {
       const response = await fetch(`/api/shopping/items/${encodeURIComponent(item.id)}`, {
@@ -640,6 +742,7 @@ export default function ShoppingPage() {
       setItems(current => current.map(existing => existing.id === item.id ? data.item as unknown as ShoppingItem : existing))
       refreshComparison()
     } catch (error) {
+      setItems(previous)
       setNotice(error instanceof Error ? error.message : 'Could not change the quantity')
     } finally {
       setUpdatingCounts(current => {
@@ -652,12 +755,19 @@ export default function ShoppingPage() {
 
   const updateItemCategory = async (item: ShoppingItem, category: ShoppingCategoryKey) => {
     if (archived || normalizeShoppingItemCategory(item.category) === category) return
+    const previous = items
+    setItems(current => current.map(existing => (
+      existing.id === item.id ? { ...existing, category } as ShoppingItem : existing
+    )))
     try {
       const response = await fetch(`/api/shopping/items/${encodeURIComponent(item.id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ category }) })
       const data = await responseJson(response)
       if (!response.ok) throw new Error(errorMessage(data, 'Could not change the category'))
       setItems(current => current.map(existing => existing.id === item.id ? data.item as unknown as ShoppingItem : existing))
-    } catch (error) { setNotice(error instanceof Error ? error.message : 'Could not change the category') }
+    } catch (error) {
+      setItems(previous)
+      setNotice(error instanceof Error ? error.message : 'Could not change the category')
+    }
   }
 
   const openListDialog = (mode: Exclude<ListDialogMode, null>) => {
@@ -859,8 +969,16 @@ export default function ShoppingPage() {
                   <DropdownMenuItem disabled={archived || totalActive === 0} onSelect={() => setTemplateDialogOpen(true)}><FilePlus2 />Save current list</DropdownMenuItem>
                   {templates.length > 0 && <DropdownMenuSeparator />}
                   {templates.length > 0 && <DropdownMenuLabel>Import template</DropdownMenuLabel>}
-                  {templates.map(template => <DropdownMenuItem key={template.id} disabled={archived || !selectedListId} onSelect={() => openTemplateImport(template)}><FileDown />{template.name}<span className="ml-auto text-xs text-muted-foreground">{template.items.length}</span></DropdownMenuItem>)}
+                  {templates.map(template => <DropdownMenuItem key={template.id} disabled={archived || !selectedListId} onSelect={() => openTemplateImport(template)}><FileDown />{template.name}<span className="ml-auto text-xs text-muted-foreground">{template.recurrenceType ? 'auto' : template.items.length}</span></DropdownMenuItem>)}
                   {templates.length === 0 && <DropdownMenuItem disabled>No saved templates</DropdownMenuItem>}
+                  {templates.length > 0 && <DropdownMenuSeparator />}
+                  {templates.length > 0 && <DropdownMenuLabel>Repeat automatically</DropdownMenuLabel>}
+                  {templates.map(template => (
+                    <DropdownMenuItem key={`schedule-${template.id}`} onSelect={() => setSchedulingTemplate(template)}>
+                      <CalendarClock />{template.name}
+                      {template.recurrenceType && <span className="ml-auto text-xs text-module-shopping">on</span>}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -873,6 +991,21 @@ export default function ShoppingPage() {
           </div>}
         </header>
 
+        {(!online || pendingWrites > 0) && (
+          <div
+            role="status"
+            className="flex items-center gap-2 rounded-lg border border-border bg-muted p-3 text-sm text-muted-foreground"
+          >
+            <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>
+              {online
+                ? `Reconnecting — ${pendingWrites} ${pendingWrites === 1 ? 'change' : 'changes'} still to send.`
+                : pendingWrites > 0
+                  ? `Offline — ${pendingWrites} ${pendingWrites === 1 ? 'change is' : 'changes are'} saved on this device and will sync when you get signal.`
+                  : 'Offline — you can still tick items off. Changes sync when you get signal.'}
+            </span>
+          </div>
+        )}
         {notice && <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><span>{notice}</span><button type="button" onClick={() => setNotice('')} className="min-h-11 min-w-11 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Dismiss message"><X className="mx-auto h-4 w-4" /></button></div>}
 
         {archived && (
@@ -1084,6 +1217,12 @@ export default function ShoppingPage() {
           <DialogFooter><Button type="button" variant="outline" onClick={() => setSelectedTemplate(null)} className="min-h-11">Cancel</Button><Button type="button" onClick={() => void importTemplate()} disabled={selectedTemplateItems.length === 0 || templateBusy} className="min-h-11">{templateBusy && <Loader2 className="animate-spin" />}Import {selectedTemplateItems.length}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+      <TemplateScheduleDialog
+        template={schedulingTemplate}
+        lists={lists}
+        onClose={() => setSchedulingTemplate(null)}
+        onSaved={() => void loadTemplates()}
+      />
       <ShoppingRouteDialog listId={selectedListId} open={routeDialogOpen} onOpenChange={setRouteDialogOpen} order={categoryOrder} onOrderChange={setCategoryOrder} />
       <ShoppingAiDialog listId={selectedListId} listName={selectedList?.name || 'this list'} open={aiDialogOpen} onOpenChange={setAiDialogOpen} onApplied={() => loadItems(selectedListId)} />
     </ModernAppShell>

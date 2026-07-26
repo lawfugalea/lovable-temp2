@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { signOut, useSession } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import { useTheme } from "next-themes"
 import {
   ChevronsUpDown,
@@ -38,6 +38,8 @@ import BottomTabBar from "./BottomTabBar"
 import DemoBanner from "./DemoBanner"
 import UpgradeButton from "./UpgradeButton"
 import BrandLogo from "./BrandLogo"
+import HouseholdSwitcher from "./HouseholdSwitcher"
+import { signOutAndClearDevice } from "@/lib/sign-out"
 
 const manageItems = [
   { name: "Household", href: "/household", icon: Users },
@@ -141,6 +143,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
     <DropdownMenuContent side="top" align="start" className="w-64">
       <DropdownMenuLabel>My account</DropdownMenuLabel>
       <DropdownMenuSeparator />
+      <HouseholdSwitcher />
       <DropdownMenuItem asChild><Link href="/settings"><Settings /> Settings</Link></DropdownMenuItem>
       <DropdownMenuItem asChild><Link href="/household"><Users /> Household</Link></DropdownMenuItem>
       <DropdownMenuSeparator />
@@ -149,7 +152,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       <DropdownMenuSeparator />
       <DropdownMenuItem
         className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-        onSelect={() => void signOut({ callbackUrl: withBasePath("/login") })}
+        onSelect={() => void signOutAndClearDevice()}
       >
         <LogOut /> Sign out
       </DropdownMenuItem>

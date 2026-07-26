@@ -22,6 +22,14 @@ interface Household {
   role: 'OWNER' | 'MEMBER'
 }
 
+interface HouseholdSummary {
+  id: string
+  name: string
+  country: string
+  role: 'OWNER' | 'MEMBER'
+  memberCount: number
+}
+
 export default function HouseholdPage() {
   const { data: session, status } = useSession()
   const [household, setHousehold] = useState<Household | null>(null)
@@ -32,6 +40,8 @@ export default function HouseholdPage() {
   const [householdName, setHouseholdName] = useState('')
   const [savingName, setSavingName] = useState(false)
   const [savingCountry, setSavingCountry] = useState(false)
+  const [households, setHouseholds] = useState<HouseholdSummary[]>([])
+  const [switchingId, setSwitchingId] = useState<string | null>(null)
 
   // Load household data
   useEffect(() => {
@@ -67,11 +77,45 @@ export default function HouseholdPage() {
         // No household found - this is normal for new users
         setHousehold(null)
       }
+      // The full membership list drives the switcher panel. A failure here
+      // must not blank the page — the active household above is what matters.
+      try {
+        const listRes = await fetch('/api/household/list')
+        if (listRes.ok) {
+          const listData = await listRes.json()
+          setHouseholds(Array.isArray(listData.households) ? listData.households : [])
+        }
+      } catch {
+        setHouseholds([])
+      }
     } catch (error) {
       console.error('Failed to load household data:', error)
       setHouseholdError('Failed to load household data. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // A full load, not a client transition: every household-scoped page caches
+  // its data at mount, so a soft navigation would show the old household's
+  // lists and balances under the new household's name.
+  const handleSwitchHousehold = async (householdId: string) => {
+    setSwitchingId(householdId)
+    setHouseholdError('')
+    try {
+      const response = await fetch('/api/household/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Could not switch household')
+      }
+      window.location.reload()
+    } catch (error) {
+      setHouseholdError(error instanceof Error ? error.message : 'Could not switch household')
+      setSwitchingId(null)
     }
   }
 
@@ -243,10 +287,69 @@ export default function HouseholdPage() {
             )}
 
             {/* Household Management */}
-            <HouseholdManagement 
+            <HouseholdManagement
               householdId={household.id}
               householdName={household.name}
             />
+
+            {/* Every household this account belongs to. Members can belong to
+                several since 20260726120000_multi_household_membership. */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="w-5 h-5" />
+                  Your households
+                </CardTitle>
+                <CardDescription>
+                  Switch between the households you belong to, or start another one.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {households.map(entry => {
+                  const active = entry.id === household.id
+                  return (
+                    <div
+                      key={entry.id}
+                      className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{entry.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {entry.role === 'OWNER' ? 'Owner' : 'Member'} · {entry.memberCount}{' '}
+                          {entry.memberCount === 1 ? 'member' : 'members'} · {countryLabel(entry.country)}
+                        </p>
+                      </div>
+                      {active ? (
+                        <Badge variant="secondary">Currently viewing</Badge>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={switchingId !== null}
+                          onClick={() => void handleSwitchHousehold(entry.id)}
+                        >
+                          {switchingId === entry.id ? 'Switching…' : 'Switch to this'}
+                        </Button>
+                      )}
+                    </div>
+                  )
+                })}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowCreationWizard(true)}
+                >
+                  <Home className="w-4 h-4 mr-2" />
+                  Create another household
+                </Button>
+                {showCreationWizard && (
+                  <HouseholdCreationWizard
+                    onComplete={handleHouseholdCreated}
+                    onCancel={() => setShowCreationWizard(false)}
+                  />
+                )}
+              </CardContent>
+            </Card>
           </>
         ) : (
           <>

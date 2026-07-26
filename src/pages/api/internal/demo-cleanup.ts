@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { timingSafeEqual } from 'node:crypto'
 import { purgeExpiredDemoUsers } from '@/lib/demo'
+import { sweepExpiredCounters } from '@/lib/rate-limit-store'
 
 function authorized(req: NextApiRequest): boolean {
   const expected = process.env.DEMO_CLEANUP_SECRET?.trim()
@@ -21,7 +22,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!authorized(req)) return res.status(401).json({ error: 'Unauthorized' })
   try {
     const purged = await purgeExpiredDemoUsers(200)
-    return res.status(200).json({ purged })
+    // Rate-limit windows that have elapsed are dead rows. Swept here rather than
+    // in their own worker: both are low-frequency housekeeping on the same
+    // schedule, and one container is enough.
+    const sweptCounters = await sweepExpiredCounters()
+    return res.status(200).json({ purged, sweptCounters })
   } catch (error) {
     console.error('[demo-cleanup] purge failed', error instanceof Error ? error.message : error)
     return res.status(500).json({ error: 'Demo cleanup failed' })
