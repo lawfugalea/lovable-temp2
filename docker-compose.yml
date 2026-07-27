@@ -26,6 +26,17 @@ services:
       timeout: 5s
       retries: 10
 
+  # This service builds its own image from `target: builder`, so
+  # `docker compose build app` does NOT rebuild it. On 2026-07-26 it therefore
+  # ran an image holding 35 migrations against a repo holding 38 and reported
+  # success; that was harmless only because those three had already been applied
+  # by hand from the host.
+  #
+  # The bind mount below is the structural fix: the SQL it applies now comes from
+  # the host working tree at run time rather than from whatever was baked into
+  # the image, so a stale image can no longer apply a stale migration set. Use
+  # scripts/deploy-production.sh, which builds both services and checks for
+  # drift either side of the migration.
   migrate:
     logging: *default-logging
     mem_limit: 1024m
@@ -46,6 +57,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      # Read-only, and only the migrations Prisma reads: the schema for its
+      # datasource block and the migration SQL itself. The generated client
+      # lives in node_modules/.prisma, so this cannot shadow it.
+      - ./prisma:/app/prisma:ro
     command: ["npm", "run", "prisma:migrate:deploy"]
     restart: "no"
 
