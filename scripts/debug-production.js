@@ -1,4 +1,8 @@
-// Debug script to test production database connection
+// Read-only connectivity and sanity check against the production database.
+//
+//   node scripts/debug-production.js
+//
+// Only counts and reads; it never writes.
 const { PrismaClient } = require('@prisma/client');
 
 async function debugProduction() {
@@ -12,7 +16,7 @@ async function debugProduction() {
   console.log('NEXTAUTH_URL:', process.env.NEXTAUTH_URL ? '✅ Set' : '❌ Missing');
   
   if (!process.env.DATABASE_URL) {
-    console.log('\n❌ DATABASE_URL is missing! Please set it in CapRover environment variables.');
+    console.log('\n❌ DATABASE_URL is missing! Run this with the production environment loaded.');
     return;
   }
   

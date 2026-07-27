@@ -1,4 +1,10 @@
-// Script to create a user in production database
+// Create or reset a user directly in the production database.
+//
+//   node scripts/create-production-user.js <email> <strong-password> <name>
+//
+// Reads DATABASE_URL from the environment, so run it with the production
+// .env loaded. It writes to the live database — take a backup first with
+// ./scripts/backup-houseflow-db.sh.
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
@@ -6,7 +12,7 @@ async function createProductionUser() {
   console.log('👤 Creating Production User...');
   
   if (!process.env.DATABASE_URL) {
-    console.log('❌ DATABASE_URL is missing! Please set it in CapRover environment variables.');
+    console.log('❌ DATABASE_URL is missing! Run this with the production environment loaded.');
     process.exitCode = 1;
     return;
   }
