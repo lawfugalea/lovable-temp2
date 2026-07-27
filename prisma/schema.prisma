@@ -68,6 +68,38 @@ model User {
   financePlanAccountsOwned  FinancePlanAccount[]          @relation("FinancePlanAccountOwner")
   pushSubscriptions         PushSubscription[]
   passwordResetTokens       PasswordResetToken[]
+  mobileSessions            MobileSession[]
+}
+
+/// Mobile authentication sessions. Additive: browser NextAuth sessions are
+/// untouched by this table.
+///
+/// The migration that creates this table (20260720210000_mobile_sessions) was
+/// applied to production from the mobile/foundation branch on 2026-07-20 and was
+/// missing from this branch until 2026-07-27, while the table itself held live
+/// refresh tokens. The model is recorded here — not only the migration — because
+/// a schema without it describes a database that does not exist, and any schema
+/// diff run from this branch would propose dropping the table.
+///
+/// Mobile feature work still belongs on mobile/foundation; this is the schema of
+/// record for what production actually runs.
+model MobileSession {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  passwordVersion  String
+  deviceName       String?
+  platform         String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastUsedAt       DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
 }
 
 /// Abuse counters that must survive a deploy and hold across app replicas.
