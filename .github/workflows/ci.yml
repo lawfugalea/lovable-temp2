@@ -1,0 +1,86 @@
+name: CI
+
+# Every gate in this repo used to be opt-in: the scripts existed and passed, but
+# nothing ran them on the way to production. This workflow is that enforcement.
+# It needs no secrets and no database — `npm test` is deliberately made up of
+# pure unit tests, and `prisma generate` (via postinstall) only reads the schema.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # --legacy-peer-deps matches the Dockerfile: React 18 does not satisfy
+      # every Next 16 peer range. Keep the two in step.
+      - name: Install
+        run: npm ci --legacy-peer-deps
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "1"
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # Split out from the rest of the suite so that a failure here is
+      # unmistakable in the checks list: these are the assertions that guard
+      # production data against a destructive migration.
+      - name: Migration safety
+        run: >-
+          TS_NODE_PROJECT=tsconfig.test.json
+          node --test --require ts-node/register tests/migration-safety.test.ts
+
+      - name: Unit tests
+        run: npm test
+
+      # A migration applied to production with no directory in the repo means a
+      # rebuilt environment silently differs from prod. `prisma migrate status`
+      # hides this once nothing is pending, so check the tree directly.
+      - name: Migration directories are committed
+        run: node scripts/check-migration-manifest.mjs
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: verify
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci --legacy-peer-deps
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "1"
+
+      # Catches the failures that only appear in a production build: bad dynamic
+      # imports, server/client boundary mistakes, and prerender-time throws.
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          PUPPETEER_SKIP_DOWNLOAD: "1"
