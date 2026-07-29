@@ -5,7 +5,7 @@ import { ArrowLeft, Mail, ShieldCheck } from 'lucide-react'
 import type { PublicLegalConfig } from '@/lib/public-legal'
 import BrandLogo from '@/components/BrandLogo'
 import KelmaWidget from '@/components/KelmaWidget'
-import CookieConsent from '@/components/CookieConsent'
+import PublicTracking from '@/components/PublicTracking'
 
 type PublicLegalPageProps = {
   title: string
@@ -93,7 +93,7 @@ export default function PublicLegalPage({
         </main>
       </div>
       <KelmaWidget />
-      <CookieConsent />
+      <PublicTracking />
     </>
   )
 }

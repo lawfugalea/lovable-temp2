@@ -8,6 +8,8 @@ import { validatePassword } from '@/lib/password-policy';
 import { sendWelcomeEmail } from '@/lib/mailer';
 import { appUrl } from '@/lib/links';
 import { verifyCaptcha } from '@/lib/captcha';
+import { reportConversion, userDataFromRequest } from '@/lib/meta/conversions';
+import { safeEventId } from '@/lib/meta/event-id';
 import { TERMS_VERSION } from '@/lib/public-legal';
 
 type RegistrationData = { name?: unknown; email?: unknown; password?: unknown };
@@ -118,6 +120,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         createdAt: true 
       },
     });
+
+    // Same shape as the welcome email: reporting a conversion must never be able
+    // to fail or delay a signup, and it sends nothing unless this request carried
+    // consent for advertising measurement.
+    void reportConversion(req, {
+      eventName: 'CompleteRegistration',
+      eventId: safeEventId(req.body?.metaEventId),
+      eventSourceUrl: appUrl('/register'),
+      userData: userDataFromRequest(req, user.email),
+    }).catch(err => console.warn('[meta] registration conversion not reported:', err));
 
     // Fire-and-forget: a failed welcome email must never fail the signup.
     void sendWelcomeEmail({ to: user.email, name: user.name, signInUrl: appUrl('/login') })

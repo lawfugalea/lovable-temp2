@@ -4,6 +4,9 @@ import type Stripe from 'stripe'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { billingGraceDays, getStripe, syncSubscriptionToHousehold } from '@/lib/billing/stripe'
+import { appUrl } from '@/lib/links'
+import { readCheckoutMeasurement } from '@/lib/meta/checkout'
+import { sendMetaEvents } from '@/lib/meta/conversions'
 
 // Stripe signatures are computed over the raw request body.
 export const config = { api: { bodyParser: false } }
@@ -36,6 +39,28 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
       }
       const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id
       if (subscriptionId) await syncSubscriptionToHousehold(subscriptionId)
+
+      // The conversion an ad campaign is actually buying. Reported from here
+      // rather than from the browser because this is the point at which Stripe
+      // confirms the money, and reported at most once because the idempotency
+      // ledger above rejects a repeated delivery of this event.
+      const measurement = readCheckoutMeasurement(session.metadata)
+      if (measurement.consented) {
+        const amountTotal = session.amount_total
+        void sendMetaEvents([{
+          eventName: 'Purchase',
+          eventId: measurement.eventId,
+          eventSourceUrl: appUrl('/settings?tab=billing'),
+          userData: {
+            email: session.customer_details?.email ?? null,
+            fbp: measurement.fbp,
+            fbc: measurement.fbc,
+          },
+          ...(amountTotal !== null && session.currency
+            ? { value: amountTotal / 100, currency: session.currency }
+            : {}),
+        }]).catch(error => console.warn('[meta] purchase conversion not reported', error))
+      }
       return
     }
     case 'customer.subscription.created':

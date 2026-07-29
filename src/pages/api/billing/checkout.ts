@@ -7,6 +7,7 @@ import { createRateLimit } from '@/lib/rate-limiter'
 import { requireActiveHousehold } from '@/lib/chores'
 import { getStripe, isBillingConfigured, priceIdFor } from '@/lib/billing/stripe'
 import { appUrl } from '@/lib/links'
+import { checkoutMeasurementMetadata } from '@/lib/meta/checkout'
 
 const checkoutRateLimit = createRateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 10 })
 
@@ -56,12 +57,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     await prisma.household.update({ where: { id: householdId }, data: { stripeCustomerId: customerId } })
   }
 
+  // Measurement is carried through the session rather than stored on the user.
+  // Stripe hands it back on checkout.session.completed, which means the purchase
+  // can be reported without a schema change, and the consent recorded is the
+  // consent that was in force at the moment the person chose to subscribe.
+  const measurement = checkoutMeasurementMetadata(req)
+
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
     client_reference_id: householdId,
     subscription_data: { metadata: { householdId } },
+    metadata: { householdId, ...measurement },
     allow_promotion_codes: true,
     success_url: appUrl('/settings?tab=billing&checkout=success'),
     cancel_url: appUrl('/settings?tab=billing&checkout=cancelled'),
