@@ -42,8 +42,8 @@ export function BalanceTrendBlock({ trend, monthly, currency, drawKey }: Balance
   const maxBalance = Math.max(1, ...balances)
 
   return (
-    <Card className="hover:-translate-y-0">
-      <CardHeader>
+    <Card className="instrument-grid relative overflow-hidden transition-shadow hover:-translate-y-0 hover:shadow-glow-inset">
+      <CardHeader className="relative">
         <CardTitle className="flex items-center gap-2 text-xl">
           <TrendingUp className="h-5 w-5 text-module-finances" aria-hidden="true" />
           {usable ? 'Balance over time' : 'Month by month'}
@@ -54,7 +54,7 @@ export function BalanceTrendBlock({ trend, monthly, currency, drawKey }: Balance
             : 'What went in against what went out, by month.'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="relative space-y-3">
         {usable ? (
           <ChartFrame
             ariaLabel={`Total balance over ${points.length} points, ending at ${money(balances[balances.length - 1], { currency })}.`}

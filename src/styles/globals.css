@@ -70,6 +70,14 @@
     /* Shadows derive from this, never from --foreground. */
     --shadow-color: 221 39% 11%;
 
+    /* Instrument-panel treatment for the banking surfaces. Glow is deliberately
+       weaker in light mode: the same halo that reads as emitted light on a dark
+       panel just muddies a near-white card. */
+    --glow-opacity: 0.28;
+    --glow-spread: 18px;
+    --grid-line: 221 39% 11%;
+    --grid-opacity: 0.045;
+
   }
 
   .dark {
@@ -117,6 +125,11 @@
     --chart-internal: 215 20% 50%;
 
     --shadow-color: 222 47% 4%;
+
+    --glow-opacity: 0.55;
+    --glow-spread: 26px;
+    --grid-line: 210 40% 96%;
+    --grid-opacity: 0.07;
   }
 
   * {
@@ -163,6 +176,138 @@
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+}
+
+/*
+ * The chart panel.
+ *
+ * Charts sit on a deliberately dark surface in both themes, the way an
+ * instrument reads on a dashboard: it gives emitted light somewhere to land, and
+ * on a white page a glow has nothing to glow against. The panel carries its own
+ * copy of the categorical ramp — the lifted dark-theme values — because the
+ * light-theme ramp is tuned for dark ink on white and would disappear here.
+ *
+ * Same hue, different lightness per surface. The category colour is still the
+ * category colour.
+ */
+.chart-panel {
+  --chart-panel-surface: 222 47% 10%;
+  --chart-panel-border: 217 33% 24%;
+  --chart-panel-grid: 210 40% 96%;
+  --chart-panel-ink: 215 25% 74%;
+
+  --chart-1: 152 60% 68%;
+  --chart-2: 32 60% 68%;
+  --chart-3: 229 60% 72%;
+  --chart-4: 258 60% 74%;
+  --chart-5: 300 60% 68%;
+  --chart-6: 181 60% 74%;
+  --chart-7: 0 60% 68%;
+  --chart-8: 95 60% 68%;
+  --chart-other: 215 20% 62%;
+  --chart-internal: 215 20% 58%;
+  --chart-income: 152 55% 60%;
+  --chart-spending: 229 100% 76%;
+  --chart-projected: 36 92% 62%;
+  --chart-over: 0 90% 74%;
+  /* Glow always behaves as it does on a dark surface here. */
+  --glow-opacity: 0.55;
+  --glow-spread: 26px;
+}
+
+/*
+ * Instrument-panel surfaces (banking).
+ *
+ * A financial dashboard earns a bit of hardware feel: a faint measurement grid,
+ * light that appears to come from the data itself, and a slow drift so a static
+ * page is not completely inert. Every effect here is decoration *layered under*
+ * content that already renders without it — nothing is revealed by a transition,
+ * so a headless render or a hidden tab still ships the whole page.
+ *
+ * The reduced-motion block above clamps all of this to a single 0.01ms pass.
+ */
+
+/* A fine measurement grid, like the face of an instrument. */
+.instrument-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, hsl(var(--grid-line) / var(--grid-opacity)) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--grid-line) / var(--grid-opacity)) 1px, transparent 1px);
+  background-size: 28px 28px;
+  /* Fades out before the card edge so the grid reads as texture, not a table. */
+  mask-image: radial-gradient(120% 100% at 50% 0%, black 35%, transparent 100%);
+}
+
+/* Slow-drifting light behind the hero figure. */
+.aurora-orb {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(42px);
+  opacity: 0.55;
+  will-change: transform;
+  animation: aurora-drift 26s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+.aurora-orb-slow {
+  animation-duration: 38s;
+  animation-direction: alternate-reverse;
+}
+
+/* A light sweep across a surface, once, on mount. */
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, hsl(0 0% 100% / 0.16) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: sheen 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+}
+
+/* Light emitted by a figure, rather than a gradient applied to its letters. */
+.glow-text {
+  text-shadow: 0 0 calc(var(--glow-spread) * 1.4) hsl(0 0% 100% / 0.45);
+}
+
+/* Loading placeholders sweep rather than blink; it reads as work in progress. */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--foreground) / 0.07) 45%,
+    hsl(var(--foreground) / 0.11) 50%,
+    hsl(var(--foreground) / 0.07) 55%,
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Marks data as live. Motion here reports state: it stops when the data is stale. */
+.pulse-dot {
+  position: relative;
+}
+
+.pulse-dot::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.4;
+  animation: pulse-ring 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
 /* Notes are authored left-to-right even when pasted markup has direction data. */

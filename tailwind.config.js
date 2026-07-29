@@ -93,7 +93,10 @@ module.exports = {
   			'soft-sm': '0 1px 2px hsl(var(--shadow-color) / .05), 0 1px 8px hsl(var(--shadow-color) / .035)',
   			soft: '0 12px 30px -16px hsl(var(--shadow-color) / .24)',
   			'soft-lg': '0 24px 60px -24px hsl(var(--shadow-color) / .32)',
-  			glow: '0 10px 28px -12px hsl(var(--primary) / .45)'
+  			glow: '0 10px 28px -12px hsl(var(--primary) / .45)',
+  			'glow-primary': '0 0 var(--glow-spread) hsl(var(--primary) / var(--glow-opacity))',
+  			'glow-module': '0 0 var(--glow-spread) hsl(var(--module-finances) / var(--glow-opacity))',
+  			'glow-inset': 'inset 0 1px 0 hsl(0 0% 100% / .08), 0 0 var(--glow-spread) -6px hsl(var(--primary) / var(--glow-opacity))'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -109,7 +112,26 @@ module.exports = {
   			'draw-line': 'draw-line 0.9s cubic-bezier(0.22, 1, 0.36, 1) both',
   			'grow-bar': 'grow-bar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both'
   		},
+  		// Glow is measured in the theme so light mode can hold back; see
+  		// --glow-opacity and --glow-spread in globals.css.
   		keyframes: {
+  			'aurora-drift': {
+  				'0%': { transform: 'translate3d(0, 0, 0) scale(1)' },
+  				'100%': { transform: 'translate3d(12%, -8%, 0) scale(1.18)' }
+  			},
+  			sheen: {
+  				'0%': { transform: 'translateX(-120%)' },
+  				'100%': { transform: 'translateX(120%)' }
+  			},
+  			shimmer: {
+  				'0%': { transform: 'translateX(-100%)' },
+  				'100%': { transform: 'translateX(100%)' }
+  			},
+  			'pulse-ring': {
+  				'0%': { transform: 'scale(0.6)', opacity: '0.55' },
+  				'70%': { transform: 'scale(1.6)', opacity: '0' },
+  				'100%': { transform: 'scale(1.6)', opacity: '0' }
+  			},
   			// Bars grow from their own base; `rise` translates, which reads wrong
   			// on a bar anchored to an axis.
   			'grow-bar': {

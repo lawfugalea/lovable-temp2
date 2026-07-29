@@ -20,8 +20,8 @@ export function AnalyticsMerchantSection({ merchants, currency, limit = 15 }: An
   const listed = merchants.slice(0, limit)
 
   return (
-    <Card className="hover:-translate-y-0">
-      <CardHeader>
+    <Card className="instrument-grid relative overflow-hidden transition-shadow hover:-translate-y-0 hover:shadow-glow-inset">
+      <CardHeader className="relative">
         <CardTitle className="text-xl">Who you paid</CardTitle>
         <CardDescription>
           {merchants.length > limit

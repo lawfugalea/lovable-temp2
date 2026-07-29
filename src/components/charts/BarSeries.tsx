@@ -36,7 +36,7 @@ export function BarSeries({
   titleFor,
   animate = true,
 }: BarSeriesProps) {
-  const { x, y, baselineY } = context
+  const { x, y, baselineY, glowFilter } = context
   const visible = series.filter(entry => entry.values.some(value => value !== 0))
   const lanes = mode === 'grouped' ? Math.max(1, visible.length) : 1
   const laneWidth = Math.min(maxBarWidth, x.bandWidth / lanes)
@@ -50,6 +50,7 @@ export function BarSeries({
         return (
           <g
             key={slot}
+            filter={glowFilter}
             opacity={isPartial ? 0.55 : 1}
             className={animate ? 'animate-grow-bar' : undefined}
             style={animate ? {

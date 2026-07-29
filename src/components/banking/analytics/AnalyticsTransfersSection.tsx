@@ -21,15 +21,15 @@ export function AnalyticsTransfersSection({ internalTransfers, currency }: Analy
   if (!pairs.length && !unmatchedCount) return null
 
   return (
-    <Card className="hover:-translate-y-0">
-      <CardHeader>
+    <Card className="instrument-grid relative overflow-hidden transition-shadow hover:-translate-y-0 hover:shadow-glow-inset">
+      <CardHeader className="relative">
         <CardTitle className="text-xl">Money you moved</CardTitle>
         <CardDescription>
           Transfers between your own accounts. Counted in neither spending nor income, because nothing was
           earned or spent — but shown here so the totals can be checked.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="relative space-y-4">
         {pairs.length > 0 && (
           <div>
             <p className="mb-2 text-sm text-muted-foreground">

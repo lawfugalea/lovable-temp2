@@ -17,6 +17,8 @@ export type ChartContext = {
   plot: { left: number; right: number; top: number; bottom: number; width: number; height: number }
   baselineY: number
   cursor: number | null
+  /** SVG filter that makes a series look like it emits light. */
+  glowFilter: string
 }
 
 export type ChartFrameProps = {
@@ -65,6 +67,7 @@ export function ChartFrame({
 }: ChartFrameProps) {
   const surface = useRef<SVGSVGElement>(null)
   const captionId = useId()
+  const glowId = `chart-glow-${useId().replace(/:/g, '')}`
   const [focused, setFocused] = useState(false)
 
   const plot = {
@@ -95,7 +98,7 @@ export function ChartFrame({
   if (slotCount === 0) {
     return (
       <figure className="space-y-3">
-        <div className={`flex ${HEIGHTS[height]} items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-4 text-center text-sm text-muted-foreground`}>
+        <div className={`chart-panel flex ${HEIGHTS[height]} items-center justify-center rounded-xl border border-[hsl(var(--chart-panel-border))] bg-[hsl(var(--chart-panel-surface))] px-4 text-center text-sm text-[hsl(var(--chart-panel-ink))]`}>
           {emptyMessage}
         </div>
         {caption && <figcaption className="text-xs text-muted-foreground">{caption}</figcaption>}
@@ -108,11 +111,12 @@ export function ChartFrame({
 
   return (
     <figure className="space-y-3">
-      <div className="overflow-x-auto">
+      <div className="chart-panel overflow-x-auto rounded-xl">
         <svg
           ref={surface}
           viewBox={`0 0 ${PLOT.width} ${PLOT.height}`}
-          className={`${HEIGHTS[height]} w-full ${minWidthClass} touch-none rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
+          preserveAspectRatio="none"
+          className={`${HEIGHTS[height]} w-full ${minWidthClass} touch-none rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}
           role="img"
           tabIndex={0}
           aria-label={ariaLabel}
@@ -134,6 +138,43 @@ export function ChartFrame({
             event.preventDefault()
           }}
         >
+          {/* The panel itself: a dark instrument face with a faint measurement
+              grid, in both themes. */}
+          <rect
+            x={0}
+            y={0}
+            width={PLOT.width}
+            height={PLOT.height}
+            rx={14}
+            fill="hsl(var(--chart-panel-surface))"
+            stroke="hsl(var(--chart-panel-border))"
+          />
+          <g opacity={0.5}>
+            {Array.from({ length: Math.ceil(PLOT.width / 36) }, (_, index) => (
+              <line
+                key={`v${index}`}
+                x1={index * 36}
+                x2={index * 36}
+                y1={0}
+                y2={PLOT.height}
+                stroke="hsl(var(--chart-panel-grid) / 0.06)"
+              />
+            ))}
+          </g>
+
+          <defs>
+            {/* The series is drawn twice: blurred underneath, sharp on top, so the
+                colour bleeds into the surface the way an emissive display does.
+                Purely visual — the figures live in the readout below. */}
+            <filter id={glowId} x="-20%" y="-40%" width="140%" height="180%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
           {ticks.map(tick => (
             <g key={tick}>
               <line
@@ -141,14 +182,15 @@ export function ChartFrame({
                 x2={plot.right}
                 y1={y(tick)}
                 y2={y(tick)}
-                stroke="hsl(var(--border))"
+                stroke="hsl(var(--chart-panel-grid) / 0.14)"
                 strokeDasharray="4 5"
               />
               <text
                 x={plot.left - 8}
                 y={y(tick) + 4}
                 textAnchor="end"
-                className="fill-muted-foreground text-[11px] tabular-nums"
+                fill="hsl(var(--chart-panel-ink))"
+                className="text-[11px] tabular-nums"
               >
                 {valueTickFormat(tick)}
               </text>
@@ -156,23 +198,25 @@ export function ChartFrame({
           ))}
 
           {minValue < 0 && (
-            <line x1={plot.left} x2={plot.right} y1={y(0)} y2={y(0)} stroke="hsl(var(--border))" strokeWidth={1.5} />
+            <line x1={plot.left} x2={plot.right} y1={y(0)} y2={y(0)} stroke="hsl(var(--chart-panel-grid) / 0.3)" strokeWidth={1.5} />
           )}
 
           {cursor !== null && (
-            <line
-              x1={x.center(cursor)}
-              x2={x.center(cursor)}
-              y1={plot.top}
-              y2={plot.bottom}
-              stroke="hsl(var(--ring))"
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              opacity={0.7}
-            />
+            <g filter={`url(#${glowId})`}>
+              <line
+                x1={x.center(cursor)}
+                x2={x.center(cursor)}
+                y1={plot.top}
+                y2={plot.bottom}
+                stroke="hsl(var(--ring))"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                opacity={0.8}
+              />
+            </g>
           )}
 
-          {children({ x, y, plot, baselineY, cursor })}
+          {children({ x, y, plot, baselineY, cursor, glowFilter: `url(#${glowId})` })}
 
           {Array.from({ length: slotCount }, (_, index) => index)
             .filter(index => index % step === 0 || index === slotCount - 1)
@@ -182,7 +226,8 @@ export function ChartFrame({
                 x={x.center(index)}
                 y={PLOT.height - 8}
                 textAnchor="middle"
-                className="fill-muted-foreground text-[11px]"
+                fill="hsl(var(--chart-panel-ink))"
+                className="text-[11px]"
               >
                 {slotLabel(index)}
               </text>

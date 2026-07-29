@@ -34,7 +34,7 @@ export function LineSeries({
   showDots = 'single',
   titleFor,
 }: LineSeriesProps) {
-  const { x, y, baselineY } = context
+  const { x, y, baselineY, glowFilter } = context
   const resolved: Array<Point & { slot: number }> = points
     .map((value, slot) => (value === null ? null : { x: x.center(slot), y: y(value), slot }))
     .filter((point): point is Point & { slot: number } => point !== null)
@@ -44,7 +44,7 @@ export function LineSeries({
   const dots = showDots === 'always' || (showDots === 'single' && resolved.length === 1)
 
   return (
-    <g>
+    <g filter={glowFilter}>
       {area && resolved.length > 1 && (
         <path
           key={`area-${drawKey}`}

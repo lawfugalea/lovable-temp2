@@ -16,7 +16,9 @@ export type ChartLegendProps = {
 
 export function ChartLegend({ items, onToggle }: ChartLegendProps) {
   return (
-    <ul className="flex flex-wrap items-center gap-2">
+    // `chart-panel` here only re-declares the colour variables, so the swatches
+    // match the series on the panel exactly while the chips keep card styling.
+    <ul className="chart-panel flex flex-wrap items-center gap-2">
       {items.map(item => {
         const swatch = (
           <>

@@ -100,15 +100,15 @@ export function AnalyticsCategorySection({
   const sorted = sortCategories(categories, comparable ? sort : 'amount', direction)
 
   return (
-    <Card className="hover:-translate-y-0">
-      <CardHeader>
+    <Card className="instrument-grid relative overflow-hidden transition-shadow hover:-translate-y-0 hover:shadow-glow-inset">
+      <CardHeader className="relative">
         <CardTitle className="text-xl">Where it went</CardTitle>
         <CardDescription>
           Share of money out. Transfers between your own accounts are not counted as spending.
           {!comparable && ` There is no comparable ${periodDays}-day period before this one, so nothing is compared.`}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="relative space-y-6">
         <ShareBars rows={shareRows} currency={currency} emptyMessage="No spending in this period." />
 
         <div className="overflow-x-auto">

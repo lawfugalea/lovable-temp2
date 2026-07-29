@@ -31,8 +31,8 @@ export function UpcomingBillsBlock({ bills, currency, canManage }: UpcomingBills
   const total = bills.reduce((sum, bill) => sum + bill.amountCents, 0)
 
   return (
-    <Card className="h-full hover:-translate-y-0">
-      <CardHeader>
+    <Card className="instrument-grid relative overflow-hidden transition-shadow hover:-translate-y-0 hover:shadow-glow-inset">
+      <CardHeader className="relative">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-xl">

@@ -51,14 +51,14 @@ export function CashFlowBlock({ daily, range, periodDays, currency, internalTran
   const active = cursor === null ? null : buckets[cursor]
 
   return (
-    <Card className="hover:-translate-y-0">
-      <CardHeader>
+    <Card className="instrument-grid relative overflow-hidden transition-shadow hover:-translate-y-0 hover:shadow-glow-inset">
+      <CardHeader className="relative">
         <CardTitle className="text-xl">Money in and out</CardTitle>
         <CardDescription>
           {buckets[0]?.unit === 'day' ? 'By day' : buckets[0]?.unit === 'week' ? 'By week' : 'By month'} over the last {periodDays} days.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="relative space-y-4">
         <ChartFrame
           ariaLabel={`Money in and out over the last ${periodDays} days. ${money(spending.reduce((total, value) => total + value, 0), { currency })} out against ${money(income.reduce((total, value) => total + value, 0), { currency })} in.`}
           slotCount={buckets.length}

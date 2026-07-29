@@ -47,17 +47,59 @@ export function BalancesBlock({
   const [draftName, setDraftName] = useState('')
   const target = totalCents(totals, currency)
   const displayed = useCountUp(target)
+  const lastSynced = accounts
+    .map(account => account.connection.lastSyncedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort()
+    .at(-1)
+  const syncedAgeMs = lastSynced ? clock - new Date(lastSynced).getTime() : null
+  const freshness = syncedAgeMs === null
+    ? null
+    : syncedAgeMs < 60 * 60_000
+      ? { label: 'Live', pulsing: true }
+      : syncedAgeMs < 24 * 60 * 60_000
+        ? { label: 'Synced today', pulsing: false }
+        : null
 
   return (
     <section aria-labelledby="banking-balances" className="grid gap-4 lg:grid-cols-[1.15fr_2fr]">
       <h2 id="banking-balances" className="sr-only">Balances</h2>
 
-      <Card className="border-0 bg-gradient-to-br from-brand-blue to-brand-purple text-white hover:-translate-y-0">
-        <CardContent className="flex h-full flex-col justify-between gap-5 p-6">
+      <Card className="instrument-grid sheen relative overflow-hidden border-0 bg-gradient-to-br from-brand-blue to-brand-purple text-white shadow-glow-primary hover:-translate-y-0">
+        {/* Light behind the figure, drifting slowly so the panel is not inert.
+            Decoration only: it sits under content that renders without it. */}
+        <span
+          className="aurora-orb -left-16 -top-20 h-64 w-64 bg-brand-teal/50"
+          aria-hidden="true"
+        />
+        <span
+          className="aurora-orb aurora-orb-slow -bottom-24 -right-10 h-56 w-56 bg-brand-coral/40"
+          aria-hidden="true"
+        />
+
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/10 to-black/25"
+        />
+
+        <CardContent className="relative flex h-full flex-col justify-between gap-5 p-6">
           <div>
-            <p className="text-sm text-white/75">Total across your accounts</p>
-            <p className="font-display text-4xl font-bold tabular-nums">{money(displayed, { currency })}</p>
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-white/75">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-white">Total across your accounts</p>
+              {freshness && (
+                // Motion reports state: the ring pulses only while the reading is
+                // minutes old, and the label carries the same fact in words.
+                <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-white/85">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full bg-white ${freshness.pulsing ? 'pulse-dot' : ''}`}
+                    aria-hidden="true"
+                  />
+                  {freshness.label}
+                </span>
+              )}
+            </div>
+            <p className="glow-text font-display text-4xl font-bold tabular-nums">{money(displayed, { currency })}</p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-white/90">
               <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
               Read-only. Clankeep cannot move your money.
             </p>
@@ -79,16 +121,16 @@ export function BalancesBlock({
             <div className="space-y-3 border-t border-white/20 pt-4">
               <div className="flex items-end justify-between gap-3">
                 <div>
-                  <p className="text-xs text-white/75">This month</p>
+                  <p className="text-xs text-white/85">This month</p>
                   <p className="font-display text-xl font-semibold tabular-nums">
                     {money(currentMonth.spendingCents, { currency })} out
                   </p>
                 </div>
-                <p className="text-xs text-white/75">
+                <p className="text-xs text-white/85">
                   {monthLabel(currentMonth.sparkline[0]?.month ?? currentMonth.month)}–{monthLabel(currentMonth.month)}
                 </p>
               </div>
-              <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/85">
+              <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/90">
                 <div className="flex items-center gap-1.5">
                   <ArrowDownLeft className="h-3.5 w-3.5" aria-hidden="true" />
                   <dt className="sr-only">Money in</dt>
@@ -101,7 +143,7 @@ export function BalancesBlock({
                 </div>
               </dl>
               {currentMonth.previousMonthSameDayCents > 0 && (
-                <p className="text-xs text-white/75">
+                <p className="text-xs text-white/80">
                   {/* Compared day-for-day, so a month still running is never held
                       against a completed one. */}
                   By this day last month: {money(currentMonth.previousMonthSameDayCents, { currency })}
@@ -115,8 +157,11 @@ export function BalancesBlock({
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {accounts.map((account, index) => (
           <li key={account.id}>
-            <Card className="h-full animate-rise hover:-translate-y-0" style={{ animationDelay: `${Math.min(index * 60, 300)}ms` }}>
-              <CardContent className="flex h-full flex-col justify-between gap-3 p-5">
+            <Card
+              className="instrument-grid group relative h-full animate-rise overflow-hidden transition-all hover:-translate-y-0.5 hover:border-module-finances/40 hover:shadow-glow-module"
+              style={{ animationDelay: `${Math.min(index * 60, 300)}ms` }}
+            >
+              <CardContent className="relative flex h-full flex-col justify-between gap-3 p-5">
                 <div className="min-w-0">
                   {renaming === account.id ? (
                     <div className="flex items-center gap-1.5">
@@ -167,7 +212,7 @@ export function BalancesBlock({
                   )}
                 </div>
 
-                <p className="font-display text-2xl font-bold tabular-nums">
+                <p className="font-display text-2xl font-bold tabular-nums transition-colors group-hover:text-module-finances">
                   {account.balance
                     ? money(Math.round(Number(account.balance.amount) * 100), { currency: account.balance.currency })
                     : '—'}

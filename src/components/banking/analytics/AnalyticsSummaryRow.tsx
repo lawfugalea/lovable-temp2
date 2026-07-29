@@ -22,10 +22,21 @@ function SummaryTile({ tile, currency, index }: { tile: Tile; currency: string; 
   const value = useCountUp(tile.cents)
   return (
     <Card
-      className="animate-rise hover:-translate-y-0"
+      className="instrument-grid group relative animate-rise overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-glow-module"
       style={{ animationDelay: `${Math.min(index * 60, 300)}ms` }}
     >
-      <CardContent className="p-5">
+      {/* A sliver of light along the top edge, in the tile's own tone. */}
+      <span
+        aria-hidden="true"
+        className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent to-transparent ${
+          tile.tone === 'positive'
+            ? 'via-brand-green'
+            : tile.tone === 'negative'
+              ? 'via-brand-coral'
+              : 'via-module-finances'
+        }`}
+      />
+      <CardContent className="relative p-5">
         <p className="text-sm text-muted-foreground">{tile.label}</p>
         <p
           className={`font-display text-2xl font-bold tabular-nums ${

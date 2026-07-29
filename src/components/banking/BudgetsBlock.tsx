@@ -23,8 +23,8 @@ export type BudgetsBlockProps = {
 
 export function BudgetsBlock({ budgets, currency, canManage, month }: BudgetsBlockProps) {
   return (
-    <Card className="h-full hover:-translate-y-0">
-      <CardHeader>
+    <Card className="instrument-grid relative overflow-hidden transition-shadow hover:-translate-y-0 hover:shadow-glow-inset">
+      <CardHeader className="relative">
         <CardTitle className="flex items-center gap-2 text-xl">
           <Gauge className="h-5 w-5 text-module-finances" aria-hidden="true" />
           Spending limits

@@ -33,14 +33,14 @@ export function AnalyticsMonthlySection({ monthly, currentMonth, currency }: Ana
         : 'Exactly where you were by this day last month'
 
   return (
-    <Card className="hover:-translate-y-0">
-      <CardHeader>
+    <Card className="instrument-grid relative overflow-hidden transition-shadow hover:-translate-y-0 hover:shadow-glow-inset">
+      <CardHeader className="relative">
         <CardTitle className="text-xl">Month by month</CardTitle>
         <CardDescription>
           {paceLabel ?? 'How each month compares once it is complete.'}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="relative space-y-4">
         <ChartFrame
           ariaLabel={`Income and spending across ${monthly.length} months, most recently ${money(spending.at(-1) ?? 0, { currency })} out.`}
           slotCount={monthly.length}

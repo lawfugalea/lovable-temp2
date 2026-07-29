@@ -18,7 +18,7 @@ export type ChartReadoutProps = {
 export function ChartReadout({ title, rows, footnote }: ChartReadoutProps) {
   if (!rows.length) return null
   return (
-    <div className="rounded-xl bg-muted/50 px-3.5 py-3">
+    <div className="chart-panel rounded-xl bg-muted/50 px-3.5 py-3">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
       <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
         {rows.map(row => (

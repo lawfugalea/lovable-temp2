@@ -200,7 +200,7 @@ export default function BankingPage() {
                 />
               </div>
 
-              <div className="grid animate-rise animation-delay-200 gap-4 lg:grid-cols-2">
+              <div className="grid animate-rise animation-delay-200 items-start gap-4 lg:grid-cols-2">
                 <BudgetsBlock
                   budgets={active.budgets}
                   currency={currency}
