@@ -10,7 +10,8 @@ import {
   isDeepSeekConfigured,
   requestDeepSeekFinanceAnalysis,
 } from '@/lib/finance/deepseek'
-import { enrichStoredTransaction, loadFinanceMetadata } from '@/lib/finance/server-metadata'
+import { classifyTransactions } from '@/lib/finance/analytics'
+import { enrichStoredTransaction, loadFinanceMetadata, toAnalyticsTransaction } from '@/lib/finance/server-metadata'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -41,7 +42,24 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   from.setUTCDate(from.getUTCDate() - 90)
   const transactions = accountIds.length ? await prisma.bankTransaction.findMany({ where: { accountId: { in: accountIds }, status: 'BOOKED', bookingDate: { gte: from } } }) : []
   const metadata = await loadFinanceMetadata(accountIds, [...new Set(accounts.map(account => account.connection.userId))], transactions.map(transaction => transaction.id))
-  const enriched = transactions.map(transaction => ({ id: transaction.id, accountId: transaction.accountId, currency: transaction.currency, bookingDate: transaction.bookingDate, status: transaction.status, ...enrichStoredTransaction(transaction, metadata) }))
+  // Classified, so internal transfers are not described to the model as spending.
+  const { classified } = classifyTransactions({
+    transactions: transactions.map(transaction => ({
+      ...toAnalyticsTransaction(transaction, enrichStoredTransaction(transaction, metadata)),
+      accountName: null,
+    })),
+  })
+  const enriched = classified.map(transaction => ({
+    id: transaction.id,
+    accountId: transaction.accountId,
+    merchantName: transaction.merchantName,
+    category: transaction.category,
+    signedAmount: transaction.amountCents / 100,
+    currency: transaction.currency,
+    bookingDate: transaction.bookingDate,
+    status: transaction.status,
+    flowClass: transaction.flowClass,
+  }))
   const payload = buildRedactedFinancePayload(enriched)
   if (!payload.currencies.length) return res.status(400).json({ error: 'There are no outgoing transactions to analyze' })
   const inputHash = hashRedactedPayload(payload)

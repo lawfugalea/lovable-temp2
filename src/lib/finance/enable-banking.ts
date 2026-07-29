@@ -46,6 +46,33 @@ export class EnableBankingError extends Error {
   }
 }
 
+export function isReauthorizationError(error: unknown): boolean {
+  if (!(error instanceof EnableBankingError)) return false
+  const code = error.code?.toUpperCase() || ''
+  return error.status === 401 || code.includes('SESSION') || code.includes('CONSENT') || code.includes('REVOK')
+}
+
+// PSD2 lets a bank cap unattended access to a handful of calls per account per
+// day. Hitting that cap is not a broken connection, so it must not flip the
+// connection into ERROR or prompt the household to reauthorize.
+export function isRateLimitError(error: unknown): boolean {
+  if (!(error instanceof EnableBankingError)) return false
+  if (error.status === 429) return true
+  const text = `${error.code || ''} ${error.message}`.toUpperCase()
+  return text.includes('MAXIMUM DAILY ACCESS')
+    || text.includes('ACCESS_EXCEEDED')
+    || text.includes('ACCESS_LIMIT')
+    || text.includes('TOO MANY REQUESTS')
+}
+
+export function publicSyncError(error: unknown): string {
+  if (isRateLimitError(error)) {
+    return 'Your bank only allows a few refreshes per day and today’s are used up. Your data is still connected — the next refresh will work tomorrow.'
+  }
+  if (error instanceof EnableBankingError) return error.message.slice(0, 500)
+  return 'Bank sync failed unexpectedly'
+}
+
 function providerMessage(payload: unknown, fallback: string): { message: string; code?: string } {
   if (!payload || typeof payload !== 'object') return { message: fallback }
   const body = payload as Record<string, unknown>

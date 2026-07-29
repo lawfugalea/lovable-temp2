@@ -44,6 +44,29 @@
     --module-meals: var(--brand-amber);
     --module-chores: var(--brand-green);
 
+    /* Data visualisation.
+       Eight categorical hues at fixed saturation and lightness, so no series is
+       quietly louder than another, with at least 29 degrees between neighbours.
+       The two closest pairs are lifted 6% so they stay separable with red-green
+       colour deficiency. Colour is never the only channel: every chart also
+       carries a legend swatch and a text readout. */
+    --chart-1: 152 62% 45%;
+    --chart-2: 32 62% 45%;
+    --chart-3: 229 62% 45%;
+    --chart-4: 258 62% 51%;
+    --chart-5: 300 62% 45%;
+    --chart-6: 181 62% 51%;
+    --chart-7: 0 62% 45%;
+    --chart-8: 95 62% 45%;
+    --chart-other: 215 14% 55%;
+
+    /* Semantic series. These carry meaning, so they sit outside the ramp. */
+    --chart-income: var(--brand-green);
+    --chart-spending: var(--module-finances);
+    --chart-internal: 215 14% 60%;
+    --chart-projected: var(--brand-amber);
+    --chart-over: var(--brand-coral);
+
     /* Shadows derive from this, never from --foreground. */
     --shadow-color: 221 39% 11%;
 
@@ -80,6 +103,18 @@
     --brand-coral: 0 90% 74%;
     --brand-amber: 36 92% 58%;
     --brand-green: 152 55% 52%;
+
+    /* Data visualisation: same hues, lifted for dark surfaces. */
+    --chart-1: 152 60% 68%;
+    --chart-2: 32 60% 68%;
+    --chart-3: 229 60% 68%;
+    --chart-4: 258 60% 74%;
+    --chart-5: 300 60% 68%;
+    --chart-6: 181 60% 74%;
+    --chart-7: 0 60% 68%;
+    --chart-8: 95 60% 68%;
+    --chart-other: 215 20% 55%;
+    --chart-internal: 215 20% 50%;
 
     --shadow-color: 222 47% 4%;
   }

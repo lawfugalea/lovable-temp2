@@ -5,6 +5,11 @@ import {
   type FinanceCategory,
   type TransactionEnrichmentInput,
 } from './enrichment'
+import { normalizeMerchantKey } from './merchant-key'
+
+// Re-exported so the many call sites that key rules, limits and subscriptions off
+// it keep importing from one place.
+export { merchantGroupKey, normalizeMerchantKey } from './merchant-key'
 
 export type FinanceRuleLike = {
   id: string
@@ -32,19 +37,6 @@ export type FinanceMetadata = EnrichedTransaction & {
   originalCategory: FinanceCategory
   enrichmentSource: 'local' | 'rule' | 'override'
   ruleId: string | null
-}
-
-export function normalizeMerchantKey(value: string): string {
-  return value
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\b(?:pos|card|payment|purchase|sumup|direct debit)\b/g, ' ')
-    .replace(/\b(?:limited|ltd|plc|company|co)\b/g, ' ')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 120)
 }
 
 export function isFinanceCategory(value: unknown): value is FinanceCategory {

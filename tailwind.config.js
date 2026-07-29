@@ -106,9 +106,20 @@ module.exports = {
   			'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
-  			'draw-line': 'draw-line 0.9s cubic-bezier(0.22, 1, 0.36, 1) both'
+  			'draw-line': 'draw-line 0.9s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			'grow-bar': 'grow-bar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both'
   		},
   		keyframes: {
+  			// Bars grow from their own base; `rise` translates, which reads wrong
+  			// on a bar anchored to an axis.
+  			'grow-bar': {
+  				'0%': {
+  					transform: 'scaleY(0)'
+  				},
+  				'100%': {
+  					transform: 'scaleY(1)'
+  				}
+  			},
   			'draw-line': {
   				'0%': {
   					strokeDashoffset: '1'

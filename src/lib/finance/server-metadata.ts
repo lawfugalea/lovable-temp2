@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import type { AnalyticsTransactionInput } from './analytics-types'
 import { enrichWithFinanceMetadata, type FinanceMetadata } from './metadata'
 
 export type StoredFinanceTransaction = {
@@ -41,4 +42,39 @@ export function enrichStoredTransaction(
     description: transaction.description,
     providerData: transaction.providerData,
   }, metadata.rules, metadata.overrides)
+}
+
+/**
+ * Shape a stored row plus its enrichment as an analytics transaction, so routes
+ * that only need classification do not have to restate the mapping.
+ */
+export function toAnalyticsTransaction(
+  row: StoredFinanceTransaction & {
+    currency: string
+    status: 'BOOKED' | 'PENDING'
+    bookingDate: Date | null
+    valueDate?: Date | null
+  },
+  enriched: FinanceMetadata,
+): AnalyticsTransactionInput {
+  return {
+    id: row.id,
+    accountId: row.accountId,
+    accountName: null,
+    currency: row.currency,
+    amountCents: enriched.amountCents,
+    amountSource: enriched.amountSource,
+    bookingDate: row.bookingDate,
+    valueDate: row.valueDate ?? null,
+    status: row.status,
+    merchantName: enriched.merchantName,
+    merchantGroupKey: enriched.merchantGroupKey,
+    detail: enriched.detail,
+    category: enriched.category,
+    transactionType: enriched.transactionType,
+    transferKind: enriched.transferKind,
+    hasUserMemo: enriched.hasUserMemo,
+    counterpartyAccountHint: enriched.counterpartyAccountHint,
+    ownAccountIdentifiers: enriched.ownAccountIdentifiers,
+  }
 }

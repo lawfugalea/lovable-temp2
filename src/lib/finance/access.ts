@@ -6,7 +6,7 @@ import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { respondUpgradeRequired } from '@/lib/entitlements-core'
 import { buildAccessibleBankAccountWhere } from './visibility'
 
-type FinanceAccess = {
+export type FinanceAccess = {
   userId: string
   email: string
   householdId: string

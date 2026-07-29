@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { appUrl } from '@/lib/links'
 import { completeAuthorization, deleteProviderSession, getProviderSession } from '@/lib/finance/enable-banking'
 import { normalizeBankAccount, type NormalizedBankAccount } from '@/lib/finance/normalization'
-import { isReauthorizationError, publicSyncError, syncBankConnection } from '@/lib/finance/sync'
+import { isRateLimitError, isReauthorizationError, publicSyncError, syncBankConnection } from '@/lib/finance/sync'
 
 function redirect(res: NextApiResponse, params: Record<string, string>) {
   const target = new URL(appUrl('/banking'))
@@ -153,7 +153,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       await prisma.bankConnection.update({
         where: { id: connection.id },
         data: {
-          status: isReauthorizationError(error) ? 'REAUTH_REQUIRED' : 'ERROR',
+          ...(isRateLimitError(error)
+            ? {}
+            : { status: isReauthorizationError(error) ? 'REAUTH_REQUIRED' : 'ERROR' }),
           syncError: publicSyncError(error),
         },
       })
