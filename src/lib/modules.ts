@@ -137,6 +137,13 @@ export const moduleByKey = Object.fromEntries(modules.map((m) => [m.key, m])) as
   ModuleEntry
 >
 
+/**
+ * Longest matching prefix, so a sub-route such as `/banking/analytics` keeps its
+ * module colour, its highlighted nav item and its `aria-current="page"`. An exact
+ * match would silently drop all three the moment a module grew a second page.
+ */
 export function moduleForPath(pathname: string): ModuleEntry | undefined {
-  return modules.find((m) => m.href === pathname)
+  return modules
+    .filter(m => pathname === m.href || pathname.startsWith(`${m.href}/`))
+    .sort((left, right) => right.href.length - left.href.length)[0]
 }

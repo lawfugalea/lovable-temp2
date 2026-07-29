@@ -78,13 +78,14 @@ test('the savings tab never records money moving', () => {
 
 test('Finance planning and Open Banking use separate destinations', () => {
   const financePage = readFileSync('src/pages/finances.tsx', 'utf8')
-  const bankingPage = readFileSync('src/pages/banking.tsx', 'utf8')
+  const bankingPage = readFileSync('src/pages/banking/index.tsx', 'utf8')
+  const bankingShell = readFileSync('src/components/banking/BankingShell.tsx', 'utf8')
   // The planner may show accounts the household typed in, but never connected bank data.
   assert.doesNotMatch(financePage, /finance\/overview|connected balance|Open Banking|BankAccount/i)
   assert.match(financePage, /My plan/)
   assert.match(financePage, /'Savings'/)
-  assert.match(bankingPage, /Read-only Open Banking/)
-  assert.match(bankingPage, /Accounts/)
+  assert.match(bankingShell, /Read-only Open Banking/)
+  assert.match(bankingPage, /BalancesBlock/)
   const proxy = readFileSync('src/proxy.ts', 'utf8')
   assert.match(proxy, /'\/banking\/:path\*'/)
 })
