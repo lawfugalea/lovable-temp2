@@ -58,23 +58,23 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       orderBy: [{ bookingDate: 'desc' }, { createdAt: 'desc' }],
       take: 20,
     }),
-    access.canManage
-      ? prisma.bankConnection.findMany({
-          where: { userId: access.userId },
-          select: {
-            id: true,
-            aspspName: true,
-            status: true,
-            consentExpiresAt: true,
-            lastSyncedAt: true,
-            lastSyncAttemptAt: true,
-            syncStartedAt: true,
-            syncError: true,
-            _count: { select: { accounts: true } },
-          },
-          orderBy: { createdAt: 'asc' },
-        })
-      : Promise.resolve([]),
+    // Scoped to the signed-in user, so a member sees their own connection and
+    // nobody else's.
+    prisma.bankConnection.findMany({
+      where: { userId: access.userId },
+      select: {
+        id: true,
+        aspspName: true,
+        status: true,
+        consentExpiresAt: true,
+        lastSyncedAt: true,
+        lastSyncAttemptAt: true,
+        syncStartedAt: true,
+        syncError: true,
+        _count: { select: { accounts: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
   ])
 
   const metadata = await loadFinanceMetadata(
@@ -99,7 +99,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       cashAccountType: account.cashAccountType,
       shared: account.shares.length > 0,
       owned: account.connection.userId === access.userId,
-      canRename: access.canManage && account.connection.userId === access.userId,
+      canRename: account.connection.userId === access.userId,
       balance: primary ? {
         amount: primary.amount.toString(),
         currency: primary.currency,

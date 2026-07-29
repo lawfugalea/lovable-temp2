@@ -13,7 +13,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const householdId = typeof req.body?.householdId === 'string' ? req.body.householdId : undefined
-  const access = await requireFinanceAccess(req, res, householdId, { manage: true, bank: true })
+  // Any household member may connect and manage *their own* bank. Ownership is
+  // enforced below by matching the connection to access.userId; requiring the
+  // household OWNER role on top of that only stopped a second adult from
+  // connecting their own account, and their income was then missing from every
+  // household figure.
+  const access = await requireFinanceAccess(req, res, householdId, { bank: true })
   if (!access) return
   if (!isFinanceProviderConfigured()) {
     return res.status(503).json({ error: 'Enable Banking credentials are not configured' })

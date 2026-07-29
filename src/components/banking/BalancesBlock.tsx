@@ -22,7 +22,6 @@ export type BalancesBlockProps = {
   totals: Array<{ currency: string; amount: string }>
   currentMonth: CurrentMonthFlow | null
   currency: string
-  canManage: boolean
   action: string | null
   clock: number
   onRename: (account: Account, customName: string | null) => void
@@ -39,7 +38,6 @@ export function BalancesBlock({
   totals,
   currentMonth,
   currency,
-  canManage,
   action,
   clock,
   onRename,
@@ -179,7 +177,7 @@ export function BalancesBlock({
                   <span className="text-xs text-muted-foreground">
                     {relativeSync(account.connection.lastSyncedAt, clock)}
                   </span>
-                  {canManage && account.owned ? (
+                  {account.owned ? (
                     <Button
                       size="sm"
                       variant="ghost"

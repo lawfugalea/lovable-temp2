@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import test from 'node:test'
 import {
   fakePrisma,
@@ -365,4 +367,34 @@ test('bank features switch on only for the household holding the finance owner',
 
 test.after(() => {
   resetStubs()
+})
+
+test('bank connections are scoped to their owner, not to the household role', () => {
+  // A second adult must be able to connect their own bank, or their income is
+  // missing from every household figure. Ownership is what protects the data
+  // here, so each of these routes has to scope by the signed-in user rather than
+  // lean on the OWNER role.
+  const routes = [
+    'connections/start.ts',
+    'connections/[id]/sync.ts',
+    'connections/[id]/index.ts',
+    'accounts/[id]/index.ts',
+    'accounts/[id]/sharing.ts',
+  ]
+  for (const route of routes) {
+    const source = readFileSync(join(process.cwd(), 'src/pages/api/finance', route), 'utf8')
+    assert.match(source, /requireFinanceAccess\([^)]*bank: true/s, `${route} must require bank access`)
+    assert.doesNotMatch(source, /manage: true/, `${route} must not require the household OWNER role`)
+    // The ownership check that replaces it.
+    assert.match(
+      source,
+      /userId: access\.userId/,
+      `${route} must scope to the signed-in user's own connection or account`,
+    )
+  }
+
+  // The overview lists only the caller's own connections, whatever their role.
+  const overview = readFileSync(join(process.cwd(), 'src/pages/api/finance/overview.ts'), 'utf8')
+  assert.match(overview, /bankConnection\.findMany\(\{\s*where: \{ userId: access\.userId \}/)
+  assert.doesNotMatch(overview, /access\.canManage\s*\n?\s*\? prisma\.bankConnection/)
 })

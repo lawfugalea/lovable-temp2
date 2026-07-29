@@ -97,11 +97,17 @@ export default function BankingPage() {
 
   const active = analytics.active
   const canManage = Boolean(overview?.canManage)
+  // Owning a bank connection is separate from being the household owner: any adult
+  // in the household can connect their own account, and needs to be able to
+  // refresh, reconnect and share it. `connections` only ever contains the
+  // signed-in user's own.
+  const ownConnections = overview?.connections ?? []
+  const canConnect = Boolean(overview?.bankEnabled && overview.providerConfigured)
   const currency = active?.currency ?? overview?.totals[0]?.currency ?? 'EUR'
   const hasAccounts = Boolean(overview?.accounts.length)
 
   const disconnectWithConfirmation = async (connectionId: string) => {
-    const connection = overview?.connections.find(entry => entry.id === connectionId)
+    const connection = ownConnections.find(entry => entry.id === connectionId)
     if (!connection) return
     const confirmed = await confirm({
       title: 'Disconnect bank',
@@ -121,13 +127,13 @@ export default function BankingPage() {
       error={banking.error}
       onCallbackNotice={banking.setNotice}
       onCallbackError={banking.setError}
-      headerAction={canManage && overview?.connections.length ? (
+      headerAction={ownConnections.length ? (
         <Button
           variant="outline"
           disabled={Boolean(banking.action)}
-          onClick={() => banking.syncConnection(overview.connections[0].id)}
+          onClick={() => banking.syncConnection(ownConnections[0].id)}
         >
-          {banking.action === `sync:${overview.connections[0].id}`
+          {banking.action === `sync:${ownConnections[0].id}`
             ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
             : <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />}
           Refresh
@@ -149,7 +155,7 @@ export default function BankingPage() {
           description="Your household finance plan still works under Finance."
         />
       ) : !hasAccounts ? (
-        canManage ? (
+        canConnect ? (
           <ModuleFirstRun
             module="banking"
             title="Connect Bank of Valletta"
@@ -166,7 +172,7 @@ export default function BankingPage() {
             icon={Wallet}
             module="banking"
             title="No accounts are shared with you yet"
-            description="The finance owner chooses which accounts the household can see."
+            description="Whoever connected a bank chooses which accounts the household can see."
           />
         )
       ) : tab === 'overview' ? (
@@ -176,7 +182,6 @@ export default function BankingPage() {
             totals={overview.totals}
             currentMonth={active?.currentMonth ?? null}
             currency={currency}
-            canManage={canManage}
             action={banking.action}
             clock={clock}
             onRename={banking.renameAccount}
@@ -223,9 +228,31 @@ export default function BankingPage() {
             />
           )}
 
-          {canManage && (
+          {ownConnections.length === 0 && canConnect && (
+            <section aria-labelledby="banking-connect-own" className="rounded-xl border border-dashed border-border bg-card px-5 py-4">
+              <h2 id="banking-connect-own" className="font-display text-lg font-semibold tracking-tight">
+                Add your own bank
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                You are seeing accounts somebody else shared. Connecting your own gives the household
+                a complete picture — your income counts, and money you move between your accounts and
+                theirs stops looking like income on one side.
+              </p>
+              <Button
+                className="mt-4"
+                variant="outline"
+                disabled={Boolean(banking.action)}
+                onClick={() => banking.startConnection()}
+              >
+                {banking.action === 'connect' && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+                Connect my bank
+              </Button>
+            </section>
+          )}
+
+          {ownConnections.length > 0 && (
             <ConnectionsBlock
-              connections={overview.connections}
+              connections={ownConnections}
               action={banking.action}
               clock={clock}
               onReconnect={banking.startConnection}

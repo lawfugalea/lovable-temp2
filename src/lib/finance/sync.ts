@@ -14,7 +14,14 @@ import { normalizeBalances, normalizeBankAccount, normalizeTransaction } from '.
 // import them without pulling in Prisma.
 export { isRateLimitError, isReauthorizationError, publicSyncError } from './enable-banking'
 
-const INITIAL_HISTORY_DAYS = 90
+/**
+ * What to ask for on a first sync. A bank returns what it holds and no more —
+ * BOV was measured to cap at about 90 days even when asked for 730 — but other
+ * ASPSPs give a year or two inside a freshly authorised consent, so ask widely
+ * and take what arrives. `scripts/backfill-finance-history.ts` reports what a
+ * given bank actually returns.
+ */
+const INITIAL_HISTORY_DAYS = 365
 const OVERLAP_DAYS = 7
 
 function dateOnly(value: Date): string {
