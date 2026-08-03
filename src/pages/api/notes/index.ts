@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
+import { recordActivity } from '@/lib/activity'
 import {
   validateContentJson,
   validateNoteColor,
@@ -215,6 +216,18 @@ async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user:
         }
       }
     })
+
+    // Only shared notes appear in the feed; a private note's title is private.
+    if (shared && effectiveHouseholdId) {
+      void recordActivity({
+        householdId: effectiveHouseholdId,
+        userId: user.id,
+        module: 'notes',
+        action: 'created',
+        summary: `${note.createdBy?.name || 'Someone'} shared a note: ${normalizedTitle}`,
+        targetId: note.id,
+      })
+    }
 
     return res.status(201).json({ note })
   } catch (error) {

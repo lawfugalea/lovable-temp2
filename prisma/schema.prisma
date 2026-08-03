@@ -32,6 +32,8 @@ model User {
   acceptedTermsAt           DateTime?
   termsVersion              String?
   activeHouseholdId         String?
+  /// Opts this person out of the Monday household digest email.
+  weeklyDigestOptOut        Boolean                      @default(false)
   /// Guided product tour: the step the user paused on. Null when not mid-tour.
   tourStepId                String?
   /// Set when the tour was finished or skipped. Backfilled for accounts that
@@ -69,6 +71,48 @@ model User {
   pushSubscriptions         PushSubscription[]
   passwordResetTokens       PasswordResetToken[]
   mobileSessions            MobileSession[]
+  activityEvents            ActivityEvent[]
+  pantryItemsUpdated        PantryItem[]
+}
+
+/// What the household already has at home. Bridges meals and shopping:
+/// meal-plan shopping generation skips ingredients found here, and recipe
+/// suggestions rank by pantry coverage. Identity is the normalized name.
+model PantryItem {
+  id             String    @id @default(cuid())
+  householdId    String
+  name           String
+  normalizedName String
+  /// Free-text amount ("2 packs", "500g"); precision is not the point.
+  quantity       String?
+  updatedById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  household      Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  updatedBy      User?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([householdId, normalizedName])
+}
+
+/// Household activity feed: one row per notable action, written best-effort by
+/// the mutating routes and read newest-first on the dashboard. Doubles as a
+/// lightweight audit trail; the actor survives account deletion as null.
+model ActivityEvent {
+  id          String    @id @default(cuid())
+  householdId String
+  userId      String?
+  /// Module key the event belongs to ("shopping", "chores", ...).
+  module      String
+  /// Machine-readable action within the module ("item-added", "completed", ...).
+  action      String
+  /// Human-readable one-liner, precomputed at write time.
+  summary     String
+  targetId    String?
+  createdAt   DateTime  @default(now())
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([householdId, createdAt])
 }
 
 /// Mobile authentication sessions. Additive: browser NextAuth sessions are
@@ -167,6 +211,8 @@ model Household {
   bankAccountShares         BankAccountShare[]
   healthEpisodes            HealthEpisode[]
   pushSubscriptions         PushSubscription[]
+  activityEvents            ActivityEvent[]
+  pantryItems               PantryItem[]
 }
 
 model Membership {
@@ -427,6 +473,10 @@ model BankConnection {
   providerSessionId     String?                    @unique
   status                BankConnectionStatus       @default(PENDING)
   consentExpiresAt      DateTime?
+  /// When the "consent expires soon" email went out for the current consent.
+  consentReminderSentAt DateTime?
+  /// When the "bank needs reauthorization" email went out for the current episode.
+  reauthNotifiedAt      DateTime?
   lastSyncedAt          DateTime?
   lastSyncAttemptAt     DateTime?
   syncStartedAt         DateTime?
@@ -921,6 +971,16 @@ model PushSubscription {
 
   @@index([householdId, enabled])
   @@index([userId])
+}
+
+/// Once-only ledger for event pushes (chores due, bank consent, shopping
+/// refills): the first run to claim a dedupe key sends, later runs stay quiet.
+model PushEvent {
+  id        String   @id @default(cuid())
+  dedupeKey String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model PushDelivery {

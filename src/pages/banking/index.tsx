@@ -15,13 +15,14 @@ import ModuleFirstRun from '@/components/onboarding/ModuleFirstRun'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { useConfirm } from '@/components/ui/confirm-dialog'
+import { bankDisplayName } from '@/lib/finance/bank-name'
 import { BalancesBlock } from '@/components/banking/BalancesBlock'
 import { BalanceTrendBlock } from '@/components/banking/BalanceTrendBlock'
 import { BankingDashboardSkeleton } from '@/components/banking/BankingSkeletons'
 import { BankingShell } from '@/components/banking/BankingShell'
 import { BudgetsBlock } from '@/components/banking/BudgetsBlock'
 import { CashFlowBlock } from '@/components/banking/CashFlowBlock'
-import { ConnectionsBlock } from '@/components/banking/ConnectionsBlock'
+import { CONSENT_WARNING_MS, ConnectionsBlock } from '@/components/banking/ConnectionsBlock'
 import { DataQualityNote } from '@/components/banking/DataQualityNote'
 import { TransactionsPanel } from '@/components/banking/TransactionsPanel'
 import { UpcomingBillsBlock } from '@/components/banking/UpcomingBillsBlock'
@@ -106,12 +107,25 @@ export default function BankingPage() {
   const currency = active?.currency ?? overview?.totals[0]?.currency ?? 'EUR'
   const hasAccounts = Boolean(overview?.accounts.length)
 
+  const bankName = bankDisplayName(overview?.bankName)
+
+  // The first of the signed-in user's connections that needs a human: consent
+  // renewal, reauthorization, or a failed sync. Mirrors the worker's email
+  // triggers so the page and the inbox never disagree about urgency.
+  const attentionConnection = ownConnections.find(connection =>
+    connection.status === 'REAUTH_REQUIRED'
+    || connection.status === 'ERROR'
+    || (connection.status === 'ACTIVE'
+      && connection.consentExpiresAt !== null
+      && new Date(connection.consentExpiresAt).getTime() - clock < CONSENT_WARNING_MS),
+  ) ?? null
+
   const disconnectWithConfirmation = async (connectionId: string) => {
     const connection = ownConnections.find(entry => entry.id === connectionId)
     if (!connection) return
     const confirmed = await confirm({
       title: 'Disconnect bank',
-      description: 'Disconnect Bank of Valletta? This revokes consent and permanently removes every imported balance and transaction from Clankeep.',
+      description: `Disconnect ${bankDisplayName(connection.aspspName)}? This revokes consent and permanently removes every imported balance and transaction from Clankeep.`,
       confirmText: 'Disconnect',
       destructive: true,
     })
@@ -158,12 +172,12 @@ export default function BankingPage() {
         canConnect ? (
           <ModuleFirstRun
             module="banking"
-            title="Connect Bank of Valletta"
-            description="You'll continue to BOV to approve read-only access. Clankeep never receives your bank password or any permission to make payments."
+            title={`Connect ${bankName}`}
+            description={`You'll continue to ${bankName} to approve read-only access. Clankeep never receives your bank password or any permission to make payments.`}
             action={
               <Button disabled={Boolean(banking.action)} onClick={() => banking.startConnection()}>
                 {banking.action === 'connect' && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
-                Connect Bank of Valletta
+                Connect {bankName}
               </Button>
             }
           />
@@ -177,6 +191,32 @@ export default function BankingPage() {
         )
       ) : tab === 'overview' ? (
         <div className={`space-y-6 ${analytics.loading ? 'opacity-60' : ''}`} aria-busy={analytics.loading}>
+          {attentionConnection && (
+            <section
+              aria-label="Bank connection needs attention"
+              className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-900 dark:bg-amber-950/40 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                {attentionConnection.status === 'REAUTH_REQUIRED'
+                  ? `${bankDisplayName(attentionConnection.aspspName)} needs to be reconnected — syncing is paused until you re-approve read-only access.`
+                  : attentionConnection.status === 'ERROR'
+                    ? `${bankDisplayName(attentionConnection.aspspName)} stopped syncing: ${attentionConnection.syncError ?? 'the last sync failed.'}`
+                    : `Bank access expires on ${new Date(attentionConnection.consentExpiresAt!).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} — renew now and nothing is interrupted.`}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0 border-amber-300 dark:border-amber-800"
+                disabled={Boolean(banking.action)}
+                onClick={() => banking.startConnection(attentionConnection.id)}
+              >
+                {banking.action === `reconnect:${attentionConnection.id}` && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                )}
+                {attentionConnection.status === 'ACTIVE' ? 'Renew access' : 'Reconnect'}
+              </Button>
+            </section>
+          )}
           <BalancesBlock
             accounts={overview.accounts}
             totals={overview.totals}
@@ -224,7 +264,7 @@ export default function BankingPage() {
               icon={Wallet}
               module="banking"
               title="Connected — waiting for the first transactions"
-              description="BOV usually returns history within a few minutes of the first sync. The balances above are already live."
+              description={`${bankName} usually returns history within a few minutes of the first sync. The balances above are already live.`}
             />
           )}
 

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { choreRecurrenceFromRow, dateOnlyToDb, isDateOnly, isDueOn } from '@/lib/chore-recurrence'
 import { requireActiveHousehold } from '@/lib/chores'
+import { recordActivity } from '@/lib/activity'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST' && req.method !== 'DELETE') {
@@ -43,6 +44,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     create: { choreId, dueDate: dateOnlyToDb(dueDate), status, completedById: userId },
     update: { status, completedById: userId, completedAt: new Date() },
     include: { completedBy: { select: { id: true, name: true } } },
+  })
+  void recordActivity({
+    householdId,
+    userId,
+    module: 'chores',
+    action: status === 'DONE' ? 'completed' : 'skipped',
+    summary: `${completion.completedBy?.name || 'Someone'} ${status === 'DONE' ? 'completed' : 'skipped'} ${chore.title}`,
+    targetId: chore.id,
   })
   return res.status(200).json({
     completion: {

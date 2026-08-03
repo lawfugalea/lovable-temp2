@@ -19,7 +19,8 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { withBasePath } from "@/lib/base-path"
-import { modules, moduleForPath } from "@/lib/modules"
+import { moduleForPath } from "@/lib/modules"
+import { useVisibleModules } from "@/hooks/useVisibleModules"
 import { Button } from "@/components/ui/Button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar"
 import {
@@ -75,6 +76,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
+  const visibleModules = useVisibleModules()
 
   const activeModule = moduleForPath(router.pathname)
 
@@ -193,7 +195,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
         <BrandLogo compact priority />
       </Link>
       <nav data-tour="nav" className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto" aria-label="Main navigation">
-        {modules.map((module) => {
+        {visibleModules.map((module) => {
           const active = router.pathname === module.href
           const Icon = module.icon
           return (
@@ -254,7 +256,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
 
   const moduleLinks = (
     <div className="space-y-1">
-      {modules.map((module) => {
+      {visibleModules.map((module) => {
         const active = router.pathname === module.href
         const Icon = module.icon
         return (

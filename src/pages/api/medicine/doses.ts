@@ -3,6 +3,7 @@ import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { requireMembershipIn } from '@/lib/api-guards';
 import { normalizeDosage, parseRequiredDate, checkDoseSafety, serializableDoseWarnings } from '@/lib/medicine';
+import { recordActivity } from '@/lib/activity';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = String(req.method === 'GET' ? req.query.householdId || '' : req.body?.householdId || '');
@@ -106,6 +107,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         });
       }
       return created;
+    });
+    void recordActivity({
+      householdId,
+      userId: context.userId,
+      module: 'medicine',
+      action: 'dose-recorded',
+      summary: `A dose of ${medicine?.name || medicineName || 'medicine'} was recorded`,
+      targetId: dose.id,
     });
     return res.status(201).json(dose);
   }

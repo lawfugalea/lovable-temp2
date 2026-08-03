@@ -5,6 +5,7 @@ import { getUserIdOr401 } from '@/lib/api-guards'
 import { requireActiveHousehold } from '@/lib/chores'
 import { dateOnlyToDb, isDateOnly } from '@/lib/chore-recurrence'
 import { parsePlanRange, planEntryDate } from '@/lib/meals'
+import { recordActivity } from '@/lib/activity'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res)
@@ -57,6 +58,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       create: { householdId, date: dateOnlyToDb(date), slot, recipeId, freeText: recipeId ? null : freeText },
       update: { recipeId, freeText: recipeId ? null : freeText },
       include: { recipe: { select: { id: true, name: true, servings: true } } },
+    })
+    void recordActivity({
+      householdId,
+      userId,
+      module: 'meals',
+      action: 'planned',
+      summary: `${entry.recipe?.name || freeText || 'A meal'} planned for ${date}`,
+      targetId: entry.id,
     })
     return res.status(200).json({
       entry: {

@@ -22,7 +22,7 @@ import {
   ListChecks,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { modules } from '@/lib/modules'
+import { useVisibleModules } from '@/hooks/useVisibleModules'
 import { moduleHelp } from '@/lib/help-content'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/Dialog'
 import { useOnboarding } from '@/components/onboarding/OnboardingProvider'
@@ -55,10 +55,11 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const checklistDismissed = onboarding?.state?.user.checklistDismissedAt != null
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const visibleModules = useVisibleModules()
 
   const commands: CommandItem[] = [
     // Navigation — sourced from the shared module registry
-    ...modules.map((module) => ({
+    ...visibleModules.map((module) => ({
       id: `nav-${module.key}`,
       title: `Go to ${module.name}`,
       description: moduleHelp[module.key].tagline,
@@ -133,7 +134,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       category: 'Help',
       keywords: ['help', 'docs', 'guide', 'support', 'how', 'faq', 'questions'],
     },
-    ...modules.map((module) => ({
+    ...visibleModules.map((module) => ({
       id: `help-${module.key}`,
       title: `Help: ${module.name}`,
       description: moduleHelp[module.key].summary,

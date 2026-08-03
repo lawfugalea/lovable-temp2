@@ -57,6 +57,8 @@ export type Overview = {
   bankEnabled: boolean
   canManage: boolean
   providerConfigured: boolean
+  /** Display name of the configured bank (e.g. "Bank of Valletta"). */
+  bankName: string
   accounts: Account[]
   connections: Connection[]
   totals: Array<{ currency: string; amount: string }>

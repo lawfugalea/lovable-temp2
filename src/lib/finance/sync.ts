@@ -7,6 +7,7 @@ import {
   getProviderSession,
   getProviderTransactions,
   isRateLimitError,
+  sessionConsentExpiry,
 } from './enable-banking'
 import { normalizeBalances, normalizeBankAccount, normalizeTransaction } from './normalization'
 
@@ -32,14 +33,6 @@ function historyStart(latest: Date | null): string {
   const start = latest ? new Date(latest) : new Date()
   start.setUTCDate(start.getUTCDate() - (latest ? OVERLAP_DAYS : INITIAL_HISTORY_DAYS))
   return dateOnly(start)
-}
-
-function consentExpiry(session: Record<string, unknown>): Date | null {
-  const access = session.access && typeof session.access === 'object'
-    ? session.access as Record<string, unknown>
-    : {}
-  const value = typeof access.valid_until === 'string' ? new Date(access.valid_until) : null
-  return value && !Number.isNaN(value.getTime()) ? value : null
 }
 
 /**
@@ -215,7 +208,7 @@ export async function syncBankConnection(connectionId: string): Promise<void> {
     where: { id: connection.id },
     data: {
       status: 'ACTIVE',
-      consentExpiresAt: consentExpiry(session),
+      consentExpiresAt: sessionConsentExpiry(session),
       lastSyncedAt: new Date(),
       syncError: null,
     },

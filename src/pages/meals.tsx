@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Scale, ShoppingBasket, Trash2, UtensilsCrossed } from 'lucide-react'
 import ModernAppShell from '@/components/ModernAppShell'
 import GenerateListDialog from '@/components/meals/GenerateListDialog'
+import PantryPanel from '@/components/meals/PantryPanel'
 import WeekCostSummary from '@/components/meals/WeekCostSummary'
 import MealSlotPicker, { type PlanEntryDto, type RecipeOption } from '@/components/meals/MealSlotPicker'
 import RecipeFormDialog, { type RecipeDto } from '@/components/meals/RecipeFormDialog'
@@ -20,7 +21,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { BasketComparison } from '@/lib/shopping-price-comparison'
 import { cn } from '@/lib/utils'
 
-type MealsTab = 'week' | 'recipes'
+type MealsTab = 'week' | 'recipes' | 'pantry'
 
 function localDateOnly(date = new Date()) {
   return date.toLocaleDateString('en-CA')
@@ -222,7 +223,12 @@ export default function MealsPage() {
 
       const created = Number(data.created) || 0
       const merged = Number(data.merged) || 0
-      toast.success(`${data.listName}: ${created} item${created === 1 ? '' : 's'} added${merged ? `, ${merged} topped up` : ''}`)
+      const skipped = Array.isArray(data.skippedFromPantry) ? data.skippedFromPantry.length : 0
+      toast.success(
+        `${data.listName}: ${created} item${created === 1 ? '' : 's'} added`
+        + `${merged ? `, ${merged} topped up` : ''}`
+        + `${skipped ? `, ${skipped} already in the pantry` : ''}`,
+      )
       await router.push(`/shopping?list=${encodeURIComponent(target.id)}&tab=compare`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not update the shopping list')
@@ -255,7 +261,7 @@ export default function MealsPage() {
             </Button>
           </div>
           <Tabs value={tab} onValueChange={value => setTab(value as MealsTab)} className="border-t px-2 sm:px-4">
-            <TabsList aria-label="Meals sections" className="grid h-auto w-full grid-cols-2 rounded-none bg-transparent p-0 sm:flex sm:w-auto sm:justify-start">
+            <TabsList aria-label="Meals sections" className="grid h-auto w-full grid-cols-3 rounded-none bg-transparent p-0 sm:flex sm:w-auto sm:justify-start">
               <TabsTrigger value="week" className="min-h-12 rounded-none border-b-2 border-transparent px-4 font-semibold hover:text-foreground data-[state=active]:border-module-meals data-[state=active]:bg-transparent data-[state=active]:text-module-meals data-[state=active]:shadow-none">
                 This week
               </TabsTrigger>
@@ -264,6 +270,9 @@ export default function MealsPage() {
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-module-meals/10 px-1.5 py-0.5 text-[11px] font-bold leading-none text-module-meals">
                   {recipes.length}
                 </span>
+              </TabsTrigger>
+              <TabsTrigger value="pantry" className="min-h-12 rounded-none border-b-2 border-transparent px-4 font-semibold hover:text-foreground data-[state=active]:border-module-meals data-[state=active]:bg-transparent data-[state=active]:text-module-meals data-[state=active]:shadow-none">
+                Pantry
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -363,6 +372,8 @@ export default function MealsPage() {
               </div>
             )}
           </>
+        ) : tab === 'pantry' ? (
+          <PantryPanel />
         ) : recipes.length === 0 ? (
           <ModuleFirstRun
             module="meals"

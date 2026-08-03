@@ -85,6 +85,12 @@ node scripts/check-migration-drift.mjs || echo "Drift remains; see above."
 step "Start app"
 docker compose --env-file .env.deploy up -d app
 
+# Explicitly, because `up -d app` never creates a sidecar that is new in this
+# release — restart: unless-stopped only keeps *already created* ones running.
+step "Start workers"
+docker compose --env-file .env.deploy up -d \
+  reminder shopping-recurrence finance-sync weekly-digest housekeeping backup
+
 step "Wait for health"
 for attempt in $(seq 1 30); do
   STATE="$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose --env-file .env.deploy ps -q app)" 2>/dev/null || echo unknown)"

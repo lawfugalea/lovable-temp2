@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input'
 import { Badge } from '@/components/ui/Badge'
 import { Alert, AlertDescription } from '@/components/ui/Alert'
 import HouseholdCreationWizard from '@/components/HouseholdCreationWizard'
-import { modules } from '@/lib/modules'
+import { useVisibleModules } from '@/hooks/useVisibleModules'
 import { moduleHelp } from '@/lib/help-content'
 import { cn } from '@/lib/utils'
 
@@ -46,6 +46,7 @@ export function extractInviteToken(raw: string): string | null {
 
 export default function WelcomeFlow({ firstName, onCreated, onStartTour, onSkipTour }: WelcomeFlowProps) {
   const router = useRouter()
+  const visibleModules = useVisibleModules()
   const [screen, setScreen] = useState<Screen>('intro')
   const [inviteValue, setInviteValue] = useState('')
   const [inviteError, setInviteError] = useState('')
@@ -179,7 +180,7 @@ export default function WelcomeFlow({ firstName, onCreated, onStartTour, onSkipT
           What you get
         </h3>
         <ul className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-          {modules
+          {visibleModules
             .filter((module) => module.key !== 'home')
             .map((module) => {
               const help = moduleHelp[module.key]

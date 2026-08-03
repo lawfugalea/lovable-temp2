@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { isAdminEmail } from "@/lib/admin-config";
+import { isBankingAllowedEmail } from "@/lib/banking-allowlist";
 import { clearLoginAttempts, consumeLoginAttempt } from "@/lib/rate-limit-store";
 import { isPasswordVersionCurrent, passwordVersion } from "@/lib/session-security";
 import { getSessionUser } from "@/lib/session-user-cache";
@@ -118,6 +119,7 @@ export const authOptions: NextAuthOptions = {
         token.email = u.email;
         (token as any).isAdmin = isAdminEmail(u?.email ?? (token.email as string) ?? null);
         (token as any).isDemo = u?.isDemo === true;
+        (token as any).bankingEnabled = isBankingAllowedEmail(u?.email ?? (token.email as string) ?? null);
       }
 
       return token;
@@ -135,6 +137,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).activeHouseholdId = (token as any).activeHouseholdId ?? null;
         (session.user as any).isAdmin = (token as any).isAdmin === true;
         (session.user as any).isDemo = (token as any).isDemo === true;
+        (session.user as any).bankingEnabled = (token as any).bankingEnabled === true;
         (session as any).activeHouseholdId = (token as any).activeHouseholdId ?? null;
       }
       return session;

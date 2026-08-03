@@ -9,10 +9,11 @@ import { Link2, Loader2, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Card, CardContent } from '@/components/ui/Card'
+import { bankDisplayName } from '@/lib/finance/bank-name'
 import { longDate, relativeSync } from '@/lib/finance/format'
 import type { Connection, ConnectionStatus } from './types'
 
-const CONSENT_WARNING_MS = 14 * 24 * 60 * 60 * 1000
+export const CONSENT_WARNING_MS = 14 * 24 * 60 * 60 * 1000
 
 function tone(status: ConnectionStatus): { label: string; className: string } {
   if (status === 'ACTIVE') return { label: 'Connected', className: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/40 dark:text-green-300 dark:border-green-900' }
@@ -48,7 +49,7 @@ export function ConnectionsBlock({ connections, action, clock, onReconnect, onDi
                 </span>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold">{connection.aspspName}</h3>
+                    <h3 className="font-semibold">{bankDisplayName(connection.aspspName)}</h3>
                     <Badge variant="outline" className={badge.className}>{badge.label}</Badge>
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">

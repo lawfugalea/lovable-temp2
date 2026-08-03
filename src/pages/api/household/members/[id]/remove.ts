@@ -5,6 +5,7 @@ import { authOptions } from "@/pages/api/auth/[...nextauth]";
 import { prisma } from "@/lib/prisma";
 import { reconcileActiveHousehold } from "@/lib/households";
 import { detachUserFromHouseholds } from "@/lib/household-membership";
+import { recordActivity } from "@/lib/activity";
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -28,6 +29,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   });
   if (!membership) return res.status(404).json({ error: "Membership not found" });
 
+  let removedLabel = 'A member';
   try {
     await prisma.$transaction(async (tx) => {
       // Role changes for this household take the same lock. This makes the
@@ -60,6 +62,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
       await detachUserFromHouseholds(tx, current.userId, [current.householdId]);
       await reconcileActiveHousehold(current.userId, { write: true, db: tx });
+
+      const removed = await tx.user.findUnique({
+        where: { id: current.userId },
+        select: { name: true, email: true },
+      });
+      removedLabel = removed?.name || removed?.email || 'A member';
     });
   } catch (error) {
     const status = typeof error === "object" && error && "status" in error
@@ -69,6 +77,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       error: status === 500 ? "Failed to remove member" : (error as Error).message,
     });
   }
+
+  void recordActivity({
+    householdId: membership.householdId,
+    userId: actorId,
+    module: 'home',
+    action: 'member-removed',
+    summary: `${removedLabel} was removed from the household`,
+  });
 
   return res.status(200).json({ ok: true });
 }

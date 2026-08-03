@@ -11,6 +11,7 @@ import { BarChart3, ShieldCheck, Wallet } from 'lucide-react'
 import ModernAppShell from '@/components/ModernAppShell'
 import UpgradeGate from '@/components/UpgradeGate'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { bankDisplayName } from '@/lib/finance/bank-name'
 import { AnalyticsSkeleton } from '@/components/banking/BankingSkeletons'
 import { BankingShell } from '@/components/banking/BankingShell'
 import { CashFlowBlock } from '@/components/banking/CashFlowBlock'
@@ -124,7 +125,7 @@ export default function BankingAnalyticsPage() {
           icon={Wallet}
           module="banking"
           title="Nothing to analyse yet"
-          description="Connect Bank of Valletta from the dashboard and this fills in once the first transactions arrive."
+          description={`Connect ${bankDisplayName(overview.bankName)} from the dashboard and this fills in once the first transactions arrive.`}
         />
       ) : (
         <div className="space-y-6">

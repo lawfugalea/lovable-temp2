@@ -272,7 +272,7 @@ test('requireAdmin admits nobody when no admin emails are configured', async () 
 
 function loadFinanceGuard(
   session: unknown,
-  options: { canUseFinance?: boolean; financeOwnerEmail?: string } = {},
+  options: { canUseFinance?: boolean; financeOwnerEmail?: string; bankingAllowedEmails?: string } = {},
 ) {
   resetStubs()
   stubAuthOptions()
@@ -284,6 +284,8 @@ function loadFinanceGuard(
     }),
   })
   process.env.FINANCE_OWNER_EMAIL = options.financeOwnerEmail ?? ''
+  process.env.BANKING_ALLOWED_EMAILS = options.bankingAllowedEmails ?? ''
+  unloadModule('@/lib/banking-allowlist')
   unloadModule('@/lib/finance/access')
   return require('../src/lib/finance/access') as typeof import('../src/lib/finance/access')
 }
@@ -340,9 +342,9 @@ test('finance grants the owner manage rights', async () => {
   assert.equal(access?.canManage, true)
 })
 
-test('bank features stay off for a household with no finance owner configured', async () => {
-  // FINANCE_OWNER_EMAIL unset must mean no household gets the bank surface,
-  // rather than every household getting it.
+test('bank features stay off when no allowlist is configured', async () => {
+  // Neither BANKING_ALLOWED_EMAILS nor FINANCE_OWNER_EMAIL set must mean
+  // nobody gets the bank surface, rather than everybody getting it.
   const { requireFinanceAccess } = loadFinanceGuard(sessionFor(OWNER), { financeOwnerEmail: '' })
   const res = fakeRes()
   const access = await requireFinanceAccess(fakeReq(), res.res, HOUSEHOLD)
@@ -354,7 +356,34 @@ test('bank features stay off for a household with no finance owner configured', 
   assert.equal(banking.statusCode, 403)
 })
 
-test('bank features switch on only for the household holding the finance owner', async () => {
+test('bank features switch on only for allowlisted accounts', async () => {
+  const { requireFinanceAccess } = loadFinanceGuard(sessionFor(OWNER), {
+    bankingAllowedEmails: 'owner@example.com, second@example.com',
+  })
+  const res = fakeRes()
+  const access = await requireFinanceAccess(fakeReq(), res.res, HOUSEHOLD, { bank: true })
+
+  assert.equal(access?.bankEnabled, true)
+  assert.equal(res.statusCode, null)
+})
+
+test('a household member outside the allowlist is refused the bank surface', async () => {
+  // The allowlist is per account, not per household: a member of the same
+  // household who is not named must neither see nor reach banking.
+  const { requireFinanceAccess } = loadFinanceGuard(sessionFor(MEMBER), {
+    bankingAllowedEmails: 'owner@example.com',
+  })
+  const res = fakeRes()
+  const access = await requireFinanceAccess(fakeReq(), res.res, HOUSEHOLD)
+
+  assert.equal(access?.bankEnabled, false)
+
+  const banking = fakeRes()
+  assert.equal(await requireFinanceAccess(fakeReq(), banking.res, HOUSEHOLD, { bank: true }), null)
+  assert.equal(banking.statusCode, 403)
+})
+
+test('FINANCE_OWNER_EMAIL still acts as a one-entry allowlist fallback', async () => {
   const { requireFinanceAccess } = loadFinanceGuard(sessionFor(OWNER), {
     financeOwnerEmail: 'owner@example.com',
   })

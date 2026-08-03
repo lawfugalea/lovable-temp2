@@ -17,6 +17,7 @@ import {
   UtensilsCrossed,
 } from "lucide-react"
 import ModernAppShell from "@/components/ModernAppShell"
+import ActivityFeed from "@/components/ActivityFeed"
 import ChoreTodayList, { todayItemKey, type TodayChoreItem } from "@/components/chores/ChoreTodayList"
 import OnboardingChecklist from "@/components/OnboardingChecklist"
 import WelcomeFlow from "@/components/onboarding/WelcomeFlow"
@@ -144,6 +145,7 @@ function DashboardSkeleton() {
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
+  const bankingEnabled = (session?.user as { bankingEnabled?: boolean } | undefined)?.bankingEnabled === true
   const router = useRouter()
   const [financeSummary, setFinanceSummary] = useState<{ planEntryCount: number; plannerDisposableCents: number | null }>({ planEntryCount: 0, plannerDisposableCents: null })
   const [bankingSummary, setBankingSummary] = useState<{ accountCount: number; totals: Array<{ currency: string; amount: string }> }>({ accountCount: 0, totals: [] })
@@ -264,7 +266,11 @@ export default function DashboardPage() {
     try {
       const [plannerResponse, bankingResponse] = await Promise.all([
         fetch(`/api/finance/planner?householdId=${encodeURIComponent(householdId)}`),
-        fetch(`/api/finance/overview?householdId=${encodeURIComponent(householdId)}`),
+        // The banking surface is allowlisted per account; skip the call entirely
+        // for everyone else rather than collecting a guaranteed refusal.
+        bankingEnabled
+          ? fetch(`/api/finance/overview?householdId=${encodeURIComponent(householdId)}`)
+          : Promise.resolve(null),
       ])
       if (plannerResponse.ok) {
         const planner = await plannerResponse.json()
@@ -276,7 +282,7 @@ export default function DashboardPage() {
             : null,
         })
       }
-      if (bankingResponse.ok) {
+      if (bankingResponse?.ok) {
         const banking = await bankingResponse.json()
         setBankingSummary({
           accountCount: Array.isArray(banking.accounts) ? banking.accounts.length : 0,
@@ -286,7 +292,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Failed to load finance summary:", error)
     }
-  }, [])
+  }, [bankingEnabled])
 
   const loadHouseholdData = useCallback(async (householdId: string) => {
     try {
@@ -453,16 +459,18 @@ export default function DashboardPage() {
               tone="finances"
               delayClass="animation-delay-100"
             />
-            <SummaryCard
-              eyebrow={`${bankingSummary.accountCount} account${bankingSummary.accountCount === 1 ? "" : "s"}`}
-              title="Connected banking"
-              description={bankingDetail}
-              href="/banking"
-              action="Open banking"
-              icon={Landmark}
-              tone="finances"
-              delayClass="animation-delay-100"
-            />
+            {bankingEnabled && (
+              <SummaryCard
+                eyebrow={`${bankingSummary.accountCount} account${bankingSummary.accountCount === 1 ? "" : "s"}`}
+                title="Connected banking"
+                description={bankingDetail}
+                href="/banking"
+                action="Open banking"
+                icon={Landmark}
+                tone="finances"
+                delayClass="animation-delay-100"
+              />
+            )}
             <SummaryCard
               eyebrow={dueMedicines.length ? `${dueMedicines.length} due` : "On schedule"}
               title={`${activeMedicines.length} active medicine${activeMedicines.length === 1 ? "" : "s"}`}
@@ -515,44 +523,7 @@ export default function DashboardPage() {
         )}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.7fr)]">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-primary" /> Recent activity</CardTitle>
-              <CardDescription>Recent medicine records and shopping lists from this household.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="divide-y rounded-lg border">
-                {recentDoses.slice(0, 3).map((dose) => (
-                  <div key={dose.id} className="flex items-start gap-3 p-4">
-                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-module-medicine/10 text-module-medicine"><HeartPulse className="h-4 w-4" /></span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">{dose.medicine.name} recorded for {dose.child.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {new Date(dose.takenAt).toLocaleDateString()} · {new Date(dose.takenAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {dose.dosage}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {shoppingLists.slice(0, Math.max(1, 4 - recentDoses.slice(0, 3).length)).map((list) => (
-                  <div key={list.id} className="flex items-start gap-3 p-4">
-                    <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-module-shopping/10 text-module-shopping"><ShoppingBasket className="h-4 w-4" /></span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{list.name}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{list.activeItemCount} item{list.activeItemCount === 1 ? "" : "s"} still to buy</p>
-                    </div>
-                  </div>
-                ))}
-                {recentDoses.length === 0 && shoppingLists.length === 0 && (
-                  <EmptyState
-                    className="border-0 bg-transparent py-10"
-                    icon={Activity}
-                    title="No recent household activity"
-                    description="New list and medicine activity will appear here."
-                  />
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {householdId ? <ActivityFeed householdId={householdId} /> : null}
 
           <Card className="bg-foreground text-background">
             <CardHeader>

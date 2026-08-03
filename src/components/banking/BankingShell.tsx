@@ -48,7 +48,7 @@ export function BankingShell({
     if (bankConnected === '1') {
       onCallbackNotice?.(syncWarning === '1'
         ? 'Bank connected. The first sync needs another try.'
-        : 'Bank of Valletta connected successfully.')
+        : 'Bank connected successfully.')
     } else if (bankError) {
       onCallbackError?.(CALLBACK_MESSAGES[String(bankError)] || 'The bank connection could not be completed.')
     }

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
 import { withBasePath } from '@/lib/base-path';
+import { recordActivity } from '@/lib/activity';
 
 async function requireUser(req: NextApiRequest, res: NextApiResponse) {
   const sess = (await getServerSession(req, res, authOptions as any)) as any;
@@ -137,6 +138,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         doneBy: { select: { id: true, name: true, email: true } },
         canonicalProduct: { select: { id: true, displayName: true, brand: true, packageValue: true, packageUnit: true, packCount: true } },
       },
+    });
+
+    void recordActivity({
+      householdId: list.householdId,
+      userId,
+      module: 'shopping',
+      action: 'item-added',
+      summary: `${item.createdBy?.name || 'Someone'} added ${normalizedTitle} to the shopping list`,
+      targetId: item.id,
     });
 
     res.setHeader('Cache-Control', 'no-store');

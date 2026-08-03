@@ -2,7 +2,8 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
-import { isFinanceProviderConfigured } from '@/lib/finance/config'
+import { getFinanceAspsp, isFinanceProviderConfigured } from '@/lib/finance/config'
+import { bankDisplayName } from '@/lib/finance/bank-name'
 import { isAvailableBalanceType, isBookedBalanceType } from '@/lib/finance/normalization'
 import { enrichStoredTransaction, loadFinanceMetadata } from '@/lib/finance/server-metadata'
 
@@ -22,6 +23,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       bankEnabled: false,
       canManage: access.canManage,
       providerConfigured: false,
+      bankName: bankDisplayName(getFinanceAspsp().name),
       accounts: [],
       connections: [],
       totals: [],
@@ -117,6 +119,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     bankEnabled: true,
     canManage: access.canManage,
     providerConfigured: isFinanceProviderConfigured(),
+    bankName: bankDisplayName(getFinanceAspsp().name),
     accounts: serializedAccounts,
     connections,
     totals: [...totals].map(([currency, amount]) => ({ currency, amount: amount.toFixed(2) })),

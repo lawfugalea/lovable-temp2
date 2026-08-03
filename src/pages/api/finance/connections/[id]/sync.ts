@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireFinanceAccess } from '@/lib/finance/access'
+import { dispatchBudgetAlerts } from '@/lib/finance/budget-alerts'
 import { isRateLimitError, isReauthorizationError, publicSyncError, syncBankConnection } from '@/lib/finance/sync'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -34,6 +35,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     await syncBankConnection(connection.id)
+    // Budget limits can only move when new transactions land; evaluate now,
+    // without holding up the response the refresh button is waiting for.
+    void dispatchBudgetAlerts(connection.userId).catch(error => {
+      console.warn('Budget alerts failed after manual sync:', error instanceof Error ? error.message : error)
+    })
     return res.status(200).json({ ok: true })
   } catch (error) {
     const message = publicSyncError(error)

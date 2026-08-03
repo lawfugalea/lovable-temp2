@@ -206,6 +206,17 @@ services:
       # Must match what the shopping-recurrence worker sends, or the endpoint
       # answers 401 and scheduled templates silently never refill.
       SHOPPING_RECURRENCE_SECRET: ${SHOPPING_RECURRENCE_SECRET:-}
+      # Must match what the finance-sync worker sends, or bank connections only
+      # refresh when someone presses the button and consent expiry goes unwarned.
+      FINANCE_SYNC_SECRET: ${FINANCE_SYNC_SECRET:-}
+      # Local timezone for in-app scheduling decisions (morning chore summary,
+      # weekly digest); the cron sidecars carry their own TZ for date stamping.
+      HOUSEFLOW_TZ: ${HOUSEFLOW_TZ:-Europe/Malta}
+      # Must match what the digest worker sends, or Monday summaries never go out.
+      WEEKLY_DIGEST_SECRET: ${WEEKLY_DIGEST_SECRET:-}
+      # Must match what the housekeeping worker sends, or expired demo users,
+      # rate-limit windows and processed-event ledgers accumulate forever.
+      DEMO_CLEANUP_SECRET: ${DEMO_CLEANUP_SECRET:-}
     volumes:
       - houseflow-uploads:/app/uploads
     ports:
@@ -292,6 +303,118 @@ services:
               || echo "[shopping-recurrence] WARNING: refill poll failed at $$(date -u +%FT%TZ)"
           fi
           sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  finance-sync:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      FINANCE_SYNC_SECRET: ${FINANCE_SYNC_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${FINANCE_SYNC_SECRET}" ]; then
+          echo "[finance-sync] WARNING: FINANCE_SYNC_SECRET is not set — unattended bank sync and consent reminders are DISABLED"
+        fi
+        # Hourly poll; the endpoint itself decides what is due (about two syncs
+        # per connection per day, one lifecycle email per episode), so polling
+        # more often than the gap simply answers with nothing to do.
+        while true; do
+          if [ -n "$${FINANCE_SYNC_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${FINANCE_SYNC_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/finance-sync" \
+              || echo "[finance-sync] WARNING: sync poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  weekly-digest:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      WEEKLY_DIGEST_SECRET: ${WEEKLY_DIGEST_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${WEEKLY_DIGEST_SECRET}" ]; then
+          echo "[weekly-digest] WARNING: WEEKLY_DIGEST_SECRET is not set — Monday digest emails are DISABLED"
+        fi
+        # Hourly poll; the endpoint only acts on local Monday mornings and
+        # claims a per-household weekly key, so extra polls answer with nothing.
+        while true; do
+          if [ -n "$${WEEKLY_DIGEST_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${WEEKLY_DIGEST_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/weekly-digest" \
+              || echo "[weekly-digest] WARNING: digest poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  housekeeping:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      DEMO_CLEANUP_SECRET: ${DEMO_CLEANUP_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${DEMO_CLEANUP_SECRET}" ]; then
+          echo "[housekeeping] WARNING: DEMO_CLEANUP_SECRET is not set — demo purge and ledger sweeps are DISABLED"
+        fi
+        # Every six hours: purges expired demo users and sweeps elapsed
+        # rate-limit windows, old billing/push event ledgers and old activity.
+        while true; do
+          if [ -n "$${DEMO_CLEANUP_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${DEMO_CLEANUP_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/demo-cleanup" \
+              || echo "[housekeeping] WARNING: cleanup poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 21600
         done
     depends_on:
       app:

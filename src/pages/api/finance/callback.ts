@@ -4,7 +4,13 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/pages/api/auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { appUrl } from '@/lib/links'
-import { completeAuthorization, deleteProviderSession, getProviderSession } from '@/lib/finance/enable-banking'
+import {
+  completeAuthorization,
+  deleteProviderSession,
+  getProviderSession,
+  sessionAccounts,
+  sessionConsentExpiry,
+} from '@/lib/finance/enable-banking'
 import { normalizeBankAccount, type NormalizedBankAccount } from '@/lib/finance/normalization'
 import { isRateLimitError, isReauthorizationError, publicSyncError, syncBankConnection } from '@/lib/finance/sync'
 
@@ -13,28 +19,6 @@ function redirect(res: NextApiResponse, params: Record<string, string>) {
   for (const [key, value] of Object.entries(params)) target.searchParams.set(key, value)
   res.setHeader('Cache-Control', 'no-store')
   return res.redirect(303, target.toString())
-}
-
-function sessionAccounts(session: Record<string, unknown>): Record<string, unknown>[] {
-  const accounts = Array.isArray(session.accounts) ? session.accounts : []
-  const accountData = Array.isArray(session.accounts_data) ? session.accounts_data : []
-  const resources = [...accounts, ...accountData].filter(
-    item => item && typeof item === 'object' && !Array.isArray(item),
-  ) as Record<string, unknown>[]
-  const unique = new Map<string, Record<string, unknown>>()
-  for (const resource of resources) {
-    const uid = typeof resource.uid === 'string' ? resource.uid : null
-    if (uid) unique.set(uid, { ...(unique.get(uid) || {}), ...resource })
-  }
-  return [...unique.values()]
-}
-
-function consentExpiry(session: Record<string, unknown>): Date | null {
-  const access = session.access && typeof session.access === 'object'
-    ? session.access as Record<string, unknown>
-    : {}
-  const parsed = typeof access.valid_until === 'string' ? new Date(access.valid_until) : null
-  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -98,8 +82,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             data: {
               providerSessionId,
               status: 'ACTIVE',
-              consentExpiresAt: consentExpiry(providerSession),
+              consentExpiresAt: sessionConsentExpiry(providerSession),
               syncError: null,
+              // Fresh consent, fresh lifecycle: the expiry reminder and the
+              // reauth nudge may each fire once for this new episode.
+              consentReminderSentAt: null,
+              reauthNotifiedAt: null,
             },
           })
         : await tx.bankConnection.create({
@@ -109,7 +97,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
               aspspCountry: attempt.aspspCountry,
               providerSessionId,
               status: 'ACTIVE',
-              consentExpiresAt: consentExpiry(providerSession),
+              consentExpiresAt: sessionConsentExpiry(providerSession),
             },
           })
 

@@ -3,6 +3,9 @@ import { withApiHandler } from '@/lib/api-handler'
 import { timingSafeEqual } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { dateOnlyToDb } from '@/lib/chore-recurrence'
+import { withBasePath } from '@/lib/base-path'
+import { recordActivity } from '@/lib/activity'
+import { sendHouseholdEventPush } from '@/lib/push'
 import { selectDueTemplates, type RecurringTemplateRow } from '@/lib/shopping-recurrence'
 
 function authorized(req: NextApiRequest): boolean {
@@ -69,14 +72,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           },
           data: { lastRunOn: dateOnlyToDb(today) },
         })
-        if (claimed.count !== 1) return 0
+        if (claimed.count !== 1) return null
 
         // The target list must still be active and in the template's household.
         const list = await tx.shoppingList.findFirst({
           where: { id: template.autoListId!, archivedAt: null },
-          select: { id: true, householdId: true },
+          select: { id: true, householdId: true, name: true },
         })
-        if (!list) return 0
+        if (!list) return null
 
         // Scheduled items have no human author, but createdById is required.
         // The household owner stands in as the responsible account; a household
@@ -87,13 +90,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           orderBy: { createdAt: 'asc' },
           select: { userId: true },
         })
-        if (!owner) return 0
+        if (!owner) return null
 
         const templateItems = await tx.shoppingTemplateItem.findMany({
           where: { templateId: template.id },
           select: { name: true, quantity: true, productId: true, note: true },
         })
-        if (!templateItems.length) return 0
+        if (!templateItems.length) return null
 
         // Anything already on the list and not yet bought is left alone: topping
         // up a staple the household has not got round to buying yet would grow
@@ -104,7 +107,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         })
         const present = new Set(existing.map(item => item.title.trim().toLowerCase()))
         const toCreate = templateItems.filter(item => !present.has(item.name.trim().toLowerCase()))
-        if (!toCreate.length) return 0
+        if (!toCreate.length) return null
 
         await tx.shoppingItem.createMany({
           data: toCreate.map(item => ({
@@ -118,12 +121,34 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
             status: 'ACTIVE' as const,
           })),
         })
-        return toCreate.length
+        return { created: toCreate.length, householdId: list.householdId, listName: list.name }
       })
 
-      if (created > 0) {
+      if (created && created.created > 0) {
         filled += 1
-        itemsCreated += created
+        itemsCreated += created.created
+        // Best-effort heads-up after the transaction committed. The refill is
+        // once-per-day by construction; the ledger key is belt and braces
+        // against a crash between commit and this send being retried.
+        await sendHouseholdEventPush({
+          householdId: created.householdId,
+          dedupeKey: `shopping-refill:${template.id}:${today}`,
+          payload: {
+            body: `${created.created} item${created.created === 1 ? '' : 's'} added to ${created.listName} from your schedule`,
+            tag: `shopping-refill-${template.id}-${today}`,
+            url: withBasePath('/shopping'),
+          },
+        }).catch(error => {
+          console.warn('[shopping-recurrence] refill push failed', error instanceof Error ? error.message : error)
+        })
+        void recordActivity({
+          householdId: created.householdId,
+          userId: null,
+          module: 'shopping',
+          action: 'refilled',
+          summary: `${created.created} item${created.created === 1 ? '' : 's'} added to ${created.listName} from the weekly schedule`,
+          targetId: template.id,
+        })
       }
     } catch (error) {
       // One broken template must not stop the rest of the households.

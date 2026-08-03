@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { useOnboarding } from '@/components/onboarding/OnboardingProvider'
 import { useTour } from '@/components/onboarding/TourProvider'
-import { modules } from '@/lib/modules'
+import { useVisibleModules } from '@/hooks/useVisibleModules'
 import { faqsFor, generalHelpTopics, moduleHelp, type ModuleHelp } from '@/lib/help-content'
 import { getPublicLegalConfig } from '@/lib/public-legal'
 import { cn } from '@/lib/utils'
@@ -43,11 +43,12 @@ export default function HelpPage({ contactEmail, contactConfigured }: HelpPagePr
 
   const needle = query.trim().toLowerCase()
 
+  const accessibleModules = useVisibleModules()
   const visibleModules = useMemo(() => {
-    const withHelp = modules.map((module) => ({ module, help: moduleHelp[module.key] }))
+    const withHelp = accessibleModules.map((module) => ({ module, help: moduleHelp[module.key] }))
     if (!needle) return withHelp
     return withHelp.filter(({ module, help }) => haystackFor(help, module.name).includes(needle))
-  }, [needle])
+  }, [accessibleModules, needle])
 
   const visibleTopics = useMemo(() => {
     if (!needle) return generalHelpTopics

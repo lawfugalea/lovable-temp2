@@ -130,6 +130,34 @@ export type EnableBankingSession = Record<string, unknown> & {
   accounts_data?: EnableBankingSessionAccount[]
 }
 
+/**
+ * The account resources a session payload may carry, merged across the two
+ * keys Enable Banking uses (`accounts` and `accounts_data`) and de-duplicated
+ * by resource uid.
+ */
+export function sessionAccounts(session: Record<string, unknown>): Record<string, unknown>[] {
+  const accounts = Array.isArray(session.accounts) ? session.accounts : []
+  const accountData = Array.isArray(session.accounts_data) ? session.accounts_data : []
+  const resources = [...accounts, ...accountData].filter(
+    item => item && typeof item === 'object' && !Array.isArray(item),
+  ) as Record<string, unknown>[]
+  const unique = new Map<string, Record<string, unknown>>()
+  for (const resource of resources) {
+    const uid = typeof resource.uid === 'string' ? resource.uid : null
+    if (uid) unique.set(uid, { ...(unique.get(uid) || {}), ...resource })
+  }
+  return [...unique.values()]
+}
+
+/** When the session's consent lapses (`access.valid_until`), if parseable. */
+export function sessionConsentExpiry(session: Record<string, unknown>): Date | null {
+  const access = session.access && typeof session.access === 'object'
+    ? session.access as Record<string, unknown>
+    : {}
+  const parsed = typeof access.valid_until === 'string' ? new Date(access.valid_until) : null
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed : null
+}
+
 export async function startBovAuthorization(input: {
   state: string
   redirectUrl: string

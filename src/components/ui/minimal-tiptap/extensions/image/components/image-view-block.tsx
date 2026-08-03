@@ -78,15 +78,21 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
   const maxWidth = MAX_HEIGHT * aspectRatio
   const [containerMaxWidth, setContainerMaxWidth] = React.useState(Infinity)
   React.useEffect(() => {
-    const next = containerRef.current
-      ? parseFloat(
-          getComputedStyle(containerRef.current).getPropertyValue(
-            "--editor-width"
-          )
-        )
-      : Infinity
-    setContainerMaxWidth((prev) => (prev === next ? prev : next))
-  })
+    const container = containerRef.current
+    if (!container) return
+    const measure = () => {
+      const next = parseFloat(
+        getComputedStyle(container).getPropertyValue("--editor-width")
+      )
+      setContainerMaxWidth((prev) => (prev === next ? prev : next))
+    }
+    measure()
+    // Re-measure when the editor resizes rather than on every render, which
+    // only ever caught changes by luck and tripped the exhaustive-deps rule.
+    const observer = new ResizeObserver(measure)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
 
   const { isLink, onView, onDownload, onCopy, onCopyLink, onRemoveImg } =
     useImageActions({
@@ -264,6 +270,9 @@ export const ImageViewBlock: React.FC<NodeViewProps> = ({
                   setImageState((prev) => ({ ...prev, isZoomed: false }))
                 }
               >
+                {/* eslint-disable-next-line @next/next/no-img-element -- editor
+                    content with arbitrary user-provided sources (uploads, data
+                    URLs); next/image's loader pipeline does not apply here */}
                 <img
                   className={cn(
                     "h-auto rounded object-contain transition-shadow",

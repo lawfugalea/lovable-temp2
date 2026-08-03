@@ -417,6 +417,170 @@ export async function sendPasswordResetEmail({ to, name, resetUrl, expiresMinute
   return deliver({ to, subject, text, html });
 }
 
+export type DigestSection = {
+  label: string
+  value: string
+  detail?: string
+}
+
+type SendWeeklyDigestArgs = {
+  to: string
+  name?: string | null
+  householdName: string
+  /** Rendered in order; empty sections should be filtered out by the caller. */
+  sections: DigestSection[]
+  digestUrl: string
+  settingsUrl: string
+}
+
+/** The Monday morning household summary. One per household member per week. */
+export async function sendWeeklyDigestEmail(args: SendWeeklyDigestArgs): Promise<MailResult> {
+  const firstName = (args.name || '').trim().split(/\s+/)[0] || 'there';
+  const subject = `Your week at ${args.householdName}`;
+  const preheader = args.sections.map((section) => `${section.label}: ${section.value}`).join(' · ').slice(0, 140);
+
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    `Here's how ${args.householdName} is doing this week:`,
+    '',
+    ...args.sections.map((section) =>
+      `- ${section.label}: ${section.value}${section.detail ? ` (${section.detail})` : ''}`),
+    '',
+    `Open Clankeep: ${args.digestUrl}`,
+    '',
+    `You get this every Monday. Turn it off under Settings → Notifications: ${args.settingsUrl}`,
+    '',
+    `Together. Organised. At home.`,
+    `The Clankeep Team`,
+  ].join('\n');
+
+  const rowsHtml = args.sections.map((section) => `
+    <tr>
+      <td style="padding: 12px 0; border-bottom: 1px solid #E2E8F0;">
+        <span style="font-size: 13px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em;">${escapeHtml(section.label)}</span><br>
+        <span style="font-size: 16px; font-weight: 600; color: #111827;">${escapeHtml(section.value)}</span>
+        ${section.detail ? `<br><span style="font-size: 13px; color: #64748B;">${escapeHtml(section.detail)}</span>` : ''}
+      </td>
+    </tr>
+  `).join('');
+
+  const bodyHtml = `
+    <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi ${escapeHtml(firstName)},</p>
+    <p style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+      Here's how <strong>${escapeHtml(args.householdName)}</strong> is doing this week.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0 8px 0;">
+      ${rowsHtml}
+    </table>
+    ${ctaButtonHtml(args.digestUrl, 'Open Clankeep')}
+  `;
+
+  const html = renderEmailShell({
+    title: subject,
+    preheader,
+    heading: 'Your week at a glance',
+    bodyHtml,
+    footerNote: `You get this every Monday. <a href="${escapeHtml(args.settingsUrl)}" style="color: #4D6BFF;">Turn it off</a> under Settings → Notifications.`,
+    originUrl: args.digestUrl,
+  });
+  return deliver({ to: args.to, subject, text, html });
+}
+
+type SendBankConsentArgs = {
+  to: string;
+  name?: string | null;
+  bankName: string;
+  bankingUrl: string;
+} & (
+  | { kind: 'expiring'; expiresAt: Date }
+  | { kind: 'reauth' }
+);
+
+/**
+ * Consent lifecycle notices for a bank connection: a heads-up before the
+ * consent lapses, and a nudge when a sync discovered the bank wants the
+ * connection re-authorized. Sent by the finance-sync worker, once per episode
+ * (see BankConnection.consentReminderSentAt / reauthNotifiedAt).
+ */
+export async function sendBankConsentEmail(args: SendBankConsentArgs): Promise<MailResult> {
+  const firstName = (args.name || '').trim().split(/\s+/)[0] || 'there';
+  const safeBank = escapeHtml(args.bankName);
+
+  if (args.kind === 'expiring') {
+    const dateText = args.expiresAt.toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    });
+    const subject = `Your ${args.bankName} connection expires on ${dateText}`;
+    const preheader = `Renew read-only access before ${dateText} to keep balances and transactions flowing.`;
+    const text = [
+      `Hi ${firstName},`,
+      '',
+      `The read-only consent behind your ${args.bankName} connection on Clankeep expires on ${dateText}.`,
+      '',
+      `Banks require this consent to be renewed periodically. Renewing takes about a minute — you approve read-only access with your bank again, and nothing else changes.`,
+      '',
+      `Renew now: ${args.bankingUrl}`,
+      '',
+      `If you let it lapse, your imported history stays but new balances and transactions stop arriving until you reconnect.`,
+      '',
+      `Together. Organised. At home.`,
+      `The Clankeep Team`,
+    ].join('\n');
+    const bodyHtml = `
+      <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi ${escapeHtml(firstName)},</p>
+      <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+        The read-only consent behind your <strong>${safeBank}</strong> connection on Clankeep
+        expires on <strong>${escapeHtml(dateText)}</strong>. Banks require this consent to be renewed
+        periodically — renewing takes about a minute and nothing else changes.
+      </p>
+      ${ctaButtonHtml(args.bankingUrl, 'Renew bank access')}
+    `;
+    const html = renderEmailShell({
+      title: subject,
+      preheader,
+      heading: 'Bank consent expires soon',
+      bodyHtml,
+      footerNote: `If you let it lapse, your imported history stays put — new balances and transactions simply stop arriving until you reconnect.`,
+      originUrl: args.bankingUrl,
+    });
+    return deliver({ to: args.to, subject, text, html });
+  }
+
+  const subject = `Your ${args.bankName} connection stopped syncing`;
+  const preheader = `${args.bankName} wants the connection re-authorized before it hands over new data.`;
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    `${args.bankName} is asking for the Clankeep connection to be re-authorized before it hands over any new balances or transactions.`,
+    '',
+    `Reconnecting takes about a minute — you approve read-only access with your bank again, and syncing resumes where it left off.`,
+    '',
+    `Reconnect now: ${args.bankingUrl}`,
+    '',
+    `Together. Organised. At home.`,
+    `The Clankeep Team`,
+  ].join('\n');
+  const bodyHtml = `
+    <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi ${escapeHtml(firstName)},</p>
+    <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+      <strong>${safeBank}</strong> is asking for the Clankeep connection to be re-authorized
+      before it hands over any new balances or transactions. Reconnecting takes about a minute,
+      and syncing resumes where it left off.
+    </p>
+    ${ctaButtonHtml(args.bankingUrl, 'Reconnect your bank')}
+  `;
+  const html = renderEmailShell({
+    title: subject,
+    preheader,
+    heading: 'Bank connection needs attention',
+    bodyHtml,
+    footerNote: `Your imported history is untouched — this only affects new data arriving.`,
+    originUrl: args.bankingUrl,
+  });
+  return deliver({ to: args.to, subject, text, html });
+}
+
 /** Hosted logo for the email header, served from the same origin the invite links to. */
 function resolveLogoUrl(acceptUrl: string): string {
   try {

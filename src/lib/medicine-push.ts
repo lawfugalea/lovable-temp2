@@ -3,28 +3,14 @@ import { prisma } from '@/lib/prisma'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { getMedicineSchedule } from '@/lib/medicine'
 import { withBasePath } from '@/lib/base-path'
+import { configureWebPush, isPushConfigured, pushPublicKey } from '@/lib/push'
 
 const MAX_ATTEMPTS = 3
 
-export function isMedicinePushConfigured(): boolean {
-  return Boolean(
-    process.env.VAPID_PUBLIC_KEY?.trim()
-    && process.env.VAPID_PRIVATE_KEY?.trim()
-    && process.env.VAPID_SUBJECT?.trim()
-  )
-}
-
-export function medicinePushPublicKey(): string | null {
-  return process.env.VAPID_PUBLIC_KEY?.trim() || null
-}
-
-function configureWebPush() {
-  const publicKey = medicinePushPublicKey()
-  const privateKey = process.env.VAPID_PRIVATE_KEY?.trim()
-  const subject = process.env.VAPID_SUBJECT?.trim()
-  if (!publicKey || !privateKey || !subject) throw new Error('Medicine Web Push is not configured')
-  webpush.setVapidDetails(subject, publicKey, privateKey)
-}
+// The VAPID plumbing moved to @/lib/push when event pushes joined medicine
+// reminders; these aliases keep the medicine-specific call sites readable.
+export const isMedicinePushConfigured = isPushConfigured
+export const medicinePushPublicKey = pushPublicKey
 
 export async function queueDueMedicineDeliveries(now = new Date()): Promise<number> {
   if (!isMedicinePushConfigured()) return 0

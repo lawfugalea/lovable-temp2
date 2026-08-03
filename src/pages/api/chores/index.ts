@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { dateOnlyToDb, validateRecurrenceInput } from '@/lib/chore-recurrence'
 import { CHORE_NOTES_MAX, CHORE_TITLE_MAX, requireActiveHousehold, serializeChore } from '@/lib/chores'
+import { recordActivity } from '@/lib/activity'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res)
@@ -55,6 +56,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         dayOfMonth: recurrence.type === 'MONTHLY' ? recurrence.dayOfMonth : null,
       },
       include: { assignee: { select: { id: true, name: true } } },
+    })
+    void recordActivity({
+      householdId,
+      userId,
+      module: 'chores',
+      action: 'created',
+      summary: `New chore: ${title}${chore.assignee ? ` (assigned to ${chore.assignee.name})` : ''}`,
+      targetId: chore.id,
     })
     return res.status(201).json({ chore: serializeChore(chore) })
   }

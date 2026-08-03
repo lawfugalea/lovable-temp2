@@ -5,6 +5,7 @@ import { invalidateSessionUser } from '@/lib/session-user-cache';
 import type { InviteStatus, MemberRole } from '@prisma/client';
 import { getUserIdOr401 } from '@/lib/api-guards';
 import { hashInviteToken, normalizeInviteToken } from '@/lib/invite-tokens';
+import { recordActivity } from '@/lib/activity';
 
 function httpError(status: number, message: string) {
   return Object.assign(new Error(message), { status });
@@ -96,6 +97,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     });
 
     invalidateSessionUser(userId);
+    const joiner = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+    void recordActivity({
+      householdId: acceptedHouseholdId,
+      userId,
+      module: 'home',
+      action: 'member-joined',
+      summary: `${joiner?.name || joiner?.email || 'Someone'} joined the household`,
+    });
     return res.status(200).json({ success: true, householdId: acceptedHouseholdId });
   } catch (error) {
     const status = typeof error === 'object' && error && 'status' in error

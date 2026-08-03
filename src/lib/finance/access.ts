@@ -4,6 +4,7 @@ import { authOptions } from '@/pages/api/auth/[...nextauth]'
 import { prisma } from '@/lib/prisma'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { respondUpgradeRequired } from '@/lib/entitlements-core'
+import { isBankingAllowedEmail } from '@/lib/banking-allowlist'
 import { buildAccessibleBankAccountWhere } from './visibility'
 
 export type FinanceAccess = {
@@ -15,18 +16,13 @@ export type FinanceAccess = {
 }
 
 /**
- * Bank connections (open banking) are limited to the household containing the
- * configured finance owner while the Enable Banking application runs in
- * restricted production. Every other household uses the manual money planner.
+ * Bank connections (open banking) are limited to the individually allowlisted
+ * account holders while the Enable Banking application runs in restricted
+ * production. Everyone else — including other members of the same household —
+ * uses the manual money planner and never sees the banking surface.
  */
-export async function isBankFeaturesEnabled(householdId: string): Promise<boolean> {
-  const ownerEmail = process.env.FINANCE_OWNER_EMAIL?.trim().toLowerCase()
-  if (!ownerEmail) return false
-  const member = await prisma.membership.findFirst({
-    where: { householdId, user: { email: { equals: ownerEmail, mode: 'insensitive' } } },
-    select: { id: true },
-  })
-  return Boolean(member)
+export function isBankFeaturesEnabled(email: string | null | undefined): boolean {
+  return isBankingAllowedEmail(email)
 }
 
 export async function requireFinanceAccess(
@@ -72,9 +68,9 @@ export async function requireFinanceAccess(
     return null
   }
 
-  const bankEnabled = await isBankFeaturesEnabled(householdId)
+  const bankEnabled = isBankFeaturesEnabled(email)
   if (options.bank && !bankEnabled) {
-    res.status(403).json({ error: 'Bank connections are not available for this household yet' })
+    res.status(403).json({ error: 'Bank connections are not available for this account' })
     return null
   }
 
