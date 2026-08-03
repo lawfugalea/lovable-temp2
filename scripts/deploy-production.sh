@@ -41,6 +41,26 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   git --no-pager status --short --untracked-files=no
 fi
 
+# Compose derives the project name from the directory unless told otherwise, and
+# this tree has moved: the running stack was created from /home/ryan/lovable-temp2
+# and its containers still carry that project name. Without the `name:` pin at the
+# top of docker-compose.yml, a deploy from /var/www/clankeep would build a second
+# parallel stack against the same fixed-name volumes rather than updating the one
+# serving traffic. The pin is easy to lose in a merge, so verify it held.
+step "Compose project matches the stack serving traffic"
+RESOLVED_PROJECT="$(docker compose --env-file .env.deploy config 2>/dev/null | sed -n 's/^name: *//p' | head -1)"
+[[ -n "$RESOLVED_PROJECT" ]] || fail "Could not resolve the Compose project name."
+echo "Resolved project: $RESOLVED_PROJECT"
+
+RUNNING_PROJECT="$(docker ps --filter "publish=${HOUSEFLOW_PORT:-8097}" \
+  --format '{{.Label "com.docker.compose.project"}}' | grep -v '^$' | head -1 || true)"
+if [[ -n "$RUNNING_PROJECT" && "$RUNNING_PROJECT" != "$RESOLVED_PROJECT" ]]; then
+  fail "Project mismatch: port ${HOUSEFLOW_PORT:-8097} is served by project '$RUNNING_PROJECT', but this deploy resolves to '$RESOLVED_PROJECT'.
+Deploying would create a parallel stack on the same database volume instead of updating the live one.
+Set CLANKEEP_COMPOSE_PROJECT=$RUNNING_PROJECT in .env.deploy, or deliberately migrate the stack to the new name."
+fi
+[[ -z "$RUNNING_PROJECT" ]] && echo "Note: nothing is currently publishing port ${HOUSEFLOW_PORT:-8097}."
+
 step "Migration tree is well-formed"
 node scripts/check-migration-manifest.mjs || fail "prisma/migrations is malformed."
 

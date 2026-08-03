@@ -6,6 +6,24 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "5"
 
+# Pin the Compose project name.
+#
+# The stack now serving clankeep.com was created from /home/ryan/lovable-temp2,
+# a directory that no longer exists — this tree lives at /var/www/clankeep — so
+# its containers carry the project name `lovable-temp2`. Compose otherwise
+# derives the project name from the current directory, which means a deploy run
+# from the new path would create a SECOND, parallel stack: fresh containers
+# attached to the same fixed-name volumes (see the note by `volumes:` at the
+# bottom of this file), a second Postgres pointed at the live data directory, and
+# a port clash on 8097.
+#
+# Pinning it keeps every deploy aimed at the stack that is actually serving
+# traffic. Renaming the project to `clankeep` is a deliberate migration — stop
+# the old stack, start the new one, and the data follows because the volume names
+# are fixed — not something that should happen implicitly because someone moved
+# a directory.
+name: ${CLANKEEP_COMPOSE_PROJECT:-lovable-temp2}
+
 services:
   db:
     image: postgres:16-alpine

@@ -59,6 +59,20 @@ regression has exactly one candidate cause.
 | `next-auth` | 4.24.14 resolved | `^4.24.15` | **critical**: `getToken()` uncaught exception on a malformed Bearer authorization header (CVSS 7.5); email normaliser validating before Unicode normalisation, allowing a homoglyph `@` bypass; OAuth state/nonce/PKCE cookies not bound to the issuing provider |
 | `postcss` — direct devDependency **and** the `overrides` entry | 8.5.15 / 8.5.19 | `^8.5.25` in both | attacker-controlled `sourceMappingURL` reading arbitrary `.map` files when `from` is unset |
 | `overrides.sharp` (new entry) | 0.34.5 transitive | `^0.35.3` | libvips CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591 |
+| `overrides.ip-address` (new entry) | 10.2.0 transitive | `^10.4.0` | three SSRF/trust-boundary bypasses via leading-zero octets, CIDR suffixes, and IPv4-mapped addresses; reaches the tree through `puppeteer` |
+| `overrides.brace-expansion@1/@2/@5` (new entries) | 1.1.16 / 2.1.1 / 5.0.7 | 1.1.18 / 2.1.4 / 5.0.9 | three DoS advisories; three separate major lines are present, via `eslint`, `tailwindcss`, and `typescript-eslint` respectively |
+
+`ip-address` and `brace-expansion` are development-only, so they never reach the
+production tree. They are fixed here anyway because the advisory gate below
+covers the full tree, and an exception with no fixed version to wait for would be
+a suppression for its own sake.
+
+`next` is pinned with `~16.2.12` rather than `^16.2.12`. The registry's `latest`
+tag moved to 16.3.0 during this work, and a caret range silently took the minor
+bump — a larger blast radius than a security patch warrants. The advisory fix
+line is 16.2.11, so the tilde range clears every advisory while keeping the
+change to a patch. `eslint-config-next` is pinned the same way to stay in step.
+16.3.0 is recorded as a deferred minor below.
 
 ### Why `sharp` needs an explicit override
 
@@ -159,9 +173,23 @@ resolved configuration from `docker compose -p clankeep-verify config` rather
 than against the source YAML:
 
 - every resolved volume name contains `verify`;
-- the resolved database port is not 5434;
-- no resolved `env_file` entry is `.env`;
-- the resolved `DATABASE_URL` host is the compose-internal `db`.
+- neither production port (app 8097, database 5434) is published;
+- no production-only secret — Stripe, Resend, Enable Banking, DeepSeek, Meta,
+  VAPID, R2 — has a non-empty value anywhere in the resolved config;
+- `NEXTAUTH_SECRET` came from `.env.verify`, confirming which file is actually
+  in effect rather than merely last in a merged list;
+- every resolved `DATABASE_URL` points at the compose-internal `db` service.
+
+The secret check replaced an earlier draft that grepped the resolved config for
+a literal `.env` reference. That check was worthless: Compose folds `env_file`
+into `environment` before `config` prints it, so the string never appears
+whether the override worked or not. Asserting on values is the only version that
+can fail when it should.
+
+`price-sync` is overridden alongside `app` and `migrate` even though the script
+never starts it, because `compose config` resolves every service and that one
+also reads `.env`. Overriding it is what allows the secret assertion to cover the
+whole file rather than an allowlist of trusted services.
 
 Then it builds `app` and `migrate`, migrates the empty database, waits for the
 healthcheck, runs `npm run test:integration` against `127.0.0.1:3100`, and runs
@@ -184,9 +212,15 @@ quietly become permanent.
 **Dependency freshness gate.** `npm ci` already fails when `package.json` and
 the lockfile disagree, but nothing caught `next-auth` resolving to 4.24.14
 while `package.json` declared `^4.24.7`. `scripts/check-dependency-freshness.mjs`
-compares each resolved lockfile version against the best release inside its own
-declared range and fails when a resolved version is behind it. It reads the
-lockfile only, so it needs no network access and no registry credentials.
+compares each installed version against the newest release that already
+satisfies its declared range — `npm outdated`'s `current` versus `wanted` — and
+fails on any gap. Versions outside the declared range (React 19, Prisma 7,
+Tailwind 4) are reported as deliberate holdbacks rather than failures.
+
+This gate needs registry access: "newest release inside the range" is not
+knowable from the lockfile alone. An earlier draft of this design claimed the
+check could run offline, which was wrong. CI already needs the registry for
+`npm ci`, so this adds no new requirement.
 
 CodeQL and secret scanning are worth having and belong to the isolation and
 abuse-controls workstream, not this one.
@@ -211,6 +245,54 @@ Post-deploy checks are the same five smoke assertions the verification stack
 runs, against production, plus one authenticated login confirming the
 `next-auth` email-normalisation change did not break credential comparison.
 
+## Found while implementing
+
+Four things this design did not anticipate. Each was fixed as part of the work
+because each sits inside its blast radius.
+
+**The Compose project name was unpinned.** The stack serving clankeep.com was
+created from `/home/ryan/lovable-temp2`, a directory that no longer exists, and
+its containers still carry the project name `lovable-temp2`. Compose otherwise
+derives the project name from the working directory, so `scripts/deploy-production.sh`
+run from `/var/www/clankeep` would have resolved the project `clankeep` and built
+a **second, parallel stack**: new containers attached to the same fixed-name
+volumes, a second Postgres aimed at the live data directory, and a port clash on
+8097. Since this design's rollout step is that script, the next deploy would have
+been the first to hit it.
+
+Fixed by pinning `name: ${CLANKEEP_COMPOSE_PROJECT:-lovable-temp2}` at the top of
+`docker-compose.yml`, and by adding a preflight to the deploy script that
+compares the resolved project against the project actually publishing the app
+port and refuses to continue on a mismatch. Renaming the project to `clankeep`
+remains available as a deliberate migration; the volume names are fixed, so the
+data follows.
+
+**The integration suite had been failing since registration was hardened.**
+`/api/register` requires a solved captcha and explicit Terms acceptance;
+`scripts/test-critical-workflows.mjs` posted only name, email and password, so it
+failed at the first of its 81 assertions. The suite is not in CI, so nothing
+reported it. The harness now fetches `/api/captcha/challenge`, solves the
+arithmetic the way a person does, and sends `acceptedTerms`. No production
+control was weakened to accommodate the test.
+
+**Supermarket price comparison is disabled in production.** Consent is
+deny-by-default and `.env.deploy` sets no consented store, so
+`/api/shopping/compare` answers 503 in production — while the integration suite
+asserts a working comparison and an outsider being refused with 403. Both
+assertions were therefore vacuous. The verification stack enables all five
+supported stores so the path is exercised; it reads local catalogue tables only,
+which are empty on a fresh database, so nothing contacts a supermarket site.
+Production configuration was left alone: switching that feature on is a legal
+decision about scraping third-party sites, not a dependency-upgrade decision.
+
+**Three live secrets were exposed during this work.** While validating the
+overlay, a grep over the whole resolved Compose configuration printed the live
+`STRIPE_SECRET_KEY`, the Enable Banking private key, and the `DEEPSEEK_API_KEY`
+into an agent transcript — they came from `price-sync`, the one service the
+overlay had not yet overridden. The overlay was fixed and the preflight now
+prints key names only, never values. **Those three credentials should be treated
+as disclosed and rotated.**
+
 ## Deferred majors
 
 Recorded so the next reader does not re-derive them:
@@ -231,6 +313,9 @@ Recorded so the next reader does not re-derive them:
 - **`lucide-react` 0.344 to 1.x, `tailwind-merge` 2 to 3, `globby` 14 to 16,
   `@types/node` 22 to 26, `puppeteer` 24 to 25** — mechanical but breaking;
   batch them together in a later cycle.
+- **Next 16.2 to 16.3** — a framework minor that appeared as `latest` mid-work.
+  Deliberately not taken with a security patch; it needs its own verification
+  run, and 16.2.12 already carries every advisory fix.
 
 ## Public-launch readiness gate
 

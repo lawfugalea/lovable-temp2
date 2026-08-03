@@ -60,6 +60,23 @@ jobs:
       - name: Migration directories are committed
         run: node scripts/check-migration-manifest.mjs
 
+      # Between 2026-07-16 and 2026-08-03 the tree quietly accumulated a critical
+      # next-auth advisory, nine Next.js advisories, four libvips CVEs through
+      # sharp, and a postcss file-read issue. `npm audit` had been reporting all
+      # of them the whole time to anyone who ran it by hand. These two gates are
+      # what makes that impossible to miss again.
+      #
+      # Both need registry access. `npm ci` above already needs it, so this adds
+      # no new requirement.
+      - name: Dependency advisories
+        run: node scripts/check-audit.mjs
+
+      # Not the same check: npm ci catches a lockfile that disagrees with
+      # package.json, this catches a lockfile that agrees but is stale — which is
+      # how next-auth sat at 4.24.14 while ^4.24.7 happily allowed 4.24.15.
+      - name: Dependency freshness
+        run: node scripts/check-dependency-freshness.mjs
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 25

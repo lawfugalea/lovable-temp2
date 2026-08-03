@@ -23,6 +23,9 @@ coverage
 .env.*
 !.env.example
 !.env.deploy.example
+# The verification-stack template is tracked; it holds only synthetic values.
+# The .env.verify it is copied to stays ignored by the .env.* rule above.
+!.env.verify.example
 
 # Private API signing keys
 /keys/

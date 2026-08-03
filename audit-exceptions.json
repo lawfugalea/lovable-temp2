@@ -1,0 +1,15 @@
+{
+  "$comment": [
+    "Advisories consciously accepted for a bounded period, read by scripts/check-audit.mjs.",
+    "",
+    "Every entry needs an expiry. The gate fails on an expired entry rather than",
+    "ignoring it, so an exception cannot quietly become permanent — which is how",
+    "the four advisories this file was created alongside survived as long as they",
+    "did. Add an entry only when there is no fixed version to upgrade to; if a fix",
+    "exists, take the fix.",
+    "",
+    "Fields: advisory (GHSA id), package, reason, expires (YYYY-MM-DD), addedBy.",
+    "Keep 'exceptions' empty whenever the tree is clean."
+  ],
+  "exceptions": []
+}
