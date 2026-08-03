@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { parseOnboardingPatch } from '@/lib/onboarding-state'
+import { isSupermarketComparisonAvailable } from '@/lib/supermarket-consent'
 
 /**
  * Onboarding + first-run state for the signed-in user.
@@ -144,7 +145,16 @@ async function handleGet(res: NextApiResponse, userId: string) {
       canUseAi: entitlements.canUseAi,
       canUsePushReminders: entitlements.canUsePushReminders,
       canExportMedicinePdf: entitlements.canExportMedicinePdf,
-      canUsePriceComparison: entitlements.canUsePriceComparison,
+      // Conjoined with deployment availability rather than reported straight
+      // from the entitlement. resolveEntitlements answers "does this plan
+      // include the feature", which is deliberately pure and knows nothing about
+      // SUPERMARKET_CONSENTED_STORES; requirePriceComparison then rejects with
+      // 503 before it ever consults the plan. Reporting the bare entitlement
+      // here left help and first-run content telling Family households a feature
+      // was theirs while every call to it failed. The shopping and meals pages
+      // already gate on priceComparisonAvailable from /api/household/active;
+      // this brings the onboarding payload into line with them.
+      canUsePriceComparison: entitlements.canUsePriceComparison && isSupermarketComparisonAvailable(),
       priceComparisonRegionSupported: entitlements.priceComparisonRegionSupported,
       // maxChildren is Infinity on Family, which JSON.stringify turns into null.
       unlimitedChildren: entitlements.maxChildren === Number.POSITIVE_INFINITY,

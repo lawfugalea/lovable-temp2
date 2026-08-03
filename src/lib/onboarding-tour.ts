@@ -122,7 +122,13 @@ export const TOUR_STEPS: readonly TourStep[] = [
     optional: true,
     when: (ctx) => ctx.plan === 'FREE',
     title: "What's included",
-    body: 'Everything you have just seen is free, along with medicine tracking for one child. The money planner, connected banking and supermarket price comparison are on the Family plan.',
+    // Supermarket price comparison is deliberately not named here. It is a
+    // Family feature in code, but it only works where the deployment has
+    // consented to a supermarket's catalogue (SUPERMARKET_CONSENTED_STORES), and
+    // production currently consents to none — so naming it in the tour sells
+    // every new signup something the app answers 503 for. Add the clause back in
+    // the same breath as switching the stores on.
+    body: 'Everything you have just seen is free, along with medicine tracking for one child. The money planner and connected banking are on the Family plan.',
   },
   {
     id: 'help',
