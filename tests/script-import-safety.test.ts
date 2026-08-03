@@ -57,12 +57,52 @@ test('importing a script never constructs a Prisma client', () => {
   }
 })
 
-test('the lazy client still exposes the model API it is asked for', () => {
-  // Guards the proxy in scripts/prisma.js: a naive lazy wrapper that forgets to
-  // bind methods breaks `prisma.$transaction([...])` at runtime, in a worker,
-  // where nobody is watching.
-  const { prisma } = require(path.join(ROOT, 'scripts/prisma.js'))
-  assert.equal(typeof prisma.$transaction, 'function')
-  assert.equal(typeof prisma.$disconnect, 'function')
-  assert.equal(typeof prisma.store.upsert, 'function')
+test('the lazy client binds methods to the instance', () => {
+  // Guards the proxy in scripts/prisma.js: a lazy wrapper that forgets to bind
+  // methods breaks `prisma.$transaction([...])` at runtime, in a worker, where
+  // nobody is watching.
+  //
+  // Checked against a stub rather than a real client. The first version of this
+  // test simply read `prisma.$transaction`, which triggers the lazy construction
+  // and therefore needs a database URL — so it passed locally and failed in CI,
+  // reintroducing the exact dependency the test above exists to forbid.
+  const prismaModule = require(path.join(ROOT, 'node_modules/@prisma/client'))
+  const original = prismaModule.PrismaClient
+
+  class StubClient {
+    marker = 'bound to the instance'
+    store = { upsert: () => 'upserted' }
+    $transaction() {
+      // Reading `this` is the whole point: an unbound method sees undefined here.
+      return (this as StubClient).marker
+    }
+    $disconnect() {
+      return 'disconnected'
+    }
+  }
+
+  Object.defineProperty(prismaModule, 'PrismaClient', {
+    value: StubClient,
+    configurable: true,
+    writable: true,
+  })
+
+  try {
+    const resolved = path.join(ROOT, 'scripts/prisma.js')
+    delete require.cache[require.resolve(resolved)]
+    const { prisma } = require(resolved)
+
+    assert.equal(typeof prisma.$transaction, 'function')
+    assert.equal(prisma.$transaction(), 'bound to the instance')
+    assert.equal(prisma.$disconnect(), 'disconnected')
+    assert.equal(prisma.store.upsert(), 'upserted')
+    assert.equal('$transaction' in prisma, true)
+  } finally {
+    Object.defineProperty(prismaModule, 'PrismaClient', {
+      value: original,
+      configurable: true,
+      writable: true,
+    })
+    delete require.cache[require.resolve(path.join(ROOT, 'scripts/prisma.js'))]
+  }
 })
