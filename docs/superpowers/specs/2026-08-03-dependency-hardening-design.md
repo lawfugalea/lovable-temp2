@@ -49,13 +49,13 @@ Each is demonstrated with command output, not asserted:
 
 ## Batch 1 — security patches
 
-One commit, four coordinated changes, nothing else riding along, so that a
-regression has exactly one candidate cause.
+One commit, security fixes only, nothing else riding along, so that a regression
+has exactly one candidate cause.
 
 | Change | From | To | Clears |
 | --- | --- | --- | --- |
-| `next` | 16.2.10 | `^16.2.12` | 9 advisories: SSRF in rewrites via attacker-controlled destination hostname, SSRF in Server Actions on custom servers, two response-body cache-confusion issues, Server Actions DoS, unbounded Edge Server Action payload, image-optimization SVG DoS, unauthenticated disclosure of internal Server Function endpoints, middleware/proxy bypass |
-| `eslint-config-next` | 16.2.10 | `^16.2.12` | keeps lint rules in step with the framework |
+| `next` | 16.2.10 | `~16.2.12` | 9 advisories: SSRF in rewrites via attacker-controlled destination hostname, SSRF in Server Actions on custom servers, two response-body cache-confusion issues, Server Actions DoS, unbounded Edge Server Action payload, image-optimization SVG DoS, unauthenticated disclosure of internal Server Function endpoints, middleware/proxy bypass |
+| `eslint-config-next` | 16.2.10 | `~16.2.12` | keeps lint rules in step with the framework |
 | `next-auth` | 4.24.14 resolved | `^4.24.15` | **critical**: `getToken()` uncaught exception on a malformed Bearer authorization header (CVSS 7.5); email normaliser validating before Unicode normalisation, allowing a homoglyph `@` bypass; OAuth state/nonce/PKCE cookies not bound to the issuing provider |
 | `postcss` — direct devDependency **and** the `overrides` entry | 8.5.15 / 8.5.19 | `^8.5.25` in both | attacker-controlled `sourceMappingURL` reading arbitrary `.map` files when `from` is unset |
 | `overrides.sharp` (new entry) | 0.34.5 transitive | `^0.35.3` | libvips CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591 |
@@ -111,6 +111,19 @@ packages 3.28.0 to 3.29.2; `stripe` 22.4.0; `resend` 6.18.1; `swr` 2.5.0;
 inference precision and strictness against a `strict`-mode codebase. Type
 errors it surfaces are to be treated as latent bugs and fixed, not silenced
 with `any` or `@ts-expect-error`.
+
+Every one of these already satisfies its declared range, so this batch is a
+lockfile-only change — `npm update` with no edit to `package.json`. That is worth
+noting rather than glossing over: the project had already opted into all of it,
+and simply never took it.
+
+One source change was required, and it came from Tiptap rather than TypeScript.
+Tiptap 3.29 promoted `exitOnArrowUp` from an optional `CodeBlockLowlightOptions`
+field to a required one, and
+`src/components/ui/minimal-tiptap/extensions/code-block-lowlight/code-block-lowlight.ts`
+builds its options by spreading `this.parent?.()` — an optional call, so the
+spread cannot satisfy a required field. Set explicitly to `true`, which is
+upstream's own default, so editor behaviour is unchanged.
 
 ## Verification stack
 

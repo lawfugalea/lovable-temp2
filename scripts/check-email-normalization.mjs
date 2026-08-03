@@ -33,8 +33,7 @@ import { PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 function isAscii(value) {
-  // eslint-disable-next-line no-control-regex
-  return /^[\x00-\x7F]*$/.test(value)
+  return [...value].every((character) => character.codePointAt(0) <= 0x7f)
 }
 
 try {
