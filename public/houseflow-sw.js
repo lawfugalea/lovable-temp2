@@ -141,15 +141,32 @@ self.addEventListener('push', function (event) {
   }))
 })
 
+/* Notification payloads carry an absolute URL on the app's canonical origin, so
+ * a tap lands on clankeep.com even when this worker was registered under an
+ * older hostname. That makes reuse origin-sensitive: navigate() rejects a
+ * cross-origin URL, which would leave the tap doing nothing at all — so only a
+ * same-origin window is reused, and anything else opens a new one. */
 self.addEventListener('notificationclick', function (event) {
   event.notification.close()
   var target = event.notification.data && event.notification.data.url ? event.notification.data.url : './medicine'
+  var targetOrigin
+  try { targetOrigin = new URL(target, self.location.href).origin } catch (_) { targetOrigin = self.location.origin }
+
   event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windows) {
     for (var i = 0; i < windows.length; i += 1) {
-      if ('focus' in windows[i]) {
-        windows[i].navigate(target)
-        return windows[i].focus()
+      var candidate = windows[i]
+      if (!('focus' in candidate)) continue
+      var sameOrigin = false
+      try { sameOrigin = new URL(candidate.url).origin === targetOrigin } catch (_) {}
+      if (!sameOrigin) continue
+      if ('navigate' in candidate) {
+        return candidate.navigate(target).then(function (navigated) {
+          return (navigated || candidate).focus()
+        }).catch(function () {
+          return candidate.focus()
+        })
       }
+      return candidate.focus()
     }
     return clients.openWindow ? clients.openWindow(target) : undefined
   }))

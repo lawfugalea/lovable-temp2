@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { buildTodayView } from '@/lib/chores'
-import { withBasePath } from '@/lib/base-path'
+import { appUrl } from '@/lib/links'
 import { claimPushEvent, isPushConfigured, sendHouseholdEventPush } from '@/lib/push'
 
 /**
@@ -61,7 +61,7 @@ export async function dispatchChoreReminderPush(now = new Date()): Promise<numbe
       payload: {
         body: pieces.join(', '),
         tag: `chores-${householdId}-${date}`,
-        url: withBasePath('/chores'),
+        url: appUrl('/chores'),
       },
     })
   }

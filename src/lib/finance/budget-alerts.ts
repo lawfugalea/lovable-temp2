@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { withBasePath } from '@/lib/base-path'
+import { appUrl } from '@/lib/links'
 import { isPushConfigured, sendUserEventPush } from '@/lib/push'
 import type { FinanceAccess } from './access'
 import { buildBankingAnalytics } from './analytics'
@@ -63,7 +63,7 @@ export async function dispatchBudgetAlerts(userId: string, now = new Date()): Pr
             ? `${budget.displayName} is over its monthly limit.`
             : `${budget.displayName} has used ${Math.round(budget.percentage)}% of its monthly limit.`,
           tag: `budget-${budget.id}-${monthKey}`,
-          url: withBasePath('/banking'),
+          url: appUrl('/banking'),
         },
       })
     }

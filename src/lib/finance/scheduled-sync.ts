@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
 import { appUrl } from '@/lib/links'
-import { withBasePath } from '@/lib/base-path'
 import { sendBankConsentEmail } from '@/lib/mailer'
 import { sendUserEventPush } from '@/lib/push'
 import { bankDisplayName } from './bank-name'
@@ -164,7 +163,7 @@ export async function runScheduledFinanceSync(now = new Date()): Promise<Schedul
           payload: {
             body: `${bankName} needs to be reconnected — syncing is paused.`,
             tag: `bank-reauth-${connection.id}`,
-            url: withBasePath('/banking'),
+            url: appUrl('/banking'),
           },
         }).catch(() => undefined)
       } else if (connection.consentExpiresAt) {
@@ -187,7 +186,7 @@ export async function runScheduledFinanceSync(now = new Date()): Promise<Schedul
           payload: {
             body: `${bankName} access expires on ${connection.consentExpiresAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} — renew it from the banking page.`,
             tag: `bank-consent-${connection.id}`,
-            url: withBasePath('/banking'),
+            url: appUrl('/banking'),
           },
         }).catch(() => undefined)
       }

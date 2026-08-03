@@ -3,7 +3,7 @@ import { withApiHandler } from '@/lib/api-handler'
 import { timingSafeEqual } from 'node:crypto'
 import { prisma } from '@/lib/prisma'
 import { dateOnlyToDb } from '@/lib/chore-recurrence'
-import { withBasePath } from '@/lib/base-path'
+import { appUrl } from '@/lib/links'
 import { recordActivity } from '@/lib/activity'
 import { sendHouseholdEventPush } from '@/lib/push'
 import { selectDueTemplates, type RecurringTemplateRow } from '@/lib/shopping-recurrence'
@@ -136,7 +136,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           payload: {
             body: `${created.created} item${created.created === 1 ? '' : 's'} added to ${created.listName} from your schedule`,
             tag: `shopping-refill-${template.id}-${today}`,
-            url: withBasePath('/shopping'),
+            url: appUrl('/shopping'),
           },
         }).catch(error => {
           console.warn('[shopping-recurrence] refill push failed', error instanceof Error ? error.message : error)

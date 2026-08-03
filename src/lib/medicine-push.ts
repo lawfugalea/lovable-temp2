@@ -2,7 +2,7 @@ import webpush from 'web-push'
 import { prisma } from '@/lib/prisma'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { getMedicineSchedule } from '@/lib/medicine'
-import { withBasePath } from '@/lib/base-path'
+import { appUrl } from '@/lib/links'
 import { configureWebPush, isPushConfigured, pushPublicKey } from '@/lib/push'
 
 const MAX_ATTEMPTS = 3
@@ -111,7 +111,7 @@ export async function dispatchMedicinePush(now = new Date()): Promise<{ queued: 
           title: 'Clankeep',
           body: 'Medicine reminder due',
           tag: `medicine-${delivery.medicineId}-${delivery.scheduledAt.toISOString()}`,
-          url: withBasePath('/medicine'),
+          url: appUrl('/medicine'),
         })
       )
       await prisma.pushDelivery.update({ where: { id: delivery.id }, data: { status: 'SENT', sentAt: new Date(), lastError: null } })
