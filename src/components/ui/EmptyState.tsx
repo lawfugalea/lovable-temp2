@@ -17,11 +17,11 @@ export function EmptyState({ icon: Icon, title, description, action, module, cla
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-2xl border border-dashed bg-card/50 px-6 py-14 text-center',
+        'flex animate-fade-in flex-col items-center justify-center rounded-2xl border border-dashed bg-card/50 px-6 py-14 text-center',
         className,
       )}
     >
-      <span className={cn('grid h-14 w-14 place-items-center rounded-2xl', tileClass)}>
+      <span className={cn('grid h-14 w-14 animate-scale-in place-items-center rounded-2xl', tileClass)}>
         <Icon className="h-7 w-7" aria-hidden="true" />
       </span>
       <h3 className="mt-5 font-display text-lg font-semibold tracking-tight text-foreground">{title}</h3>
