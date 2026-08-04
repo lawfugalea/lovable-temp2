@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Head from 'next/head'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
@@ -65,9 +65,18 @@ export default function ChoresPage() {
   /** Bumped whenever an occurrence is resolved, so the fairness panel refetches. */
   const [statsRefreshKey, setStatsRefreshKey] = useState(0)
 
+  /**
+   * Discards a stale response if a newer loadToday() has been issued since —
+   * otherwise a slower, earlier-issued request could overwrite state with
+   * stale data after a faster, later request has already landed.
+   */
+  const loadTodayGeneration = useRef(0)
+
   const loadToday = useCallback(async () => {
+    const generation = ++loadTodayGeneration.current
     const response = await fetch(`/api/chores/today?date=${localDateOnly()}`)
     const data = await responseJson(response)
+    if (generation !== loadTodayGeneration.current) return
     if (response.ok) setTodayItems((data.items || []) as TodayChoreItem[])
   }, [])
 
