@@ -66,3 +66,6 @@ marketing/video/*.png
 *.save
 tsconfig.tsbuildinfo
 tsconfig.*.tsbuildinfo
+
+# Superpowers brainstorm visual companion (local only)
+.superpowers/
