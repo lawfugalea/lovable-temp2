@@ -1302,18 +1302,25 @@ registry on create and update."
 
 ---
 
-### Task 5: The ChoreIcon component and the upgraded chore row
+### Task 5: ChoreIcon, ChoreRow and the upgraded chore row list
 
 **Files:**
 - Create: `src/components/chores/ChoreIcon.tsx`
+- Create: `src/components/chores/ChoreRow.tsx`
 - Modify: `src/components/chores/ChoreTodayList.tsx` (whole file)
 
 **Interfaces:**
 - Consumes: `choreBoxClasses`, `TodayChoreItem`, `todayItemKey`, `isResolved` from Task 3; `choreIconComponent`, `resolveChoreIconId` from Task 2.
 - Produces:
   - `<ChoreIcon title icon status overdue />`
-  - `ChoreTodayList` props change: `busyKey: string | null` becomes `busyKeys: ReadonlySet<string>`, and `compact` now renders a visible Undo. Tasks 6 and 8 update the two call sites.
+  - `<ChoreRow item busy compact onResolve onUndo />` — **one row, no container**. Task 6's grouped list renders these directly inside its own per-group card, which is why the row must not carry its own border.
+  - `ChoreTodayList` becomes a thin container that maps `ChoreRow`. Its props change: `busyKey: string | null` becomes `busyKeys: ReadonlySet<string>`, and `compact` now renders a visible Undo. Tasks 6 and 8 update the two call sites.
   - `todayItemKey` is re-exported from `chore-view.ts`, not defined here. Update importers.
+
+**Why the row is a separate component:** the group list and the flat list need the
+same row inside different containers. Rendering `<ChoreTodayList items={[item]}/>`
+per row instead would give every row its own `rounded-xl border`, so a group of
+three would read as three stacked cards rather than one card with dividers.
 
 - [ ] **Step 1: Create the ChoreIcon component**
 
@@ -1362,17 +1369,136 @@ export function ChoreIcon({ title, icon, status, overdue, className }: ChoreIcon
 export default ChoreIcon
 ```
 
-- [ ] **Step 2: Rewrite the row list**
+- [ ] **Step 2: Create the row**
+
+Create `src/components/chores/ChoreRow.tsx`:
+
+```tsx
+import { RotateCcw, SkipForward } from 'lucide-react'
+import { ChoreIcon } from '@/components/chores/ChoreIcon'
+import { Button } from '@/components/ui/Button'
+import { isResolved, type TodayChoreItem } from '@/lib/chore-view'
+import { APP_LOCALE, cn } from '@/lib/utils'
+
+interface ChoreRowProps {
+  item: TodayChoreItem
+  /** A request is in flight for this occurrence. Guards double taps. */
+  busy: boolean
+  compact?: boolean
+  onResolve: (item: TodayChoreItem, status: 'DONE' | 'SKIPPED') => void
+  onUndo: (item: TodayChoreItem) => void
+}
+
+function overdueLabel(dueDate: string) {
+  const date = new Date(`${dueDate}T12:00:00Z`)
+  // APP_LOCALE, not undefined: src/lib/utils.ts documents that Clankeep ships to
+  // Malta and that a new formatter must not fall back to US conventions. The
+  // previous version of this function passed undefined.
+  return `was due ${date.toLocaleDateString(APP_LOCALE, { weekday: 'short', day: 'numeric', month: 'short' })}`
+}
+
+/**
+ * One chore occurrence. Deliberately carries **no border or rounding** — the
+ * flat list and the grouped list each supply their own container, so a group of
+ * rows reads as one card with dividers rather than a stack of separate cards.
+ */
+export default function ChoreRow({ item, busy, compact = false, onResolve, onUndo }: ChoreRowProps) {
+  const resolved = isResolved(item)
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-3 bg-card px-3 py-2.5 sm:px-4',
+        compact && 'py-2',
+        // A faint flash that settles back, so a completion registers even when
+        // the row does not move between groups.
+        resolved && 'animate-row-settle',
+      )}
+    >
+      <button
+        type="button"
+        aria-busy={busy}
+        onClick={() => (resolved ? onUndo(item) : onResolve(item, 'DONE'))}
+        aria-label={resolved ? `Mark ${item.chore.title} not done` : `Mark ${item.chore.title} done`}
+        className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ChoreIcon
+          title={item.chore.title}
+          icon={item.chore.icon}
+          status={item.status}
+          overdue={item.overdue}
+        />
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <p className={cn('truncate text-sm font-medium', resolved && 'text-muted-foreground')}>
+          <span className="relative inline-block max-w-full truncate align-bottom">
+            {item.chore.title}
+            {/* Drawn left to right on completion; `both` fill holds the end
+                state, which is also where the reduced-motion clamp lands. */}
+            <span
+              aria-hidden="true"
+              className={cn(
+                'absolute left-0 top-1/2 h-[1.5px] w-full origin-left bg-current',
+                resolved ? 'animate-strike' : 'scale-x-0',
+              )}
+            />
+          </span>
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {item.overdue && !resolved ? (
+            <span className="font-semibold text-brand-amber">{overdueLabel(item.dueDate)}</span>
+          ) : (
+            item.chore.schedule
+          )}
+          {item.chore.assignee && <> · {item.chore.assignee.name || 'Assigned'}</>}
+          {item.status === 'DONE' && item.completedBy && <> · done by {item.completedBy.name || 'someone'}</>}
+          {item.status === 'SKIPPED' && <> · skipped</>}
+        </p>
+      </div>
+
+      {!resolved && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-busy={busy}
+          onClick={() => onResolve(item, 'SKIPPED')}
+          className="shrink-0 text-muted-foreground"
+        >
+          <SkipForward className="h-4 w-4" />
+          {!compact && 'Skip'}
+        </Button>
+      )}
+      {resolved && (
+        /* Visible in compact mode too. It used to be hidden there, which left the
+           dashboard with a working undo and no affordance for it. */
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          aria-busy={busy}
+          onClick={() => onUndo(item)}
+          className="shrink-0 text-muted-foreground"
+        >
+          <RotateCcw className="h-4 w-4" />
+          {!compact && 'Undo'}
+        </Button>
+      )}
+    </div>
+  )
+}
+```
+
+- [ ] **Step 3: Reduce the row list to a container**
 
 Replace the whole of `src/components/chores/ChoreTodayList.tsx`:
 
 ```tsx
-import { ListChecks, RotateCcw, SkipForward } from 'lucide-react'
-import { ChoreIcon } from '@/components/chores/ChoreIcon'
-import { Button } from '@/components/ui/Button'
+import { ListChecks } from 'lucide-react'
+import ChoreRow from '@/components/chores/ChoreRow'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { isResolved, todayItemKey, type TodayChoreItem } from '@/lib/chore-view'
-import { APP_LOCALE, cn } from '@/lib/utils'
+import { todayItemKey, type TodayChoreItem } from '@/lib/chore-view'
+import { cn } from '@/lib/utils'
 
 export { todayItemKey }
 export type { TodayChoreItem }
@@ -1387,14 +1513,10 @@ interface ChoreTodayListProps {
   emptyAction?: React.ReactNode
 }
 
-function overdueLabel(dueDate: string) {
-  const date = new Date(`${dueDate}T12:00:00Z`)
-  // APP_LOCALE, not undefined: src/lib/utils.ts documents that Clankeep ships to
-  // Malta and that a new formatter must not fall back to US conventions. The
-  // previous version of this function passed undefined.
-  return `was due ${date.toLocaleDateString(APP_LOCALE, { weekday: 'short', day: 'numeric', month: 'short' })}`
-}
-
+/**
+ * A flat list of chore occurrences in one card. Still used by the dashboard's
+ * compact widget; the chores page uses ChoreGroupedList instead.
+ */
 export default function ChoreTodayList({
   items,
   busyKeys,
@@ -1417,110 +1539,32 @@ export default function ChoreTodayList({
   }
 
   return (
-    <div className={cn('divide-y rounded-xl border bg-card', compact && 'rounded-lg')}>
-      {items.map(item => {
-        const key = todayItemKey(item)
-        const busy = busyKeys.has(key)
-        const resolved = isResolved(item)
-        return (
-          <div
-            key={key}
-            className={cn(
-              'flex items-center gap-3 px-3 py-2.5 sm:px-4',
-              compact && 'py-2',
-              // A faint flash that settles back, so a completion registers even
-              // when the row does not move.
-              resolved && 'animate-row-settle',
-            )}
-          >
-            <button
-              type="button"
-              aria-busy={busy}
-              onClick={() => (resolved ? onUndo(item) : onResolve(item, 'DONE'))}
-              aria-label={resolved ? `Mark ${item.chore.title} not done` : `Mark ${item.chore.title} done`}
-              className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <ChoreIcon
-                title={item.chore.title}
-                icon={item.chore.icon}
-                status={item.status}
-                overdue={item.overdue}
-              />
-            </button>
-
-            <div className="min-w-0 flex-1">
-              <p className={cn('truncate text-sm font-medium', resolved && 'text-muted-foreground')}>
-                <span className="relative inline-block max-w-full truncate align-bottom">
-                  {item.chore.title}
-                  {/* Drawn left to right on completion; `both` fill holds the end
-                      state, which is also where the reduced-motion clamp lands. */}
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'absolute left-0 top-1/2 h-[1.5px] w-full origin-left bg-current',
-                      resolved ? 'animate-strike' : 'scale-x-0',
-                    )}
-                  />
-                </span>
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {item.overdue && !resolved ? (
-                  <span className="font-semibold text-brand-amber">{overdueLabel(item.dueDate)}</span>
-                ) : (
-                  item.chore.schedule
-                )}
-                {item.chore.assignee && <> · {item.chore.assignee.name || 'Assigned'}</>}
-                {item.status === 'DONE' && item.completedBy && <> · done by {item.completedBy.name || 'someone'}</>}
-                {item.status === 'SKIPPED' && <> · skipped</>}
-              </p>
-            </div>
-
-            {!resolved && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-busy={busy}
-                onClick={() => onResolve(item, 'SKIPPED')}
-                className="shrink-0 text-muted-foreground"
-              >
-                <SkipForward className="h-4 w-4" />
-                {!compact && 'Skip'}
-              </Button>
-            )}
-            {resolved && (
-              /* Visible in compact mode too. It used to be hidden there, which
-                 left the dashboard with a working undo and no affordance for it. */
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-busy={busy}
-                onClick={() => onUndo(item)}
-                className="shrink-0 text-muted-foreground"
-              >
-                <RotateCcw className="h-4 w-4" />
-                {!compact && 'Undo'}
-              </Button>
-            )}
-          </div>
-        )
-      })}
+    <div className={cn('divide-y overflow-hidden rounded-xl border', compact && 'rounded-lg')}>
+      {items.map(item => (
+        <ChoreRow
+          key={todayItemKey(item)}
+          item={item}
+          busy={busyKeys.has(todayItemKey(item))}
+          compact={compact}
+          onResolve={onResolve}
+          onUndo={onUndo}
+        />
+      ))}
     </div>
   )
 }
 ```
 
-- [ ] **Step 3: Verify the row list compiles in isolation**
+- [ ] **Step 4: Verify the new components compile in isolation**
 
-Run: `npm run typecheck 2>&1 | grep -E "ChoreTodayList|ChoreIcon"`
+Run: `npm run typecheck 2>&1 | grep -E "ChoreTodayList|ChoreIcon|ChoreRow"`
 
-Expected: no output for these two files. Errors in `chores.tsx` and `dashboard.tsx` about `busyKey`/`busyKeys` are expected and are fixed in Tasks 6 and 8.
+Expected: no output for these three files. Errors in `chores.tsx` and `dashboard.tsx` about `busyKey`/`busyKeys` are expected and are fixed in Tasks 6 and 8.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/components/chores/ChoreIcon.tsx src/components/chores/ChoreTodayList.tsx
+git add src/components/chores/ChoreIcon.tsx src/components/chores/ChoreRow.tsx src/components/chores/ChoreTodayList.tsx
 git commit -m "feat(chores): give rows identity icons, completion motion and a visible undo"
 ```
 
@@ -1533,7 +1577,7 @@ git commit -m "feat(chores): give rows identity icons, completion motion and a v
 - Modify: `src/pages/chores.tsx` — `resolveItem`, `undoItem`, busy state, the `today` tab body
 
 **Interfaces:**
-- Consumes: `groupTodayChores`, `choreProgress`, `localDateOnly`, `todayItemKey` from Task 3; `ROW_TRANSITION` from Task 1; `ChoreTodayList` from Task 5.
+- Consumes: `groupTodayChores`, `choreProgress`, `localDateOnly`, `todayItemKey` from Task 3; `ROW_TRANSITION` from Task 1; **`ChoreRow`** from Task 5 (not `ChoreTodayList` — the group supplies its own card container).
 - Produces: `<ChoreGroupedList items busyKeys localDate onResolve onUndo emptyAction />`
 
 - [ ] **Step 1: Create the grouped list**
@@ -1544,7 +1588,7 @@ Create `src/components/chores/ChoreGroupedList.tsx`:
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronDown, ListChecks } from 'lucide-react'
-import ChoreTodayList from '@/components/chores/ChoreTodayList'
+import ChoreRow from '@/components/chores/ChoreRow'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ROW_TRANSITION } from '@/lib/motion'
 import { choreProgress, groupTodayChores, todayItemKey, type TodayChoreItem } from '@/lib/chore-view'
@@ -1610,24 +1654,28 @@ export default function ChoreGroupedList({
       >
         {heading} <span className="font-semibold opacity-60">{rows.length}</span>
       </h2>
-      <AnimatePresence initial={false} mode="popLayout">
-        {rows.map(item => (
-          <motion.div
-            key={todayItemKey(item)}
-            layout
-            initial={ROW_TRANSITION.initial}
-            animate={ROW_TRANSITION.animate}
-            exit={ROW_TRANSITION.exit}
-          >
-            <ChoreTodayList
-              items={[item]}
-              busyKeys={busyKeys}
-              onResolve={onResolve}
-              onUndo={onUndo}
-            />
-          </motion.div>
-        ))}
-      </AnimatePresence>
+      {/* One card per group, with dividers between rows. `divide-y` applies to
+          the motion.div children, which are the direct children here. */}
+      <div className="divide-y overflow-hidden rounded-xl border">
+        <AnimatePresence initial={false} mode="popLayout">
+          {rows.map(item => (
+            <motion.div
+              key={todayItemKey(item)}
+              layout
+              initial={ROW_TRANSITION.initial}
+              animate={ROW_TRANSITION.animate}
+              exit={ROW_TRANSITION.exit}
+            >
+              <ChoreRow
+                item={item}
+                busy={busyKeys.has(todayItemKey(item))}
+                onResolve={onResolve}
+                onUndo={onUndo}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
     </section>
   )
 
