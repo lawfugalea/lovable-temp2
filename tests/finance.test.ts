@@ -15,7 +15,7 @@ import {
   normalizeBankAccount,
   normalizeTransaction,
 } from '../src/lib/finance/normalization'
-import { buildAccessibleBankAccountWhere } from '../src/lib/finance/visibility'
+import { buildAccessibleBankAccountWhere, dedupeAccountsByIdentity } from '../src/lib/finance/visibility'
 import { enrichTransaction } from '../src/lib/finance/enrichment'
 import { buildBankingAnalytics } from '../src/lib/finance/analytics'
 import type { AnalyticsInput, AnalyticsTransactionInput } from '../src/lib/finance/analytics-types'
@@ -41,6 +41,61 @@ test('finance reads are scoped to ownership or an explicit household share', () 
       { shares: { some: { householdId: 'household-id' } } },
     ],
   })
+})
+
+test('a jointly held account is counted once, keeping the viewer’s own copy', () => {
+  // The same real account imported through two people's logins: one row per
+  // connection, sharing the provider identification hash.
+  const mine = {
+    id: 'account-mine',
+    identificationHash: 'joint-hash',
+    connection: { userId: 'me', lastSyncedAt: new Date('2026-08-01T00:00:00Z') },
+  }
+  const theirs = {
+    id: 'account-theirs',
+    identificationHash: 'joint-hash',
+    // Synced more recently, and still must not win over the viewer's own copy.
+    connection: { userId: 'partner', lastSyncedAt: new Date('2026-08-04T00:00:00Z') },
+  }
+  const separate = {
+    id: 'account-separate',
+    identificationHash: 'other-hash',
+    connection: { userId: 'partner', lastSyncedAt: null },
+  }
+
+  assert.deepEqual(
+    dedupeAccountsByIdentity([theirs, mine, separate], 'me').map(account => account.id),
+    ['account-mine', 'account-separate'],
+  )
+  // Order of the input must not change which copy survives.
+  assert.deepEqual(
+    dedupeAccountsByIdentity([mine, theirs, separate], 'me').map(account => account.id),
+    ['account-mine', 'account-separate'],
+  )
+})
+
+test('a joint account the viewer does not own falls back to the freshest copy', () => {
+  const stale = {
+    id: 'account-stale',
+    identificationHash: 'joint-hash',
+    connection: { userId: 'partner', lastSyncedAt: new Date('2026-08-01T00:00:00Z') },
+  }
+  const fresh = {
+    id: 'account-fresh',
+    identificationHash: 'joint-hash',
+    connection: { userId: 'child', lastSyncedAt: new Date('2026-08-04T00:00:00Z') },
+  }
+  assert.deepEqual(
+    dedupeAccountsByIdentity([stale, fresh], 'me').map(account => account.id),
+    ['account-fresh'],
+  )
+
+  // Never synced on either side: the tie breaks on id so the choice is stable
+  // across requests rather than dependent on the order rows came back in.
+  const neverA = { id: 'account-a', identificationHash: 'h', connection: { userId: 'x', lastSyncedAt: null } }
+  const neverB = { id: 'account-b', identificationHash: 'h', connection: { userId: 'y', lastSyncedAt: null } }
+  assert.deepEqual(dedupeAccountsByIdentity([neverB, neverA], 'me').map(a => a.id), ['account-a'])
+  assert.deepEqual(dedupeAccountsByIdentity([neverA, neverB], 'me').map(a => a.id), ['account-a'])
 })
 
 test('provider configuration supports a base64 PEM and BOV defaults', () => {

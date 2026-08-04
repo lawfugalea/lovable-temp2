@@ -5,7 +5,7 @@
  * engine pure and the rounding to exactly one place in the whole pipeline.
  */
 import { prisma } from '@/lib/prisma'
-import { accessibleBankAccountWhere, type FinanceAccess } from './access'
+import { accessibleBankAccountIds, type FinanceAccess } from './access'
 import type {
   AnalyticsAccountInput,
   AnalyticsInput,
@@ -48,13 +48,13 @@ function pickBalance(balances: Array<{ balanceType: string; currency: string; am
 
 export async function loadAnalyticsInput(params: LoadAnalyticsParams): Promise<LoadAnalyticsResult> {
   const { access, periodDays, now } = params
-  const accountWhere = accessibleBankAccountWhere(access)
-
   // Resolve ids first so the transaction query can filter on `accountId` directly
   // and use @@index([accountId, bookingDate]) rather than joining through
-  // BankAccount and BankAccountShare.
+  // BankAccount and BankAccountShare. This also collapses a jointly held account
+  // to one copy, which every total below depends on: both copies carry the same
+  // transactions, and summing them would double the household's spending.
   const accounts = await prisma.bankAccount.findMany({
-    where: accountWhere,
+    where: { id: { in: await accessibleBankAccountIds(access) } },
     select: {
       id: true,
       displayName: true,

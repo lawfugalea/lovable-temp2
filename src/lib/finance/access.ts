@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { respondUpgradeRequired } from '@/lib/entitlements-core'
 import { isBankingAllowedEmail } from '@/lib/banking-allowlist'
-import { buildAccessibleBankAccountWhere } from './visibility'
+import { buildAccessibleBankAccountWhere, dedupeAccountsByIdentity } from './visibility'
 
 export type FinanceAccess = {
   userId: string
@@ -79,4 +79,25 @@ export async function requireFinanceAccess(
 
 export function accessibleBankAccountWhere(access: FinanceAccess) {
   return buildAccessibleBankAccountWhere(access.userId, access.householdId)
+}
+
+/**
+ * The account rows a viewer should actually be shown, with jointly held accounts
+ * collapsed to one copy. Every read path filters on this instead of the raw
+ * predicate, so a joint account cannot be counted once per owner.
+ *
+ * Returned as ids rather than a predicate because the choice of copy depends on
+ * the rows themselves — which owner and which sync is freshest — and so cannot
+ * be expressed as a `where` clause.
+ */
+export async function accessibleBankAccountIds(access: FinanceAccess): Promise<string[]> {
+  const accounts = await prisma.bankAccount.findMany({
+    where: accessibleBankAccountWhere(access),
+    select: {
+      id: true,
+      identificationHash: true,
+      connection: { select: { userId: true, lastSyncedAt: true } },
+    },
+  })
+  return dedupeAccountsByIdentity(accounts, access.userId).map(account => account.id)
 }

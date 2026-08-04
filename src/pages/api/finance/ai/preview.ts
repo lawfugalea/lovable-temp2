@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
-import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
+import { accessibleBankAccountIds, requireFinanceAccess } from '@/lib/finance/access'
 import { buildRedactedFinancePayload, isDeepSeekConfigured } from '@/lib/finance/deepseek'
 import { classifyTransactions } from '@/lib/finance/analytics'
 import { enrichStoredTransaction, loadFinanceMetadata, toAnalyticsTransaction } from '@/lib/finance/server-metadata'
@@ -14,7 +14,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const householdId = typeof req.query.householdId === 'string' ? req.query.householdId : undefined
   const access = await requireFinanceAccess(req, res, householdId, { bank: true })
   if (!access) return
-  const accounts = await prisma.bankAccount.findMany({ where: accessibleBankAccountWhere(access), select: { id: true, connection: { select: { userId: true } } } })
+  const accounts = await prisma.bankAccount.findMany({ where: { id: { in: await accessibleBankAccountIds(access) } }, select: { id: true, connection: { select: { userId: true } } } })
   const requestedAccountId = typeof req.query.accountId === 'string' ? req.query.accountId : null
   const accountIds = accounts.map(account => account.id).filter(id => !requestedAccountId || id === requestedAccountId)
   if (requestedAccountId && !accountIds.length) return res.status(404).json({ error: 'Bank account not found' })

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
+import { accessibleBankAccountIds, requireFinanceAccess } from '@/lib/finance/access'
 import { enrichStoredTransaction, loadFinanceMetadata } from '@/lib/finance/server-metadata'
 
 function queryDate(value: unknown): Date | null {
@@ -33,9 +33,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'dateFrom must be before dateTo' })
   }
 
-  const accountWhere = accessibleBankAccountWhere(access)
+  // One copy per jointly held account, so a shared account's transactions are
+  // not listed twice.
+  const visibleAccountIds = await accessibleBankAccountIds(access)
   const where: Prisma.BankTransactionWhereInput = {
-    account: accountWhere,
+    accountId: { in: visibleAccountIds },
     ...(accountId ? { accountId } : {}),
     ...(status ? { status } : {}),
     ...((dateFrom || dateTo) ? {
@@ -52,9 +54,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     } : {}),
   }
 
-  if (accountId) {
-    const allowed = await prisma.bankAccount.findFirst({ where: { id: accountId, ...accountWhere }, select: { id: true } })
-    if (!allowed) return res.status(404).json({ error: 'Bank account not found' })
+  // Filtering by a specific account must name one of the visible copies. The
+  // list already restricts to those ids, so this only shapes the 404.
+  if (accountId && !visibleAccountIds.includes(accountId)) {
+    return res.status(404).json({ error: 'Bank account not found' })
   }
 
   const page = await prisma.bankTransaction.findMany({

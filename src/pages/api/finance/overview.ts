@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
-import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
+import { accessibleBankAccountIds, requireFinanceAccess } from '@/lib/finance/access'
 import { getFinanceAspsp, isFinanceProviderConfigured } from '@/lib/finance/config'
 import { bankDisplayName } from '@/lib/finance/bank-name'
 import { isAvailableBalanceType, isBookedBalanceType } from '@/lib/finance/normalization'
@@ -31,7 +31,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     })
   }
 
-  const accountWhere = accessibleBankAccountWhere(access)
+  // Ids rather than the raw predicate: a joint account is imported once per
+  // owner, and both copies would otherwise be totalled and listed separately.
+  const accountWhere = { id: { in: await accessibleBankAccountIds(access) } }
   const [accounts, recentTransactions, connections] = await Promise.all([
     prisma.bankAccount.findMany({
       where: accountWhere,

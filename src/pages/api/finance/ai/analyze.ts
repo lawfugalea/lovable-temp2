@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
+import { accessibleBankAccountIds, requireFinanceAccess } from '@/lib/finance/access'
 import {
   buildRedactedFinancePayload,
   deepSeekModel,
@@ -34,7 +34,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       update: { consentedAt: new Date(), revokedAt: null },
     })
   }
-  const accounts = await prisma.bankAccount.findMany({ where: accessibleBankAccountWhere(access), select: { id: true, connection: { select: { userId: true } } } })
+  const accounts = await prisma.bankAccount.findMany({ where: { id: { in: await accessibleBankAccountIds(access) } }, select: { id: true, connection: { select: { userId: true } } } })
   const requestedAccountId = typeof req.body?.accountId === 'string' && req.body.accountId ? req.body.accountId : null
   const accountIds = accounts.map(account => account.id).filter(id => !requestedAccountId || id === requestedAccountId)
   if (requestedAccountId && !accountIds.length) return res.status(404).json({ error: 'Bank account not found' })
