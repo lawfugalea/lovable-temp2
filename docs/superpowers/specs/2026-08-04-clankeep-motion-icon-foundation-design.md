@@ -1,6 +1,6 @@
 # Motion and icon foundation, piloted on chores
 
-Status: approved, not yet implemented
+Status: implemented 2026-08-04
 Date: 2026-08-04
 
 ## Goal
@@ -62,8 +62,9 @@ Shared, with no knowledge of chores.
   named constants: durations `fast: 120ms`, `base: 200ms`, `slow: 320ms`;
   easings `out` and `spring: cubic-bezier(.34, 1.25, .64, 1)`; the idle
   `breathe: 4s`. Specs B–G import these rather than restating numbers.
-- `src/hooks/useReducedMotion.ts` — a thin wrapper over the existing
-  `src/hooks/useMediaQuery.ts`, so there is one way to ask the question.
+- Reduced motion is asked via `usePrefersReducedMotion()`, which already
+  existed in `src/hooks/useMediaQuery.ts` before this spec — reused as-is
+  rather than duplicated with a new hook file.
 - `tailwind.config.js` — four new keyframes (`check-in`, `strike`, `breathe`,
   `row-settle`) alongside the eight already defined.
 - `src/styles/globals.css` — one `prefers-reduced-motion` block that neutralises
@@ -112,7 +113,10 @@ So specs B–G inherit polish rather than reimplementing it:
   replacing the current hard swap.
 - `src/components/ui/EmptyState.tsx` — icon entrance.
 - `src/components/ui/Button.tsx` — press feedback.
-- `src/components/ui/tabs.tsx` — indicator movement.
+
+`tabs.tsx` needed no change: `TabsTrigger` already carries `transition-all`,
+and the chores page draws its own per-trigger underline rather than a shared
+moving indicator, so there was nothing to add.
 
 `Dialog.tsx` is deliberately excluded: it already animates correctly via Radix
 and already respects reduced motion.
@@ -424,7 +428,6 @@ Existing gates unchanged: `npm test`, `npm run lint`, `npm run typecheck`,
 **New**
 
 - `src/lib/motion.ts`
-- `src/hooks/useReducedMotion.ts`
 - `src/lib/chore-icons.ts`
 - `src/lib/chore-view.ts` — pure, must not import prisma
 - `src/components/chores/ChoreIcon.tsx`
@@ -449,5 +452,5 @@ Existing gates unchanged: `npm test`, `npm run lint`, `npm run typecheck`,
 - `src/pages/dashboard.tsx` — compact undo affordance
 - `tailwind.config.js`, `src/styles/globals.css` — keyframes and the
   reduced-motion block
-- `src/components/ui/Skeleton.tsx`, `EmptyState.tsx`, `Button.tsx`, `tabs.tsx`
+- `src/components/ui/Skeleton.tsx`, `EmptyState.tsx`, `Button.tsx`
 - `tests/migration-safety.test.ts`
