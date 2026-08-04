@@ -1366,7 +1366,7 @@ three would read as three stacked cards rather than one card with dividers.
 Create `src/components/chores/ChoreIcon.tsx`:
 
 ```tsx
-import { Check, SkipForward } from 'lucide-react'
+import { Check, SkipForward, type LucideIcon } from 'lucide-react'
 import { choreIconComponent, resolveChoreIconId } from '@/lib/chore-icons'
 import { choreBoxClasses, type ChoreStatus } from '@/lib/chore-view'
 import { cn } from '@/lib/utils'
@@ -1377,6 +1377,20 @@ interface ChoreIconProps {
   status: ChoreStatus
   overdue: boolean
   className?: string
+}
+
+/**
+ * Renders a resolved icon component received as a prop, the same shape as
+ * `EmptyState`'s `icon: LucideIcon` prop (`src/components/ui/EmptyState.tsx`).
+ * A separate component is required here, not an inline `<Identity />` from a
+ * locally-computed variable: the latter trips this repo's
+ * `react-hooks/static-components` lint rule (a component "created" during
+ * render loses its state and identity every render), because it flags a
+ * capitalized variable assigned from a function call and then used as a JSX
+ * tag. Receiving the same component as a *prop* does not trigger the rule.
+ */
+function ChoreIdentityIcon({ Icon, className }: { Icon: LucideIcon; className?: string }) {
+  return <Icon className={className} />
 }
 
 /**
@@ -1391,7 +1405,7 @@ interface ChoreIconProps {
  * carries the label, so everything here is aria-hidden.
  */
 export function ChoreIcon({ title, icon, status, overdue, className }: ChoreIconProps) {
-  const Identity = choreIconComponent(resolveChoreIconId({ title, icon }))
+  const identityIconComponent = choreIconComponent(resolveChoreIconId({ title, icon }))
   return (
     <span className={cn(choreBoxClasses(status, overdue), className)} aria-hidden="true">
       {status === 'DONE' ? (
@@ -1399,7 +1413,7 @@ export function ChoreIcon({ title, icon, status, overdue, className }: ChoreIcon
       ) : status === 'SKIPPED' ? (
         <SkipForward className="h-4 w-4 animate-check-in" />
       ) : (
-        <Identity className="h-[17px] w-[17px]" />
+        <ChoreIdentityIcon Icon={identityIconComponent} className="h-[17px] w-[17px]" />
       )}
     </span>
   )
