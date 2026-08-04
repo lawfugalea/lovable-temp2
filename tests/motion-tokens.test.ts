@@ -38,12 +38,33 @@ const tailwindConfig = readFileSync(join(process.cwd(), 'tailwind.config.js'), '
  * silently break the overdue signal for reduced-motion users.
  */
 
+/** The body of a `name: { ... }` block in the config, brace-balanced. */
+function configBlock(source: string, name: string): string {
+  const start = source.indexOf(`${name}: {`)
+  assert.notEqual(start, -1, `no ${name} block in tailwind.config.js`)
+  let depth = 0
+  for (let i = source.indexOf('{', start); i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1
+    else if (source[i] === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(start, i + 1)
+    }
+  }
+  throw new Error(`unterminated ${name} block`)
+}
+
 test('the breathe keyframe only modulates borderColor', () => {
   // It must not be the sole source of the amber overdue ring: globals.css
   // neutralises it under reduced motion, and the ring is the only non-textual
   // overdue signal. The resting colour belongs on a base class (Task 3).
-  const breathe = tailwindConfig.slice(tailwindConfig.indexOf("breathe: {"))
-  const body = breathe.slice(0, breathe.indexOf('},') + 1)
+  //
+  // Brace-balanced, not sliced to the first "},": that naive version stopped at
+  // the end of the '0%, 100%' sub-key and never inspected '50%', so a
+  // backgroundColor added there would have passed silently.
+  const body = configBlock(tailwindConfig, 'breathe')
+  // Proves the scan actually reached the second branch, so this test cannot
+  // quietly go hollow again.
+  assert.ok(body.includes('0.9'), "the '50%' branch must be inside the scanned block")
   assert.ok(body.includes('borderColor'))
   assert.ok(!body.includes('backgroundColor'), 'breathe must not animate a fill')
 })
