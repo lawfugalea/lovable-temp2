@@ -1,6 +1,6 @@
 # Shell and dashboard motion consistency, and one module-color unification
 
-Status: approved, not yet implemented
+Status: implemented 2026-08-04
 Date: 2026-08-04
 
 ## Goal

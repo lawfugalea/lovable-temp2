@@ -7,13 +7,13 @@
  * and a playful overshoot option after comparing all three in motion. See
  * docs/superpowers/specs/2026-08-04-clankeep-motion-icon-foundation-design.md.
  *
- * This is not the app's only pace. The dashboard's page-fade and its six
- * summary cards' entrance (`animate-fade-in`, `animate-rise` in
- * tailwind.config.js) run once per load rather than repeating dozens of
- * times a day, so they deliberately keep a slower, separate "Welcome" pace
- * instead of adopting Considered's speed. Those values live only in
- * tailwind.config.js, not mirrored here — two files holding the same numbers
- * is a drift risk the moment either one changes.
+ * This is not the app's only pace. `animate-fade-in` and `animate-rise`
+ * (tailwind.config.js) are pre-existing, widely-shared entrance animations —
+ * used well beyond the dashboard, including the app shell's page transition,
+ * empty states, notes, and banking surfaces — and this file does not govern
+ * them. Their values live only in tailwind.config.js, not mirrored here —
+ * two files holding the same numbers is a drift risk the moment either one
+ * changes.
  * See docs/superpowers/specs/2026-08-04-clankeep-shell-dashboard-design.md.
  *
  * Reduced motion is handled globally in src/styles/globals.css, which clamps

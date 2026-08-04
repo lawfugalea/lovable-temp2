@@ -24,9 +24,9 @@ test("each card class is built on the module's own existing colour token", () =>
     // barClass is always `bg-<token>` — e.g. 'bg-module-shopping' or 'bg-primary'
     // for the two modules with no module-X variable of their own (home, banking).
     const token = entry.barClass.replace(/^bg-/, '')
-    assert.ok(entry.cardTileClass.includes(token), `${entry.key}'s cardTileClass does not use its own token (${token})`)
-    assert.ok(entry.cardLinkClass.includes(token), `${entry.key}'s cardLinkClass does not use its own token (${token})`)
-    assert.ok(entry.cardHoverBorderClass.includes(token), `${entry.key}'s cardHoverBorderClass does not use its own token (${token})`)
+    assert.equal(entry.cardTileClass, `bg-${token}/10 text-${token} ring-${token}/15`, `${entry.key}'s cardTileClass is not the expected derivation`)
+    assert.equal(entry.cardLinkClass, `text-${token} hover:bg-${token}/10 hover:text-${token}`, `${entry.key}'s cardLinkClass is not the expected derivation`)
+    assert.equal(entry.cardHoverBorderClass, `hover:border-${token}/30`, `${entry.key}'s cardHoverBorderClass is not the expected derivation`)
   }
 })
 

@@ -38,7 +38,7 @@ Every task's requirements implicitly include this section.
 
 **Why this task has no test-first cycle:** there is no new behavior to assert. The one real risk is a syntax error in `tailwind.config.js` (a plain JS file) breaking the whole build, which `npm run build` catches directly — a fabricated unit test asserting comment text would just be checking prose, not behavior, which is exactly what an earlier spec's own review pushed back on as brittle.
 
-- [ ] **Step 1: Replace `motion.ts`'s file-level doc comment**
+- [x] **Step 1: Replace `motion.ts`'s file-level doc comment**
 
 The current top-of-file comment (`src/lib/motion.ts:1-14`) states "every animated surface takes its timings from here" and "the whole of Clankeep moves at one speed" — both now inaccurate, since the dashboard's fade/rise deliberately does not. Replace the whole comment block with:
 
@@ -70,7 +70,7 @@ The current top-of-file comment (`src/lib/motion.ts:1-14`) states "every animate
 
 Do not touch `MOTION_DURATION`, `MOTION_EASING`, or `ROW_TRANSITION` below this comment — they are unchanged.
 
-- [ ] **Step 2: Cross-reference from `tailwind.config.js`**
+- [x] **Step 2: Cross-reference from `tailwind.config.js`**
 
 In `tailwind.config.js`, the `animation` object currently opens with (find via the exact string `'fade-in': 'fade-in 0.4s ease-out',`):
 
@@ -91,19 +91,19 @@ Add a comment immediately above those two lines, matching the file's existing in
   			rise: 'rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
 ```
 
-- [ ] **Step 3: Verify the build still succeeds**
+- [x] **Step 3: Verify the build still succeeds**
 
 Run: `npm run build 2>&1 | tail -20`
 
 Expected: success. This is the one real gate for this task — a malformed comment inside the `tailwind.config.js` object literal (e.g. an unterminated `//` swallowing the next line) fails here, not silently.
 
-- [ ] **Step 4: Verify lint and the test baseline are unchanged**
+- [x] **Step 4: Verify lint and the test baseline are unchanged**
 
 Run: `npm run lint && npm test 2>&1 | tail -8`
 
 Expected: lint clean; test count still `314 / 314`, 0 failures — this task adds no tests and changes no logic, so the count must not move.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/motion.ts tailwind.config.js
@@ -127,7 +127,7 @@ now say so instead of silently contradicting the file's opening comment."
 - Consumes: nothing from Task 1 (fully independent).
 - Produces: `ModuleEntry` gains `cardTileClass: string`, `cardLinkClass: string`, `cardHoverBorderClass: string`. `moduleByKey` (already exported, unchanged in shape — just now carries richer entries) is what `dashboard.tsx`'s `SummaryCard` consumes instead of the deleted `summaryTones`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `tests/modules.test.ts`:
 
@@ -191,13 +191,13 @@ test("home uses the generic primary token, not a module-home variable that doesn
 })
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npm test 2>&1 | grep -A10 "modules.test"`
 
 Expected: FAIL — TypeScript error, `Property 'cardTileClass' does not exist on type 'ModuleEntry'` (or equivalent `undefined` access failures), since the fields don't exist yet.
 
-- [ ] **Step 3: Add the three fields to `ModuleEntry` and populate all 8 modules**
+- [x] **Step 3: Add the three fields to `ModuleEntry` and populate all 8 modules**
 
 In `src/lib/modules.ts`, add three fields to the `ModuleEntry` interface, immediately after `textClass`:
 
@@ -273,13 +273,13 @@ Add the three fields to **every one of the 8 entries** in the `modules` array, i
 
 Do not add `ring-1` inside `cardTileClass` — the ring **width** utility stays hardcoded in `dashboard.tsx`'s own JSX (Step 5 below), matching exactly how the ring width and ring colour are already split apart today. `cardTileClass` supplies only the ring **colour**, same as today's `summaryTones.tile`.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `npm test 2>&1 | grep -A20 "modules.test"`
 
 Expected: PASS, all 5 new tests.
 
-- [ ] **Step 5: Update `dashboard.tsx` to consume `moduleByKey` instead of `summaryTones`**
+- [x] **Step 5: Update `dashboard.tsx` to consume `moduleByKey` instead of `summaryTones`**
 
 Add the import. `dashboard.tsx` uses double-quoted import strings throughout (unlike some other files in this repo) — match that convention. Add this line after the existing `import { visibleTodayChores } from "@/lib/chore-view"` line:
 
@@ -359,7 +359,7 @@ Note this changes nothing about the rendered classes for the 5 already-covered m
 
 The five existing call sites (`tone="shopping"`, `tone="finances"` ×2, `tone="medicine"`, `tone="meals"`, `tone="chores"`) need no changes — they already type-check against the wider `ModuleKey` union.
 
-- [ ] **Step 6: Typecheck, lint, and confirm no other consumer of `summaryTones` exists**
+- [x] **Step 6: Typecheck, lint, and confirm no other consumer of `summaryTones` exists**
 
 Run: `grep -rn "summaryTones" src/` — expect no output (confirms the deletion is complete and nothing else referenced it).
 
@@ -367,7 +367,7 @@ Run: `npm run typecheck && npm run lint`
 
 Expected: both clean.
 
-- [ ] **Step 7: Build, and confirm the full test suite**
+- [x] **Step 7: Build, and confirm the full test suite**
 
 Run: `npm run build 2>&1 | tail -20`
 
@@ -377,7 +377,7 @@ Run: `npm test 2>&1 | tail -10`
 
 Expected: `319` passing (314 baseline + 5 new), 0 failing.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/lib/modules.ts src/pages/dashboard.tsx tests/modules.test.ts
