@@ -1878,6 +1878,48 @@ Replace `resolveItem` and `undoItem` with:
   }, [busyKeys, clearOptimistic, loadLog, loadToday, logLoaded, setBusy])
 ```
 
+- [ ] **Step 2b: Guard `loadToday` against out-of-order responses**
+
+Moving from a single global `busyKey` to a per-key `busyKeys` set (Step 2) is
+what first makes two chore completions genuinely concurrent. `loadToday` has no
+sequencing of its own: if chore A's completion is slower than chore B's, A's
+`loadToday()` response can arrive after B's, overwriting `todayItems` with a
+snapshot that predates B's completion — B visibly reverts to pending until the
+next refresh. This is not a regression (the pre-existing single-`busyKey` code
+already allowed two rows to complete concurrently — it only tracked which one
+row's button looked disabled), but it is squarely the class of bug this task
+exists to get right, so fix it here.
+
+Add `useRef` to the React import on line 1 (which by Step 3 also needs
+`useMemo` — add both: `useCallback, useEffect, useMemo, useRef, useState`).
+
+Replace the `loadToday` definition with:
+
+```ts
+  /**
+   * Discards a stale response if a newer loadToday() has been issued since —
+   * otherwise a slower, earlier-issued request could overwrite state with
+   * stale data after a faster, later request has already landed.
+   */
+  const loadTodayGeneration = useRef(0)
+
+  const loadToday = useCallback(async () => {
+    const generation = ++loadTodayGeneration.current
+    const response = await fetch(`/api/chores/today?date=${localDateOnly()}`)
+    const data = await responseJson(response)
+    if (generation !== loadTodayGeneration.current) return
+    if (response.ok) setTodayItems((data.items || []) as TodayChoreItem[])
+  }, [])
+```
+
+The guard lives inside `loadToday` itself, so every existing call site
+(`toggleActive`, `onSaved`, `deleteChore`, the initial-load effect, and this
+task's `resolveItem`/`undoItem`) is protected uniformly with no other call site
+needing to change.
+
+Verified before writing this: applied this exact patch locally and confirmed
+`npx tsc --noEmit` and `npx eslint src/pages/chores.tsx` both pass clean.
+
 - [ ] **Step 3: Render the overlay and the grouped list**
 
 Replace the `pendingToday` line with an overlay-aware derivation:
