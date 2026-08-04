@@ -100,6 +100,20 @@ export function groupTodayChores(items: TodayChoreItem[], localDate: string): Gr
   return groups
 }
 
+/**
+ * The same items groupTodayChores would group, flattened back into one list in
+ * Overdue, Today, Done order — for surfaces that show today's chores without
+ * their own section headings (the dashboard's compact widget). Applying this
+ * everywhere buildTodayView's response is consumed keeps one day-rule instead
+ * of two: without it, a surface that skips this call shows resolved overdue
+ * occurrences for the full lookback window instead of just the day they were
+ * resolved.
+ */
+export function visibleTodayChores(items: TodayChoreItem[], localDate: string): TodayChoreItem[] {
+  const groups = groupTodayChores(items, localDate)
+  return [...groups.overdue, ...groups.today, ...groups.done]
+}
+
 export function choreProgress(groups: GroupedChores): { done: number; total: number } {
   return {
     done: groups.done.length,

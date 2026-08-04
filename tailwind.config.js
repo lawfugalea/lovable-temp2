@@ -117,7 +117,8 @@ module.exports = {
   			strike: 'strike 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) 0.08s both',
   			// The only always-on animation in the app.
   			'breathe': 'breathe 4s ease-in-out infinite',
-  			'row-settle': 'row-settle 0.5s ease-out both'
+  			'row-settle': 'row-settle 0.5s ease-out both',
+  			'skeleton-in': 'fade-in 0.18s ease-out, pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
   		},
   		// Glow is measured in the theme so light mode can hold back; see
   		// --glow-opacity and --glow-spread in globals.css.

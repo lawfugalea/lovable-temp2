@@ -4,6 +4,8 @@ process.env.TZ = 'UTC'
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   choreBoxClasses,
   choreProgress,
@@ -141,4 +143,15 @@ test('resolved and ordinary boxes do not pulse', () => {
 
 test('a done box is filled with the chores colour', () => {
   assert.ok(choreBoxClasses('DONE', false).includes('bg-module-chores'))
+})
+
+test('chore-view.ts stays prisma-free, so it can be imported without a database', () => {
+  const source = readFileSync(join(__dirname, '..', 'src', 'lib', 'chore-view.ts'), 'utf8')
+  // Scoped to actual import/require statements, not every mention of the word:
+  // the file's own file-level doc comment names "Prisma" while documenting this
+  // very invariant, so a bare /prisma/i over the whole source would self-defeat.
+  assert.ok(
+    !/(?:from\s+['"][^'"]*prisma[^'"]*['"]|require\(\s*['"][^'"]*prisma[^'"]*['"]\s*\))/i.test(source),
+    'chore-view.ts must never import prisma',
+  )
 })

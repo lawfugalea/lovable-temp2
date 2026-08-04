@@ -7,7 +7,7 @@ import ModernAppShell from '@/components/ModernAppShell'
 import ChoreFormDialog, { type ChoreDto, type HouseholdMemberOption } from '@/components/chores/ChoreFormDialog'
 import ChoreFairnessPanel from '@/components/chores/ChoreFairnessPanel'
 import ChoreGroupedList from '@/components/chores/ChoreGroupedList'
-import ChoreTodayList from '@/components/chores/ChoreTodayList'
+import { ChoreIcon } from '@/components/chores/ChoreIcon'
 import { localDateOnly, todayItemKey, type TodayChoreItem } from '@/lib/chore-view'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -57,7 +57,7 @@ export default function ChoresPage() {
    * tap: loadToday() replaces todayItems, but an in-flight key keeps its
    * optimistic status until its own request finishes.
    */
-  const [optimistic, setOptimistic] = useState<Record<string, 'DONE' | 'SKIPPED'>>({})
+  const [optimistic, setOptimistic] = useState<Record<string, { status: 'DONE' | 'SKIPPED'; completedAt: string }>>({})
   const [formOpen, setFormOpen] = useState(false)
   const [editingChore, setEditingChore] = useState<ChoreDto | null>(null)
   const [deletingChore, setDeletingChore] = useState<ChoreDto | null>(null)
@@ -150,7 +150,7 @@ export default function ChoresPage() {
     setBusy(key, true)
     // Apply first: the 200ms completion animation should not sit behind a
     // network round trip, or it reads as latency instead of feedback.
-    setOptimistic(current => ({ ...current, [key]: resolveStatus }))
+    setOptimistic(current => ({ ...current, [key]: { status: resolveStatus, completedAt: new Date().toISOString() } }))
     try {
       const response = await fetch('/api/chores/complete', {
         method: 'POST',
@@ -183,7 +183,8 @@ export default function ChoresPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ choreId: item.chore.id, dueDate: item.dueDate }),
       })
-      if (!response.ok) throw new Error('Could not undo')
+      const data = await responseJson(response)
+      if (!response.ok) throw new Error(errorMessage(data, 'Could not undo'))
       setLogLoaded(false)
       setStatsRefreshKey(current => current + 1)
       await Promise.all([loadToday(), logLoaded ? loadLog() : Promise.resolve()])
@@ -248,7 +249,8 @@ export default function ChoresPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ choreId: entry.choreId, dueDate: entry.dueDate }),
       })
-      if (!response.ok) throw new Error('Could not undo')
+      const data = await responseJson(response)
+      if (!response.ok) throw new Error(errorMessage(data, 'Could not undo'))
       // All three dependent views: the log itself, today (the occurrence may
       // reappear as pending overdue), and the fairness panel.
       setStatsRefreshKey(current => current + 1)
@@ -266,8 +268,8 @@ export default function ChoresPage() {
 
   const visibleItems = useMemo(
     () => todayItems.map(item => {
-      const status = optimistic[todayItemKey(item)]
-      return status ? { ...item, status } : item
+      const override = optimistic[todayItemKey(item)]
+      return override ? { ...item, ...override } : item
     }),
     [todayItems, optimistic],
   )
@@ -340,6 +342,7 @@ export default function ChoresPage() {
             <div className="divide-y rounded-xl border bg-card">
               {chores.map(chore => (
                 <div key={chore.id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
+                  <ChoreIcon title={chore.title} icon={chore.icon} status="PENDING" overdue={false} className="shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className={cn('truncate text-sm font-medium', !chore.active && 'text-muted-foreground line-through')}>{chore.title}</p>
                     <p className="truncate text-xs text-muted-foreground">

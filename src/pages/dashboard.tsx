@@ -19,6 +19,7 @@ import {
 import ModernAppShell from "@/components/ModernAppShell"
 import ActivityFeed from "@/components/ActivityFeed"
 import ChoreTodayList, { todayItemKey, type TodayChoreItem } from "@/components/chores/ChoreTodayList"
+import { visibleTodayChores } from "@/lib/chore-view"
 import OnboardingChecklist from "@/components/OnboardingChecklist"
 import WelcomeFlow from "@/components/onboarding/WelcomeFlow"
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider"
@@ -224,7 +225,8 @@ export default function DashboardPage() {
       const response = await fetch(`/api/chores/today?date=${today}`)
       if (!response.ok) return
       const data = await response.json()
-      setTodayChores(Array.isArray(data.items) ? data.items : [])
+      const items = Array.isArray(data.items) ? data.items : []
+      setTodayChores(visibleTodayChores(items, today))
     } catch (error) {
       console.error("Failed to load chores:", error)
     }
@@ -244,7 +246,9 @@ export default function DashboardPage() {
   }, [])
 
   const resolveChore = useCallback(async (item: TodayChoreItem, resolveStatus: "DONE" | "SKIPPED") => {
-    setChoreBusy(todayItemKey(item), true)
+    const key = todayItemKey(item)
+    if (choreBusyKeys.has(key)) return
+    setChoreBusy(key, true)
     try {
       await fetch("/api/chores/complete", {
         method: "POST",
@@ -253,12 +257,14 @@ export default function DashboardPage() {
       })
       await loadChoresData()
     } finally {
-      setChoreBusy(todayItemKey(item), false)
+      setChoreBusy(key, false)
     }
-  }, [loadChoresData, setChoreBusy])
+  }, [choreBusyKeys, loadChoresData, setChoreBusy])
 
   const undoChore = useCallback(async (item: TodayChoreItem) => {
-    setChoreBusy(todayItemKey(item), true)
+    const key = todayItemKey(item)
+    if (choreBusyKeys.has(key)) return
+    setChoreBusy(key, true)
     try {
       await fetch("/api/chores/complete", {
         method: "DELETE",
@@ -267,9 +273,9 @@ export default function DashboardPage() {
       })
       await loadChoresData()
     } finally {
-      setChoreBusy(todayItemKey(item), false)
+      setChoreBusy(key, false)
     }
-  }, [loadChoresData, setChoreBusy])
+  }, [choreBusyKeys, loadChoresData, setChoreBusy])
 
   const loadFinanceData = useCallback(async (householdId: string) => {
     try {

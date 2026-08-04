@@ -76,8 +76,9 @@ export function serializeChore(chore: ChoreRow) {
 
 /**
  * One row per active chore that has something to show for `date`:
- * an occurrence due today, or the most recent unresolved occurrence
- * from the past week (overdue).
+ * an occurrence due today, or the most recent occurrence from the past week
+ * (overdue), resolved or not — the caller decides how long a resolved overdue
+ * occurrence stays visible (see groupTodayChores in chore-view.ts).
  */
 export async function buildTodayView(householdId: string, date: string): Promise<TodayChoreItem[]> {
   const chores = await prisma.chore.findMany({
