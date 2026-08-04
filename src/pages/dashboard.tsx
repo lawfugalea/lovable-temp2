@@ -20,6 +20,7 @@ import ModernAppShell from "@/components/ModernAppShell"
 import ActivityFeed from "@/components/ActivityFeed"
 import ChoreTodayList, { todayItemKey, type TodayChoreItem } from "@/components/chores/ChoreTodayList"
 import { visibleTodayChores } from "@/lib/chore-view"
+import { moduleByKey, type ModuleKey } from "@/lib/modules"
 import OnboardingChecklist from "@/components/OnboardingChecklist"
 import WelcomeFlow from "@/components/onboarding/WelcomeFlow"
 import { useOnboarding } from "@/components/onboarding/OnboardingProvider"
@@ -77,45 +78,17 @@ type SummaryCardProps = {
   href: string
   action: string
   icon: React.ComponentType<{ className?: string }>
-  tone: "shopping" | "finances" | "medicine" | "chores" | "meals"
+  tone: ModuleKey
   delayClass?: string
 }
 
-const summaryTones = {
-  shopping: {
-    tile: "bg-module-shopping/10 text-module-shopping ring-module-shopping/15",
-    link: "text-module-shopping hover:bg-module-shopping/10 hover:text-module-shopping",
-    hover: "hover:border-module-shopping/30",
-  },
-  finances: {
-    tile: "bg-module-finances/10 text-module-finances ring-module-finances/15",
-    link: "text-module-finances hover:bg-module-finances/10 hover:text-module-finances",
-    hover: "hover:border-module-finances/30",
-  },
-  medicine: {
-    tile: "bg-module-medicine/10 text-module-medicine ring-module-medicine/15",
-    link: "text-module-medicine hover:bg-module-medicine/10 hover:text-module-medicine",
-    hover: "hover:border-module-medicine/30",
-  },
-  chores: {
-    tile: "bg-module-chores/10 text-module-chores ring-module-chores/15",
-    link: "text-module-chores hover:bg-module-chores/10 hover:text-module-chores",
-    hover: "hover:border-module-chores/30",
-  },
-  meals: {
-    tile: "bg-module-meals/10 text-module-meals ring-module-meals/15",
-    link: "text-module-meals hover:bg-module-meals/10 hover:text-module-meals",
-    hover: "hover:border-module-meals/30",
-  },
-}
-
 function SummaryCard({ eyebrow, title, description, href, action, icon: Icon, tone, delayClass }: SummaryCardProps) {
-  const tones = summaryTones[tone]
+  const entry = moduleByKey[tone]
   return (
-    <Card className={cn("group animate-rise overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-soft", tones.hover, delayClass)}>
+    <Card className={cn("group animate-rise overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-soft", entry.cardHoverBorderClass, delayClass)}>
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between gap-4">
-          <div className={cn("grid h-11 w-11 place-items-center rounded-xl ring-1", tones.tile)}>
+          <div className={cn("grid h-11 w-11 place-items-center rounded-xl ring-1", entry.cardTileClass)}>
             <Icon className="h-5 w-5" aria-hidden="true" />
           </div>
           <Badge variant="outline" className="font-medium text-muted-foreground">{eyebrow}</Badge>
@@ -124,7 +97,7 @@ function SummaryCard({ eyebrow, title, description, href, action, icon: Icon, to
       <CardContent>
         <h2 className="font-display text-xl font-semibold tracking-tight">{title}</h2>
         <p className="mt-2 min-h-[44px] text-sm leading-relaxed text-muted-foreground">{description}</p>
-        <Button asChild variant="ghost" className={cn("mt-5 -ml-3", tones.link)}>
+        <Button asChild variant="ghost" className={cn("mt-5 -ml-3", entry.cardLinkClass)}>
           <Link href={href}>{action}<ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /></Link>
         </Button>
       </CardContent>
