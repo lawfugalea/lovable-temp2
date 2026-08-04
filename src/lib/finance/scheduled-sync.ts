@@ -4,12 +4,7 @@ import { sendBankConsentEmail } from '@/lib/mailer'
 import { sendUserEventPush } from '@/lib/push'
 import { bankDisplayName } from './bank-name'
 import { dispatchBudgetAlerts } from './budget-alerts'
-import {
-  isRateLimitError,
-  isReauthorizationError,
-  publicSyncError,
-  syncBankConnection,
-} from './sync'
+import { runLockedSync } from './sync'
 
 /**
  * Unattended background sync and consent lifecycle for bank connections.
@@ -34,8 +29,6 @@ export const CONSENT_WARNING_DAYS = 14
 /** Bound the work one poll can do; the next poll picks up the rest. */
 const MAX_SYNCS_PER_RUN = 10
 const MAX_EMAILS_PER_RUN = 20
-
-const STALE_LOCK_MINUTES = 5
 
 export interface ScheduledSyncReport {
   synced: number
@@ -67,47 +60,25 @@ export async function runScheduledFinanceSync(now = new Date()): Promise<Schedul
   })
 
   for (const { id, userId } of due) {
-    // Same lock the manual refresh route takes, so the worker and a user
-    // clicking "Refresh" can never sync one connection concurrently.
-    const staleLock = new Date(now.getTime() - STALE_LOCK_MINUTES * 60_000)
-    const locked = await prisma.bankConnection.updateMany({
-      where: {
-        id,
-        status: 'ACTIVE',
-        OR: [{ syncStartedAt: null }, { syncStartedAt: { lt: staleLock } }],
-      },
-      data: { syncStartedAt: now, lastSyncAttemptAt: now },
-    })
-    if (locked.count !== 1) continue
-
-    try {
-      await syncBankConnection(id)
-      report.synced += 1
-      // Fresh transactions are the only thing that moves budget progress, so
-      // this is the moment to check the owner's monthly limits.
-      await dispatchBudgetAlerts(userId, now).catch(error => {
-        console.warn('[finance-sync] budget alerts failed:', id, error instanceof Error ? error.message : error)
-      })
-    } catch (error) {
-      const rateLimited = isRateLimitError(error)
-      if (rateLimited) report.rateLimited += 1
+    // runLockedSync takes the same lock the manual refresh does, so the worker
+    // and a user clicking "Refresh" can never sync one connection concurrently.
+    // requireActive because a connection that broke since it was picked as due
+    // should be skipped rather than retried.
+    const result = await runLockedSync(id, { requireActive: true })
+    if (!result.ok) {
+      if (result.reason === 'busy') continue
+      if (result.rateLimited) report.rateLimited += 1
       else report.failed += 1
-      await prisma.bankConnection.update({
-        where: { id },
-        data: {
-          // A daily access cap leaves the consent intact, so keep the
-          // connection as it was and only surface the note.
-          ...(rateLimited ? {} : { status: isReauthorizationError(error) ? 'REAUTH_REQUIRED' : 'ERROR' }),
-          syncError: publicSyncError(error),
-        },
-      }).catch(() => undefined)
-      console.warn('[finance-sync] scheduled sync failed:', id, error instanceof Error ? error.message : error)
-    } finally {
-      await prisma.bankConnection.updateMany({
-        where: { id },
-        data: { syncStartedAt: null },
-      }).catch(() => undefined)
+      console.warn('[finance-sync] scheduled sync failed:', id, result.message)
+      continue
     }
+
+    report.synced += 1
+    // Fresh transactions are the only thing that moves budget progress, so this
+    // is the moment to check the owner's monthly limits.
+    await dispatchBudgetAlerts(userId, now).catch(error => {
+      console.warn('[finance-sync] budget alerts failed:', id, error instanceof Error ? error.message : error)
+    })
   }
 
   const warningHorizon = new Date(now.getTime() + CONSENT_WARNING_DAYS * 24 * 3600 * 1000)

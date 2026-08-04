@@ -33,7 +33,17 @@ const STALE_LOCK_MINUTES = 5
 export type LockedSyncResult =
   | { ok: true }
   | { ok: false; reason: 'busy' }
-  | { ok: false; reason: 'failed'; message: string; rateLimited: boolean }
+  | { ok: false; reason: 'failed'; message: string; rateLimited: boolean; reauth: boolean }
+
+export type LockedSyncOptions = {
+  /**
+   * Refuse the lock unless the connection is still ACTIVE. The worker wants this
+   * so a connection that broke since it was picked as due is skipped rather than
+   * retried. A person pressing Refresh does not: they should get the real error
+   * back, not silence.
+   */
+  requireActive?: boolean
+}
 
 /**
  * Sync one connection while holding the `syncStartedAt` lock, persisting the
@@ -44,12 +54,16 @@ export type LockedSyncResult =
  * account, which takes far longer than a browser — or a reverse proxy — will
  * hold a redirect open, so the OAuth callback starts it detached instead.
  */
-export async function runLockedSync(connectionId: string): Promise<LockedSyncResult> {
+export async function runLockedSync(
+  connectionId: string,
+  options: LockedSyncOptions = {},
+): Promise<LockedSyncResult> {
   const now = new Date()
   const staleLock = new Date(now.getTime() - STALE_LOCK_MINUTES * 60_000)
   const locked = await prisma.bankConnection.updateMany({
     where: {
       id: connectionId,
+      ...(options.requireActive ? { status: 'ACTIVE' as const } : {}),
       OR: [{ syncStartedAt: null }, { syncStartedAt: { lt: staleLock } }],
     },
     data: { syncStartedAt: now, lastSyncAttemptAt: now },
@@ -61,17 +75,18 @@ export async function runLockedSync(connectionId: string): Promise<LockedSyncRes
     return { ok: true }
   } catch (error) {
     const rateLimited = isRateLimitError(error)
+    const reauth = isReauthorizationError(error)
     const message = publicSyncError(error)
     await prisma.bankConnection.update({
       where: { id: connectionId },
       data: {
         // A daily access cap leaves the consent intact, so keep the connection
         // as it was and only surface the note.
-        ...(rateLimited ? {} : { status: isReauthorizationError(error) ? 'REAUTH_REQUIRED' : 'ERROR' }),
+        ...(rateLimited ? {} : { status: reauth ? 'REAUTH_REQUIRED' : 'ERROR' }),
         syncError: message,
       },
     }).catch(() => undefined)
-    return { ok: false, reason: 'failed', message, rateLimited }
+    return { ok: false, reason: 'failed', message, rateLimited, reauth }
   } finally {
     await prisma.bankConnection.updateMany({
       where: { id: connectionId },

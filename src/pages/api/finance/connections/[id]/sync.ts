@@ -3,7 +3,7 @@ import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireFinanceAccess } from '@/lib/finance/access'
 import { dispatchBudgetAlerts } from '@/lib/finance/budget-alerts'
-import { isRateLimitError, isReauthorizationError, publicSyncError, syncBankConnection } from '@/lib/finance/sync'
+import { runLockedSync } from '@/lib/finance/sync'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -23,48 +23,26 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (connection.lastSyncAttemptAt && now.getTime() - connection.lastSyncAttemptAt.getTime() < 60_000) {
     return res.status(429).json({ error: 'Please wait a minute before refreshing again' })
   }
-  const staleLock = new Date(now.getTime() - 5 * 60_000)
-  const locked = await prisma.bankConnection.updateMany({
-    where: {
-      id: connection.id,
-      OR: [{ syncStartedAt: null }, { syncStartedAt: { lt: staleLock } }],
-    },
-    data: { syncStartedAt: now, lastSyncAttemptAt: now },
-  })
-  if (locked.count !== 1) return res.status(409).json({ error: 'This connection is already syncing' })
-
-  try {
-    await syncBankConnection(connection.id)
+  // No requireActive: someone pressing Refresh on a broken connection should get
+  // the real error back rather than a "already syncing" that explains nothing.
+  const result = await runLockedSync(connection.id)
+  if (result.ok) {
     // Budget limits can only move when new transactions land; evaluate now,
     // without holding up the response the refresh button is waiting for.
     void dispatchBudgetAlerts(connection.userId).catch(error => {
       console.warn('Budget alerts failed after manual sync:', error instanceof Error ? error.message : error)
     })
     return res.status(200).json({ ok: true })
-  } catch (error) {
-    const message = publicSyncError(error)
-    const rateLimited = isRateLimitError(error)
-    await prisma.bankConnection.update({
-      where: { id: connection.id },
-      data: {
-        // A daily access cap leaves the consent intact, so keep the connection
-        // as it was and only surface the note.
-        ...(rateLimited ? {} : { status: isReauthorizationError(error) ? 'REAUTH_REQUIRED' : 'ERROR' }),
-        syncError: message,
-      },
-    })
-    if (rateLimited) {
-      console.warn('BOV sync hit the bank daily access limit:', connection.id)
-      return res.status(429).json({ error: message })
-    }
-    console.error('BOV sync failed:', error)
-    return res.status(isReauthorizationError(error) ? 409 : 502).json({ error: message })
-  } finally {
-    await prisma.bankConnection.updateMany({
-      where: { id: connection.id },
-      data: { syncStartedAt: null },
-    })
   }
+  if (result.reason === 'busy') {
+    return res.status(409).json({ error: 'This connection is already syncing' })
+  }
+  if (result.rateLimited) {
+    console.warn('BOV sync hit the bank daily access limit:', connection.id)
+    return res.status(429).json({ error: result.message })
+  }
+  console.error('BOV sync failed:', connection.id, result.message)
+  return res.status(result.reauth ? 409 : 502).json({ error: result.message })
 }
 
 export default withApiHandler(handler)
