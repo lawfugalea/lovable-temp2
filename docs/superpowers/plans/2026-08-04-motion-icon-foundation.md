@@ -2338,8 +2338,19 @@ In `src/components/ui/EmptyState.tsx`, add `animate-fade-in` to the wrapper and 
 In `src/components/ui/Button.tsx`, in the `cva` base string, replace `transition-colors` with:
 
 ```
-transition-[color,background-color,border-color,transform] duration-150 active:scale-[0.98]
+transition-[color,background-color,border-color,text-decoration-color,fill,stroke,transform] duration-150 active:scale-[0.98]
 ```
+
+`transition-colors` is shorthand for `color, background-color, border-color,
+text-decoration-color, fill, stroke` — the explicit list must name all of them,
+not just the three that seemed relevant, or icon-bearing buttons regress:
+`Button.tsx` renders `[&_svg]` children throughout the app (60 files pair
+`Button` with a lucide icon), and lucide icons paint via `stroke="currentColor"`.
+Dropping `stroke` from the list means the icon's stroke colour would snap
+instantly on hover while the surrounding text eases over 150ms — a visible
+mismatch on every icon button in the app. Verified locally: built with this
+exact string and confirmed `fill,stroke` appears in the compiled
+`.next/static/css/*.css` output before writing it here.
 
 - [ ] **Step 4: Verify nothing regressed**
 
