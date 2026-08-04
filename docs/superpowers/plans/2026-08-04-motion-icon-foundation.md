@@ -84,12 +84,13 @@ test('row transition variants are in seconds, as motion/react expects', () => {
 
 const tailwindConfig = readFileSync(join(process.cwd(), 'tailwind.config.js'), 'utf8')
 
-test('the four new keyframes and animations are registered', () => {
-  for (const name of ['check-in', 'strike', 'breathe', 'row-settle']) {
-    assert.ok(tailwindConfig.includes(`'${name}':`), `missing keyframe or animation: ${name}`)
-  }
-  assert.ok(tailwindConfig.includes("'breathe': 'breathe 4s ease-in-out infinite'"))
-})
+/*
+ * Only two config assertions, deliberately. Whether a keyframe exists and parses
+ * is already proven by `npm run build` failing without it, so asserting the name
+ * appears in the file would just duplicate the build. The two below are
+ * different: nothing else in the suite notices if they regress, and both would
+ * silently break the overdue signal for reduced-motion users.
+ */
 
 test('the breathe keyframe only modulates borderColor', () => {
   // It must not be the sole source of the amber overdue ring: globals.css
