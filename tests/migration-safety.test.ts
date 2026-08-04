@@ -71,6 +71,10 @@ const savingsMigration = readFileSync(
   join(process.cwd(), 'prisma/migrations/20260723160000_savings_accounts/migration.sql'),
   'utf8',
 )
+const choreIconMigration = readFileSync(
+  join(process.cwd(), 'prisma/migrations/20260804090000_chore_icon/migration.sql'),
+  'utf8',
+)
 
 test('schema reconciliation adds every missing application model', () => {
   assert.match(migration, /User_email_lower_key/)
@@ -264,4 +268,10 @@ test('billing migration is additive, defaults to FREE, and only comps the known 
   assert.match(billingMigration, /UPDATE "Household" SET "plan" = 'FAMILY', "planSource" = 'ADMIN'/)
   assert.match(billingMigration, /lower\(u\."email"\) = 'lawfinuu@gmail\.com'/)
   assert.doesNotMatch(billingMigration, /DROP TABLE|DROP COLUMN|DELETE FROM/)
+})
+
+test('the chore icon migration only adds a nullable column', () => {
+  assert.match(choreIconMigration, /ALTER TABLE "Chore" ADD COLUMN "icon" TEXT;/)
+  // Additive only: no data loss, and safe to deploy before the code that uses it.
+  assert.doesNotMatch(choreIconMigration, /DROP|DELETE|TRUNCATE|NOT NULL/i)
 })

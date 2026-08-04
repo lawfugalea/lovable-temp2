@@ -1100,6 +1100,9 @@ model Chore {
   householdId    String
   title          String
   notes          String?
+  /// Semantic icon id from src/lib/chore-icons.ts ("hoover", "dishes"), never a
+  /// lucide component name. NULL means infer from the title.
+  icon           String?
   recurrenceType ChoreRecurrenceType
   /// Weekday numbers 1 (Monday) to 7 (Sunday); used when recurrenceType is WEEKLY.
   daysOfWeek     Int[]               @default([])

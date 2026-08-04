@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { dateOnlyToDb, validateRecurrenceInput } from '@/lib/chore-recurrence'
 import { CHORE_NOTES_MAX, CHORE_TITLE_MAX, requireActiveHousehold, serializeChore } from '@/lib/chores'
+import { isChoreIconId } from '@/lib/chore-icons'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res)
@@ -34,6 +35,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     }
     if (body.notes !== undefined) {
       data.notes = typeof body.notes === 'string' && body.notes.trim() ? body.notes.trim().slice(0, CHORE_NOTES_MAX) : null
+    }
+    if (body.icon !== undefined) {
+      if (body.icon === null || body.icon === '') {
+        data.icon = null // back to inferring from the title
+      } else if (isChoreIconId(body.icon)) {
+        data.icon = body.icon
+      } else {
+        return res.status(400).json({ error: 'Unknown icon' })
+      }
     }
     if (body.active !== undefined) {
       if (typeof body.active !== 'boolean') return res.status(400).json({ error: 'active must be a boolean' })
