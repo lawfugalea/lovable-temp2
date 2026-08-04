@@ -1918,9 +1918,22 @@ Expected: both clean for `src/pages/chores.tsx` and `src/components/chores/*`. `
 
 - [ ] **Step 5: Build, to prove `motion/react` bundles on this route**
 
-Run: `npm run build 2>&1 | tail -25`
+Run: `npm run build 2>&1 | tail -30`
 
-Expected: success. `AnimatePresence` with `mode="popLayout"` is the riskiest new import; a failure here is a version mismatch, not a logic bug.
+Expected: the build's `next build` TypeScript pass type-checks the whole app in one
+pass, and `src/pages/dashboard.tsx` is expected to still fail with exactly
+`busyKey does not exist on type ... Did you mean 'busyKeys'?` — the same
+pre-existing mismatch Step 4 already excepts, unfixed until Task 8. That single,
+named error is the only acceptable failure. If the build fails with anything else —
+in particular anything naming `ChoreGroupedList.tsx`, `motion/react`,
+`AnimatePresence`, or `popLayout` — that is this task's problem to fix.
+
+To confirm this task's own code truly bundles cleanly despite the whole-app build
+failing, temporarily comment out or stub the offending `<ChoreTodayList busyKey=.../>`
+prop in `dashboard.tsx` (do not fix it properly — that is Task 8's job and might
+conflict with its approach), run the build again, confirm success, then revert
+`dashboard.tsx` to its original state before committing. Only `ChoreGroupedList.tsx`
+and `chores.tsx` should appear in your commit.
 
 - [ ] **Step 6: Commit**
 
