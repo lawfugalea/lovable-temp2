@@ -59,6 +59,12 @@ export type EnrichedTransaction = {
   transferKind: TransferKind
   /** The payer typed something meaningful, e.g. "wolt greens" on a transfer. */
   hasUserMemo: boolean
+  /**
+   * The memo names money that was *received* — a benefit, a salary — rather than
+   * something bought. On an own-account transfer that is the difference between
+   * moving income you were paid and making a purchase from the other account.
+   */
+  memoNamesReceivedIncome: boolean
   /** Digits identifying the other account, from the first note line. */
   counterpartyAccountHint: string | null
   /** Identifiers for the account this row belongs to, harvested from the payload. */
@@ -123,6 +129,20 @@ function isIdentifierOnly(value: string): boolean {
   const compact = value.replace(/[\s-]/g, '')
   return /^\d{8,}$/.test(compact) || /^[A-Z]{2}\d{2}[A-Z0-9]{8,30}$/i.test(compact)
 }
+
+/**
+ * A memo naming where received money came from, rather than what it bought.
+ *
+ * BOV own-account transfers carry whatever the payer typed, and people label a
+ * move of money they were paid with its source ("SOCIAL SECURITY EUR 545.16
+ * CHILDREN'S ALLOWANCE"). Treating that as a memo makes the leg count as
+ * spending, which turns received income into an expense.
+ *
+ * Deliberately narrow: only unambiguous benefit and payroll wording. A word like
+ * "grant" is left out because it is also a name, and a false positive here hides
+ * real spending — the costlier mistake of the two.
+ */
+const RECEIVED_INCOME_MEMO = /\b(?:social security|child(?:ren)?'?s? allowance|child benefit|pension|salary|wages?|payroll|stipend|maternity benefit|sickness benefit|unemployment benefit|tax (?:refund|rebate))\b/
 
 function isGeneric(value: string): boolean {
   return /^(?:POS|CARD|CARD PURCHASE|PURCHASE|PAYMENT|BANK TRANSACTION|TRANSACTION|DEBIT|CREDIT|TRANSFER|DIRECT DEBIT|MOBILE PAY|ATM)$/i.test(value.trim())
@@ -350,6 +370,8 @@ export function enrichTransaction(input: TransactionEnrichmentInput): EnrichedTr
     amountSource,
     transferKind: transferKindFor(code.toLowerCase()),
     hasUserMemo,
+    memoNamesReceivedIncome: hasUserMemo
+      && RECEIVED_INCOME_MEMO.test(`${merchantName} ${detail || ''}`.toLowerCase()),
     // BOV puts the counterparty account number on the first note line; the
     // creditor/debtor IBAN is this row's own account, not the other side.
     counterpartyAccountHint: accountDigits(noteLines[0])[0] || null,

@@ -265,6 +265,7 @@ function fromProviderPayload(input: {
     currency: 'EUR',
     amountCents: enriched.amountCents,
     amountSource: enriched.amountSource,
+    memoNamesReceivedIncome: enriched.memoNamesReceivedIncome,
     bookingDate: new Date(`${input.bookingDate}T00:00:00Z`),
     valueDate: null,
     status: 'BOOKED',
@@ -619,6 +620,21 @@ test('own-account movement is judged by whether anyone labelled it', () => {
     id: 'shuffle', amountCents: -200_000, transferKind: 'OWN_ACCOUNT', hasUserMemo: false, category: 'Transfers',
   }), none), 'INTERNAL_UNMATCHED_OUT')
 
+  // A memo naming money the household was *paid* says where it came from, not
+  // what it bought. The real case: moving a €545.16 children's allowance between
+  // own accounts was counted as €545.16 of spending.
+  assert.equal(classifyFlow(classifiableRow({
+    id: 'allowance', amountCents: -54_516, transferKind: 'OWN_ACCOUNT',
+    hasUserMemo: true, memoNamesReceivedIncome: true, category: 'Other',
+  }), none), 'INTERNAL_UNMATCHED_OUT')
+
+  // The same wording on a transfer to somebody else is still real spending: the
+  // exception is about own-account shuffles, not about the words themselves.
+  assert.equal(classifyFlow(classifiableRow({
+    id: 'paid-out', amountCents: -54_516, transferKind: 'SEPA_OUT',
+    hasUserMemo: true, memoNamesReceivedIncome: true, category: 'Other',
+  }), none), 'SPENDING')
+
   // A transfer to somebody else is real spending.
   assert.equal(classifyFlow(classifiableRow({
     id: 'third-party', amountCents: -70_000, transferKind: 'SEPA_OUT', category: 'Housing',
@@ -635,6 +651,7 @@ function analyticsRow(overrides: Partial<AnalyticsTransactionInput> & { id: stri
     currency: 'EUR',
     amountCents: -1_000,
     amountSource: 'INDICATOR',
+    memoNamesReceivedIncome: false,
     bookingDate: new Date('2026-07-15T00:00:00Z'),
     valueDate: null,
     status: 'BOOKED',
@@ -1064,6 +1081,23 @@ test('own-account transfers expose the memo and counterparty account they carry'
   assert.equal(purchase.hasUserMemo, true)
   assert.equal(purchase.category, 'Groceries')
   assert.equal(purchase.amountCents, -18_800)
+  assert.equal(purchase.memoNamesReceivedIncome, false)
+
+  // The real row: the memo names the benefit the money came from, so the leg is
+  // a shuffle of received income rather than a €545.16 purchase.
+  const allowance = enrichTransaction({
+    amount: '545.16',
+    providerData: {
+      remittance_information: ['24X7 TRANSFER BETWEEN OWN ACCOUNTS'],
+      credit_debit_indicator: 'DBIT',
+      note: ['40025916061', "SOCIAL SECURITY EUR 545.16 CHILDREN'S ALLOWANCE"],
+    },
+  })
+  assert.equal(allowance.hasUserMemo, true)
+  assert.equal(allowance.memoNamesReceivedIncome, true)
+
+  // "greens" must not trip the income wording, or real spending disappears.
+  assert.equal(purchase.memoNamesReceivedIncome, false)
 })
 
 test('the summary reconciles with the balance line drawn beside it', () => {

@@ -37,7 +37,7 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
         <ul className="list-disc space-y-2 pl-5">
           <li>account data such as your name, email address, password hash, household membership, role and your record of accepting the Terms;</li>
           <li>household content you enter, including shopping lists, meal plans, recipes, chores, notes, medicine schedules and health-related records;</li>
-          <li>money-planner information you type in yourself — incomes, commitments, budgets, savings goals, planning-account names, monthly funding rules and transfer check-offs. These are manual planning records, so Clankeep receives no bank credentials, real bank account details or bank transactions;</li>
+          <li>money-planner information you type in yourself — incomes, commitments, budgets, savings goals, planning-account names, monthly funding rules and transfer check-offs. These are manual planning records;</li>
           <li>your household&apos;s country, used to configure appropriate regional defaults;</li>
           <li>billing references when you subscribe to the Family plan — a Stripe customer and subscription identifier and subscription status. Clankeep never sees or stores your full card number;</li>
           <li>limited technical and security information needed to operate, troubleshoot and protect the service.</li>

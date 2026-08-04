@@ -28,6 +28,7 @@ export type AnalyticsTransactionInput = {
   transactionType: string
   transferKind: TransferKind
   hasUserMemo: boolean
+  memoNamesReceivedIncome: boolean
   counterpartyAccountHint: string | null
   ownAccountIdentifiers: string[]
 }

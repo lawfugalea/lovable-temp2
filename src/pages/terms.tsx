@@ -48,14 +48,12 @@ export default function TermsPage({ config }: TermsPageProps) {
         </p>
       </LegalSection>
 
-      <LegalSection title="3. The money planner — no bank connection">
+      <LegalSection title="3. The money planner">
         <p>
-          The Clankeep money planner works entirely from information you type in yourself: incomes, commitments, budgets,
+          The Clankeep money planner works from information you type in yourself: incomes, commitments, budgets,
           savings goals and planning accounts that can mirror how you organise money at your bank. Monthly transfer
-          check-offs record only that a household member marked a planned transfer complete. <strong className="text-foreground">Clankeep does not offer open banking</strong>: it does
-          not connect to your bank, does not read your bank accounts or transactions, does not receive your banking
-          credentials, and cannot initiate transfers or payments. Planner figures are a convenience view, not an
-          accounting system or financial advice.
+          check-offs record only that a household member marked a planned transfer complete. Clankeep cannot initiate
+          transfers or payments. Planner figures are a convenience view, not an accounting system or financial advice.
         </p>
       </LegalSection>
 

@@ -60,6 +60,8 @@ export type ClassifiableRow = {
   category: FinanceCategory
   transferKind: TransferKind
   hasUserMemo: boolean
+  /** Optional so older callers keep compiling; absent reads as "not income". */
+  memoNamesReceivedIncome?: boolean
 }
 
 /** True for the flow classes that represent money moving inside the household. */
@@ -86,7 +88,11 @@ export function classifyFlow(row: ClassifiableRow, pairedIds: ReadonlySet<string
     // diesel") is a purchase made from that other account, and the memo is what
     // gives it a category. Without a memo there is nothing to suggest it bought
     // anything, so treat it as a balance shuffle.
-    if (!row.hasUserMemo) return 'INTERNAL_UNMATCHED_OUT'
+    //
+    // A memo naming received income ("children's allowance") is the exception:
+    // it says where the money came from, not what it bought, so the leg is still
+    // a shuffle. Counting it turned money the household was paid into spending.
+    if (!row.hasUserMemo || row.memoNamesReceivedIncome) return 'INTERNAL_UNMATCHED_OUT'
   }
 
   return row.amountCents > 0 ? 'INCOME' : 'SPENDING'

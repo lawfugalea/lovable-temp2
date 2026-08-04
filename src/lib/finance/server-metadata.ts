@@ -74,6 +74,7 @@ export function toAnalyticsTransaction(
     transactionType: enriched.transactionType,
     transferKind: enriched.transferKind,
     hasUserMemo: enriched.hasUserMemo,
+    memoNamesReceivedIncome: enriched.memoNamesReceivedIncome,
     counterpartyAccountHint: enriched.counterpartyAccountHint,
     ownAccountIdentifiers: enriched.ownAccountIdentifiers,
   }
