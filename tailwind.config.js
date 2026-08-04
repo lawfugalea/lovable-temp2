@@ -110,7 +110,14 @@ module.exports = {
   			'accordion-down': 'accordion-down 0.2s ease-out',
   			'accordion-up': 'accordion-up 0.2s ease-out',
   			'draw-line': 'draw-line 0.9s cubic-bezier(0.22, 1, 0.36, 1) both',
-  			'grow-bar': 'grow-bar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both'
+  			'grow-bar': 'grow-bar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			// Chore completion. `both` holds the end state, which is also what
+  			// the reduced-motion clamp in globals.css lands on.
+  			'check-in': 'check-in 0.26s cubic-bezier(0.34, 1.25, 0.64, 1) 0.06s both',
+  			strike: 'strike 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) 0.08s both',
+  			// The only always-on animation in the app.
+  			'breathe': 'breathe 4s ease-in-out infinite',
+  			'row-settle': 'row-settle 0.5s ease-out both'
   		},
   		// Glow is measured in the theme so light mode can hold back; see
   		// --glow-opacity and --glow-spread in globals.css.
@@ -194,6 +201,47 @@ module.exports = {
   				},
   				to: {
   					height: '0'
+  				}
+  			},
+  			// The check mark arriving as the identity icon leaves.
+  			'check-in': {
+  				'0%': {
+  					opacity: '0',
+  					transform: 'scale(0.55)'
+  				},
+  				'100%': {
+  					opacity: '1',
+  					transform: 'scale(1)'
+  				}
+  			},
+  			// A strikethrough drawn left to right across a finished title.
+  			strike: {
+  				'0%': {
+  					transform: 'scaleX(0)'
+  				},
+  				'100%': {
+  					transform: 'scaleX(1)'
+  				}
+  			},
+  			// Overdue idle pulse. This ONLY modulates the border — the resting
+  			// amber lives on the row's base class, because globals.css clamps
+  			// animations under prefers-reduced-motion and the ring is the only
+  			// non-textual overdue signal. See choreBoxClasses in chore-view.ts.
+  			breathe: {
+  				'0%, 100%': {
+  					borderColor: 'hsl(var(--brand-amber) / 0.35)'
+  				},
+  				'50%': {
+  					borderColor: 'hsl(var(--brand-amber) / 0.9)'
+  				}
+  			},
+  			// A just-resolved row flashing faintly, then settling back.
+  			'row-settle': {
+  				'0%': {
+  					backgroundColor: 'hsl(var(--module-chores) / 0.07)'
+  				},
+  				'100%': {
+  					backgroundColor: 'transparent'
   				}
   			}
   		},
