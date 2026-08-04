@@ -604,12 +604,29 @@ function escapeRegExp(value: string): string {
 }
 
 /**
- * Longest keyword first. This ordering is load-bearing, not tidiness: "washing"
- * would otherwise win against "washing up", and "wash the dishes" would show a
- * washing machine. Compiled once at module load.
+ * Generic cleaning verbs. They describe an action rather than a thing, so they
+ * must lose to any more specific keyword regardless of length — "Clean the loo"
+ * is a bathroom chore, even though "clean" is a longer string than "loo".
+ *
+ * Length-descending alone cannot express that: it is the right rule for
+ * overlapping keywords at the same position ("washing up" over "washing") but
+ * the wrong rule when a long generic verb competes with a short specific noun.
+ */
+const GENERIC_IDS: ReadonlySet<ChoreIconId> = new Set(['clean'])
+
+/**
+ * Generic keywords last, then longest keyword first within each group. This
+ * ordering is load-bearing, not tidiness: "washing" would otherwise win against
+ * "washing up", and "wash the dishes" would show a washing machine. Compiled
+ * once at module load.
  */
 const ORDERED: ReadonlyArray<readonly [RegExp, ChoreIconId]> = [...KEYWORDS]
-  .sort((a, b) => b[0].length - a[0].length)
+  .sort((a, b) => {
+    const genericA = GENERIC_IDS.has(a[1])
+    const genericB = GENERIC_IDS.has(b[1])
+    if (genericA !== genericB) return genericA ? 1 : -1
+    return b[0].length - a[0].length
+  })
   .map(([keyword, id]) => [new RegExp(`\\b${escapeRegExp(keyword)}\\b`), id] as const)
 
 export function isChoreIconId(value: unknown): value is ChoreIconId {
