@@ -129,10 +129,10 @@ export const CHORE_ICON_GROUPS: ReadonlyArray<{ name: string; ids: readonly Chor
 
 /**
  * Title keywords, in British and Maltese English as the household actually types
- * them. Order in this array does not affect matching: generic-verb ids sort
- * after every other keyword, then longest keyword wins, then ties are broken
- * alphabetically by keyword — see ORDERED below. Table order is purely for
- * readability.
+ * them. Order in this array does not affect matching: generic-verb keywords
+ * sort after every other keyword, then longest keyword wins, then ties are
+ * broken alphabetically by keyword — see ORDERED below. Table order is purely
+ * for readability.
  */
 const KEYWORDS: ReadonlyArray<readonly [string, ChoreIconId]> = [
   // Kitchen. "washing up" and "dishes" must both outrank "washing".
@@ -197,38 +197,57 @@ function escapeRegExp(value: string): string {
  * would otherwise win against "washing up", and "wash the dishes" would show a
  * washing machine. Compiled once at module load.
  *
- * Three ids are deliberately excluded from pure length ranking: `clean`
- * (scrub/clean/cleaning), `repair` (repair/fix) and `tidy` (tidy/declutter) are
- * the table's genuinely generic verbs — each applies to virtually any object
- * ("clean the X", "fix the X", "tidy the X" all parse for any X), so by raw
- * length alone one can outrank a shorter but more specific noun it happens to
- * share a title with:
+ * A handful of individual keywords are deliberately excluded from pure length
+ * ranking — see GENERIC_KEYWORDS below — because each is a genuinely generic
+ * verb that applies to virtually any object ("clean the X", "fix the X", "tidy
+ * the X", "pay for the X" all parse for any X), so by raw length alone one can
+ * outrank a shorter but more specific noun it happens to share a title with:
  *   - "Clean the loo": 'clean' (5) vs 'loo' (3) — wrongly picks the spray
  *     bottle over the bathroom.
  *   - "Fix the car"/"Fix the dog"/"Fix the cat": 'fix' (3) ties every one of
  *     those nouns (3) — table order, not a rule, decided the old winner.
  *   - "Tidy the bins": 'tidy' (4) ties 'bins' (4) — same accident.
- * Generic-verb keywords are sorted after every other keyword, and only by
- * length (then alphabetically) among themselves, so a more specific match
- * anywhere in the title always wins; the generic verb still matches (and
- * should) when nothing more specific is present.
+ *   - "Pay for the car"/"Pay the pet insurance": 'pay' (3) ties/beats 'car'
+ *     and 'pet' (3) — alphabetical order, not a rule, decided the old winner
+ *     ('pay' < 'pet' but 'pay' > 'car', so it won one and lost the other for
+ *     no reason connected to which title is more specific).
+ * Generic keywords are sorted after every other keyword, and only by length
+ * (then alphabetically) among themselves, so a more specific match anywhere
+ * in the title always wins; the generic verb still matches (and should) when
+ * nothing more specific is present.
  *
- * `cook` (id `cooking`) and `pay` (id `bills`) look similar but are not in this
- * set: "Cook the fish" is genuinely a cooking chore, not the pet-fish icon, and
- * "Pay the bills" is genuinely the bills chore — the verb naming the correct
- * category rather than a generic stand-in that should defer to the noun. See
- * the audit in the Task 2 report for the full reasoning.
+ * This set is keyed by the keyword string, not the id, because genericness is
+ * a property of the individual word, not of the chore category: 'bills' the
+ * id has both a generic verb ('pay') and concrete nouns ('bill', 'bills') that
+ * must NOT be demoted with it — "Sort the admin and pay the bills" must still
+ * resolve to 'bills' (the mentioned topic), not lose to 'admin' just because
+ * 'pay' shares an id with 'bills'. Marking ids wholesale would also have wrongly
+ * demoted 'clean'/'repair'/'tidy' themselves, but every keyword under those
+ * three ids happens to be equally generic (there's no concrete-noun sense of
+ * "a repair" or "a tidy" the way there's a concrete "bill"), so listing them by
+ * keyword rather than id changes nothing for those three.
+ *
+ * `cook` and `pay`'s own noun-shaped siblings ('bill'/'bills') look similar but
+ * are not generic: "Cook the fish" is genuinely a cooking chore, not the
+ * pet-fish icon, because the verb names the correct category rather than
+ * standing in for "do something to X". See the audit in the Task 2 report for
+ * the full reasoning, including why 'mop' and 'mow' were checked and excluded.
  *
  * Equal-length, non-generic keywords are broken alphabetically by the keyword
  * itself, so which line happens to be listed first in KEYWORDS never affects
  * the result.
  */
-const GENERIC_IDS: ReadonlySet<ChoreIconId> = new Set(['clean', 'repair', 'tidy'])
+const GENERIC_KEYWORDS: ReadonlySet<string> = new Set([
+  'scrub', 'clean', 'cleaning', // clean
+  'repair', 'fix', // repair
+  'tidy', 'declutter', // tidy
+  'pay', // bills — 'bill'/'bills' are concrete nouns and are NOT in this set
+])
 
 const ORDERED: ReadonlyArray<readonly [RegExp, ChoreIconId]> = [...KEYWORDS]
   .sort((a, b) => {
-    const genericA = GENERIC_IDS.has(a[1])
-    const genericB = GENERIC_IDS.has(b[1])
+    const genericA = GENERIC_KEYWORDS.has(a[0])
+    const genericB = GENERIC_KEYWORDS.has(b[0])
     if (genericA !== genericB) return genericA ? 1 : -1
     if (a[0].length !== b[0].length) return b[0].length - a[0].length
     // Equal length: compare the keyword itself, so match order never depends on

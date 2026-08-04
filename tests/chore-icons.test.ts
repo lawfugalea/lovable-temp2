@@ -90,11 +90,20 @@ test('a generic verb never beats a specific noun', () => {
   // The generic verb still wins when nothing specific is present.
   assert.equal(inferChoreIconId('Fix the wobbly shelf'), 'repair')
   assert.equal(inferChoreIconId('Tidy up the front room'), 'tidy')
-  // Not every verb that looks generic defers to a same-length noun: cooking
-  // and paying name their own category rather than standing in for "do
-  // something to X", so they are not in the deprioritized set.
-  assert.equal(inferChoreIconId('Cook the fish'), 'cooking')
+  // 'pay' is exactly as generic as 'clean'/'fix'/'tidy': it applies to any
+  // bill-shaped or non-bill-shaped object, so it must lose to a specific noun
+  // too, regardless of which one alphabetically happens to sort first.
+  assert.equal(inferChoreIconId('Pay for the car'), 'car')
+  assert.equal(inferChoreIconId('Pay the pet insurance'), 'pets')
+  // The generic verb still wins when no specific noun is present.
   assert.equal(inferChoreIconId('Pay the bills'), 'bills')
+  assert.equal(inferChoreIconId('Pay the milkman'), 'bills')
+  // Not every verb that looks generic defers to a same-length noun: cooking
+  // names its own category rather than standing in for "do something to X",
+  // so it is not in the deprioritized set. 'bill'/'bills' are concrete nouns,
+  // not generic verbs, so they are unaffected by 'pay' joining the set.
+  assert.equal(inferChoreIconId('Cook the fish'), 'cooking')
+  assert.equal(inferChoreIconId('Sort out the bills'), 'bills')
 })
 
 test('the picker groups cover the registry exactly once, minus the fallback', () => {
