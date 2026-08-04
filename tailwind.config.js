@@ -104,6 +104,9 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		animation: {
+  			// Dashboard's once-per-load "Welcome" pace — deliberately slower than
+  			// the "Considered" interaction pace in src/lib/motion.ts. See
+  			// docs/superpowers/specs/2026-08-04-clankeep-shell-dashboard-design.md.
   			'fade-in': 'fade-in 0.4s ease-out',
   			rise: 'rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
   			'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',

@@ -1,11 +1,20 @@
 /**
- * The app's motion vocabulary. Every animated surface takes its timings from
- * here, so the whole of Clankeep moves at one speed.
+ * The app's motion vocabulary for interaction feedback — hover, focus, and
+ * completing an action. Every such surface takes its timings from here.
  *
  * Personality is "Considered": fast enough never to read as waiting, with a
  * soft spring only on the moments that matter. Chosen over a colour-only option
  * and a playful overshoot option after comparing all three in motion. See
  * docs/superpowers/specs/2026-08-04-clankeep-motion-icon-foundation-design.md.
+ *
+ * This is not the app's only pace. The dashboard's page-fade and its six
+ * summary cards' entrance (`animate-fade-in`, `animate-rise` in
+ * tailwind.config.js) run once per load rather than repeating dozens of
+ * times a day, so they deliberately keep a slower, separate "Welcome" pace
+ * instead of adopting Considered's speed. Those values live only in
+ * tailwind.config.js, not mirrored here — two files holding the same numbers
+ * is a drift risk the moment either one changes.
+ * See docs/superpowers/specs/2026-08-04-clankeep-shell-dashboard-design.md.
  *
  * Reduced motion is handled globally in src/styles/globals.css, which clamps
  * every animation and transition duration with !important. Anything whose
