@@ -159,7 +159,16 @@ export default function DashboardPage() {
   const [showJoinSuccess, setShowJoinSuccess] = useState(false)
   const [todayChores, setTodayChores] = useState<TodayChoreItem[]>([])
   const [tonight, setTonight] = useState<{ recipeName: string | null; freeText: string | null } | null>(null)
-  const [choreBusyKey, setChoreBusyKey] = useState<string | null>(null)
+  const [choreBusyKeys, setChoreBusyKeys] = useState<Set<string>>(new Set())
+
+  const setChoreBusy = useCallback((key: string, busy: boolean) => {
+    setChoreBusyKeys(current => {
+      const next = new Set(current)
+      if (busy) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }, [])
 
   useEffect(() => {
     if (router.query.joined === "1") {
@@ -235,7 +244,7 @@ export default function DashboardPage() {
   }, [])
 
   const resolveChore = useCallback(async (item: TodayChoreItem, resolveStatus: "DONE" | "SKIPPED") => {
-    setChoreBusyKey(todayItemKey(item))
+    setChoreBusy(todayItemKey(item), true)
     try {
       await fetch("/api/chores/complete", {
         method: "POST",
@@ -244,12 +253,12 @@ export default function DashboardPage() {
       })
       await loadChoresData()
     } finally {
-      setChoreBusyKey(null)
+      setChoreBusy(todayItemKey(item), false)
     }
-  }, [loadChoresData])
+  }, [loadChoresData, setChoreBusy])
 
   const undoChore = useCallback(async (item: TodayChoreItem) => {
-    setChoreBusyKey(todayItemKey(item))
+    setChoreBusy(todayItemKey(item), true)
     try {
       await fetch("/api/chores/complete", {
         method: "DELETE",
@@ -258,9 +267,9 @@ export default function DashboardPage() {
       })
       await loadChoresData()
     } finally {
-      setChoreBusyKey(null)
+      setChoreBusy(todayItemKey(item), false)
     }
-  }, [loadChoresData])
+  }, [loadChoresData, setChoreBusy])
 
   const loadFinanceData = useCallback(async (householdId: string) => {
     try {
@@ -514,7 +523,7 @@ export default function DashboardPage() {
             </div>
             <ChoreTodayList
               items={todayChores}
-              busyKey={choreBusyKey}
+              busyKeys={choreBusyKeys}
               compact
               onResolve={(item, resolveStatus) => void resolveChore(item, resolveStatus)}
               onUndo={(item) => void undoChore(item)}

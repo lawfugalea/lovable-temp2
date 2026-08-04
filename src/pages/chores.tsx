@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Head from 'next/head'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
-import { ListChecks, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ListChecks, Loader2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import ModernAppShell from '@/components/ModernAppShell'
 import ChoreFormDialog, { type ChoreDto, type HouseholdMemberOption } from '@/components/chores/ChoreFormDialog'
 import ChoreFairnessPanel from '@/components/chores/ChoreFairnessPanel'
@@ -233,6 +233,34 @@ export default function ChoresPage() {
     toast.success(created ? 'Chore created' : 'Chore updated')
   }, [loadToday])
 
+  /**
+   * Undo straight from the history list, for the "I ticked that last Tuesday by
+   * mistake" case. DELETE /api/chores/complete takes any choreId + dueDate with
+   * no restriction to today, so this needs no API change.
+   */
+  const undoLogEntry = useCallback(async (entry: LogEntry) => {
+    const key = `${entry.choreId}:${entry.dueDate}`
+    if (busyKeys.has(key)) return
+    setBusy(key, true)
+    try {
+      const response = await fetch('/api/chores/complete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ choreId: entry.choreId, dueDate: entry.dueDate }),
+      })
+      if (!response.ok) throw new Error('Could not undo')
+      // All three dependent views: the log itself, today (the occurrence may
+      // reappear as pending overdue), and the fairness panel.
+      setStatsRefreshKey(current => current + 1)
+      await Promise.all([loadLog(), loadToday()])
+      toast.success(`${entry.title} moved back to pending`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not undo')
+    } finally {
+      setBusy(key, false)
+    }
+  }, [busyKeys, loadLog, loadToday, setBusy])
+
   const openCreate = () => { setEditingChore(null); setFormOpen(true) }
   const openEdit = (chore: ChoreDto) => { setEditingChore(chore); setFormOpen(true) }
 
@@ -356,6 +384,17 @@ export default function ChoresPage() {
                     {entry.completedBy && <> · by {entry.completedBy.name || 'someone'}</>}
                   </p>
                 </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-busy={busyKeys.has(`${entry.choreId}:${entry.dueDate}`)}
+                  onClick={() => void undoLogEntry(entry)}
+                  className="shrink-0 text-muted-foreground"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Undo
+                </Button>
               </div>
             ))}
           </div>
