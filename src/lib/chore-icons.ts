@@ -219,13 +219,16 @@ function escapeRegExp(value: string): string {
  * This set is keyed by the keyword string, not the id, because genericness is
  * a property of the individual word, not of the chore category: 'bills' the
  * id has both a generic verb ('pay') and concrete nouns ('bill', 'bills') that
- * must NOT be demoted with it — "Sort the admin and pay the bills" must still
- * resolve to 'bills' (the mentioned topic), not lose to 'admin' just because
- * 'pay' shares an id with 'bills'. Marking ids wholesale would also have wrongly
- * demoted 'clean'/'repair'/'tidy' themselves, but every keyword under those
- * three ids happens to be equally generic (there's no concrete-noun sense of
- * "a repair" or "a tidy" the way there's a concrete "bill"), so listing them by
- * keyword rather than id changes nothing for those three.
+ * must NOT be demoted with it. Marking the whole id generic breaks exactly
+ * that case — "Pay the bills for the car" resolves to 'bills' (the noun keeps
+ * its length advantage) under this keyword-level scheme, but would resolve to
+ * 'car' under a rejected id-level scheme, because 'bills' (5 chars) would be
+ * demoted below 'car' (3 chars) merely for sharing an id with 'pay'. Marking
+ * ids wholesale would also have wrongly demoted 'clean'/'repair'/'tidy'
+ * themselves, but every keyword under those three ids happens to be equally
+ * generic (there's no concrete-noun sense of "a repair" or "a tidy" the way
+ * there's a concrete "bill"), so listing them by keyword rather than id
+ * changes nothing for those three.
  *
  * `cook` and `pay`'s own noun-shaped siblings ('bill'/'bills') look similar but
  * are not generic: "Cook the fish" is genuinely a cooking chore, not the

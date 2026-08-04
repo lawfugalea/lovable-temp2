@@ -104,6 +104,9 @@ test('a generic verb never beats a specific noun', () => {
   // not generic verbs, so they are unaffected by 'pay' joining the set.
   assert.equal(inferChoreIconId('Cook the fish'), 'cooking')
   assert.equal(inferChoreIconId('Sort out the bills'), 'bills')
+  // Keyword-level, not id-level, genericness: 'pay' is generic but the noun
+  // 'bills' that shares its id is not, and must keep its length advantage.
+  assert.equal(inferChoreIconId('Pay the bills for the car'), 'bills')
 })
 
 test('the picker groups cover the registry exactly once, minus the fallback', () => {
