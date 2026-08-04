@@ -12,7 +12,7 @@ import {
   sessionConsentExpiry,
 } from '@/lib/finance/enable-banking'
 import { normalizeBankAccount, type NormalizedBankAccount } from '@/lib/finance/normalization'
-import { isRateLimitError, isReauthorizationError, publicSyncError, syncBankConnection } from '@/lib/finance/sync'
+import { runLockedSync } from '@/lib/finance/sync'
 
 function redirect(res: NextApiResponse, params: Record<string, string>) {
   const target = new URL(appUrl('/banking'))
@@ -55,6 +55,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   let provisionalSessionId: string | null = null
   let persistedConnectionId: string | null = null
+  // Previously synced accounts the bank did not return this time, kept rather
+  // than deleted. Surfaced so a whitelist gap cannot pass as a clean reconnect.
+  let retainedAccounts = 0
   try {
     let providerSession = await completeAuthorization(code)
     const providerSessionId = typeof providerSession.session_id === 'string'
@@ -121,9 +124,36 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
           },
         })
       }
-      await tx.bankAccount.deleteMany({
+      // Accounts missing from this session are NOT automatically closed accounts.
+      // Enable Banking's restricted mode strips every account that is not linked
+      // to the application, so a whitelist gap looks exactly like a closed
+      // account here — and deleting cascades the balances and transactions away.
+      // Only drop rows that carry no history, and keep anything we would lose.
+      const stale = await tx.bankAccount.findMany({
         where: { connectionId: savedConnection.id, identificationHash: { notIn: hashes } },
+        select: {
+          id: true,
+          maskedIdentifier: true,
+          _count: { select: { transactions: true, balances: true } },
+        },
       })
+      const disposable = stale.filter(
+        account => account._count.transactions === 0 && account._count.balances === 0,
+      )
+      if (disposable.length) {
+        await tx.bankAccount.deleteMany({ where: { id: { in: disposable.map(a => a.id) } } })
+      }
+      retainedAccounts = stale.length - disposable.length
+      if (retainedAccounts) {
+        console.warn(
+          `BOV session for connection ${savedConnection.id} returned ${normalized.length} account(s) `
+          + `but ${retainedAccounts} previously synced account(s) were absent and have been kept: `
+          + stale
+            .filter(account => account._count.transactions || account._count.balances)
+            .map(account => account.maskedIdentifier || account.id)
+            .join(', '),
+        )
+      }
       return savedConnection
     })
     persistedConnectionId = connection.id
@@ -134,22 +164,28 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       })
     }
 
-    try {
-      await syncBankConnection(connection.id)
-      return redirect(res, { bankConnected: '1' })
-    } catch (error) {
-      await prisma.bankConnection.update({
-        where: { id: connection.id },
-        data: {
-          ...(isRateLimitError(error)
-            ? {}
-            : { status: isReauthorizationError(error) ? 'REAUTH_REQUIRED' : 'ERROR' }),
-          syncError: publicSyncError(error),
-        },
+    const partial: Record<string, string> = retainedAccounts
+      ? { partialAccounts: String(retainedAccounts) }
+      : {}
+
+    // The first sync asks for a year of history across every account, which runs
+    // for minutes — far longer than the browser sitting on the bank's redirect,
+    // or the reverse proxy in front of it, will wait. Awaiting it here made a
+    // successful connection look like a hung authorization. Start it detached
+    // and hand the reader back to the app straight away; `runLockedSync` records
+    // the outcome. If the process dies mid-import the attempt is already stamped,
+    // so the worker will not retry for MIN_SYNC_GAP_HOURS — "Refresh" recovers it
+    // in one click, and the stale-lock window keeps the connection unblocked.
+    void runLockedSync(connection.id)
+      .then(result => {
+        if (result.ok || result.reason === 'busy') return
+        console.error(`Initial BOV sync failed for connection ${connection.id}: ${result.message}`)
       })
-      console.error('Initial BOV sync failed:', error)
-      return redirect(res, { bankConnected: '1', syncWarning: '1' })
-    }
+      .catch(error => {
+        console.error('Initial BOV sync crashed:', error)
+      })
+
+    return redirect(res, { bankConnected: '1', syncPending: '1', ...partial })
   } catch (error) {
     if (provisionalSessionId && !persistedConnectionId) {
       await deleteProviderSession(provisionalSessionId).catch(() => undefined)

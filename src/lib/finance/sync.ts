@@ -7,6 +7,8 @@ import {
   getProviderSession,
   getProviderTransactions,
   isRateLimitError,
+  isReauthorizationError,
+  publicSyncError,
   sessionConsentExpiry,
 } from './enable-banking'
 import { normalizeBalances, normalizeBankAccount, normalizeTransaction } from './normalization'
@@ -24,6 +26,59 @@ export { isRateLimitError, isReauthorizationError, publicSyncError } from './ena
  */
 const INITIAL_HISTORY_DAYS = 365
 const OVERLAP_DAYS = 7
+
+/** How long a held sync lock is treated as abandoned rather than running. */
+const STALE_LOCK_MINUTES = 5
+
+export type LockedSyncResult =
+  | { ok: true }
+  | { ok: false; reason: 'busy' }
+  | { ok: false; reason: 'failed'; message: string; rateLimited: boolean }
+
+/**
+ * Sync one connection while holding the `syncStartedAt` lock, persisting the
+ * outcome exactly as the worker and the manual refresh do.
+ *
+ * This exists so a caller can run a sync *without* a request waiting on it. The
+ * first sync of a new connection asks for a year of history across every
+ * account, which takes far longer than a browser — or a reverse proxy — will
+ * hold a redirect open, so the OAuth callback starts it detached instead.
+ */
+export async function runLockedSync(connectionId: string): Promise<LockedSyncResult> {
+  const now = new Date()
+  const staleLock = new Date(now.getTime() - STALE_LOCK_MINUTES * 60_000)
+  const locked = await prisma.bankConnection.updateMany({
+    where: {
+      id: connectionId,
+      OR: [{ syncStartedAt: null }, { syncStartedAt: { lt: staleLock } }],
+    },
+    data: { syncStartedAt: now, lastSyncAttemptAt: now },
+  })
+  if (locked.count !== 1) return { ok: false, reason: 'busy' }
+
+  try {
+    await syncBankConnection(connectionId)
+    return { ok: true }
+  } catch (error) {
+    const rateLimited = isRateLimitError(error)
+    const message = publicSyncError(error)
+    await prisma.bankConnection.update({
+      where: { id: connectionId },
+      data: {
+        // A daily access cap leaves the consent intact, so keep the connection
+        // as it was and only surface the note.
+        ...(rateLimited ? {} : { status: isReauthorizationError(error) ? 'REAUTH_REQUIRED' : 'ERROR' }),
+        syncError: message,
+      },
+    }).catch(() => undefined)
+    return { ok: false, reason: 'failed', message, rateLimited }
+  } finally {
+    await prisma.bankConnection.updateMany({
+      where: { id: connectionId },
+      data: { syncStartedAt: null },
+    }).catch(() => undefined)
+  }
+}
 
 function dateOnly(value: Date): string {
   return value.toISOString().slice(0, 10)

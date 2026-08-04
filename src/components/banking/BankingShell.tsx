@@ -43,12 +43,27 @@ export function BankingShell({
 
   useEffect(() => {
     if (!router.isReady) return
-    const { bankConnected, bankError, syncWarning, ...rest } = router.query
-    if (!bankConnected && !bankError && !syncWarning) return
+    const { bankConnected, bankError, syncWarning, syncPending, partialAccounts, ...rest } = router.query
+    if (!bankConnected && !bankError && !syncWarning && !syncPending && !partialAccounts) return
     if (bankConnected === '1') {
-      onCallbackNotice?.(syncWarning === '1'
-        ? 'Bank connected. The first sync needs another try.'
-        : 'Bank connected successfully.')
+      // A retained-account count means the bank returned fewer accounts than we
+      // already hold. That is almost always an Enable Banking whitelist gap, so
+      // it must not read as a clean reconnect — the missing accounts are kept.
+      if (partialAccounts) {
+        onCallbackError?.(
+          `Bank connected, but ${partialAccounts} previously connected account(s) were not returned this time. `
+          + 'Their history has been kept. Check that every account is linked to the application in Enable Banking, then reconnect.',
+        )
+      } else if (syncPending === '1') {
+        // The first import runs behind the redirect, so the page legitimately
+        // has no balances or transactions yet. Say so, rather than let an empty
+        // dashboard read as a failed connection.
+        onCallbackNotice?.('Bank connected. Importing your history now — this can take a few minutes.')
+      } else {
+        onCallbackNotice?.(syncWarning === '1'
+          ? 'Bank connected. The first sync needs another try.'
+          : 'Bank connected successfully.')
+      }
     } else if (bankError) {
       onCallbackError?.(CALLBACK_MESSAGES[String(bankError)] || 'The bank connection could not be completed.')
     }
