@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Head from 'next/head'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
@@ -6,7 +6,9 @@ import { ListChecks, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import ModernAppShell from '@/components/ModernAppShell'
 import ChoreFormDialog, { type ChoreDto, type HouseholdMemberOption } from '@/components/chores/ChoreFormDialog'
 import ChoreFairnessPanel from '@/components/chores/ChoreFairnessPanel'
-import ChoreTodayList, { todayItemKey, type TodayChoreItem } from '@/components/chores/ChoreTodayList'
+import ChoreGroupedList from '@/components/chores/ChoreGroupedList'
+import ChoreTodayList from '@/components/chores/ChoreTodayList'
+import { localDateOnly, todayItemKey, type TodayChoreItem } from '@/lib/chore-view'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
@@ -28,10 +30,6 @@ interface LogEntry {
   completedAt: string
 }
 
-function localDateOnly() {
-  return new Date().toLocaleDateString('en-CA')
-}
-
 function errorMessage(value: unknown, fallback: string) {
   if (value && typeof value === 'object' && 'error' in value && typeof value.error === 'string') return value.error
   return fallback
@@ -50,7 +48,16 @@ export default function ChoresPage() {
   const [members, setMembers] = useState<HouseholdMemberOption[]>([])
   const [loading, setLoading] = useState(true)
   const [logLoaded, setLogLoaded] = useState(false)
-  const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set())
+  /**
+   * Statuses applied on click, before the server answers.
+   *
+   * The overlay is applied at render and cleared per key when that key's own
+   * request settles, which is what stops a slow refetch from clobbering a newer
+   * tap: loadToday() replaces todayItems, but an in-flight key keeps its
+   * optimistic status until its own request finishes.
+   */
+  const [optimistic, setOptimistic] = useState<Record<string, 'DONE' | 'SKIPPED'>>({})
   const [formOpen, setFormOpen] = useState(false)
   const [editingChore, setEditingChore] = useState<ChoreDto | null>(null)
   const [deletingChore, setDeletingChore] = useState<ChoreDto | null>(null)
@@ -110,9 +117,31 @@ export default function ChoresPage() {
     if (tab === 'log' && !logLoaded && status === 'authenticated') void loadLog()
   }, [tab, logLoaded, status, loadLog])
 
+  const setBusy = useCallback((key: string, busy: boolean) => {
+    setBusyKeys(current => {
+      const next = new Set(current)
+      if (busy) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }, [])
+
+  const clearOptimistic = useCallback((key: string) => {
+    setOptimistic(current => {
+      if (!(key in current)) return current
+      const next = { ...current }
+      delete next[key]
+      return next
+    })
+  }, [])
+
   const resolveItem = useCallback(async (item: TodayChoreItem, resolveStatus: 'DONE' | 'SKIPPED') => {
     const key = todayItemKey(item)
-    setBusyKey(key)
+    if (busyKeys.has(key)) return
+    setBusy(key, true)
+    // Apply first: the 200ms completion animation should not sit behind a
+    // network round trip, or it reads as latency instead of feedback.
+    setOptimistic(current => ({ ...current, [key]: resolveStatus }))
     try {
       const response = await fetch('/api/chores/complete', {
         method: 'POST',
@@ -126,15 +155,19 @@ export default function ChoresPage() {
       await loadToday()
       if (resolveStatus === 'DONE') toast.success(`${item.chore.title} done`)
     } catch (error) {
+      // Clearing the overlay reverts to server truth, which plays the mirrored
+      // animation back to pending.
       toast.error(error instanceof Error ? error.message : 'Could not update this chore')
     } finally {
-      setBusyKey(null)
+      clearOptimistic(key)
+      setBusy(key, false)
     }
-  }, [loadToday])
+  }, [busyKeys, clearOptimistic, loadToday, setBusy])
 
   const undoItem = useCallback(async (item: TodayChoreItem) => {
     const key = todayItemKey(item)
-    setBusyKey(key)
+    if (busyKeys.has(key)) return
+    setBusy(key, true)
     try {
       const response = await fetch('/api/chores/complete', {
         method: 'DELETE',
@@ -144,13 +177,14 @@ export default function ChoresPage() {
       if (!response.ok) throw new Error('Could not undo')
       setLogLoaded(false)
       setStatsRefreshKey(current => current + 1)
-      await loadToday()
+      await Promise.all([loadToday(), logLoaded ? loadLog() : Promise.resolve()])
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not undo')
     } finally {
-      setBusyKey(null)
+      clearOptimistic(key)
+      setBusy(key, false)
     }
-  }, [loadToday])
+  }, [busyKeys, clearOptimistic, loadLog, loadToday, logLoaded, setBusy])
 
   const toggleActive = useCallback(async (chore: ChoreDto) => {
     const response = await fetch(`/api/chores/${encodeURIComponent(chore.id)}`, {
@@ -193,7 +227,14 @@ export default function ChoresPage() {
   const openCreate = () => { setEditingChore(null); setFormOpen(true) }
   const openEdit = (chore: ChoreDto) => { setEditingChore(chore); setFormOpen(true) }
 
-  const pendingToday = todayItems.filter(item => item.status === 'PENDING').length
+  const visibleItems = useMemo(
+    () => todayItems.map(item => {
+      const status = optimistic[todayItemKey(item)]
+      return status ? { ...item, status } : item
+    }),
+    [todayItems, optimistic],
+  )
+  const pendingToday = visibleItems.filter(item => item.status === 'PENDING').length
 
   if (status === 'unauthenticated') {
     return <ModernAppShell title="Chores"><div className="flex min-h-[420px] items-center justify-center text-sm text-muted-foreground">Sign in to manage household chores.</div></ModernAppShell>
@@ -239,9 +280,10 @@ export default function ChoresPage() {
           <div className="space-y-2">{[0, 1, 2].map(index => <Skeleton key={index} className="h-14 rounded-xl" />)}</div>
         ) : tab === 'today' ? (
           <>
-            <ChoreTodayList
-              items={todayItems}
-              busyKey={busyKey}
+            <ChoreGroupedList
+              items={visibleItems}
+              busyKeys={busyKeys}
+              localDate={localDateOnly()}
               onResolve={(item, resolveStatus) => void resolveItem(item, resolveStatus)}
               onUndo={item => void undoItem(item)}
               emptyAction={chores.length === 0 ? (
