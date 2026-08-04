@@ -129,8 +129,10 @@ export const CHORE_ICON_GROUPS: ReadonlyArray<{ name: string; ids: readonly Chor
 
 /**
  * Title keywords, in British and Maltese English as the household actually types
- * them. Order in this array does not matter — matching is longest-keyword-first,
- * see ORDERED below.
+ * them. Order in this array does not affect matching: generic-verb ids sort
+ * after every other keyword, then longest keyword wins, then ties are broken
+ * alphabetically by keyword — see ORDERED below. Table order is purely for
+ * readability.
  */
 const KEYWORDS: ReadonlyArray<readonly [string, ChoreIconId]> = [
   // Kitchen. "washing up" and "dishes" must both outrank "washing".
@@ -195,23 +197,43 @@ function escapeRegExp(value: string): string {
  * would otherwise win against "washing up", and "wash the dishes" would show a
  * washing machine. Compiled once at module load.
  *
- * One id is deliberately excluded from pure length ranking: "clean" is the most
- * generic verb in the table (scrub/clean/cleaning), so on its own it would
- * outrank shorter but more specific nouns it happens to share a title with —
- * "Clean the loo" is 'clean' (5 chars) vs 'loo' (3 chars) by length alone, which
- * would wrongly pick the spray bottle over the bathroom. Generic-verb keywords
- * are sorted after every other keyword, and only by length among themselves, so
- * a more specific match anywhere in the title always wins; "clean" still
- * matches (and should) when nothing more specific is present.
+ * Three ids are deliberately excluded from pure length ranking: `clean`
+ * (scrub/clean/cleaning), `repair` (repair/fix) and `tidy` (tidy/declutter) are
+ * the table's genuinely generic verbs — each applies to virtually any object
+ * ("clean the X", "fix the X", "tidy the X" all parse for any X), so by raw
+ * length alone one can outrank a shorter but more specific noun it happens to
+ * share a title with:
+ *   - "Clean the loo": 'clean' (5) vs 'loo' (3) — wrongly picks the spray
+ *     bottle over the bathroom.
+ *   - "Fix the car"/"Fix the dog"/"Fix the cat": 'fix' (3) ties every one of
+ *     those nouns (3) — table order, not a rule, decided the old winner.
+ *   - "Tidy the bins": 'tidy' (4) ties 'bins' (4) — same accident.
+ * Generic-verb keywords are sorted after every other keyword, and only by
+ * length (then alphabetically) among themselves, so a more specific match
+ * anywhere in the title always wins; the generic verb still matches (and
+ * should) when nothing more specific is present.
+ *
+ * `cook` (id `cooking`) and `pay` (id `bills`) look similar but are not in this
+ * set: "Cook the fish" is genuinely a cooking chore, not the pet-fish icon, and
+ * "Pay the bills" is genuinely the bills chore — the verb naming the correct
+ * category rather than a generic stand-in that should defer to the noun. See
+ * the audit in the Task 2 report for the full reasoning.
+ *
+ * Equal-length, non-generic keywords are broken alphabetically by the keyword
+ * itself, so which line happens to be listed first in KEYWORDS never affects
+ * the result.
  */
-const GENERIC_IDS: ReadonlySet<ChoreIconId> = new Set(['clean'])
+const GENERIC_IDS: ReadonlySet<ChoreIconId> = new Set(['clean', 'repair', 'tidy'])
 
 const ORDERED: ReadonlyArray<readonly [RegExp, ChoreIconId]> = [...KEYWORDS]
   .sort((a, b) => {
     const genericA = GENERIC_IDS.has(a[1])
     const genericB = GENERIC_IDS.has(b[1])
     if (genericA !== genericB) return genericA ? 1 : -1
-    return b[0].length - a[0].length
+    if (a[0].length !== b[0].length) return b[0].length - a[0].length
+    // Equal length: compare the keyword itself, so match order never depends on
+    // where a line was inserted in KEYWORDS.
+    return a[0].localeCompare(b[0])
   })
   .map(([keyword, id]) => [new RegExp(`\\b${escapeRegExp(keyword)}\\b`), id] as const)
 

@@ -80,6 +80,23 @@ test('an unknown stored id is ignored, never rendered', () => {
   assert.equal(choreIconComponent('not-an-icon' as ChoreIconId), CHORE_ICONS[FALLBACK_CHORE_ICON_ID])
 })
 
+test('a generic verb never beats a specific noun', () => {
+  assert.equal(inferChoreIconId('Fix the car'), 'car')
+  assert.equal(inferChoreIconId('Fix the dog'), 'dog')
+  assert.equal(inferChoreIconId('Fix the cat'), 'cat')
+  assert.equal(inferChoreIconId('Fix the loo'), 'bathroom')
+  assert.equal(inferChoreIconId('Tidy the bins'), 'bin')
+  assert.equal(inferChoreIconId('Clean the loo'), 'bathroom')
+  // The generic verb still wins when nothing specific is present.
+  assert.equal(inferChoreIconId('Fix the wobbly shelf'), 'repair')
+  assert.equal(inferChoreIconId('Tidy up the front room'), 'tidy')
+  // Not every verb that looks generic defers to a same-length noun: cooking
+  // and paying name their own category rather than standing in for "do
+  // something to X", so they are not in the deprioritized set.
+  assert.equal(inferChoreIconId('Cook the fish'), 'cooking')
+  assert.equal(inferChoreIconId('Pay the bills'), 'bills')
+})
+
 test('the picker groups cover the registry exactly once, minus the fallback', () => {
   const grouped = CHORE_ICON_GROUPS.flatMap(group => group.ids)
   assert.equal(new Set(grouped).size, grouped.length, 'an id appears in two groups')
