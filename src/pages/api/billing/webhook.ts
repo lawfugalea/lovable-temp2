@@ -24,20 +24,32 @@ const MAX_WEBHOOK_BYTES = 1024 * 1024
 
 function readRawBody(req: NextApiRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = []
+    let chunks: Buffer[] = []
     let total = 0
-    req.on('data', chunk => {
+    let aborted = false
+
+    const onData = (chunk: Buffer) => {
       total += chunk.length
       if (total > MAX_WEBHOOK_BYTES) {
-        // Destroy rather than just stop reading: the sender must be cut off, not
-        // left streaming into a socket nobody is draining.
-        req.destroy()
+        aborted = true
+        // Drop what was buffered and stop reading — that is what bounds memory.
+        // Pause rather than destroy: destroying here kills the socket before the
+        // 413 can be flushed, so the sender sees a connection reset and cannot
+        // tell a size rejection from a network fault. Once nothing is draining
+        // the stream, TCP backpressure keeps the unread remainder off the heap.
+        chunks = []
+        req.off('data', onData)
+        req.pause()
         reject(Object.assign(new Error('Webhook payload too large'), { tooLarge: true }))
         return
       }
       chunks.push(Buffer.from(chunk))
+    }
+
+    req.on('data', onData)
+    req.on('end', () => {
+      if (!aborted) resolve(Buffer.concat(chunks, total))
     })
-    req.on('end', () => resolve(Buffer.concat(chunks, total)))
     req.on('error', reject)
   })
 }
@@ -135,6 +147,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     raw = await readRawBody(req)
   } catch (error) {
     if ((error as { tooLarge?: boolean })?.tooLarge) {
+      // The rest of the body is still in flight and will never be read, so this
+      // connection cannot be reused — keep-alive would parse the remainder as
+      // the start of the next request.
+      res.setHeader('Connection', 'close')
       return res.status(413).json({ error: 'Payload too large' })
     }
     throw error
