@@ -11,11 +11,33 @@ import { sendMetaEvents } from '@/lib/meta/conversions'
 // Stripe signatures are computed over the raw request body.
 export const config = { api: { bodyParser: false } }
 
+/**
+ * Turning off the body parser also turns off Next's built-in size limit, so the
+ * cap has to be reimposed here. Without it this route — which is unauthenticated
+ * by necessity, since the signature can only be checked after the body is read —
+ * buffers whatever an anonymous caller sends straight into process memory.
+ *
+ * Stripe event payloads are a few kilobytes; 1 MiB is far above anything real
+ * and far below anything that threatens the container.
+ */
+const MAX_WEBHOOK_BYTES = 1024 * 1024
+
 function readRawBody(req: NextApiRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = []
-    req.on('data', chunk => chunks.push(Buffer.from(chunk)))
-    req.on('end', () => resolve(Buffer.concat(chunks)))
+    let total = 0
+    req.on('data', chunk => {
+      total += chunk.length
+      if (total > MAX_WEBHOOK_BYTES) {
+        // Destroy rather than just stop reading: the sender must be cut off, not
+        // left streaming into a socket nobody is draining.
+        req.destroy()
+        reject(Object.assign(new Error('Webhook payload too large'), { tooLarge: true }))
+        return
+      }
+      chunks.push(Buffer.from(chunk))
+    })
+    req.on('end', () => resolve(Buffer.concat(chunks, total)))
     req.on('error', reject)
   })
 }
@@ -108,9 +130,18 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const signature = req.headers['stripe-signature']
   if (typeof signature !== 'string') return res.status(400).json({ error: 'Missing signature' })
 
+  let raw: Buffer
+  try {
+    raw = await readRawBody(req)
+  } catch (error) {
+    if ((error as { tooLarge?: boolean })?.tooLarge) {
+      return res.status(413).json({ error: 'Payload too large' })
+    }
+    throw error
+  }
+
   let event: Stripe.Event
   try {
-    const raw = await readRawBody(req)
     event = stripe.webhooks.constructEvent(raw, signature, secret)
   } catch (error) {
     console.error('[billing] webhook signature verification failed', error instanceof Error ? error.message : error)
