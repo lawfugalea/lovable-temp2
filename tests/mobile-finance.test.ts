@@ -12,7 +12,7 @@ test('mobile finance planner input is normalized and bounded by shared money rul
   })
   assert.deepEqual(parseMobilePlannerEntry('commitment', { label: ' Rent ', amount: '900', frequency: 'MONTHLY', category: 'housing', essential: true }), {
     ok: true,
-    value: { kind: 'commitment', label: 'Rent', amountCents: 90000, frequency: 'MONTHLY', userId: null, category: 'housing', essential: true },
+    value: { kind: 'commitment', label: 'Rent', amountCents: 90000, frequency: 'MONTHLY', userId: null, category: 'housing', essential: true, setAside: false },
   })
   assert.equal(parseMobilePlannerEntry('income', { label: '', amount: '10' }).ok, false)
   assert.equal(parseMobilePlannerEntry('income', { label: 'Salary', amount: '-10' }).ok, false)
