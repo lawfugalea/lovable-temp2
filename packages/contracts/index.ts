@@ -664,3 +664,14 @@ export interface MobileOnboardingResponse {
   steps: MobileOnboardingSteps | null
   entitlements: { plan: 'FREE' | 'FAMILY'; canUseFinance: boolean; canUseAi: boolean } | null
 }
+
+/** The household pantry. Mirrors the web serialization exactly. */
+export interface MobilePantryItem {
+  id: string
+  name: string
+  quantity: string | null
+  updatedAt: string
+  updatedBy: { id: string; name: string | null } | null
+}
+export interface MobilePantryResponse { householdId: string; items: MobilePantryItem[] }
+export interface MobileSavePantryItemResponse { item: MobilePantryItem }

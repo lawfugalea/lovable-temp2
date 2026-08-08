@@ -34,7 +34,6 @@ const WEB_ONLY: Record<string, string> = {
   register: 'Public web signup; the app re-exports the same handler.',
   uploads: 'Serves stored files to the browser.',
   prices: 'Supermarket comparison is parked pending written retailer consent.',
-  pantry: 'NOT YET BUILT for mobile.',
   health: 'Liveness probe for the container healthcheck.',
   'page-state': 'Browser page state persistence.',
   state: 'Browser page state persistence.',

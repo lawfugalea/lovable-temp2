@@ -3,10 +3,11 @@ import { StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import ChoresScreen from './chores'
 import MealsScreen from './meals'
+import PantryView from '@/PantryView'
 import { fontFamilies, spacing, useAppTheme } from '@/theme'
 import { SegmentedControl } from '@/ui'
 
-type PlanView = 'chores' | 'meals'
+type PlanView = 'chores' | 'meals' | 'pantry'
 
 export default function PlanScreen() {
   const { colors } = useAppTheme()
@@ -19,10 +20,11 @@ export default function PlanScreen() {
           <SegmentedControl value={view} onChange={setView} options={[
             { value: 'chores', label: 'Chores', icon: 'checkmark-circle-outline' },
             { value: 'meals', label: 'Meals', icon: 'restaurant-outline' },
+            { value: 'pantry', label: 'Pantry', icon: 'file-tray-full-outline' },
           ]} />
         </View>
       </SafeAreaView>
-      <View style={styles.content}>{view === 'chores' ? <ChoresScreen /> : <MealsScreen />}</View>
+      <View style={styles.content}>{view === 'chores' ? <ChoresScreen /> : view === 'meals' ? <MealsScreen /> : <PantryView />}</View>
     </View>
   )
 }
