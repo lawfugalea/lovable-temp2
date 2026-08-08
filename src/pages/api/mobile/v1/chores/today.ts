@@ -26,6 +26,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<MobileTodayChor
       id: item.chore.id,
       title: item.chore.title,
       notes: item.chore.notes,
+      icon: item.chore.icon,
       schedule: item.chore.schedule,
       assigneeName: item.chore.assignee?.name ?? null,
       dueDate: item.dueDate,

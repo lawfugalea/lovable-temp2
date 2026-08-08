@@ -1,9 +1,11 @@
+import { MOBILE_CHORE_ICON_GROUPS } from '@clankeep/contracts'
 import type { MobileChore, MobileChoreMember, MobileChoresResponse, MobileSaveChoreResponse, MobileTodayChore, MobileTodayChoresResponse } from '@clankeep/contracts'
 import { Ionicons } from '@expo/vector-icons'
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '@/auth/AuthProvider'
+import { choreIconName } from '@/choreIcons'
 import { DateTimeField } from '@/DateTimeField'
 import { fontFamilies, spacing, useAppTheme } from '@/theme'
 import { AppButton, Card, Chip, EmptyState, ErrorBanner, Field, IconButton, LoadingState, PageHeader, Screen, SectionHeader, SheetHeader, StatusPill, useResponsive } from '@/ui'
@@ -27,7 +29,7 @@ export default function ChoresScreen() {
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<MobileChore | 'new' | null>(null)
   const [form, setForm] = useState({
-    title: '', notes: '', active: true, assigneeId: '',
+    title: '', notes: '', active: true, assigneeId: '', icon: '' as string,
     recurrenceType: 'WEEKLY' as 'WEEKLY' | 'EVERY_N_DAYS' | 'MONTHLY',
     daysOfWeek: [1] as number[], intervalDays: '7', anchorDate: localDateOnly(), dayOfMonth: '1',
   })
@@ -72,11 +74,11 @@ export default function ChoresScreen() {
 
   const openForm = (chore?: MobileChore) => {
     setForm(chore ? {
-      title: chore.title, notes: chore.notes || '', active: chore.active, assigneeId: chore.assignee?.id || '',
+      title: chore.title, notes: chore.notes || '', active: chore.active, assigneeId: chore.assignee?.id || '', icon: chore.icon || '',
       recurrenceType: chore.recurrenceType, daysOfWeek: chore.daysOfWeek, intervalDays: String(chore.intervalDays || 7),
       anchorDate: chore.anchorDate || date, dayOfMonth: String(chore.dayOfMonth || 1),
     } : {
-      title: '', notes: '', active: true, assigneeId: '', recurrenceType: 'WEEKLY',
+      title: '', notes: '', active: true, assigneeId: '', icon: '', recurrenceType: 'WEEKLY',
       daysOfWeek: [new Date().getDay() || 7], intervalDays: '7', anchorDate: date, dayOfMonth: '1',
     })
     setEditing(chore || 'new')
@@ -88,6 +90,7 @@ export default function ChoresScreen() {
     setError('')
     const payload = {
       householdId, title: form.title, notes: form.notes, active: form.active, assigneeId: form.assigneeId || null,
+      icon: form.icon || null,
       recurrenceType: form.recurrenceType, daysOfWeek: form.daysOfWeek, intervalDays: Number(form.intervalDays),
       anchorDate: form.anchorDate, dayOfMonth: Number(form.dayOfMonth),
     }
@@ -131,7 +134,7 @@ export default function ChoresScreen() {
                     {busyId === item.id ? <ActivityIndicator color={resolved ? '#FFFFFF' : colors.chores} /> : resolved ? <Ionicons name="checkmark" size={19} color="#FFFFFF" /> : null}
                   </View>
                   <View style={styles.flex}>
-                    <View style={styles.titleRow}><Text style={[styles.choreTitle, { color: colors.text }, resolved && styles.doneText]}>{item.title}</Text>{item.overdue ? <StatusPill tone="danger" label="Overdue" /> : null}</View>
+                    <View style={styles.titleRow}><Ionicons name={choreIconName(item.icon)} size={17} color={colors.chores} /><Text style={[styles.choreTitle, { color: colors.text }, resolved && styles.doneText]}>{item.title}</Text>{item.overdue ? <StatusPill tone="danger" label="Overdue" /> : null}</View>
                     <Text style={[styles.meta, { color: colors.muted }]}>{item.schedule}{item.assigneeName ? ' · ' + item.assigneeName : ''}</Text>
                     {item.notes ? <Text numberOfLines={2} style={[styles.notes, { color: colors.text }]}>{item.notes}</Text> : null}
                     {resolved ? <Text style={[styles.completed, { color: colors.success }]}>Completed{item.completedByName ? ' by ' + item.completedByName : ''} · tap to reopen</Text> : null}
@@ -147,7 +150,7 @@ export default function ChoresScreen() {
         <View style={styles.list}>{chores.map(chore => (
           <Card key={chore.id} style={[styles.manageCard, !chore.active && styles.doneCard]}>
             <Pressable onPress={() => openForm(chore)} style={styles.manageRow}>
-              <View style={[styles.manageIcon, { backgroundColor: colors.successSoft }]}><Ionicons name="repeat-outline" size={20} color={colors.chores} /></View>
+              <View style={[styles.manageIcon, { backgroundColor: colors.successSoft }]}><Ionicons name={choreIconName(chore.icon)} size={20} color={colors.chores} /></View>
               <View style={styles.flex}><Text style={[styles.choreTitle, { color: colors.text }]}>{chore.title}</Text><Text style={[styles.meta, { color: colors.muted }]}>{chore.schedule}{chore.assignee?.name ? ' · ' + chore.assignee.name : ''}</Text></View>
               {!chore.active ? <StatusPill label="Paused" /> : null}
               <IconButton danger icon="trash-outline" label={'Delete ' + chore.title} disabled={busyId === chore.id} onPress={() => deleteChore(chore)} />
@@ -162,6 +165,30 @@ export default function ChoresScreen() {
           <ScrollView keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.formPage}>
             <Field label="Chore" leadingIcon="checkmark-circle-outline" maxLength={200} onChangeText={title => setForm(current => ({ ...current, title }))} placeholder="What needs doing?" value={form.title} />
             <Field label="Notes" maxLength={2000} multiline onChangeText={notes => setForm(current => ({ ...current, notes }))} placeholder="Helpful details (optional)" value={form.notes} />
+
+            <Text style={[styles.label, { color: colors.text }]}>Icon</Text>
+            <View style={styles.choices}>
+              <Chip label="Auto" selected={!form.icon} onPress={() => setForm(current => ({ ...current, icon: '' }))} tone={colors.chores} />
+            </View>
+            {MOBILE_CHORE_ICON_GROUPS.map(group => (
+              <View key={group.name}>
+                <Text style={[styles.meta, { color: colors.muted }]}>{group.name}</Text>
+                <View style={styles.choices}>
+                  {group.ids.map(id => (
+                    <Pressable
+                      key={id}
+                      accessibilityRole="button"
+                      accessibilityLabel={id}
+                      accessibilityState={{ selected: form.icon === id }}
+                      onPress={() => setForm(current => ({ ...current, icon: id }))}
+                      style={[styles.iconChoice, { borderColor: form.icon === id ? colors.chores : colors.border, backgroundColor: form.icon === id ? colors.successSoft : colors.card }]}
+                    >
+                      <Ionicons name={choreIconName(id)} size={21} color={form.icon === id ? colors.chores : colors.muted} />
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ))}
 
             <Text style={[styles.label, { color: colors.text }]}>Repeats</Text>
             <View style={styles.choices}>{(['WEEKLY', 'EVERY_N_DAYS', 'MONTHLY'] as const).map(type => <Chip key={type} label={type === 'WEEKLY' ? 'Weekly' : type === 'EVERY_N_DAYS' ? 'Every N days' : 'Monthly'} selected={form.recurrenceType === type} onPress={() => setForm(current => ({ ...current, recurrenceType: type }))} tone={colors.chores} />)}</View>
@@ -205,5 +232,7 @@ const styles = StyleSheet.create({
   formPage: { width: '100%', maxWidth: 700, alignSelf: 'center', padding: spacing.md, paddingBottom: 70, gap: spacing.md },
   label: { fontFamily: fontFamilies.bodySemiBold, fontSize: 13 },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // 44pt keeps every icon a comfortable tap target, per the app's touch rules.
+  iconChoice: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   two: { flexDirection: 'row', gap: 12 },
 })

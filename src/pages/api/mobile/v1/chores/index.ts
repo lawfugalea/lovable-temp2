@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import type { MobileApiError, MobileChoresResponse, MobileSaveChoreRequest, MobileSaveChoreResponse } from '../../../../../../packages/contracts'
 import { withApiHandler } from '@/lib/api-handler'
+import { isChoreIconId } from '@/lib/chore-icons'
 import { dateOnlyToDb, validateRecurrenceInput } from '@/lib/chore-recurrence'
 import { CHORE_NOTES_MAX, CHORE_TITLE_MAX, serializeChore } from '@/lib/chores'
 import { requireMobileIdentity } from '@/lib/mobile-auth'
@@ -33,7 +34,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse<Response>) {
     assigneeId = body.assigneeId
   }
   const value = recurrence.recurrence
-  const chore = await prisma.chore.create({ data: { householdId, title, notes: typeof body.notes === 'string' ? body.notes.trim().slice(0, CHORE_NOTES_MAX) || null : null, assigneeId, recurrenceType: value.type, daysOfWeek: value.type === 'WEEKLY' ? value.daysOfWeek : [], intervalDays: value.type === 'EVERY_N_DAYS' ? value.intervalDays : null, anchorDate: value.type === 'EVERY_N_DAYS' ? dateOnlyToDb(value.anchorDate) : null, dayOfMonth: value.type === 'MONTHLY' ? value.dayOfMonth : null }, include: { assignee: { select: { id: true, name: true } } } })
+  let icon: string | null = null
+  if (body.icon !== undefined && body.icon !== null && body.icon !== '') {
+    if (!isChoreIconId(body.icon)) return res.status(400).json({ error: 'Unknown icon' })
+    icon = body.icon
+  }
+  const chore = await prisma.chore.create({ data: { householdId, title, icon, notes: typeof body.notes === 'string' ? body.notes.trim().slice(0, CHORE_NOTES_MAX) || null : null, assigneeId, recurrenceType: value.type, daysOfWeek: value.type === 'WEEKLY' ? value.daysOfWeek : [], intervalDays: value.type === 'EVERY_N_DAYS' ? value.intervalDays : null, anchorDate: value.type === 'EVERY_N_DAYS' ? dateOnlyToDb(value.anchorDate) : null, dayOfMonth: value.type === 'MONTHLY' ? value.dayOfMonth : null }, include: { assignee: { select: { id: true, name: true } } } })
   return res.status(201).json({ chore: serializeChore(chore) })
 }
 
