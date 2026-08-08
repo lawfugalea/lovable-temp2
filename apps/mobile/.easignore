@@ -1,0 +1,29 @@
+# EAS uploads the whole workspace, because the app imports @clankeep/contracts
+# from the repo root. Without this the marketing video sources alone made the
+# archive ~500 MB, which is uploaded on every single build.
+#
+# Only exclude things the native build genuinely does not read.
+
+# Marketing video sources and renders (~1 GB).
+marketing/
+
+# Web-only build output and caches.
+.next/
+smart_debug/
+uploads/
+tsconfig.tsbuildinfo
+tsconfig.scripts.tsbuildinfo
+
+# Previously exported bundles; regenerated on demand.
+apps/mobile/dist/
+apps/mobile/dist-android-sdk54/
+apps/mobile/dist-ios-sdk54/
+
+# Database dumps and local operational files.
+*.sql
+*.dump
+log.txt
+
+# The web app's own source is not read by the native build. Deliberately NOT
+# excluded: packages/contracts (imported by the app) and prisma (nothing native
+# reads it, but it is small and excluding it risks a confusing failure).
