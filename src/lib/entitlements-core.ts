@@ -74,6 +74,10 @@ export function resolveEntitlements(input: EntitlementInput): HouseholdEntitleme
     effectiveVia = 'stripe'
   } else if (
     input.plan === 'FAMILY' &&
+    // Only when an Apple subscription actually exists. `graceUntil` is shared
+    // with Stripe, so without this a Stripe household inside its grace window
+    // would be attributed to Apple.
+    input.appleSubscriptionStatus != null &&
     // Checked against the stored dates rather than the plan alone: Apple sends
     // no event at the instant a subscription lapses, so a household left on
     // FAMILY would otherwise keep access after its paid period ended.

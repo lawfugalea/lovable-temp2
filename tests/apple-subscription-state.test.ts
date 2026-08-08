@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { appleEntitlementActive, mapAppleSubscriptionState } from '../src/lib/billing/apple-subscription-state'
+import { resolveEntitlements } from '../src/lib/entitlements-core'
 
 const now = new Date('2026-08-08T12:00:00.000Z')
 const inAMonth = new Date('2026-09-08T12:00:00.000Z').getTime()
@@ -96,4 +97,55 @@ test('a refunded subscription is never active, whatever the dates say', () => {
     appleEntitlementActive({ status: 'REFUNDED', expiresAt: new Date(inAMonth), graceUntil: new Date(inAMonth) }, now),
     false,
   )
+})
+
+test('a Stripe household in its grace window is never attributed to Apple', () => {
+  // `graceUntil` is shared between the two providers. An earlier version of the
+  // Apple branch read it unconditionally and stole Stripe's grace period,
+  // reporting the wrong billing source for a paying web subscriber.
+  const inGrace = resolveEntitlements({
+    plan: 'FAMILY',
+    planSource: 'STRIPE',
+    stripeSubscriptionStatus: 'past_due',
+    appleSubscriptionStatus: null,
+    appleExpiresAt: null,
+    currentPeriodEnd: null,
+    graceUntil: new Date('2026-08-15T12:00:00.000Z'),
+    ownerIsDemo: false,
+    now,
+  })
+  assert.equal(inGrace.plan, 'FAMILY')
+  assert.equal(inGrace.effectiveVia, 'grace')
+})
+
+test('an Apple subscriber resolves as apple, not grace', () => {
+  const apple = resolveEntitlements({
+    plan: 'FAMILY',
+    planSource: 'APPLE',
+    stripeSubscriptionStatus: null,
+    appleSubscriptionStatus: 'RENEWAL',
+    appleExpiresAt: new Date(inAMonth),
+    currentPeriodEnd: null,
+    graceUntil: null,
+    ownerIsDemo: false,
+    now,
+  })
+  assert.equal(apple.plan, 'FAMILY')
+  assert.equal(apple.effectiveVia, 'apple')
+})
+
+test('an Apple subscription that has run out drops to free', () => {
+  const lapsed = resolveEntitlements({
+    plan: 'FAMILY',
+    planSource: 'APPLE',
+    stripeSubscriptionStatus: null,
+    appleSubscriptionStatus: 'RENEWAL',
+    appleExpiresAt: new Date(lastMonth),
+    currentPeriodEnd: null,
+    graceUntil: null,
+    ownerIsDemo: false,
+    now,
+  })
+  assert.equal(lapsed.plan, 'FREE')
+  assert.equal(lapsed.effectiveVia, 'free')
 })
