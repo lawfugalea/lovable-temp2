@@ -100,7 +100,7 @@ const ICONS = {
 } satisfies Record<string, IconName>
 
 /** Picker layout, mirroring the web groups. The fallback is deliberately absent. */
-export const CHORE_ICON_GROUPS: ReadonlyArray<{ name: string; ids: readonly ChoreIconId[] }> = [
+export const CHORE_ICON_GROUPS: readonly { name: string; ids: readonly ChoreIconId[] }[] = [
   { name: 'Cleaning', ids: ['clean', 'sweep', 'hoover', 'windows', 'bin', 'recycling', 'tidy'] },
   { name: 'Kitchen', ids: ['dishes', 'cooking', 'fridge', 'microwave', 'meal-prep', 'veg', 'coffee'] },
   { name: 'Laundry', ids: ['laundry', 'clothes', 'towels'] },
