@@ -1,6 +1,6 @@
 # Clankeep mobile handoff
 
-Last updated: 2026-07-23
+Last updated: 2026-08-08
 
 This file is the durable continuation point for Codex sessions working on the
 Clankeep iOS and Android application. Update it whenever mobile work changes
@@ -597,6 +597,45 @@ The changes are implemented but intentionally uncommitted for review.
   at zero temporary lists and zero temporary sessions.
 - After shopping validation, the existing live web `/api/health` and `/login`
   both returned 200. No deployment was performed.
+
+## Production alignment merge (2026-08-08)
+
+Apple approved the paid Developer Program enrolment, so the branch was first
+brought up to the production web line before any release work.
+
+- `mobile/foundation` had been isolated at `ac9ab36` while
+  `agent/houseflow-production-release` moved 72 commits ahead. Both lines had
+  independently built shopping AI, plan accounts, and analytics, so they had
+  become two implementations of the same features.
+- Production is authoritative for all shared web code. The merge takes it
+  verbatim; only genuinely mobile-only code was kept on top. A pre-merge
+  snapshot of the previously uncommitted work is on `mobile/pre-align-backup`
+  (commit `3abaf2e`) — nothing was discarded without a recoverable copy.
+- Removed as superseded: the `FinanceFundingRule` money-flow design (libs, web
+  and mobile routes, tests) and `planAccountId` on income/commitments.
+  Production went to savings accounts, plan-account balances, and commitment
+  set-aside instead, and keeps `planAccountId` for savings goals only. The Expo
+  app called none of the removed routes.
+- Adapted: mobile bearer routes now use the durable rate-limit store; mobile
+  insights project the web banking analytics rather than a parallel analytics
+  implementation (amounts are integer cents, as on the web); and
+  `financeAccessForIdentity` is a split of production's `requireFinanceAccess`
+  so session and bearer callers authorize through one code path.
+- `tests/api-guard-coverage.test.ts` now knows the mobile guards and token
+  endpoints, so mobile routes are audited to the same standard as web routes.
+- Three UI prop errors (`ErrorBanner onDismiss`, `SheetHeader subtitle`) that
+  pre-existed in the uncommitted work were fixed; the earlier "validated" notes
+  covered committed milestones, not that WIP.
+- Verified on 2026-08-08: 357/357 root tests, root and mobile strict TypeScript,
+  root and mobile lint, Expo Doctor 18/18, and a production web build retaining
+  all 48 mobile API routes. No deployment, signing, submission, or database
+  migration was performed.
+- Not yet re-run against a live database: the mobile smoke scripts. The Finance
+  smoke script was trimmed to drop the removed routes and needs a fresh run
+  before the next device checkpoint. The Insights screen changed units and
+  should be checked on the phone.
+- Still open: whether the mobile work stays in this worktree or is merged into
+  `agent/houseflow-production-release` so it lives in `/var/www/clankeep`.
 
 ## Exact next step: native distribution preparation
 
