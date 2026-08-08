@@ -1,12 +1,12 @@
 import React, { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Search } from 'lucide-react'
+import { FileText, Plus, Search } from 'lucide-react'
 import ModernAppShell from '../components/ModernAppShell'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
+import { EmptyState } from '../components/ui/EmptyState'
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs'
-import NotesSidebar from '../components/notes/NotesSidebar'
-import NotesGrid from '../components/notes/NotesGrid'
+import NotesList from '../components/notes/NotesList'
 import NoteEditorView from '../components/notes/NoteEditorView'
 import ShareDialog from '../components/notes/ShareDialog'
 import DeleteNoteDialog from '../components/notes/DeleteNoteDialog'
@@ -85,82 +85,103 @@ export default function NotesPage() {
     )
   }
 
+  const listProps = {
+    notes: filteredNotes,
+    loading,
+    searchQuery,
+    activeTab,
+    isNoteOwner,
+    canEditNote,
+    onOpen: setSelectedNote,
+    onUpdate: updateNote,
+    onShare: setShareNote,
+    onDelete: setDeleteTarget,
+    onCreateNote: createNewNote,
+  }
+
+  const editor = selectedNote && (
+    <NoteEditorView
+      note={selectedNote}
+      isOwner={isNoteOwner(selectedNote)}
+      canEdit={canEditNote(selectedNote)}
+      saveState={saveState}
+      lastSaved={lastSaved}
+      onBack={() => setSelectedNote(null)}
+      onUpdate={updateNote}
+      onContentUpdate={updateNoteContent}
+      onShare={setShareNote}
+      onDelete={setDeleteTarget}
+    />
+  )
+
   return (
     <ModernAppShell title="Notes">
-      <div className="flex h-screen bg-background">
-        {/* Desktop sidebar */}
-        <div className="hidden w-80 overflow-y-auto border-r border-border bg-card/60 md:block">
-          <div className="p-4 pb-0">
-            <h1 className="text-xl font-semibold text-foreground">Notes</h1>
-          </div>
-          <NotesSidebar
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onCreateNote={createNewNote}
-          />
-        </div>
-
-        {/* Main content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Mobile header */}
-          {!selectedNote && (
-            <div className="border-b border-border bg-card/60 p-4 md:hidden">
-              <div className="mb-3 flex items-center justify-between">
-                <h1 className="text-lg font-semibold text-foreground">Notes</h1>
-              </div>
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search notes..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as NotesTab)}>
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="all">All</TabsTrigger>
-                  <TabsTrigger value="personal">Personal</TabsTrigger>
-                  <TabsTrigger value="shared">Shared</TabsTrigger>
-                  <TabsTrigger value="archived">Archive</TabsTrigger>
-                </TabsList>
-              </Tabs>
+      {/* At lg the panes own the scrolling, so the page itself must not add any. */}
+      <div className="space-y-4 pb-12 lg:pb-0">
+        <header className="rounded-xl border bg-card p-3 shadow-soft-sm sm:p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex items-center justify-between gap-3 lg:w-56 lg:shrink-0">
+              <h1 className="font-display text-xl font-bold tracking-tight">Notes</h1>
+              <Button size="sm" data-tour="page-notes" onClick={createNewNote} className="lg:hidden">
+                <Plus className="mr-1.5 h-4 w-4" />
+                New
+              </Button>
             </div>
-          )}
 
-          {!selectedNote ? (
-            <div className="flex-1 overflow-y-auto p-3 md:p-6">
-              <NotesGrid
-                notes={filteredNotes}
-                loading={loading}
-                searchQuery={searchQuery}
-                activeTab={activeTab}
-                isNoteOwner={isNoteOwner}
-                canEditNote={canEditNote}
-                onOpen={setSelectedNote}
-                onUpdate={updateNote}
-                onShare={setShareNote}
-                onDelete={setDeleteTarget}
-                onCreateNote={createNewNote}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search notes…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
               />
             </div>
-          ) : (
-            <NoteEditorView
-              note={selectedNote}
-              isOwner={isNoteOwner(selectedNote)}
-              canEdit={canEditNote(selectedNote)}
-              saveState={saveState}
-              lastSaved={lastSaved}
-              onBack={() => setSelectedNote(null)}
-              onUpdate={updateNote}
-              onContentUpdate={updateNoteContent}
-              onShare={setShareNote}
-              onDelete={setDeleteTarget}
-            />
-          )}
+
+            <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as NotesTab)}>
+              <TabsList className="grid w-full grid-cols-4 lg:w-auto">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="personal">Personal</TabsTrigger>
+                <TabsTrigger value="shared">Shared</TabsTrigger>
+                <TabsTrigger value="archived">Archive</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <Button data-tour="page-notes" onClick={createNewNote} className="hidden lg:inline-flex">
+              <Plus className="mr-1.5 h-4 w-4" />
+              New note
+            </Button>
+          </div>
+        </header>
+
+        {/* Below lg: browse, then the editor takes over. */}
+        <div className="lg:hidden">
+          {selectedNote ? editor : <NotesList variant="board" {...listProps} />}
+        </div>
+
+        {/* lg and up: the rail and the editor sit side by side, each scrolling on its own. */}
+        <div className="hidden gap-4 lg:grid lg:h-[calc(100vh-15rem)] lg:grid-cols-[minmax(300px,22rem)_1fr]">
+          <div className="min-h-0 overflow-y-auto pr-1">
+            <NotesList variant="rail" selectedNoteId={selectedNote?.id ?? null} {...listProps} />
+          </div>
+          <div className="min-h-0">
+            {editor ?? (
+              <EmptyState
+                className="h-full justify-center"
+                icon={FileText}
+                module="notes"
+                title="Nothing open"
+                description="Pick a note from the list, or start a new one."
+                action={
+                  <Button onClick={createNewNote}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    New note
+                  </Button>
+                }
+              />
+            )}
+          </div>
         </div>
       </div>
 

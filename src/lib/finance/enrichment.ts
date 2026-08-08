@@ -1,3 +1,6 @@
+import { merchantGroupKey } from './merchant-key'
+import { type Cents, fromCents, toCentsOrNull } from './money'
+
 type JsonObject = Record<string, unknown>
 
 export const FINANCE_CATEGORIES = [
@@ -28,11 +31,45 @@ export type TransactionEnrichmentInput = {
   providerData?: unknown
 }
 
+/**
+ * Where a transaction's sign came from. `UNKNOWN` means the bank sent neither a
+ * credit/debit indicator nor a signed amount, so the direction is genuinely not
+ * known — such a row must never be counted as income, which is what the previous
+ * `return amount` fallback did silently.
+ */
+export type AmountSource = 'INDICATOR' | 'SIGN' | 'UNKNOWN'
+
+/**
+ * What kind of account-to-account movement this is, read from the bank's own
+ * remittance code rather than from merchant text. The distinction matters
+ * because own-account legs are not spending, while a transfer to a third party
+ * is.
+ */
+export type TransferKind = 'NONE' | 'OWN_ACCOUNT' | 'SEPA_IN' | 'SEPA_OUT' | 'MOBILE_PAY' | 'THIRD_PARTY'
+
 export type EnrichedTransaction = {
   merchantName: string
+  /** Aggregation key: groups cheque serials, casing and mobile-pay variants. */
+  merchantGroupKey: string
   detail: string | null
   transactionType: string
   category: FinanceCategory
+  amountCents: Cents
+  amountSource: AmountSource
+  transferKind: TransferKind
+  /** The payer typed something meaningful, e.g. "wolt greens" on a transfer. */
+  hasUserMemo: boolean
+  /**
+   * The memo names money that was *received* — a benefit, a salary — rather than
+   * something bought. On an own-account transfer that is the difference between
+   * moving income you were paid and making a purchase from the other account.
+   */
+  memoNamesReceivedIncome: boolean
+  /** Digits identifying the other account, from the first note line. */
+  counterpartyAccountHint: string | null
+  /** Identifiers for the account this row belongs to, harvested from the payload. */
+  ownAccountIdentifiers: string[]
+  /** @deprecated Use {@link EnrichedTransaction.amountCents}. */
   signedAmount: number
 }
 
@@ -74,7 +111,9 @@ function cleanMerchant(value: string): string {
   const cleaned = value
     .replace(/[\r\n]+/g, ' ')
     .replace(/^\s*(?:POS|CARD (?:PURCHASE|PAYMENT)|PURCHASE)\s*[:*-]?\s*/i, '')
-    .replace(/^SUMUP\s+\*+/i, '')
+    // A payment processor is not the merchant: "PAYPAL *SPOTIFY" is Spotify, and
+    // leaving the prefix on sent every processor-routed purchase to Transfers.
+    .replace(/^\s*(?:PAYPAL|PP|SQ|IZ|SUMUP|STRIPE|ADYEN|ZETTLE)\s*\*+\s*/i, '')
     .replace(/\*{1,2}\d{4}\*?/g, '')
     .replace(/\s+-\s*$/g, '')
     .replace(/\s{2,}/g, ' ')
@@ -91,6 +130,20 @@ function isIdentifierOnly(value: string): boolean {
   return /^\d{8,}$/.test(compact) || /^[A-Z]{2}\d{2}[A-Z0-9]{8,30}$/i.test(compact)
 }
 
+/**
+ * A memo naming where received money came from, rather than what it bought.
+ *
+ * BOV own-account transfers carry whatever the payer typed, and people label a
+ * move of money they were paid with its source ("SOCIAL SECURITY EUR 545.16
+ * CHILDREN'S ALLOWANCE"). Treating that as a memo makes the leg count as
+ * spending, which turns received income into an expense.
+ *
+ * Deliberately narrow: only unambiguous benefit and payroll wording. A word like
+ * "grant" is left out because it is also a name, and a false positive here hides
+ * real spending — the costlier mistake of the two.
+ */
+const RECEIVED_INCOME_MEMO = /\b(?:social security|child(?:ren)?'?s? allowance|child benefit|pension|salary|wages?|payroll|stipend|maternity benefit|sickness benefit|unemployment benefit|tax (?:refund|rebate))\b/
+
 function isGeneric(value: string): boolean {
   return /^(?:POS|CARD|CARD PURCHASE|PURCHASE|PAYMENT|BANK TRANSACTION|TRANSACTION|DEBIT|CREDIT|TRANSFER|DIRECT DEBIT|MOBILE PAY|ATM)$/i.test(value.trim())
 }
@@ -101,14 +154,56 @@ function transactionCode(raw: JsonObject): string {
   return (firstText(remittance[0], bankCode.description, bankCode.code, raw.note_type) || '').toUpperCase()
 }
 
-export function signedTransactionAmount(input: TransactionEnrichmentInput): number {
+/**
+ * The signed amount in cents, plus how confident we are about that sign.
+ *
+ * The bank's credit/debit indicator is authoritative when present. Failing that
+ * an explicitly negative amount string is trustworthy. An unsigned amount with no
+ * indicator is reported as `UNKNOWN` rather than guessed at.
+ */
+export function signedTransactionAmountCents(input: TransactionEnrichmentInput): { cents: Cents; source: AmountSource } {
   const raw = object(input.providerData)
-  const amount = Number(input.amount)
-  if (!Number.isFinite(amount)) return 0
+  const cents = toCentsOrNull(input.amount)
+  if (cents === null) return { cents: 0, source: 'UNKNOWN' }
   const indicator = firstText(raw.credit_debit_indicator, raw.creditDebitIndicator)?.toUpperCase()
-  if (indicator === 'DBIT' || indicator === 'DEBIT') return -Math.abs(amount)
-  if (indicator === 'CRDT' || indicator === 'CREDIT') return Math.abs(amount)
-  return amount
+  if (indicator === 'DBIT' || indicator === 'DEBIT') return { cents: -Math.abs(cents), source: 'INDICATOR' }
+  if (indicator === 'CRDT' || indicator === 'CREDIT') return { cents: Math.abs(cents), source: 'INDICATOR' }
+  if (cents < 0) return { cents, source: 'SIGN' }
+  if (cents === 0) return { cents: 0, source: 'INDICATOR' }
+  return { cents, source: 'UNKNOWN' }
+}
+
+/** @deprecated Use {@link signedTransactionAmountCents}. */
+export function signedTransactionAmount(input: TransactionEnrichmentInput): number {
+  return fromCents(signedTransactionAmountCents(input).cents)
+}
+
+/**
+ * Read the movement kind from the bank's code, never from merchant text.
+ *
+ * This has to come from the code because on own-account transfers the merchant
+ * name is often whatever the payer typed ("wolt greens"), which says nothing
+ * about the mechanism.
+ */
+function transferKindFor(code: string): TransferKind {
+  if (/transfer between own accounts/.test(code)) return 'OWN_ACCOUNT'
+  if (/sct (?:instant payments )?inwards/.test(code)) return 'SEPA_IN'
+  if (/sct outwards/.test(code) && !/fee/.test(code)) return 'SEPA_OUT'
+  if (/pay third parties/.test(code)) return 'THIRD_PARTY'
+  if (/mobile pay/.test(code)) return 'MOBILE_PAY'
+  if (/transfer/.test(code)) return 'THIRD_PARTY'
+  return 'NONE'
+}
+
+/** Digit runs long enough to identify an account, e.g. "40025916061". */
+function accountDigits(...values: unknown[]): string[] {
+  const found = new Set<string>()
+  for (const value of values) {
+    for (const candidate of textArray(value)) {
+      for (const match of candidate.matchAll(/\d{6,}/g)) found.add(match[0])
+    }
+  }
+  return [...found]
 }
 
 function transactionTypeFor(code: string, signedAmount: number): string {
@@ -142,33 +237,77 @@ function categoryFromMcc(value: unknown): FinanceCategory | null {
   return null
 }
 
+type CategoryRule = { category: FinanceCategory; pattern: RegExp }
+
+/**
+ * The bank's own transaction code. Authoritative, so these win over anything
+ * inferred from merchant text — "TRANSPORT MALTA FEE" is Transport spending, not
+ * a bank fee, and only the code can tell us a charge really is a fee.
+ */
+const CODE_CATEGORY_RULES: readonly CategoryRule[] = [
+  { category: 'Cash', pattern: /\batm\b|cash withdrawal|cheque withdrawal/ },
+  { category: 'Fees', pattern: /\b(?:fee|charge)s?\b|commission|currency conversion/ },
+  { category: 'Housing', pattern: /repayment of (?:principal|main interest|interest)|\bmortgage\b/ },
+]
+
+/** Merchant and memo text. Every keyword is word-anchored where ambiguous. */
+const MERCHANT_CATEGORY_RULES: readonly CategoryRule[] = [
+  { category: 'Groceries', pattern: /supermarket|grocery|grocer|lidl|greens|pavi|pama|welbee|smart market|convenience|food store/ },
+  { category: 'Dining', pattern: /restaurant|cafe|coffee|wolt|bolt food|mcdonald|burger|pizza|kfc|dining|pastizzeria|bakery|takeaway|lunch/ },
+  { category: 'Transport', pattern: /petrol|fuel|diesel|service station|parking|transport|tallinja|uber|bolt|taxi|ferry|\bbus\b|car hire|car rental|rent a car/ },
+  { category: 'Health', pattern: /pharmacy|clinic|doctor|\bdoc\b|hospital|dental|medical|health/ },
+  { category: 'Education', pattern: /school|college|university|tuition|education|childcare|nursery/ },
+  { category: 'Entertainment', pattern: /playstation|netflix|spotify|cinema|gaming|steam|youtube|entertainment|bowling/ },
+  { category: 'Travel', pattern: /airline|hotel|booking\.com|ryanair|easyjet|airbnb|travel/ },
+  { category: 'Bills & utilities', pattern: /electric|water|utility|telecom|internet|insurance|arms ltd|melita|epic|go plc/ },
+  { category: 'Shopping', pattern: /amazon|aliexpress|temu|ebay|shein|zara|retail|department store|shopping|clothing|clothes|electronics/ },
+  // \brent\b so "PARENT SCHOOL FUND" is not housing and "CAR RENTAL" reaches
+  // Transport above.
+  { category: 'Housing', pattern: /\brent\b|mortgage|property|real estate|housing|condominium/ },
+  { category: 'Fees', pattern: /\b(?:bank|service|handling|admin|late|transaction)\s+(?:fee|charge)s?\b|\bcommission\b/ },
+]
+
+/** Weaker code signals, applied only once merchant text has had its say. */
+const CODE_FALLBACK_RULES: readonly CategoryRule[] = [
+  { category: 'Bills & utilities', pattern: /direct debit|standing (?:order|instruction)|bill payment/ },
+  { category: 'Transfers', pattern: /transfer|mobile pay|\bsct\b|pay third parties/ },
+]
+
+function matchRules(rules: readonly CategoryRule[], haystack: string): FinanceCategory | null {
+  for (const rule of rules) {
+    if (rule.pattern.test(haystack)) return rule.category
+  }
+  return null
+}
+
 function categoryFor(
   merchant: string,
   detail: string | null,
   code: string,
   type: string,
-  signedAmount: number,
+  amountCents: Cents,
   merchantCategoryCode: unknown,
 ): FinanceCategory {
-  const haystack = `${merchant} ${detail || ''} ${code} ${type}`.toLowerCase()
-  if (type === 'Refund' || /\brefund|reversal\b/.test(haystack)) return 'Refunds'
-  if (signedAmount >= 0 && !/transfer|mobile pay/.test(haystack)) return 'Income'
-  const mccCategory = categoryFromMcc(merchantCategoryCode)
-  if (mccCategory) return mccCategory
-  if (/\batm\b|cash withdrawal/.test(haystack)) return 'Cash'
-  if (/\bfee\b|commission|currency conversion|bank charge/.test(haystack)) return 'Fees'
-  if (/transfer|mobile pay|revolut|wise|paypal/.test(haystack)) return 'Transfers'
-  if (/supermarket|grocery|grocer|lidl|greens|pavi|pama|welbee|smart market|convenience|food store/.test(haystack)) return 'Groceries'
-  if (/restaurant|cafe|coffee|wolt|bolt food|mcdonald|burger|pizza|kfc|dining|pastizzeria|bakery|takeaway/.test(haystack)) return 'Dining'
-  if (/petrol|fuel|service station|parking|transport|tallinja|uber|bolt|taxi|ferry|bus|car hire/.test(haystack)) return 'Transport'
-  if (/amazon|aliexpress|temu|ebay|shein|zara|retail|department store|shopping|clothing|electronics/.test(haystack)) return 'Shopping'
-  if (/electric|water|utility|telecom|internet|mobile|insurance|arms ltd|melita|epic|go plc/.test(haystack)) return 'Bills & utilities'
-  if (/playstation|netflix|spotify|cinema|gaming|steam|youtube|entertainment/.test(haystack)) return 'Entertainment'
-  if (/pharmacy|clinic|doctor|hospital|dental|medical|health/.test(haystack)) return 'Health'
-  if (/rent|mortgage|property|real estate|housing/.test(haystack)) return 'Housing'
-  if (/school|college|university|tuition|education|childcare/.test(haystack)) return 'Education'
-  if (/airline|hotel|booking\.com|ryanair|easyjet|airbnb|travel/.test(haystack)) return 'Travel'
-  if (/direct debit|standing order|bill payment/.test(haystack)) return 'Bills & utilities'
+  const codeText = `${code} ${type}`.toLowerCase()
+  const merchantText = `${merchant} ${detail || ''}`.toLowerCase()
+
+  if (type === 'Refund' || /\brefund\b|\breversal\b/.test(`${codeText} ${merchantText}`)) return 'Refunds'
+  const fromCode = matchRules(CODE_CATEGORY_RULES, codeText)
+  if (fromCode) return fromCode
+  const fromMcc = categoryFromMcc(merchantCategoryCode)
+  if (fromMcc) return fromMcc
+  const fromMerchant = matchRules(MERCHANT_CATEGORY_RULES, merchantText)
+  if (fromMerchant) return fromMerchant
+  // Credits are resolved before the weaker code rules, so an inbound SEPA credit
+  // from a payroll is income rather than being swallowed by "transfer". Only a
+  // shuffle between your own accounts, or money handed over by phone, is a
+  // transfer. Income is still a last resort: a credit at a recognised merchant
+  // keeps that merchant's category, which is how refunds stay refunds.
+  if (amountCents > 0) {
+    return /transfer between own accounts|mobile pay/.test(codeText) ? 'Transfers' : 'Income'
+  }
+  const fromFallback = matchRules(CODE_FALLBACK_RULES, codeText)
+  if (fromFallback) return fromFallback
   return 'Other'
 }
 
@@ -179,7 +318,8 @@ export function enrichTransaction(input: TransactionEnrichmentInput): EnrichedTr
   const merchant = object(raw.merchant)
   const ultimateCreditor = object(raw.ultimate_creditor ?? raw.ultimateCreditor)
   const ultimateDebtor = object(raw.ultimate_debtor ?? raw.ultimateDebtor)
-  const signedAmount = signedTransactionAmount(input)
+  const { cents: amountCents, source: amountSource } = signedTransactionAmountCents(input)
+  const signedAmount = fromCents(amountCents)
   const code = transactionCode(raw)
   const transactionType = transactionTypeFor(code, signedAmount)
 
@@ -201,6 +341,10 @@ export function enrichTransaction(input: TransactionEnrichmentInput): EnrichedTr
     .find(value => value && !isGeneric(value) && !isReferenceLine(value) && !isIdentifierOnly(value))
   const merchantCandidate = structured || meaningfulNoteLines[0] || fallbackText || transactionType
   const merchantName = cleanMerchant(merchantCandidate) || transactionType
+  // Whether a human labelled this movement. On own-account transfers this is the
+  // difference between a real purchase made from another of your accounts and a
+  // pure balance shuffle, so it decides whether the row counts as spending.
+  const hasUserMemo = Boolean(structured || meaningfulNoteLines[0] || fallbackText)
 
   const detailParts = meaningfulNoteLines
     .slice(structured ? 0 : 1)
@@ -212,9 +356,29 @@ export function enrichTransaction(input: TransactionEnrichmentInput): EnrichedTr
     detail,
     code,
     transactionType,
-    signedAmount,
+    amountCents,
     raw.merchant_category_code ?? raw.merchantCategoryCode,
   )
 
-  return { merchantName, detail, transactionType, category, signedAmount }
+  return {
+    merchantName,
+    merchantGroupKey: merchantGroupKey(merchantName),
+    detail,
+    transactionType,
+    category,
+    amountCents,
+    amountSource,
+    transferKind: transferKindFor(code.toLowerCase()),
+    hasUserMemo,
+    memoNamesReceivedIncome: hasUserMemo
+      && RECEIVED_INCOME_MEMO.test(`${merchantName} ${detail || ''}`.toLowerCase()),
+    // BOV puts the counterparty account number on the first note line; the
+    // creditor/debtor IBAN is this row's own account, not the other side.
+    counterpartyAccountHint: accountDigits(noteLines[0])[0] || null,
+    ownAccountIdentifiers: accountDigits(
+      object(raw.creditor_account ?? raw.creditorAccount).iban,
+      object(raw.debtor_account ?? raw.debtorAccount).iban,
+    ),
+    signedAmount,
+  }
 }

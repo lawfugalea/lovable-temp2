@@ -9,6 +9,9 @@ import { Input } from '@/components/ui/Input'
 import MathCaptcha from '@/components/ui/MathCaptcha'
 import { Spinner } from '@/components/ui/spinner'
 import PasswordInput from '@/components/ui/PasswordInput'
+import PublicTracking from '@/components/PublicTracking'
+import { trackMetaEvent } from '@/components/MetaPixel'
+import { newEventId } from '@/lib/meta/event-id'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -39,10 +42,13 @@ export default function RegisterPage() {
     setSuccess(false)
 
     try {
+      // One id for both sides of the same conversion, so the browser event and
+      // the server event are recognised as one signup rather than two.
+      const metaEventId = newEventId()
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name, email, password, captchaId: captcha.id, captchaAnswer: captcha.answer, acceptedTerms })
+        body: JSON.stringify({ name, email, password, captchaId: captcha.id, captchaAnswer: captcha.answer, acceptedTerms, metaEventId })
       })
 
       const data = await res.json()
@@ -51,6 +57,8 @@ export default function RegisterPage() {
         throw new Error(data.error || 'Could not register')
       }
 
+      // No-op unless the visitor accepted tracking and the pixel loaded.
+      trackMetaEvent('CompleteRegistration', metaEventId)
       setSuccess(true)
       setTimeout(() => {
         const inviteToken = router.query.invite as string
@@ -227,6 +235,7 @@ export default function RegisterPage() {
           </p>
         </div>
       </AuthLayout>
+      <PublicTracking />
     </>
   )
 }

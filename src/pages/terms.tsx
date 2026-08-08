@@ -29,14 +29,13 @@ export default function TermsPage({ config }: TermsPageProps) {
         <p>
           These terms apply to Clankeep, operated by{' '}
           <strong className="text-foreground">{config.controllerName}</strong>. Clankeep is a shared household service:
-          shopping lists with a Maltese supermarket price comparison, meal planning, chores, a child health and medicine
-          journal, a household money planner, and shared notes. By creating an account or using Clankeep, you agree to
+          shopping lists, meal planning, chores, a child health and medicine journal, a household money planner, and
+          shared notes. By creating an account or using Clankeep, you agree to
           these terms and the <a className="text-primary hover:underline" href="./privacy">Privacy Policy</a>.
         </p>
         <p>
-          Clankeep offers a Free plan and a paid Family plan. Some Family features — such as the supermarket price
-          comparison — are only available to households located in Malta, because they are built on Maltese supermarket
-          catalogues.
+          Clankeep offers a Free plan and a paid Family plan. The features included in each plan are shown before you
+          subscribe and may change as the service develops.
         </p>
       </LegalSection>
 
@@ -49,14 +48,12 @@ export default function TermsPage({ config }: TermsPageProps) {
         </p>
       </LegalSection>
 
-      <LegalSection title="3. The money planner — no bank connection">
+      <LegalSection title="3. The money planner">
         <p>
-          The Clankeep money planner works entirely from information you type in yourself: incomes, commitments, budgets,
+          The Clankeep money planner works from information you type in yourself: incomes, commitments, budgets,
           savings goals and planning accounts that can mirror how you organise money at your bank. Monthly transfer
-          check-offs record only that a household member marked a planned transfer complete. <strong className="text-foreground">Clankeep does not offer open banking</strong>: it does
-          not connect to your bank, does not read your bank accounts or transactions, does not receive your banking
-          credentials, and cannot initiate transfers or payments. Planner figures are a convenience view, not an
-          accounting system or financial advice.
+          check-offs record only that a household member marked a planned transfer complete. Clankeep cannot initiate
+          transfers or payments. Planner figures are a convenience view, not an accounting system or financial advice.
         </p>
       </LegalSection>
 
@@ -68,18 +65,7 @@ export default function TermsPage({ config }: TermsPageProps) {
         </p>
       </LegalSection>
 
-      <LegalSection title="5. Price comparison — estimates only">
-        <p>
-          The supermarket price comparison reads the public online catalogues of Maltese supermarkets and prices your
-          shopping list against them. Prices are planning estimates: they can be delayed, incomplete or different from
-          in-store branch prices, and they exclude delivery charges, loyalty-only discounts and travel costs. Prices
-          older than 48 hours are flagged rather than silently used. Verify important prices with the store. Clankeep is
-          not affiliated with, operated by or endorsed by any supermarket named in the comparison. The operator may
-          maintain, change, suspend or discontinue the service or individual features when needed.
-        </p>
-      </LegalSection>
-
-      <LegalSection title="5A. Planner insights and optional AI">
+      <LegalSection title="5. Planner insights and optional AI">
         <p>
           Spending observations, set-aside suggestions and coaching insights are estimates based on the planner
           information you enter. They can be incomplete or wrong and should not be treated as financial, accounting,
@@ -93,7 +79,7 @@ export default function TermsPage({ config }: TermsPageProps) {
         </p>
       </LegalSection>
 
-      <LegalSection title="5B. Child health journal">
+      <LegalSection title="6. Child health journal">
         <p>
           The child health journal is a private household record of information entered by parents or carers. It is not
           a medical device, diagnostic service, prescription, or substitute for product packaging, a pharmacist, a
@@ -108,7 +94,7 @@ export default function TermsPage({ config }: TermsPageProps) {
         </p>
       </LegalSection>
 
-      <LegalSection title="6. Plans, billing and cancellation">
+      <LegalSection title="7. Plans, billing and cancellation">
         <p>
           The Free plan is free for as long as we offer it. The Family plan is billed through Stripe, our payment
           processor, monthly or yearly at the prices shown at checkout (VAT included). You can cancel at any time from
@@ -118,7 +104,7 @@ export default function TermsPage({ config }: TermsPageProps) {
         </p>
       </LegalSection>
 
-      <LegalSection title="7. Ending access and deleting your data">
+      <LegalSection title="8. Ending access and deleting your data">
         <p>
           You can stop using Clankeep at any time and can permanently delete your account from Settings. Deleting your
           account removes it from the live database; where you are the sole remaining owner of a household, the
@@ -127,16 +113,16 @@ export default function TermsPage({ config }: TermsPageProps) {
         </p>
       </LegalSection>
 
-      <LegalSection title="8. Responsibility and limitations">
+      <LegalSection title="9. Responsibility and limitations">
         <p>
           Use reasonable care when relying on household information shown in Clankeep. To the extent permitted by
-          applicable law, the operator is not responsible for losses caused by inaccurate catalogue prices, provider
-          outages, unauthorised use of credentials, or decisions made from the convenience views. Nothing in these terms
+          applicable law, the operator is not responsible for losses caused by provider outages, unauthorised use of
+          credentials, or decisions made from the convenience views. Nothing in these terms
           excludes responsibility that cannot legally be excluded.
         </p>
       </LegalSection>
 
-      <LegalSection title="9. Changes, law and contact">
+      <LegalSection title="10. Changes, law and contact">
         <p>
           These terms may be updated when the service or its providers change. The updated date appears at the top of
           the page. These terms are governed by the laws applicable in Malta, without removing any mandatory rights you

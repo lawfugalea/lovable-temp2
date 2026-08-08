@@ -2,9 +2,8 @@ import { randomBytes } from 'node:crypto'
 import { withApiHandler } from '@/lib/api-handler'
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { prisma } from '@/lib/prisma'
-import { appUrl } from '@/lib/links'
 import { requireFinanceAccess } from '@/lib/finance/access'
-import { getFinanceAspsp, isFinanceProviderConfigured } from '@/lib/finance/config'
+import { getFinanceAspsp, getFinanceRedirectUrl, isFinanceProviderConfigured } from '@/lib/finance/config'
 import { startBovAuthorization } from '@/lib/finance/enable-banking'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -14,7 +13,12 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const householdId = typeof req.body?.householdId === 'string' ? req.body.householdId : undefined
-  const access = await requireFinanceAccess(req, res, householdId, { manage: true, bank: true })
+  // Any household member may connect and manage *their own* bank. Ownership is
+  // enforced below by matching the connection to access.userId; requiring the
+  // household OWNER role on top of that only stopped a second adult from
+  // connecting their own account, and their income was then missing from every
+  // household figure.
+  const access = await requireFinanceAccess(req, res, householdId, { bank: true })
   if (!access) return
   if (!isFinanceProviderConfigured()) {
     return res.status(503).json({ error: 'Enable Banking credentials are not configured' })
@@ -59,10 +63,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     },
   })
 
+  const redirectUrl = getFinanceRedirectUrl()
   try {
     const authorization = await startBovAuthorization({
       state,
-      redirectUrl: appUrl('/api/finance/callback'),
+      redirectUrl,
       aspsp,
     })
     if (!authorization.url || !authorization.url.startsWith('https://')) {
@@ -72,8 +77,16 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(200).json({ authorizationUrl: authorization.url })
   } catch (error) {
     await prisma.bankAuthorizationAttempt.delete({ where: { id: attempt.id } }).catch(() => undefined)
-    console.error('Failed to start BOV authorization:', error)
-    return res.status(502).json({ error: error instanceof Error ? error.message : 'Unable to start bank connection' })
+    console.error(`Failed to start BOV authorization (redirect ${redirectUrl}):`, error)
+    const message = error instanceof Error ? error.message : 'Unable to start bank connection'
+    // The provider only says "Redirect URI not allowed", which is impossible to
+    // act on without knowing which URI it rejected.
+    if (/redirect/i.test(message)) {
+      return res.status(502).json({
+        error: `Enable Banking rejected the redirect address ${redirectUrl}. Add it to the application's allowed redirect URLs, or set ENABLE_BANKING_REDIRECT_URL to one that is already registered.`,
+      })
+    }
+    return res.status(502).json({ error: message })
   }
 }
 

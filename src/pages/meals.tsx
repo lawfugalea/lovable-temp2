@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { ChevronLeft, ChevronRight, Loader2, Pencil, Plus, Scale, ShoppingBasket, Trash2, UtensilsCrossed } from 'lucide-react'
 import ModernAppShell from '@/components/ModernAppShell'
 import GenerateListDialog from '@/components/meals/GenerateListDialog'
+import PantryPanel from '@/components/meals/PantryPanel'
+import WeekCostSummary from '@/components/meals/WeekCostSummary'
 import MealSlotPicker, { type PlanEntryDto, type RecipeOption } from '@/components/meals/MealSlotPicker'
 import RecipeFormDialog, { type RecipeDto } from '@/components/meals/RecipeFormDialog'
 import SupermarketComparisonPanel from '@/components/shopping/SupermarketComparisonPanel'
@@ -12,12 +15,13 @@ import UpgradeGate from '@/components/UpgradeGate'
 import { Button } from '@/components/ui/Button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/Dialog'
 import { EmptyState } from '@/components/ui/EmptyState'
+import ModuleFirstRun from '@/components/onboarding/ModuleFirstRun'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { BasketComparison } from '@/lib/shopping-price-comparison'
 import { cn } from '@/lib/utils'
 
-type MealsTab = 'week' | 'recipes'
+type MealsTab = 'week' | 'recipes' | 'pantry'
 
 function localDateOnly(date = new Date()) {
   return date.toLocaleDateString('en-CA')
@@ -44,6 +48,7 @@ function errorMessage(value: unknown, fallback: string) {
 
 export default function MealsPage() {
   const { status } = useSession()
+  const router = useRouter()
   const [tab, setTab] = useState<MealsTab>('week')
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()))
   const [entries, setEntries] = useState<Map<string, PlanEntryDto>>(new Map())
@@ -56,12 +61,14 @@ export default function MealsPage() {
   const [deletingRecipe, setDeletingRecipe] = useState<RecipeDto | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [generateOpen, setGenerateOpen] = useState(false)
+  const [addAndShopBusy, setAddAndShopBusy] = useState(false)
   const [priceOpen, setPriceOpen] = useState(false)
   const [priceComparison, setPriceComparison] = useState<BasketComparison | null>(null)
   const [priceLoading, setPriceLoading] = useState(false)
   const [priceError, setPriceError] = useState('')
   const [priceLocked, setPriceLocked] = useState(false)
-  // Malta-only feature: optimistic until /api/household/active says otherwise.
+  // Catalogue features are deny-by-default until the server confirms consented retailers.
+  const [comparisonAvailable, setComparisonAvailable] = useState(false)
   const [regionSupported, setRegionSupported] = useState(true)
 
   const weekDates = useMemo(
@@ -107,9 +114,12 @@ export default function MealsPage() {
       try {
         const response = await fetch('/api/household/active')
         const data = await response.json().catch(() => ({}))
-        if (response.ok && data.priceComparisonRegionSupported === false) setRegionSupported(false)
+        if (response.ok) {
+          setComparisonAvailable(data.priceComparisonAvailable === true)
+          if (data.priceComparisonRegionSupported === false) setRegionSupported(false)
+        }
       } catch {
-        // Stay optimistic; plan-price answers authoritatively via 403 codes.
+        // Keep catalogue features hidden when availability cannot be confirmed.
       }
     })()
   }, [status, from, to, loadWeek, loadRecipes])
@@ -158,6 +168,12 @@ export default function MealsPage() {
     try {
       const response = await fetch(`/api/meals/plan-price?from=${from}&to=${to}`)
       const data = await response.json().catch(() => ({}))
+      if (response.status === 503 && data.code === 'feature_unavailable') {
+        setComparisonAvailable(false)
+        setPriceOpen(false)
+        setPriceComparison(null)
+        return
+      }
       if (response.status === 403 && (data.code === 'upgrade_required' || data.code === 'unavailable_region')) {
         if (data.code === 'unavailable_region') {
           setRegionSupported(false)
@@ -178,6 +194,49 @@ export default function MealsPage() {
     }
   }, [from, to])
 
+  /**
+   * The whole point of pricing a week: turn "Store X is cheapest" into a list
+   * you can actually walk around with. Fills the household's first active list
+   * and opens it on the compare tab, where the per-store breakdown lives.
+   */
+  const addWeekAndShop = useCallback(async () => {
+    setAddAndShopBusy(true)
+    try {
+      const listsResponse = await fetch('/api/shopping/lists')
+      const listsData = await listsResponse.json().catch(() => ({}))
+      if (!listsResponse.ok) throw new Error(errorMessage(listsData, 'Could not load your shopping lists'))
+      const active = (Array.isArray(listsData.lists) ? listsData.lists : [])
+        .filter((list: { archivedAt: string | null }) => !list.archivedAt)
+      const target = active[0]
+      if (!target) {
+        toast.error('Create a shopping list in Shopping first')
+        return
+      }
+
+      const response = await fetch('/api/meals/generate-shopping-list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to, listId: target.id }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(errorMessage(data, 'Could not update the shopping list'))
+
+      const created = Number(data.created) || 0
+      const merged = Number(data.merged) || 0
+      const skipped = Array.isArray(data.skippedFromPantry) ? data.skippedFromPantry.length : 0
+      toast.success(
+        `${data.listName}: ${created} item${created === 1 ? '' : 's'} added`
+        + `${merged ? `, ${merged} topped up` : ''}`
+        + `${skipped ? `, ${skipped} already in the pantry` : ''}`,
+      )
+      await router.push(`/shopping?list=${encodeURIComponent(target.id)}&tab=compare`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not update the shopping list')
+    } finally {
+      setAddAndShopBusy(false)
+    }
+  }, [from, to, router])
+
   const recipeOptions: RecipeOption[] = recipes.map(recipe => ({ id: recipe.id, name: recipe.name, servings: recipe.servings }))
   const weekLabel = `${new Date(`${from}T12:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })} – ${new Date(`${to}T12:00:00Z`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
 
@@ -189,24 +248,35 @@ export default function MealsPage() {
     <ModernAppShell title="Meals">
       <Head><title>Meals – Clankeep</title></Head>
       <div className="mx-auto max-w-4xl space-y-4 pb-12">
-        <header className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-soft-sm sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="font-display text-xl font-bold tracking-tight">Meal planner</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Plan the week&rsquo;s dinners, then shop and price the ingredients in one tap.
-            </p>
+        <header className="overflow-hidden rounded-xl border bg-card shadow-soft-sm">
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="font-display text-xl font-bold tracking-tight">Meal planner</h1>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Plan the week&rsquo;s dinners, then add every ingredient to your shopping list in one tap.
+              </p>
+            </div>
+            <Button type="button" data-tour="page-meals" onClick={() => { setEditingRecipe(null); setRecipeFormOpen(true) }} className="min-h-11">
+              <Plus />New recipe
+            </Button>
           </div>
-          <Button type="button" onClick={() => { setEditingRecipe(null); setRecipeFormOpen(true) }} className="min-h-11">
-            <Plus />New recipe
-          </Button>
+          <Tabs value={tab} onValueChange={value => setTab(value as MealsTab)} className="border-t px-2 sm:px-4">
+            <TabsList aria-label="Meals sections" className="grid h-auto w-full grid-cols-3 rounded-none bg-transparent p-0 sm:flex sm:w-auto sm:justify-start">
+              <TabsTrigger value="week" className="min-h-12 rounded-none border-b-2 border-transparent px-4 font-semibold hover:text-foreground data-[state=active]:border-module-meals data-[state=active]:bg-transparent data-[state=active]:text-module-meals data-[state=active]:shadow-none">
+                This week
+              </TabsTrigger>
+              <TabsTrigger value="recipes" className="min-h-12 gap-2 rounded-none border-b-2 border-transparent px-4 font-semibold hover:text-foreground data-[state=active]:border-module-meals data-[state=active]:bg-transparent data-[state=active]:text-module-meals data-[state=active]:shadow-none">
+                Recipes
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-module-meals/10 px-1.5 py-0.5 text-[11px] font-bold leading-none text-module-meals">
+                  {recipes.length}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="pantry" className="min-h-12 rounded-none border-b-2 border-transparent px-4 font-semibold hover:text-foreground data-[state=active]:border-module-meals data-[state=active]:bg-transparent data-[state=active]:text-module-meals data-[state=active]:shadow-none">
+                Pantry
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </header>
-
-        <Tabs value={tab} onValueChange={value => setTab(value as MealsTab)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="week" className="min-h-10">This week</TabsTrigger>
-            <TabsTrigger value="recipes" className="min-h-10">Recipes ({recipes.length})</TabsTrigger>
-          </TabsList>
-        </Tabs>
 
         {loading ? (
           <div className="space-y-2">{[0, 1, 2, 3].map(index => <Skeleton key={index} className="h-14 rounded-xl" />)}</div>
@@ -268,7 +338,7 @@ export default function MealsPage() {
               <Button type="button" onClick={() => setGenerateOpen(true)} disabled={!plannedCount} className="min-h-11 flex-1">
                 <ShoppingBasket />Add ingredients to shopping list
               </Button>
-              {regionSupported && (
+              {comparisonAvailable && regionSupported && (
                 <Button type="button" variant="outline" onClick={() => void priceWeek()} disabled={!plannedCount || priceLoading} className="min-h-11 flex-1">
                   {priceLoading ? <Loader2 className="animate-spin" /> : <Scale />}Price this week
                 </Button>
@@ -283,6 +353,13 @@ export default function MealsPage() {
                 description="The Family plan prices every planned ingredient across Malta's supermarket catalogues, so you know what the week costs per store."
               />
             )}
+            {priceOpen && !priceLocked && priceComparison && !priceLoading && (
+              <WeekCostSummary
+                comparison={priceComparison}
+                busy={addAndShopBusy}
+                onAddAndShop={() => void addWeekAndShop()}
+              />
+            )}
             {priceOpen && !priceLocked && (
               <div className="rounded-xl border bg-card p-4 shadow-soft-sm sm:p-6">
                 <SupermarketComparisonPanel
@@ -295,12 +372,13 @@ export default function MealsPage() {
               </div>
             )}
           </>
+        ) : tab === 'pantry' ? (
+          <PantryPanel />
         ) : recipes.length === 0 ? (
-          <EmptyState
-            icon={UtensilsCrossed}
+          <ModuleFirstRun
             module="meals"
             title="No recipes yet"
-            description="Save the meals your family actually cooks. Link ingredients to catalogue products and the planner prices the whole week."
+            description="Save the meals your family actually cooks, then turn the whole week into one shopping list."
             action={<Button type="button" onClick={() => { setEditingRecipe(null); setRecipeFormOpen(true) }} className="min-h-11"><Plus />Create your first recipe</Button>}
           />
         ) : (
@@ -316,7 +394,7 @@ export default function MealsPage() {
                     <p className="truncate text-sm font-semibold">{recipe.name}</p>
                     <p className="truncate text-xs text-muted-foreground">
                       Serves {recipe.servings} · {recipe.ingredients.length} ingredient{recipe.ingredients.length === 1 ? '' : 's'}
-                      {linked > 0 && <> · {linked} priced</>}
+                      {comparisonAvailable && linked > 0 && <> · {linked} priced</>}
                     </p>
                   </div>
                   <Button type="button" variant="ghost" size="icon" aria-label={`Edit ${recipe.name}`} onClick={() => { setEditingRecipe(recipe); setRecipeFormOpen(true) }} className="shrink-0">

@@ -28,8 +28,7 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
       <LegalSection title="1. Who is responsible for your data">
         <p>
           The data controller for Clankeep is <strong className="text-foreground">{config.controllerName}</strong>.
-          Clankeep is an independent household service; it is not affiliated with, operated by or endorsed by any
-          supermarket named in the price comparison. Privacy questions and requests can be sent to {contact}.
+          Clankeep is an independent household service. Privacy questions and requests can be sent to {contact}.
         </p>
       </LegalSection>
 
@@ -38,8 +37,8 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
         <ul className="list-disc space-y-2 pl-5">
           <li>account data such as your name, email address, password hash, household membership, role and your record of accepting the Terms;</li>
           <li>household content you enter, including shopping lists, meal plans, recipes, chores, notes, medicine schedules and health-related records;</li>
-          <li>money-planner information you type in yourself — incomes, commitments, budgets, savings goals, planning-account names, monthly funding rules and transfer check-offs. These are manual planning records, so Clankeep receives no bank credentials, real bank account details or bank transactions;</li>
-          <li>your household&apos;s country, used to decide whether region-specific features such as the Maltese price comparison are available;</li>
+          <li>money-planner information you type in yourself — incomes, commitments, budgets, savings goals, planning-account names, monthly funding rules and transfer check-offs. These are manual planning records;</li>
+          <li>your household&apos;s country, used to configure appropriate regional defaults;</li>
           <li>billing references when you subscribe to the Family plan — a Stripe customer and subscription identifier and subscription status. Clankeep never sees or stores your full card number;</li>
           <li>limited technical and security information needed to operate, troubleshoot and protect the service.</li>
         </ul>
@@ -48,8 +47,8 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
       <LegalSection title="3. Why the data is used and the legal basis">
         <p>
           Data is used to provide the Clankeep features requested by its users, authenticate accounts, keep household
-          data in sync between members, price shopping lists against public supermarket catalogues, take subscription
-          payments, deliver account emails, prevent misuse and maintain the service.
+          data in sync between members, take subscription payments, deliver account emails, prevent misuse and maintain
+          the service.
         </p>
         <p>
           Most processing is necessary to provide the service you signed up for. Optional AI analysis and non-essential
@@ -62,17 +61,12 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
         </p>
       </LegalSection>
 
-      <LegalSection title="4. Household sharing and the price comparison">
+      <LegalSection title="4. Household sharing">
         <p>
           Clankeep is household-scoped by design: content you add is visible to members of your household according to
           the feature in use, and access is checked against authenticated household membership on every request. A
           private planning account is visible only to its owner; other members receive only the amount and completion
           status of a contribution that private account sends to a shared account.
-        </p>
-        <p>
-          The supermarket price comparison works by reading the public online catalogues of Maltese supermarkets and
-          matching them against your shopping list inside Clankeep. No personal data — not your list, your identity or
-          your household — is sent to any supermarket.
         </p>
       </LegalSection>
 
@@ -84,10 +78,16 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           <li>Resend, our email provider, to deliver welcome, household-invitation and password-reset emails (it receives the recipient name and email address);</li>
           <li>DeepSeek, only when a user explicitly requests an optional AI feature after previewing the exact payload; shopping tidy may include selected active item text and selected meal ingredients, while finance coaching uses redacted aggregates and account organisation uses opaque references, roles, categories and rounded monthly figures;</li>
           <li>Kelma, the optional chat assistant embedded on our public pages, which loads only if you accept non-essential cookies and then receives what you type into the chat and basic connection data;</li>
+          <li>Meta, to measure how well Clankeep&apos;s own advertising works, and only if you accept non-essential cookies on our public pages. Meta then receives which of those public pages you visited, your IP address and browser identifier, Meta&apos;s own cookie identifiers, and — if you create an account or subscribe — a one-way cryptographic hash of your email address plus, for a subscription, the amount paid. Your email address itself is never sent, and nothing inside your household account is ever sent;</li>
           <li>the deployment&apos;s hosting, database and backup providers, where those services are configured; and</li>
           <li>public authorities where disclosure is legally required.</li>
         </ul>
-        <p>Clankeep does not sell personal data and does not use your data for advertising.</p>
+        <p>
+          Clankeep does not sell personal data. The content of your household — your lists, meals, chores, notes,
+          medicines and finances — is never used for advertising or shared with any advertising platform. The
+          measurement described above covers only visits to our public marketing pages, account creation and
+          subscription, and only with your consent.
+        </p>
       </LegalSection>
 
       <LegalSection title="6. International transfers">
@@ -104,6 +104,13 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           shopping tidy sends only the selected active item names, quantities and categories plus any meal ingredients
           from the week you select. Neither flow sends names of people, completed shopping history, retailer data,
           catalogue links, prices or user identity.
+        </p>
+        <p>
+          Advertising measurement, if you consent to it, involves Meta Platforms Ireland Limited, which may transfer
+          data to the United States under its own safeguards; see{' '}
+          <a className="text-primary hover:underline" href="https://www.facebook.com/privacy/policy" rel="noreferrer" target="_blank">
+            Meta&apos;s privacy policy
+          </a>. You can withdraw that consent at any time through the cookie banner on our public pages.
         </p>
         <p>
           Stripe and Resend are established under EU frameworks but may process limited billing or email-delivery data
@@ -156,7 +163,9 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           No internet service can guarantee absolute security. Clankeep uses essential session and security cookies,
           which do not require consent. The optional Kelma chat assistant on our public pages is a third-party service
           that may set its own cookies; it loads only if you accept non-essential cookies through the cookie banner, and
-          you can decline. Clankeep does not use advertising cookies. Planner observations and set-aside suggestions are
+          you can decline. Accepting non-essential cookies also enables Meta&apos;s advertising-measurement cookies on
+          our public marketing pages, so we can tell which adverts lead to signups; declining leaves them off, and the
+          rest of Clankeep works exactly the same either way. Planner observations and set-aside suggestions are
           calculated locally from figures you entered; they are explainable convenience features that you can correct,
           dismiss or ignore. Optional AI output is shown only as a suggestion and never changes your records
           automatically. Clankeep does not make automated decisions with legal or similarly significant effects.

@@ -244,7 +244,8 @@ function NoteEditorInner({
       )}
     >
       {editable && <Toolbar editor={editor} />}
-      <EditorContent editor={editor} className="minimal-tiptap-editor" />
+      {/* Grows into whatever height the parent gives it, and scrolls rather than overflowing. */}
+      <EditorContent editor={editor} className="minimal-tiptap-editor min-h-0 flex-1 overflow-y-auto" />
       <LinkBubbleMenu editor={editor} />
       {characterCount && (
         <div className="flex justify-end border-t border-border px-4 py-1.5 text-xs text-muted-foreground">

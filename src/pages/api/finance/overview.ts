@@ -1,8 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
-import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
-import { isFinanceProviderConfigured } from '@/lib/finance/config'
+import { accessibleBankAccountIds, requireFinanceAccess } from '@/lib/finance/access'
+import { getFinanceAspsp, isFinanceProviderConfigured } from '@/lib/finance/config'
+import { bankDisplayName } from '@/lib/finance/bank-name'
 import { isAvailableBalanceType, isBookedBalanceType } from '@/lib/finance/normalization'
 import { enrichStoredTransaction, loadFinanceMetadata } from '@/lib/finance/server-metadata'
 
@@ -22,6 +23,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       bankEnabled: false,
       canManage: access.canManage,
       providerConfigured: false,
+      bankName: bankDisplayName(getFinanceAspsp().name),
       accounts: [],
       connections: [],
       totals: [],
@@ -29,7 +31,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     })
   }
 
-  const accountWhere = accessibleBankAccountWhere(access)
+  // Ids rather than the raw predicate: a joint account is imported once per
+  // owner, and both copies would otherwise be totalled and listed separately.
+  const accountWhere = { id: { in: await accessibleBankAccountIds(access) } }
   const [accounts, recentTransactions, connections] = await Promise.all([
     prisma.bankAccount.findMany({
       where: accountWhere,
@@ -58,23 +62,23 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       orderBy: [{ bookingDate: 'desc' }, { createdAt: 'desc' }],
       take: 20,
     }),
-    access.canManage
-      ? prisma.bankConnection.findMany({
-          where: { userId: access.userId },
-          select: {
-            id: true,
-            aspspName: true,
-            status: true,
-            consentExpiresAt: true,
-            lastSyncedAt: true,
-            lastSyncAttemptAt: true,
-            syncStartedAt: true,
-            syncError: true,
-            _count: { select: { accounts: true } },
-          },
-          orderBy: { createdAt: 'asc' },
-        })
-      : Promise.resolve([]),
+    // Scoped to the signed-in user, so a member sees their own connection and
+    // nobody else's.
+    prisma.bankConnection.findMany({
+      where: { userId: access.userId },
+      select: {
+        id: true,
+        aspspName: true,
+        status: true,
+        consentExpiresAt: true,
+        lastSyncedAt: true,
+        lastSyncAttemptAt: true,
+        syncStartedAt: true,
+        syncError: true,
+        _count: { select: { accounts: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    }),
   ])
 
   const metadata = await loadFinanceMetadata(
@@ -99,7 +103,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       cashAccountType: account.cashAccountType,
       shared: account.shares.length > 0,
       owned: account.connection.userId === access.userId,
-      canRename: access.canManage && account.connection.userId === access.userId,
+      canRename: account.connection.userId === access.userId,
       balance: primary ? {
         amount: primary.amount.toString(),
         currency: primary.currency,
@@ -117,6 +121,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     bankEnabled: true,
     canManage: access.canManage,
     providerConfigured: isFinanceProviderConfigured(),
+    bankName: bankDisplayName(getFinanceAspsp().name),
     accounts: serializedAccounts,
     connections,
     totals: [...totals].map(([currency, amount]) => ({ currency, amount: amount.toFixed(2) })),

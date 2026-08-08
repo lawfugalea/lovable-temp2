@@ -12,6 +12,7 @@ import { searchCatalogCandidates } from '@/lib/catalog-lookup'
 import { requireActiveHousehold } from '@/lib/chores'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { requirePriceComparison } from '@/lib/entitlements-core'
+import { getConsentedSupermarketSlugs } from '@/lib/supermarket-consent'
 
 const MAX_QUERY_LENGTH = 200
 const MAX_RESULTS = 50
@@ -36,6 +37,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!householdId) return
   const entitlements = await getHouseholdEntitlements(householdId)
   if (!requirePriceComparison(res, entitlements)) return
+  const consentedSlugs = getConsentedSupermarketSlugs()
 
   const qRaw = typeof req.query.q === 'string' ? req.query.q.trim() : ''
   if (qRaw.length > MAX_QUERY_LENGTH) {
@@ -47,7 +49,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   // Word-boundary recall with plural variants and a typo-prefix fallback,
   // shared with the catalogue lookup used by seeding.
-  const candidates = await searchCatalogCandidates(tokens)
+  const candidates = await searchCatalogCandidates(tokens, consentedSlugs)
   const rankedIds = rankCatalogCandidates(candidates, query)
     .slice(0, MAX_RESULTS * 2)
     .map(candidate => candidate.id)
@@ -67,7 +69,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       packageUnit: true,
       packCount: true,
       products: {
-        where: { active: true, store: { enabled: true } },
+        where: { active: true, store: { enabled: true, slug: { in: consentedSlugs } } },
         select: {
           id: true,
           name: true,

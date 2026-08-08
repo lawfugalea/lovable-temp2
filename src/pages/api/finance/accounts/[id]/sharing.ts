@@ -9,7 +9,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
   const householdId = typeof req.body?.householdId === 'string' ? req.body.householdId : undefined
-  const access = await requireFinanceAccess(req, res, householdId, { manage: true, bank: true })
+  const access = await requireFinanceAccess(req, res, householdId, { bank: true })
   if (!access) return
   if (typeof req.body?.shared !== 'boolean') {
     return res.status(400).json({ error: 'shared must be true or false' })

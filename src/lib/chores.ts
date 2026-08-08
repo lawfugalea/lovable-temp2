@@ -8,9 +8,13 @@ import {
   lastScheduledOnOrBefore,
   type ChoreRecurrence,
 } from './chore-recurrence'
+import { CHORE_ICON_MAX } from './chore-icons'
+import type { ChoreStatus, TodayChoreItem } from './chore-view'
 
 export const CHORE_TITLE_MAX = 200
 export const CHORE_NOTES_MAX = 2000
+export { CHORE_ICON_MAX }
+export type { TodayChoreItem }
 
 /** Resolve the caller's active household and confirm membership, or respond 4xx. */
 export async function requireActiveHousehold(
@@ -42,6 +46,7 @@ export interface ChoreRow {
   id: string
   title: string
   notes: string | null
+  icon: string | null
   recurrenceType: 'WEEKLY' | 'EVERY_N_DAYS' | 'MONTHLY'
   daysOfWeek: number[]
   intervalDays: number | null
@@ -57,6 +62,7 @@ export function serializeChore(chore: ChoreRow) {
     id: chore.id,
     title: chore.title,
     notes: chore.notes,
+    icon: chore.icon,
     active: chore.active,
     assignee: chore.assignee,
     recurrenceType: chore.recurrenceType,
@@ -68,18 +74,11 @@ export function serializeChore(chore: ChoreRow) {
   }
 }
 
-export interface TodayChoreItem {
-  chore: ReturnType<typeof serializeChore>
-  dueDate: string
-  overdue: boolean
-  status: 'PENDING' | 'DONE' | 'SKIPPED'
-  completedBy: { id: string; name: string | null } | null
-}
-
 /**
  * One row per active chore that has something to show for `date`:
- * an occurrence due today, or the most recent unresolved occurrence
- * from the past week (overdue).
+ * an occurrence due today, or the most recent occurrence from the past week
+ * (overdue), resolved or not — the caller decides how long a resolved overdue
+ * occurrence stays visible (see groupTodayChores in chore-view.ts).
  */
 export async function buildTodayView(householdId: string, date: string): Promise<TodayChoreItem[]> {
   const chores = await prisma.chore.findMany({
@@ -108,17 +107,20 @@ export async function buildTodayView(householdId: string, date: string): Promise
   const completionKey = (choreId: string, dueDate: string) => `${choreId}:${dueDate}`
   const byKey = new Map(completions.map(row => [completionKey(row.choreId, dbDateToDateOnly(row.dueDate)), row]))
 
-  return items
-    .map(item => {
-      const completion = byKey.get(completionKey(item.chore.id, item.dueDate))
-      return {
-        chore: serializeChore(item.chore),
-        dueDate: item.dueDate,
-        overdue: item.overdue,
-        status: (completion?.status ?? 'PENDING') as TodayChoreItem['status'],
-        completedBy: completion?.completedBy ?? null,
-      }
-    })
-    // Overdue-but-resolved occurrences are history, not today's work.
-    .filter(item => !(item.overdue && item.status !== 'PENDING'))
+  return items.map(item => {
+    const completion = byKey.get(completionKey(item.chore.id, item.dueDate))
+    return {
+      chore: serializeChore(item.chore),
+      dueDate: item.dueDate,
+      overdue: item.overdue,
+      status: (completion?.status ?? 'PENDING') as ChoreStatus,
+      completedBy: completion?.completedBy ?? null,
+      completedAt: completion?.completedAt ? completion.completedAt.toISOString() : null,
+    }
+  })
+  // Resolved overdue occurrences are deliberately NOT filtered out here any
+  // more. Dropping them made their Undo button unreachable: the row vanished
+  // from Today on the next refetch and the Log tab had no undo control. The
+  // client keeps them for the day they were resolved — see groupTodayChores in
+  // chore-view.ts, which knows the viewer's timezone and this function does not.
 }

@@ -3,6 +3,8 @@ import { withApiHandler } from '@/lib/api-handler'
 import { requireAdmin } from '@/lib/admin-helpers';
 import { isAdminEmail } from '@/lib/admin-config';
 import { prisma } from '@/lib/prisma';
+import { collectAttachmentFilenamesForUser, deleteNoteAttachmentFiles } from '@/lib/note-attachment-files';
+import { invalidateSessionUser } from '@/lib/session-user-cache';
 import { validatePassword } from '@/lib/password-policy';
 import { deleteProviderSession } from '@/lib/finance/enable-banking';
 
@@ -105,6 +107,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         }
       }
 
+      // Cascades cover the database but not the uploads volume, so the files
+      // behind this user's note attachments are identified before the rows that
+      // name them disappear. Same reasoning as the self-service delete.
+      const attachmentFiles = await collectAttachmentFilenamesForUser(userId);
+
       // Delete the account without destroying a household that still has
       // another owner. Database cascades handle household-owned data and user
       // relations atomically; invite actor ids are scalar audit fields and need
@@ -157,6 +164,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         await tx.user.delete({ where: { id: userId } });
       });
 
+      deleteNoteAttachmentFiles(attachmentFiles);
+
       return res.status(200).json({ message: 'User deleted successfully' });
     } catch (error) {
       console.error('Error deleting user:', error);
@@ -201,6 +210,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         const bcrypt = await import('bcryptjs');
         const hash = await bcrypt.hash(newPassword, 12);
         await prisma.user.update({ where: { id: userId }, data: { password: hash } });
+        // An admin resetting a password must end that user's sessions now.
+        invalidateSessionUser(userId);
         return res.status(200).json({ ok: true });
       }
 

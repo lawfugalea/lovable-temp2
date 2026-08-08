@@ -1,22 +1,34 @@
-# Malta supermarket price comparison
+# Malta supermarket price comparison (parked)
 
-HouseFlow compares public online catalogue prices from Smart, Greens, Welbee's,
-PAVI/PAMA, and opt-in Happy Shopper. Results are estimates for planning a shop; delivery charges,
+The production comparison is parked until individual retailers provide written
+consent. The UI and APIs expose no catalogue features, and the worker collects
+nothing, while `HOUSEFLOW_CONSENTED_SUPERMARKET_STORES` is empty. Existing
+catalogue records are retained so approved retailers can be restored without a
+data migration.
+
+The retained implementation can compare online catalogue prices from Smart,
+Greens, Welbee's, PAVI/PAMA, and Happy Shopper. Results are estimates for planning a shop; delivery charges,
 loyalty-only discounts, physical-branch differences, and travel costs are not
 included. The Greens adapter uses the public Swieqi (`SM`) online catalogue
 location so its prices may differ from Mriehel or Gozo.
 
 ## Catalogue synchronization
 
-Run the default Smart, Welbee's, and Greens adapters once:
+With the consent allow-list empty, this command disables every store and makes
+no retailer request:
 
 ```bash
 npm run prices:sync
 ```
 
-Smart, Welbee's, and Greens are enabled by default. PAVI/PAMA's published terms
-require prior written consent for automated extraction and price-comparison use, so its
-adapter also requires `PAVIPAMA_PERMISSION_CONFIRMED=true`. The
+Every retailer is disabled by default. After written consent is recorded, add
+only that retailer's slug to `HOUSEFLOW_CONSENTED_SUPERMARKET_STORES` (supported
+values: `smart`, `greens`, `welbees`, `pavipama`, and `happyshopper`). The app
+and worker share this allow-list, so a retailer cannot appear in search, offers,
+or basket totals unless it is explicitly listed. `HOUSEFLOW_CATALOG_SYNC_STORES`
+may optionally narrow a diagnostic run to a subset of the consented retailers;
+when blank, all consented retailers are selected. PAVI/PAMA additionally requires
+`PAVIPAMA_PERMISSION_CONFIRMED=true`. The
 production Compose stack includes `price-sync`, which runs immediately and then
 every 24 hours. Override the interval with
 `HOUSEFLOW_PRICE_SYNC_INTERVAL_SECONDS`.
@@ -34,16 +46,16 @@ without prior written approval. They are therefore omitted unless
 are imported when the source catalogue supplies them; products with no retailer
 image remain image-less rather than receiving a misleading substitute.
 
-Happy Shopper is available as the opt-in `happyshopper` adapter and reads only
-the public `/shop` HTML catalogue. Confirm permission before enabling it in a
-recurring production sync. `HAPPYSHOPPER_MAX_PAGES` caps diagnostic imports;
+Happy Shopper's retained `happyshopper` adapter reads only the public `/shop`
+HTML catalogue. Confirm permission before adding it to the allow-list.
+`HAPPYSHOPPER_MAX_PAGES` caps diagnostic imports;
 leave it at `0` for complete production imports.
 
 The adapters only read public catalogue pages/endpoints and never log in, bypass
 access controls, or submit carts. Before enabling an adapter in a public or
 commercial deployment, the operator must confirm the retailer's current terms
 permit the intended use. Disable a source immediately by removing its slug from
-`HOUSEFLOW_CATALOG_SYNC_STORES` if permission or data quality is uncertain.
+`HOUSEFLOW_CONSENTED_SUPERMARKET_STORES` if permission or data quality is uncertain.
 
 ## Freshness and failures
 

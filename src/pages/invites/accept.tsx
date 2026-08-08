@@ -111,7 +111,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
         <main className="min-h-screen flex items-center justify-center p-6">
           <div className="max-w-md w-full rounded-3xl border border-border bg-card shadow p-6">
             <h1 className="text-lg font-semibold mb-2 text-red-600">Invite Error</h1>
-            <p className="text-sm text-gray-700 mb-3">{error}</p>
+            <p className="text-sm text-muted-foreground mb-3">{error}</p>
             <Link href="/" className="text-sm text-fuchsia-600 underline">Go to Home</Link>
           </div>
         </main>
@@ -126,7 +126,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
         <main className="min-h-screen flex items-center justify-center p-6">
           <div className="max-w-md w-full rounded-3xl border border-border bg-card shadow p-6">
             <h1 className="text-lg font-semibold mb-2 text-red-600">Error</h1>
-            <p className="text-sm text-gray-700 mb-3">{processError}</p>
+            <p className="text-sm text-muted-foreground mb-3">{processError}</p>
             <div className="flex gap-2">
               <button 
                 onClick={processInvite}
@@ -134,7 +134,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
               >
                 Try Again
               </button>
-              <Link href="/" className="text-sm text-gray-600 underline">Go to Home</Link>
+              <Link href="/" className="text-sm text-muted-foreground underline">Go to Home</Link>
             </div>
           </div>
         </main>
@@ -150,7 +150,7 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
             <h1 className="text-lg font-semibold mb-2">Join household</h1>
           {inviteInfo && (
             <div className="mb-4">
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-muted-foreground">
                 You&apos;ve been invited to join <strong>{inviteInfo.householdName}</strong>
                 {inviteInfo.inviterName && (
                   <span> by {inviteInfo.inviterName}</span>
@@ -158,8 +158,9 @@ export default function AcceptInvitePage({ token, error, inviteInfo }: Props) {
               </p>
             </div>
           )}
-          <p className="text-sm text-amber-700 mb-4">
-            Joining will leave your current household. Household owners must transfer ownership first.
+          <p className="text-sm text-muted-foreground mb-4">
+            You keep any household you are already in. Switch between them from the
+            account menu at any time.
           </p>
           <button
             type="button"

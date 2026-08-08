@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
-import { accessibleBankAccountWhere, requireFinanceAccess } from '@/lib/finance/access'
+import { accessibleBankAccountIds, requireFinanceAccess } from '@/lib/finance/access'
 import { enrichStoredTransaction, loadFinanceMetadata } from '@/lib/finance/server-metadata'
 import { detectSubscriptions, subscriptionDueState } from '@/lib/finance/subscriptions'
 import { normalizeMerchantKey } from '@/lib/finance/metadata'
@@ -54,9 +54,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!access) return
 
   if (req.method === 'GET') {
-    const accountWhere = accessibleBankAccountWhere(access)
+    // One copy per jointly held account: both carry the same recurring charges,
+    // so counting them twice would invent duplicate subscriptions.
     const accounts = await prisma.bankAccount.findMany({
-      where: accountWhere,
+      where: { id: { in: await accessibleBankAccountIds(access) } },
       select: { id: true, displayName: true, customName: true, connection: { select: { userId: true } } },
     })
     const requestedAccountId = typeof req.query.accountId === 'string' ? req.query.accountId : null

@@ -5,7 +5,7 @@ import { sendInviteEmail } from '@/lib/mailer';
 import { appUrl } from '@/lib/links';
 import { getUserIdOr401 } from '@/lib/api-guards';
 import { createInviteToken, hashInviteToken } from '@/lib/invite-tokens';
-import { consumeInviteEmailAttempt } from '@/lib/rate-limiter';
+import { consumeInviteEmailAttempt } from '@/lib/rate-limit-store';
 
 type Prepared =
   | { ok: false; status: number; error: string }
@@ -64,7 +64,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       await tx.invite.update({ where: { id }, data: { status: 'EXPIRED' } });
       return { ok: false, status: 409, error: 'Invite is expired' };
     }
-    if (!consumeInviteEmailAttempt(userId)) {
+    if (!(await consumeInviteEmailAttempt(userId))) {
       return { ok: false, status: 429, error: 'Too many invitation emails. Try again later.' };
     }
 

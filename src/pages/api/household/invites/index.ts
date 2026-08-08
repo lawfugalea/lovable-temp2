@@ -7,7 +7,7 @@ import { sendInviteEmail } from '@/lib/mailer';
 import { requireMembershipIn } from '@/lib/api-guards';
 import { appUrl } from '@/lib/links';
 import { createInviteToken, hashInviteToken } from '@/lib/invite-tokens';
-import { consumeInviteEmailAttempt } from '@/lib/rate-limiter';
+import { consumeInviteEmailAttempt } from '@/lib/rate-limit-store';
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader('Cache-Control', 'private, no-store');
@@ -105,7 +105,7 @@ async function createInvite(req: NextApiRequest, res: NextApiResponse) {
         ]);
         if (member) throw Object.assign(new Error('This user is already a household member'), { status: 409 });
         if (pendingInvite) throw Object.assign(new Error('A pending invite already exists for this email'), { status: 409 });
-        if (!consumeInviteEmailAttempt(context.userId)) {
+        if (!(await consumeInviteEmailAttempt(context.userId))) {
           throw Object.assign(new Error('Too many invitation emails. Try again later.'), { status: 429 });
         }
       }

@@ -39,8 +39,8 @@ type CoachState =
   | { kind: 'consent'; preview: Extract<MobileFinanceCoachResponse, { requiresConsent: true }>['preview'] }
   | { kind: 'result'; result: Extract<MobileFinanceCoachResponse, { requiresConsent: false }> }
 type EntryEditor =
-  | { kind: 'income'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string; planAccountId: string }
-  | { kind: 'commitment'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string; category: string; essential: boolean; planAccountId: string }
+  | { kind: 'income'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string }
+  | { kind: 'commitment'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string; category: string; essential: boolean }
   | { kind: 'goal'; id?: string; name: string; target: string; saved: string; targetDate: string; monthlyContribution: string; planAccountId: string }
 
 const views: { value: FinanceView; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -129,7 +129,6 @@ export default function FinanceScreen() {
     amount: item ? amountInput(item.amountCents) : '',
     frequency: item?.frequency || 'MONTHLY',
     userId: item?.userId || '',
-    planAccountId: item?.planAccountId || '',
   })
   const openCommitment = (item?: MobileFinanceCommitment) => setEditor({
     kind: 'commitment',
@@ -140,7 +139,6 @@ export default function FinanceScreen() {
     userId: item?.userId || '',
     category: item?.category || 'other',
     essential: item?.essential ?? true,
-    planAccountId: item?.planAccountId || '',
   })
   const openGoal = (item?: MobileFinanceGoal) => setEditor({
     kind: 'goal',

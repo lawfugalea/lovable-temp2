@@ -4,19 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/router'
 import { signIn } from 'next-auth/react'
 import { motion, useReducedMotion } from 'motion/react'
-import { ArrowRight, BellRing, Check, HeartHandshake, Loader2, Pill, Sparkles } from 'lucide-react'
+import { ArrowRight, BellRing, Check, HeartHandshake, Loader2, Pill } from 'lucide-react'
 
 const checklist = [
-  { name: 'Milk (2L)', store: 'Smart', price: '€1.09', done: true },
-  { name: 'Bananas (1kg)', store: 'Greens', price: '€1.85', done: true },
-  { name: 'Chicken breast', store: 'Smart', price: '€6.20', done: false },
-  { name: 'Washing tablets', store: 'Welbee’s', price: '€8.75', done: false },
-]
-
-const storeBars = [
-  { store: 'Smart', total: '€23.40', width: '78%', cheapest: true },
-  { store: 'Greens', total: '€25.15', width: '86%', cheapest: false },
-  { store: 'Welbee’s', total: '€27.45', width: '94%', cheapest: false },
+  { name: 'Milk', detail: '2 cartons', done: true },
+  { name: 'Bananas', detail: '1 kg', done: true },
+  { name: 'Chicken breast', detail: 'Family pack', done: false },
+  { name: 'Washing tablets', detail: '1 box', done: false },
 ]
 
 const trustChips = ['Private by design', 'Whole family included', 'No ads, ever']
@@ -95,8 +89,8 @@ export default function Hero() {
 
           <motion.p {...rise(reduce, 0.18)} className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
             ClanKeep brings the shopping list, the medicine schedule, the chore
-            rota and the family budget into one private home — and tells you
-            which Malta supermarket sells your basket cheapest this week.
+            rota and the family budget into one private home that everyone in
+            the household can keep up to date.
           </motion.p>
 
           <motion.div {...rise(reduce, 0.27)} className="mt-9 flex flex-col gap-3 sm:flex-row">
@@ -177,38 +171,33 @@ export default function Hero() {
                     <span className={`flex-1 text-sm font-medium ${item.done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
                       {item.name}
                     </span>
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{item.store}</span>
-                    <span className="w-12 text-right text-sm font-bold tabular-nums text-foreground">{item.price}</span>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{item.detail}</span>
                   </motion.li>
                 ))}
               </ul>
 
               <div className="mx-4 mb-4 rounded-2xl bg-brand-primary p-4 text-white">
                 <div className="flex items-center justify-between">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">Cheapest full basket</p>
-                  <Sparkles className="h-4 w-4 text-white/80" aria-hidden="true" />
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">Shopping progress</p>
+                  <Check className="h-4 w-4 text-white/80" aria-hidden="true" />
                 </div>
-                <div className="mt-2.5 space-y-2">
-                  {storeBars.map((bar, i) => (
-                    <div key={bar.store} className="flex items-center gap-3">
-                      <span className="w-16 shrink-0 text-xs font-semibold text-white/90">{bar.store}</span>
-                      <span className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/20">
-                        <motion.span
-                          {...(reduce
-                            ? { style: { width: bar.width } }
-                            : {
-                                initial: { width: 0 },
-                                animate: { width: bar.width },
-                                transition: { delay: 0.9 + i * 0.15, duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
-                              })}
-                          className={`absolute inset-y-0 left-0 rounded-full ${bar.cheapest ? 'bg-[#2EE6C8]' : 'bg-white/60'}`}
-                        />
-                      </span>
-                      <span className="w-14 shrink-0 text-right text-xs font-bold tabular-nums">{bar.total}</span>
-                    </div>
-                  ))}
+                <div className="mt-2.5 flex items-center justify-between text-sm font-semibold">
+                  <span>2 of 4 collected</span>
+                  <span>50%</span>
                 </div>
-                <p className="mt-3 text-[13px] font-semibold text-[#2EE6C8]">Smart saves you €4.05 this week</p>
+                <span className="mt-2 block h-2 overflow-hidden rounded-full bg-white/20">
+                  <motion.span
+                    {...(reduce
+                      ? { style: { width: '50%' } }
+                      : {
+                          initial: { width: 0 },
+                          animate: { width: '50%' },
+                          transition: { delay: 0.9, duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
+                        })}
+                    className="block h-full rounded-full bg-[#2EE6C8]"
+                  />
+                </span>
+                <p className="mt-3 text-[13px] font-semibold text-[#2EE6C8]">Changes sync with the whole household</p>
               </div>
             </div>
           </div>

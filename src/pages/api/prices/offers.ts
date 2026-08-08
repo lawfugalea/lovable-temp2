@@ -9,6 +9,7 @@ import { safeRetailerSourceUrl } from '@/lib/catalog-source-url'
 import { requireActiveHousehold } from '@/lib/chores'
 import { getHouseholdEntitlements } from '@/lib/entitlements'
 import { requirePriceComparison } from '@/lib/entitlements-core'
+import { getConsentedSupermarketSlugs } from '@/lib/supermarket-consent'
 
 const FRESH_HOURS = 48
 // Retailers anchor half the catalogue with strike-through prices; only a
@@ -58,6 +59,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!householdId) return
   const entitlements = await getHouseholdEntitlements(householdId)
   if (!requirePriceComparison(res, entitlements)) return
+  const consentedSlugs = getConsentedSupermarketSlugs()
 
   const since = new Date(Date.now() - FRESH_HOURS * 3600 * 1000)
 
@@ -93,7 +95,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       ORDER BY o."productId", o."scrapedAt" DESC
     ) latest
     JOIN "PriceProduct" p ON p.id = latest."productId" AND p.active
-    JOIN "Store" s ON s.id = p."storeId" AND s.enabled
+    JOIN "Store" s ON s.id = p."storeId" AND s.enabled AND s.slug IN (${Prisma.join(consentedSlugs)})
     WHERE latest.available
       AND latest."regularPriceCents" IS NOT NULL
       AND latest."regularPriceCents" - latest."priceCents" >= ${MIN_SAVING_CENTS}

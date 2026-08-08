@@ -60,10 +60,31 @@ async function expect(client, path, options, expectedStatus, label) {
   return body
 }
 
+/**
+ * Solve the signup security check the way a person does.
+ *
+ * The answer is held server-side and never sent to the client, so the only way
+ * through is to read the question and do the arithmetic. Registration also
+ * requires explicit Terms acceptance. This suite predates both controls and had
+ * been failing at the first register call ever since they were added — it is not
+ * in CI, so nothing reported it.
+ */
+async function solveCaptcha(client) {
+  const challenge = await expect(client, '/api/captcha/challenge', {}, 200, 'load captcha challenge')
+  const match = /^\s*(\d+)\s*([+\-×])\s*(\d+)\s*=/.exec(challenge.question)
+  assert.ok(match, `unparsable captcha question: ${challenge.question}`)
+  const [, left, operator, right] = match
+  const a = Number(left)
+  const b = Number(right)
+  const answer = operator === '+' ? a + b : operator === '-' ? a - b : a * b
+  return { captchaId: challenge.id, captchaAnswer: String(answer) }
+}
+
 async function register(client, name, email) {
+  const { captchaId, captchaAnswer } = await solveCaptcha(client)
   const body = await expect(client, '/api/register', {
     method: 'POST',
-    body: { name, email, password },
+    body: { name, email, password, captchaId, captchaAnswer, acceptedTerms: true },
   }, 201, `register ${email}`)
   return body.user
 }
@@ -149,6 +170,24 @@ const updatedShoppingItem = await expect(owner, `/api/shopping/items/${shoppingI
   body: { quantityCount: 3 },
 }, 200, 'update structured shopping quantity')
 assert.equal(updatedShoppingItem.item.quantityCount, 3)
+// Price comparison is a Family-plan feature, so a brand-new household must be
+// refused. This assertion used to expect 200, which quietly passed over the
+// paywall entirely — and could only ever have passed on a comped household.
+const paywalled = await expect(
+  owner,
+  `/api/shopping/compare?listId=${encodeURIComponent(listId)}`,
+  {}, 403, 'free household is refused price comparison',
+)
+assert.equal(paywalled.code, 'upgrade_required')
+
+// Comp this household onto Family through the admin override, which is also the
+// only HTTP path to a Family plan that does not involve Stripe. The owner is the
+// configured administrator in this environment.
+await expect(owner, '/api/admin/billing', {
+  method: 'POST',
+  body: { householdId, plan: 'FAMILY' },
+}, 200, 'admin comps the household onto Family')
+
 const comparison = await expect(owner, `/api/shopping/compare?listId=${encodeURIComponent(listId)}`, {}, 200, 'compare shopping list')
 assert.equal(comparison.items[0].matchStatus, 'UNMATCHED')
 assert.equal(comparison.mixed.coverageCount, 0)

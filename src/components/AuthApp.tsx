@@ -3,6 +3,9 @@ import Head from "next/head";
 import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { APP_BASE_PATH, withBasePath } from "@/lib/base-path";
+import { OnboardingProvider } from "@/components/onboarding/OnboardingProvider";
+import { TourProvider } from "@/components/onboarding/TourProvider";
+import TourOverlay from "@/components/onboarding/TourOverlay";
 
 const InviteBanner = dynamic(() => import("@/components/InviteBanner"), { ssr: false });
 
@@ -51,7 +54,20 @@ export default function AuthApp({ Component, pageProps, session }: Props) {
         <RevokedSessionGuard />
         <ServiceWorkerRegistrar />
         <InviteBanner />
-        <Component {...pageProps} />
+        {/* Above the page, not inside ModernAppShell. The shell is rendered per
+            page in the pages router, so providers there would remount — and
+            refetch — on every navigation, and pages could not read them at all
+            since each page renders the shell rather than the other way round. */}
+        <OnboardingProvider>
+          <TourProvider>
+            <Component {...pageProps} />
+            {/* Sibling of the page, not inside ModernAppShell: the shell
+                remounts on every navigation, which would tear the overlay down
+                mid-step and flash the page undimmed. It renders nothing unless
+                a tour is running, and a tour only ever runs on app pages. */}
+            <TourOverlay />
+          </TourProvider>
+        </OnboardingProvider>
       </SessionProvider>
     </>
   );

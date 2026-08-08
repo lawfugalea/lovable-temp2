@@ -25,11 +25,17 @@ import {
   Sparkles,
   Sun,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Compass,
+  ListChecks,
+  Mail
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/utils'
 import { useConfirm } from '@/components/ui/confirm-dialog'
+import { useOnboarding } from '@/components/onboarding/OnboardingProvider'
+import { useTour } from '@/components/onboarding/TourProvider'
 
 const SETTINGS_TABS = [
   { id: 'profile', name: 'Profile', icon: User },
@@ -53,7 +59,6 @@ interface BillingSummary {
 }
 
 const FAMILY_FEATURES = [
-  'Malta supermarket price comparison & offers',
   'Money planner with AI savings coach',
   'Medicine for unlimited children',
   'Push reminders for doses',
@@ -246,9 +251,14 @@ export default function SettingsPage() {
   const { data: session, status, update } = useSession()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('profile')
+  const onboarding = useOnboarding()
+  const tour = useTour()
+  const hasHousehold = onboarding?.state?.household != null
+  const checklistDismissed = onboarding?.state?.user.checklistDismissedAt != null
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('unsupported')
+  const [weeklyDigestOptOut, setWeeklyDigestOptOut] = useState(false)
   const [dataMessage, setDataMessage] = useState('')
   const [deletePassword, setDeletePassword] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -286,6 +296,32 @@ export default function SettingsPage() {
   useEffect(() => {
     setNotificationPermission('Notification' in window ? Notification.permission : 'unsupported')
   }, [])
+
+  // The digest preference lives on the account, not the session; read it once.
+  useEffect(() => {
+    let cancelled = false
+    void fetch('/api/account/profile')
+      .then(response => (response.ok ? response.json() : null))
+      .then(payload => {
+        if (!cancelled && payload?.user) setWeeklyDigestOptOut(payload.user.weeklyDigestOptOut === true)
+      })
+      .catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
+
+  const handleDigestToggle = async (enabled: boolean) => {
+    setWeeklyDigestOptOut(!enabled)
+    try {
+      const response = await fetch('/api/account/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weeklyDigestOptOut: !enabled }),
+      })
+      if (!response.ok) setWeeklyDigestOptOut(enabled)
+    } catch {
+      setWeeklyDigestOptOut(enabled)
+    }
+  }
 
   const handleProfileUpdate = async () => {
     setLoading(true)
@@ -513,6 +549,50 @@ export default function SettingsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
+                      <Compass className="w-5 h-5" />
+                      Guidance
+                    </CardTitle>
+                    <CardDescription>Replay the tour or bring back the setup checklist</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">Product tour</p>
+                        <p className="text-sm text-muted-foreground">A short walk through each part of the app.</p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={() => void tour?.startTour()}
+                        disabled={!tour || !hasHousehold}
+                      >
+                        <Compass className="mr-2 h-4 w-4" />
+                        Replay the tour
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">Getting-started checklist</p>
+                        <p className="text-sm text-muted-foreground">
+                          {checklistDismissed
+                            ? 'Hidden on your overview. This only affects you, not the rest of your household.'
+                            : 'Currently showing on your overview.'}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        disabled={!checklistDismissed || !hasHousehold}
+                        onClick={() => void onboarding?.update({ checklistDismissed: false }).catch(() => {})}
+                      >
+                        <ListChecks className="mr-2 h-4 w-4" />
+                        Show it again
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
                       <Key className="w-5 h-5" />
                       Security
                     </CardTitle>
@@ -569,29 +649,48 @@ export default function SettingsPage() {
             {activeTab === 'appearance' && <AppearanceCard />}
 
             {activeTab === 'notifications' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><Bell className="w-5 h-5" /> Medicine reminders</CardTitle>
-                  <CardDescription>Browser notifications are requested only when you choose to enable them.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Current permission: <strong className="text-foreground">{notificationPermission}</strong>
-                  </p>
-                  {notificationPermission === 'default' && (
-                    <Button onClick={handleNotificationPermission}>Enable browser notifications</Button>
-                  )}
-                  {notificationPermission === 'denied' && (
-                    <p className="text-sm text-amber-700">Notifications are blocked. Use your browser&apos;s site settings to enable them.</p>
-                  )}
-                  {notificationPermission === 'granted' && (
-                    <p className="text-sm text-green-700">Notifications are enabled for medicine reminders.</p>
-                  )}
-                  {notificationPermission === 'unsupported' && (
-                    <p className="text-sm text-amber-700">This browser does not support notifications.</p>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Bell className="w-5 h-5" /> Push notifications</CardTitle>
+                    <CardDescription>Medicine reminders, the morning chore summary, bank connection alerts and scheduled shopping refills. Browser permission is requested only when you choose to enable it.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Current permission: <strong className="text-foreground">{notificationPermission}</strong>
+                    </p>
+                    {notificationPermission === 'default' && (
+                      <Button onClick={handleNotificationPermission}>Enable browser notifications</Button>
+                    )}
+                    {notificationPermission === 'denied' && (
+                      <p className="text-sm text-amber-700">Notifications are blocked. Use your browser&apos;s site settings to enable them.</p>
+                    )}
+                    {notificationPermission === 'granted' && (
+                      <p className="text-sm text-green-700">Notifications are enabled on this device.</p>
+                    )}
+                    {notificationPermission === 'unsupported' && (
+                      <p className="text-sm text-amber-700">This browser does not support notifications.</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Mail className="w-5 h-5" /> Weekly digest</CardTitle>
+                    <CardDescription>A Monday morning email with the household&apos;s week: chores, shopping, meals and medicine at a glance.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <label className="flex items-center justify-between gap-4">
+                      <span className="text-sm text-muted-foreground">Send me the Monday digest email</span>
+                      <Switch
+                        checked={!weeklyDigestOptOut}
+                        onCheckedChange={handleDigestToggle}
+                        aria-label="Weekly digest email"
+                      />
+                    </label>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {activeTab === 'privacy' && (

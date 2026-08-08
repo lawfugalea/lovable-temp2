@@ -4,11 +4,13 @@ import { ThemeProvider } from "next-themes";
 import "../styles/globals.css";
 import "../components/ui/minimal-tiptap/styles/index.css";
 import AuthApp from "@/components/AuthApp";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import ThemeColorSync from "@/components/ThemeColorSync";
 import { Toaster } from "@/components/ui/Toaster";
 import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 import { bodyFont, displayFont } from "@/lib/fonts";
 import { installBasePathFetch, withBasePath } from "@/lib/base-path";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 
 installBasePathFetch();
 
@@ -24,6 +26,8 @@ function FontVariables() {
 }
 
 export default function App({ Component, pageProps: { session, ...pageProps } }: AppProps) {
+  // Keeps overlays clear of the on-screen keyboard; see the hook for why.
+  useVisualViewport();
 
   if (process.env.NEXT_PUBLIC_SAFE_MODE === '1') {
     return (
@@ -48,9 +52,13 @@ export default function App({ Component, pageProps: { session, ...pageProps } }:
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <FontVariables />
       <ThemeColorSync />
-      <ConfirmProvider>
-        <AuthApp Component={Component} pageProps={pageProps} session={session} />
-      </ConfirmProvider>
+      {/* Inside ThemeProvider so the fallback is themed, but outside the app
+          tree so a throw anywhere in a page still lands here. */}
+      <ErrorBoundary>
+        <ConfirmProvider>
+          <AuthApp Component={Component} pageProps={pageProps} session={session} />
+        </ConfirmProvider>
+      </ErrorBoundary>
       <Toaster position="top-right" richColors closeButton />
     </ThemeProvider>
   );

@@ -32,6 +32,16 @@ model User {
   acceptedTermsAt           DateTime?
   termsVersion              String?
   activeHouseholdId         String?
+  /// Opts this person out of the Monday household digest email.
+  weeklyDigestOptOut        Boolean                      @default(false)
+  /// Guided product tour: the step the user paused on. Null when not mid-tour.
+  tourStepId                String?
+  /// Set when the tour was finished or skipped. Backfilled for accounts that
+  /// predate the tour so it never ambushes an existing user. Null = tour owed.
+  tourCompletedAt           DateTime?
+  /// Per-user dismissal of the dashboard getting-started checklist. Replaces the
+  /// household-scoped PageState flag, which hid the card for every member at once.
+  checklistDismissedAt      DateTime?
   ownedHouseholds           Household[]                  @relation("OwnerHouseholds")
   memberships               Membership[]
   assignedChores            Chore[]                      @relation("ChoreAssignee")
@@ -58,12 +68,65 @@ model User {
   financeAiPreference       FinanceAiPreference?
   financeAiAnalyses         FinanceAiAnalysis[]
   financePlanAccountsOwned  FinancePlanAccount[]          @relation("FinancePlanAccountOwner")
-  financeTransferCheckoffs  FinanceTransferCheckoff[]     @relation("FinanceTransferCompletedBy")
   pushSubscriptions         PushSubscription[]
   passwordResetTokens       PasswordResetToken[]
   mobileSessions            MobileSession[]
+  activityEvents            ActivityEvent[]
+  pantryItemsUpdated        PantryItem[]
 }
 
+/// What the household already has at home. Bridges meals and shopping:
+/// meal-plan shopping generation skips ingredients found here, and recipe
+/// suggestions rank by pantry coverage. Identity is the normalized name.
+model PantryItem {
+  id             String    @id @default(cuid())
+  householdId    String
+  name           String
+  normalizedName String
+  /// Free-text amount ("2 packs", "500g"); precision is not the point.
+  quantity       String?
+  updatedById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  household      Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  updatedBy      User?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([householdId, normalizedName])
+}
+
+/// Household activity feed: one row per notable action, written best-effort by
+/// the mutating routes and read newest-first on the dashboard. Doubles as a
+/// lightweight audit trail; the actor survives account deletion as null.
+model ActivityEvent {
+  id          String    @id @default(cuid())
+  householdId String
+  userId      String?
+  /// Module key the event belongs to ("shopping", "chores", ...).
+  module      String
+  /// Machine-readable action within the module ("item-added", "completed", ...).
+  action      String
+  /// Human-readable one-liner, precomputed at write time.
+  summary     String
+  targetId    String?
+  createdAt   DateTime  @default(now())
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([householdId, createdAt])
+}
+
+/// Mobile authentication sessions. Additive: browser NextAuth sessions are
+/// untouched by this table.
+///
+/// The migration that creates this table (20260720210000_mobile_sessions) was
+/// applied to production from the mobile/foundation branch on 2026-07-20 and was
+/// missing from this branch until 2026-07-27, while the table itself held live
+/// refresh tokens. The model is recorded here — not only the migration — because
+/// a schema without it describes a database that does not exist, and any schema
+/// diff run from this branch would propose dropping the table.
+///
+/// Mobile feature work still belongs on mobile/foundation; this is the schema of
+/// record for what production actually runs.
 model MobileSession {
   id               String    @id @default(cuid())
   userId           String
@@ -81,6 +144,19 @@ model MobileSession {
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
+}
+
+/// Abuse counters that must survive a deploy and hold across app replicas.
+/// The in-memory limiter they replaced reset on every restart and counted
+/// per-process, so N containers meant N times the intended allowance.
+model RateLimitCounter {
+  /// Caller-scoped identity, e.g. "login:account:someone@example.com".
+  key     String   @id
+  count   Int      @default(0)
+  /// When the window ends; the row is reusable (and sweepable) after this.
+  resetAt DateTime
+
+  @@index([resetAt])
 }
 
 model PasswordResetToken {
@@ -124,7 +200,6 @@ model Household {
   commitments               Commitment[]
   savingsGoals              SavingsGoal[]
   financePlanAccounts       FinancePlanAccount[]
-  financeFundingRules       FinanceFundingRule[]
   shoppingLists             ShoppingList[]
   shoppingTemplates         ShoppingTemplate[]
   activeForUsers            User[]                     @relation("ActiveHousehold")
@@ -136,6 +211,8 @@ model Household {
   bankAccountShares         BankAccountShare[]
   healthEpisodes            HealthEpisode[]
   pushSubscriptions         PushSubscription[]
+  activityEvents            ActivityEvent[]
+  pantryItems               PantryItem[]
 }
 
 model Membership {
@@ -147,7 +224,6 @@ model Membership {
   household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId])
   @@unique([userId, householdId], name: "userId_householdId")
   @@index([householdId])
 }
@@ -177,6 +253,8 @@ model ShoppingList {
   updatedAt   DateTime       @updatedAt
   items       ShoppingItem[]
   household   Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  /// Templates scheduled to refill this list.
+  autoTemplates ShoppingTemplate[] @relation("TemplateAutoList")
 
   @@unique([householdId, name], name: "householdId_name_unique")
   @@index([householdId])
@@ -395,6 +473,10 @@ model BankConnection {
   providerSessionId     String?                    @unique
   status                BankConnectionStatus       @default(PENDING)
   consentExpiresAt      DateTime?
+  /// When the "consent expires soon" email went out for the current consent.
+  consentReminderSentAt DateTime?
+  /// When the "bank needs reauthorization" email went out for the current episode.
+  reauthNotifiedAt      DateTime?
   lastSyncedAt          DateTime?
   lastSyncAttemptAt     DateTime?
   syncStartedAt         DateTime?
@@ -638,10 +720,33 @@ model ShoppingTemplate {
   householdId String
   name        String
   createdAt   DateTime               @default(now())
-  items       ShoppingTemplateItem[] // <-- one-to-many
-  household   Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+
+  /// Null means the template is imported by hand only, which is how every
+  /// template behaved before scheduling existed. Set it and the worker refills
+  /// `autoList` on each due date. Shares ChoreRecurrenceType deliberately: the
+  /// schedule semantics and the tested engine in lib/chore-recurrence are the
+  /// same, and a second identical enum would only drift.
+  recurrenceType ChoreRecurrenceType?
+  /// ISO weekday numbers 1 (Monday) to 7 (Sunday); used when WEEKLY.
+  daysOfWeek     Int[]               @default([])
+  /// Interval in days; used when EVERY_N_DAYS.
+  intervalDays   Int?
+  /// Phase anchor for EVERY_N_DAYS; date-only.
+  anchorDate     DateTime?           @db.Date
+  /// Day of month 1-31 (clamped to month length); used when MONTHLY.
+  dayOfMonth     Int?
+  /// Which list a scheduled run fills. Cleared if that list is deleted, which
+  /// also stops the schedule — refilling an arbitrary other list would be worse.
+  autoListId     String?
+  /// Guards against a double run when the worker is retried; date-only.
+  lastRunOn      DateTime?           @db.Date
+
+  items     ShoppingTemplateItem[] // <-- one-to-many
+  household Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  autoList  ShoppingList?          @relation("TemplateAutoList", fields: [autoListId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
+  @@index([recurrenceType])
 }
 
 model ShoppingTemplateItem {
@@ -868,6 +973,16 @@ model PushSubscription {
   @@index([userId])
 }
 
+/// Once-only ledger for event pushes (chores due, bank consent, shopping
+/// refills): the first run to claim a dedupe key sends, later runs stay quiet.
+model PushEvent {
+  id        String   @id @default(cuid())
+  dedupeKey String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 model PushDelivery {
   id             String             @id @default(cuid())
   subscriptionId String
@@ -985,6 +1100,9 @@ model Chore {
   householdId    String
   title          String
   notes          String?
+  /// Semantic icon id from src/lib/chore-icons.ts ("hoover", "dishes"), never a
+  /// lucide component name. NULL means infer from the title.
+  icon           String?
   recurrenceType ChoreRecurrenceType
   /// Weekday numbers 1 (Monday) to 7 (Sunday); used when recurrenceType is WEEKLY.
   daysOfWeek     Int[]               @default([])
@@ -1113,16 +1231,13 @@ model IncomeSource {
   label       String
   amountCents Int
   frequency   PlannerFrequency @default(MONTHLY)
-  planAccountId String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User?     @relation("IncomeSourceUser", fields: [userId], references: [id], onDelete: SetNull)
-  planAccount FinancePlanAccount? @relation(fields: [planAccountId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
-  @@index([planAccountId])
 }
 
 model Commitment {
@@ -1135,16 +1250,17 @@ model Commitment {
   amountCents Int
   frequency   PlannerFrequency @default(MONTHLY)
   essential   Boolean          @default(true)
-  planAccountId String?
+  /// Whether the household puts money aside monthly for this commitment. Set per
+  /// commitment rather than derived from frequency: a bill entered as monthly can
+  /// still be one you save up for, and an irregular one may be paid from income.
+  setAside    Boolean          @default(false)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User?     @relation("CommitmentUser", fields: [userId], references: [id], onDelete: SetNull)
-  planAccount FinancePlanAccount? @relation(fields: [planAccountId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
-  @@index([planAccountId])
 }
 
 model SavingsGoal {
@@ -1167,27 +1283,24 @@ model SavingsGoal {
   @@index([planAccountId])
 }
 
-enum FinancePlanAccountType {
-  PERSONAL
-  HOUSEHOLD_SPENDING
-  COMMITMENTS
-  SAVINGS
-  OTHER
-}
-
 enum FinancePlanAccountVisibility {
   SHARED
   PRIVATE
 }
 
+/// A savings pot: what it holds today, and what goes into it each month.
 model FinancePlanAccount {
   id                 String                       @id @default(cuid())
   householdId        String
   ownerUserId        String
   name               String
-  type               FinancePlanAccountType      @default(OTHER)
   visibility         FinancePlanAccountVisibility @default(SHARED)
-  monthlyBufferCents Int                          @default(0)
+  /// Balance the household last stated for this account; the starting point for forecasts.
+  openingBalanceCents Int                         @default(0)
+  /// Date-only; when openingBalanceCents was last stated.
+  openingBalanceAt   DateTime?                    @db.Date
+  /// What the household puts into this account every month.
+  monthlyContributionCents Int                    @default(0)
   sortOrder          Int                          @default(0)
   archivedAt         DateTime?
   createdAt          DateTime                     @default(now())
@@ -1195,50 +1308,8 @@ model FinancePlanAccount {
 
   household      Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
   owner          User                   @relation("FinancePlanAccountOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
-  incomeSources  IncomeSource[]
-  commitments    Commitment[]
   savingsGoals   SavingsGoal[]
-  outgoingRules  FinanceFundingRule[]   @relation("FinanceFundingRuleSource")
-  incomingRules  FinanceFundingRule[]   @relation("FinanceFundingRuleTarget")
 
   @@index([householdId, archivedAt])
   @@index([ownerUserId])
-}
-
-model FinanceFundingRule {
-  id              String    @id @default(cuid())
-  householdId     String
-  sourceAccountId String
-  targetAccountId String
-  amountCents     Int
-  archivedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  household     Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  sourceAccount FinancePlanAccount    @relation("FinanceFundingRuleSource", fields: [sourceAccountId], references: [id], onDelete: Cascade)
-  targetAccount FinancePlanAccount    @relation("FinanceFundingRuleTarget", fields: [targetAccountId], references: [id], onDelete: Cascade)
-  checkoffs     FinanceTransferCheckoff[]
-
-  @@unique([sourceAccountId, targetAccountId])
-  @@index([householdId, archivedAt])
-  @@index([targetAccountId])
-}
-
-model FinanceTransferCheckoff {
-  id             String   @id @default(cuid())
-  ruleId         String
-  period         String
-  amountCents    Int
-  completedById  String?
-  completedAt    DateTime @default(now())
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  rule        FinanceFundingRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  completedBy User?              @relation("FinanceTransferCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
-
-  @@unique([ruleId, period])
-  @@index([period])
-  @@index([completedById])
 }

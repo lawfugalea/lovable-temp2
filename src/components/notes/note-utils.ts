@@ -2,47 +2,52 @@ import type { LucideIcon } from 'lucide-react'
 import { CheckSquare, List, Type, Image as ImageIcon, Link as LinkIcon } from 'lucide-react'
 import type { Note, NoteColor } from './types'
 
+/**
+ * Colour is carried by a saturated `dot` plus a whisper of `tint` behind the title row — never
+ * the card surface. A heavier wash turns muddy on the dark theme (amber over navy reads brown),
+ * so the dot does the identifying and the tint only warms the row.
+ */
 export const NOTE_COLORS: Record<NoteColor, {
   label: string
-  card: string
+  tint: string
+  dot: string
   swatch: string
-  accent: string
 }> = {
   yellow: {
     label: 'Yellow',
-    card: 'bg-yellow-50 border-yellow-200',
-    swatch: 'bg-yellow-200 hover:bg-yellow-300',
-    accent: 'bg-yellow-100/70',
+    tint: 'bg-amber-100/60 dark:bg-amber-400/[0.07]',
+    dot: 'bg-amber-400',
+    swatch: 'bg-amber-300 hover:bg-amber-400 dark:bg-amber-400 dark:hover:bg-amber-300',
   },
   green: {
     label: 'Green',
-    card: 'bg-green-50 border-green-200',
-    swatch: 'bg-green-200 hover:bg-green-300',
-    accent: 'bg-green-100/70',
+    tint: 'bg-emerald-100/60 dark:bg-emerald-400/[0.07]',
+    dot: 'bg-emerald-400',
+    swatch: 'bg-emerald-400 hover:bg-emerald-500 dark:bg-emerald-400 dark:hover:bg-emerald-300',
   },
   blue: {
     label: 'Blue',
-    card: 'bg-blue-50 border-blue-200',
-    swatch: 'bg-blue-200 hover:bg-blue-300',
-    accent: 'bg-blue-100/70',
+    tint: 'bg-sky-100/60 dark:bg-sky-400/[0.07]',
+    dot: 'bg-sky-400',
+    swatch: 'bg-sky-400 hover:bg-sky-500 dark:bg-sky-400 dark:hover:bg-sky-300',
   },
   purple: {
     label: 'Purple',
-    card: 'bg-purple-50 border-purple-200',
-    swatch: 'bg-purple-200 hover:bg-purple-300',
-    accent: 'bg-purple-100/70',
+    tint: 'bg-violet-100/60 dark:bg-violet-400/[0.07]',
+    dot: 'bg-violet-400',
+    swatch: 'bg-violet-400 hover:bg-violet-500 dark:bg-violet-400 dark:hover:bg-violet-300',
   },
   pink: {
     label: 'Pink',
-    card: 'bg-pink-50 border-pink-200',
-    swatch: 'bg-pink-200 hover:bg-pink-300',
-    accent: 'bg-pink-100/70',
+    tint: 'bg-pink-100/60 dark:bg-pink-400/[0.07]',
+    dot: 'bg-pink-400',
+    swatch: 'bg-pink-400 hover:bg-pink-500 dark:bg-pink-400 dark:hover:bg-pink-300',
   },
   gray: {
-    label: 'Gray',
-    card: 'bg-gray-50 border-gray-200',
-    swatch: 'bg-gray-200 hover:bg-gray-300',
-    accent: 'bg-gray-100/70',
+    label: 'Grey',
+    tint: 'bg-slate-200/50 dark:bg-slate-400/[0.07]',
+    dot: 'bg-slate-400',
+    swatch: 'bg-slate-300 hover:bg-slate-400 dark:bg-slate-500 dark:hover:bg-slate-400',
   },
 }
 

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
-import { enrichTransaction } from './enrichment'
+import { signedTransactionAmountCents } from './enrichment'
+import { centsToFixed } from './money'
 
 type JsonObject = Record<string, unknown>
 
@@ -132,6 +133,38 @@ export type NormalizedTransaction = {
   providerData: JsonObject
 }
 
+/**
+ * The counterparty and description exactly as the bank stated them.
+ *
+ * These are what gets stored. Display names and details are derived on read by
+ * `enrichStoredTransaction`, so storing the derived form would only make a
+ * transaction's stored identity depend on our own naming rules — the bug that let
+ * a regex change duplicate historical rows.
+ */
+export function providerTextFields(raw: JsonObject): { counterparty: string | null; description: string | null } {
+  const creditor = object(raw.creditor)
+  const debtor = object(raw.debtor)
+  const creditorAccount = object(raw.creditor_account ?? raw.creditorAccount)
+  const debtorAccount = object(raw.debtor_account ?? raw.debtorAccount)
+  const descriptionParts = [
+    ...textList(raw.remittance_information ?? raw.remittanceInformation),
+    ...textList(raw.remittance_information_unstructured ?? raw.remittanceInformationUnstructured),
+    ...textList(raw.additional_information ?? raw.additionalInformation),
+    ...textList(raw.transaction_details ?? raw.transactionDetails),
+  ]
+  return {
+    counterparty: firstString(
+      creditor.name,
+      debtor.name,
+      raw.creditor_name,
+      raw.debtor_name,
+      creditorAccount.identification,
+      debtorAccount.identification,
+    )?.slice(0, 250) || null,
+    description: [...new Set(descriptionParts)].join(' · ').slice(0, 2_000) || null,
+  }
+}
+
 export function normalizeTransaction(
   raw: JsonObject,
   statusHint: 'BOOKED' | 'PENDING',
@@ -140,10 +173,6 @@ export function normalizeTransaction(
   const providerAmount = firstString(amountObject.amount, raw.amount)
   if (providerAmount === null || !Number.isFinite(Number(providerAmount))) return null
 
-  const creditor = object(raw.creditor)
-  const debtor = object(raw.debtor)
-  const creditorAccount = object(raw.creditor_account ?? raw.creditorAccount)
-  const debtorAccount = object(raw.debtor_account ?? raw.debtorAccount)
   const providerTransactionId = firstString(
     raw.entry_reference,
     raw.entryReference,
@@ -154,56 +183,60 @@ export function normalizeTransaction(
   const status = statusValue?.includes('PEND') || statusValue === 'PDNG' ? 'PENDING' : statusHint
   const bookingDate = date(raw.booking_date ?? raw.bookingDate)
   const valueDate = date(raw.value_date ?? raw.valueDate)
-  const providerCounterparty = firstString(
-    creditor.name,
-    debtor.name,
-    raw.creditor_name,
-    raw.debtor_name,
-    creditorAccount.identification,
-    debtorAccount.identification,
-  )?.slice(0, 250) || null
-  const descriptionParts = [
-    ...textList(raw.remittance_information ?? raw.remittanceInformation),
-    ...textList(raw.remittance_information_unstructured ?? raw.remittanceInformationUnstructured),
-    ...textList(raw.additional_information ?? raw.additionalInformation),
-    ...textList(raw.transaction_details ?? raw.transactionDetails),
-  ]
-  const providerDescription = [...new Set(descriptionParts)].join(' · ').slice(0, 2_000) || null
-  const enrichment = enrichTransaction({
-    amount: providerAmount,
-    counterparty: providerCounterparty,
-    description: providerDescription,
-    providerData: raw,
-  })
-  const amount = String(enrichment.signedAmount)
-  const counterparty = enrichment.merchantName.slice(0, 250) || providerCounterparty
-  const description = enrichment.detail || providerDescription
+  const { counterparty: providerCounterparty, description: providerDescription } = providerTextFields(raw)
   const currency = (firstString(amountObject.currency, raw.currency, 'EUR') as string).toUpperCase().slice(0, 3)
-  const fallbackIdentity = JSON.stringify({
-    status,
-    amount,
-    currency,
-    bookingDate: bookingDate?.toISOString().slice(0, 10) || null,
-    valueDate: valueDate?.toISOString().slice(0, 10) || null,
-    counterparty,
-    description,
-  })
-  const deduplicationKey = providerTransactionId
-    ? `ref:${status}:${providerTransactionId}`
-    : `hash:${createHash('sha256').update(fallbackIdentity).digest('hex')}`
+  // The sign comes from the provider's credit/debit indicator, which is
+  // deterministic. Merchant naming and categorisation deliberately do not touch
+  // anything stored here — see deduplicationKeyFor.
+  const amount = centsToFixed(signedTransactionAmountCents({ amount: providerAmount, providerData: raw }).cents)
 
   return {
     providerTransactionId,
-    deduplicationKey,
+    deduplicationKey: providerTransactionId
+      ? `ref:${status}:${providerTransactionId}`
+      : deduplicationKeyFor(raw, status),
     status,
     amount,
     currency,
     bookingDate,
     valueDate,
-    counterparty,
-    description,
+    counterparty: providerCounterparty,
+    description: providerDescription,
     providerData: raw,
   }
+}
+
+/**
+ * Identity for a transaction the bank gave no reference for.
+ *
+ * Hashes provider fields only. The previous version hashed the *enriched*
+ * merchant name, detail and signed amount, which made a transaction's identity
+ * depend on our display logic: tightening a merchant regex re-keyed historical
+ * rows, and the next sync inserted them again as new transactions, double
+ * counting them in every statistic. Nothing derived from enrichment may appear
+ * below.
+ */
+export function deduplicationKeyFor(raw: JsonObject, status: 'BOOKED' | 'PENDING'): string {
+  const amountObject = object(raw.transaction_amount ?? raw.transactionAmount ?? raw.amount)
+  const identity = JSON.stringify({
+    status,
+    amount: firstString(amountObject.amount, raw.amount),
+    indicator: firstString(raw.credit_debit_indicator, raw.creditDebitIndicator)?.toUpperCase() || null,
+    currency: firstString(amountObject.currency, raw.currency)?.toUpperCase() || null,
+    bookingDate: date(raw.booking_date ?? raw.bookingDate)?.toISOString().slice(0, 10) || null,
+    valueDate: date(raw.value_date ?? raw.valueDate)?.toISOString().slice(0, 10) || null,
+    counterparty: providerTextFields(raw).counterparty,
+    remittance: [
+      ...textList(raw.remittance_information ?? raw.remittanceInformation),
+      ...textList(raw.additional_information ?? raw.additionalInformation),
+    ].join(' · ') || null,
+  })
+  return `hash2:${createHash('sha256').update(identity).digest('hex')}`
+}
+
+/** True for a key written by the pre-2026-07 enrichment-coupled hash. */
+export function isLegacyDeduplicationKey(key: string): boolean {
+  return key.startsWith('hash:')
 }
 
 export function isAvailableBalanceType(type: string): boolean {

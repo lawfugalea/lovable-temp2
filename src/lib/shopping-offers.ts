@@ -1,11 +1,14 @@
 import { prisma } from './prisma'
 import { safeRetailerSourceUrl } from './catalog-source-url'
 import type { ComparisonOffer, ComparisonStore } from './shopping-price-comparison'
+import { getConsentedSupermarketSlugs } from './supermarket-consent'
 
 /** Enabled stores in the shape buildBasketComparison expects. */
 export function loadEnabledComparisonStores(): Promise<ComparisonStore[]> {
+  const consentedSlugs = getConsentedSupermarketSlugs()
+  if (!consentedSlugs.length) return Promise.resolve([])
   return prisma.store.findMany({
-    where: { enabled: true },
+    where: { enabled: true, slug: { in: consentedSlugs } },
     orderBy: { name: 'asc' },
     select: { id: true, name: true, slug: true, lastSuccessfulSyncAt: true },
   })
@@ -22,13 +25,15 @@ export async function loadOffersByCanonicalProduct(
   const ids = Array.from(new Set(canonicalProductIds.filter(Boolean)))
   const map = new Map<string, ComparisonOffer[]>()
   if (!ids.length) return map
+  const consentedSlugs = getConsentedSupermarketSlugs()
+  if (!consentedSlugs.length) return map
 
   const canonicalProducts = await prisma.canonicalProduct.findMany({
     where: { id: { in: ids } },
     select: {
       id: true,
       products: {
-        where: { active: true, store: { enabled: true } },
+        where: { active: true, store: { enabled: true, slug: { in: consentedSlugs } } },
         select: {
           id: true,
           name: true,

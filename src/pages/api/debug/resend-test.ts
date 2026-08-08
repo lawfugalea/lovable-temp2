@@ -6,6 +6,12 @@ import { sendInviteEmail } from '@/lib/mailer';
 import { requireDebugAccess } from '@/lib/debug-guards';
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!(await requireDebugAccess(req, res))) return;
+  // This sends a real email, so it must not be reachable by a GET that a
+  // browser, a link prefetch or an image tag could trigger.
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
   const to = (req.query.to as string) || process.env.TEST_EMAIL || '';
   if (!to) return res.status(400).send('Provide ?to=email@example.com or set TEST_EMAIL');
   const acceptUrl = (req.query.url as string) || 'https://clankeep.com/invites/accept?token=debug';

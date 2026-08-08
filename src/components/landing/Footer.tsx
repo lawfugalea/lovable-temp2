@@ -3,7 +3,6 @@ import BrandLogo from '@/components/BrandLogo'
 
 const anchors = [
   { href: '#features', label: 'Features' },
-  { href: '#prices', label: 'Price compare' },
   { href: '#medicine', label: 'Medicine' },
   { href: '#tour', label: 'Screenshots' },
   { href: '#pricing', label: 'Pricing' },

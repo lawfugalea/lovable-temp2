@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import HouseholdCreationWizard from '../components/HouseholdCreationWizard'
+import WelcomeFlow from '../components/onboarding/WelcomeFlow'
 import EnhancedInvitePanel from '../components/EnhancedInvitePanel'
 import HouseholdManagement from '../components/HouseholdManagement'
 import { Users, Settings, RefreshCw, Home, Save, X, MapPin } from 'lucide-react'
@@ -21,6 +22,14 @@ interface Household {
   role: 'OWNER' | 'MEMBER'
 }
 
+interface HouseholdSummary {
+  id: string
+  name: string
+  country: string
+  role: 'OWNER' | 'MEMBER'
+  memberCount: number
+}
+
 export default function HouseholdPage() {
   const { data: session, status } = useSession()
   const [household, setHousehold] = useState<Household | null>(null)
@@ -31,6 +40,8 @@ export default function HouseholdPage() {
   const [householdName, setHouseholdName] = useState('')
   const [savingName, setSavingName] = useState(false)
   const [savingCountry, setSavingCountry] = useState(false)
+  const [households, setHouseholds] = useState<HouseholdSummary[]>([])
+  const [switchingId, setSwitchingId] = useState<string | null>(null)
 
   // Load household data
   useEffect(() => {
@@ -66,6 +77,17 @@ export default function HouseholdPage() {
         // No household found - this is normal for new users
         setHousehold(null)
       }
+      // The full membership list drives the switcher panel. A failure here
+      // must not blank the page — the active household above is what matters.
+      try {
+        const listRes = await fetch('/api/household/list')
+        if (listRes.ok) {
+          const listData = await listRes.json()
+          setHouseholds(Array.isArray(listData.households) ? listData.households : [])
+        }
+      } catch {
+        setHouseholds([])
+      }
     } catch (error) {
       console.error('Failed to load household data:', error)
       setHouseholdError('Failed to load household data. Please try again.')
@@ -74,8 +96,31 @@ export default function HouseholdPage() {
     }
   }
 
+  // A full load, not a client transition: every household-scoped page caches
+  // its data at mount, so a soft navigation would show the old household's
+  // lists and balances under the new household's name.
+  const handleSwitchHousehold = async (householdId: string) => {
+    setSwitchingId(householdId)
+    setHouseholdError('')
+    try {
+      const response = await fetch('/api/household/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ householdId }),
+      })
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Could not switch household')
+      }
+      window.location.reload()
+    } catch (error) {
+      setHouseholdError(error instanceof Error ? error.message : 'Could not switch household')
+      setSwitchingId(null)
+    }
+  }
 
-  const handleHouseholdCreated = (householdId: string) => {
+
+  const handleHouseholdCreated = () => {
     setShowCreationWizard(false)
     // Reload household data to show the new household
     loadHouseholdData()
@@ -212,7 +257,7 @@ export default function HouseholdPage() {
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <MapPin className="h-4 w-4" aria-hidden="true" />
                     {household.role === 'OWNER'
-                      ? 'Location — Malta households get supermarket price comparison'
+                      ? `Household location: ${countryLabel(household.country)}`
                       : `Location: ${countryLabel(household.country)}`}
                   </div>
                   {household.role === 'OWNER' && (
@@ -242,10 +287,69 @@ export default function HouseholdPage() {
             )}
 
             {/* Household Management */}
-            <HouseholdManagement 
+            <HouseholdManagement
               householdId={household.id}
               householdName={household.name}
             />
+
+            {/* Every household this account belongs to. Members can belong to
+                several since 20260726120000_multi_household_membership. */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Home className="w-5 h-5" />
+                  Your households
+                </CardTitle>
+                <CardDescription>
+                  Switch between the households you belong to, or start another one.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {households.map(entry => {
+                  const active = entry.id === household.id
+                  return (
+                    <div
+                      key={entry.id}
+                      className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-foreground">{entry.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {entry.role === 'OWNER' ? 'Owner' : 'Member'} · {entry.memberCount}{' '}
+                          {entry.memberCount === 1 ? 'member' : 'members'} · {countryLabel(entry.country)}
+                        </p>
+                      </div>
+                      {active ? (
+                        <Badge variant="secondary">Currently viewing</Badge>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={switchingId !== null}
+                          onClick={() => void handleSwitchHousehold(entry.id)}
+                        >
+                          {switchingId === entry.id ? 'Switching…' : 'Switch to this'}
+                        </Button>
+                      )}
+                    </div>
+                  )
+                })}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowCreationWizard(true)}
+                >
+                  <Home className="w-4 h-4 mr-2" />
+                  Create another household
+                </Button>
+                {showCreationWizard && (
+                  <HouseholdCreationWizard
+                    onComplete={handleHouseholdCreated}
+                    onCancel={() => setShowCreationWizard(false)}
+                  />
+                )}
+              </CardContent>
+            </Card>
           </>
         ) : (
           <>
@@ -280,29 +384,10 @@ export default function HouseholdPage() {
                 onCancel={() => setShowCreationWizard(false)}
               />
             ) : (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <span className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
-                    <Home className="h-7 w-7" aria-hidden="true" />
-                  </span>
-                  <h2 className="font-display text-xl font-semibold text-foreground mb-2">Welcome to Clankeep!</h2>
-                  <p className="text-muted-foreground mb-6">
-                    Create your household to start managing your home, family, and daily tasks together.
-                  </p>
-                  <div className="space-y-3">
-                    <Button 
-                      onClick={() => setShowCreationWizard(true)}
-                      className="w-full"
-                    >
-                      <Home className="w-4 h-4 mr-2" />
-                      Create Your Household
-                    </Button>
-                    <p className="text-sm text-muted-foreground">
-                      Or join an existing household with an invite link
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              // Same first-run experience as the dashboard, including the
+              // "I was invited" path — this page used to offer only a create
+              // button and a sentence about invite links with nowhere to paste one.
+              <WelcomeFlow onCreated={handleHouseholdCreated} />
             )}
           </>
         )}

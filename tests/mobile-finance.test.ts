@@ -8,37 +8,23 @@ test('mobile finance planner input is normalized and bounded by shared money rul
   assert.equal(isMobilePlannerKind('transfer'), false)
   assert.deepEqual(parseMobilePlannerEntry('income', { label: ' Salary ', amount: '1,234.50', frequency: 'MONTHLY', userId: '' }), {
     ok: true,
-    value: { kind: 'income', label: 'Salary', amountCents: 123450, frequency: 'MONTHLY', userId: null, planAccountId: null },
+    value: { kind: 'income', label: 'Salary', amountCents: 123450, frequency: 'MONTHLY', userId: null },
   })
   assert.deepEqual(parseMobilePlannerEntry('commitment', { label: ' Rent ', amount: '900', frequency: 'MONTHLY', category: 'housing', essential: true }), {
     ok: true,
-    value: { kind: 'commitment', label: 'Rent', amountCents: 90000, frequency: 'MONTHLY', userId: null, planAccountId: null, category: 'housing', essential: true },
+    value: { kind: 'commitment', label: 'Rent', amountCents: 90000, frequency: 'MONTHLY', userId: null, category: 'housing', essential: true },
   })
   assert.equal(parseMobilePlannerEntry('income', { label: '', amount: '10' }).ok, false)
   assert.equal(parseMobilePlannerEntry('income', { label: 'Salary', amount: '-10' }).ok, false)
   assert.equal(parseMobilePlannerEntry('income', { label: 'Salary', amount: '10', frequency: 'DAILY' }).ok, false)
 })
 
-test('mobile money-flow routes keep bearer authorization and AI review boundaries', () => {
-  for (const name of [
-    'accounts',
-    'funding-rules',
-    'transfer-checkoffs',
-    'assignments',
-    'money-flow-ai/preview',
-    'money-flow-ai/suggest',
-    'money-flow-ai/apply',
-  ]) {
+test('mobile planner routes authenticate with bearer tokens, never browser sessions', () => {
+  for (const name of ['index', 'coach', '[kind]']) {
     const route = readFileSync(`src/pages/api/mobile/v1/finance/planner/${name}.ts`, 'utf8')
-    assert.match(route, /requireMobileFinanceAccess/)
+    assert.match(route, /requireMobileFinanceAccess|requireMobileIdentity/)
     assert.doesNotMatch(route, /requireFinanceAccess\(/)
   }
-  const preview = readFileSync('src/pages/api/mobile/v1/finance/planner/money-flow-ai/preview.ts', 'utf8')
-  const suggest = readFileSync('src/pages/api/mobile/v1/finance/planner/money-flow-ai/suggest.ts', 'utf8')
-  const apply = readFileSync('src/pages/api/mobile/v1/finance/planner/money-flow-ai/apply.ts', 'utf8')
-  assert.doesNotMatch(preview, /requestMoneyFlowAiProposal/)
-  assert.match(suggest, /consent !== true/)
-  assert.match(apply, /selectedOperationIds/)
 })
 
 test('mobile savings goals validate target, progress, and ISO target dates', () => {

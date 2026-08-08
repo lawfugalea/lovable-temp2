@@ -6,6 +6,7 @@ import { getUserIdOr401 } from '@/lib/api-guards';
 import { requireActiveHousehold } from '@/lib/chores';
 import { getHouseholdEntitlements } from '@/lib/entitlements';
 import { requirePriceComparison } from '@/lib/entitlements-core';
+import { isSupermarketConsented } from '@/lib/supermarket-consent';
 
 const MAX_QUERY_LENGTH = 200;
 
@@ -54,6 +55,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!householdId) return;
   const entitlements = await getHouseholdEntitlements(householdId);
   if (!requirePriceComparison(res, entitlements)) return;
+  if (!isSupermarketConsented('smart')) return res.status(200).json({ items: [] });
 
   const qRaw = (req.query.q ?? '').toString().trim();
   if (qRaw.length > MAX_QUERY_LENGTH) {
@@ -79,6 +81,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       where: {
         imageUrl: { not: null },
         sourceUrl: { contains: 'smart.com.mt' },
+        store: { slug: 'smart', enabled: true },
         OR: whereOr.length ? whereOr : undefined,
       },
       select: {

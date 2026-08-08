@@ -220,13 +220,23 @@ export function Field({ label, hint, error, leadingIcon, ...props }: TextInputPr
   )
 }
 
-export function ErrorBanner({ message }: { message: string }) {
+export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss?: () => void }) {
   const { colors } = useAppTheme()
   if (!message) return null
   return (
     <View accessibilityRole="alert" style={[styles.banner, { backgroundColor: colors.dangerSoft }]}>
       <Ionicons name="alert-circle-outline" size={21} color={colors.danger} />
       <Text style={[styles.bannerBody, { color: colors.danger }]}>{message}</Text>
+      {onDismiss ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Dismiss error"
+          hitSlop={12}
+          onPress={onDismiss}
+        >
+          <Ionicons name="close-outline" size={21} color={colors.danger} />
+        </Pressable>
+      ) : null}
     </View>
   )
 }
@@ -377,12 +387,15 @@ export function Skeleton({ height = 18, width = '100%', radius = 10 }: { height?
   return <View accessibilityElementsHidden style={{ height, width, borderRadius: radius, backgroundColor: colors.skeleton }} />
 }
 
-export function SheetHeader({ title, onClose, action }: { title: string; onClose: () => void; action?: ReactNode }) {
+export function SheetHeader({ title, subtitle, onClose, action }: { title: string; subtitle?: string; onClose: () => void; action?: ReactNode }) {
   const { colors } = useAppTheme()
   return (
     <View style={[styles.sheetHeader, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
       <IconButton icon="close" label="Close" onPress={onClose} />
-      <Text numberOfLines={1} style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text>
+      <View style={styles.sheetHeading}>
+        <Text numberOfLines={1} style={[styles.sheetTitle, { color: colors.text }]}>{title}</Text>
+        {subtitle ? <Text numberOfLines={2} style={[styles.sheetSubtitle, { color: colors.muted }]}>{subtitle}</Text> : null}
+      </View>
       <View style={styles.sheetAction}>{action || <View style={styles.sheetSpacer} />}</View>
     </View>
   )
@@ -463,7 +476,9 @@ const styles = StyleSheet.create({
   loadingMark: { width: 70, height: 70, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   loadingText: { fontFamily: fontFamilies.bodySemiBold, fontSize: 14 },
   sheetHeader: { minHeight: Platform.OS === 'ios' ? 64 : 68, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  sheetTitle: { flex: 1, textAlign: 'center', fontFamily: fontFamilies.displayBold, fontSize: 18 },
+  sheetHeading: { flex: 1 },
+  sheetTitle: { textAlign: 'center', fontFamily: fontFamilies.displayBold, fontSize: 18 },
+  sheetSubtitle: { textAlign: 'center', fontFamily: fontFamilies.body, fontSize: 12, marginTop: 2 },
   sheetAction: { minWidth: 48, alignItems: 'flex-end' },
   sheetSpacer: { width: 44, height: 44 },
 })

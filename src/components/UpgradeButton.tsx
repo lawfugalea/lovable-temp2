@@ -31,6 +31,7 @@ export default function UpgradeButton() {
   return (
     <Link
       href="/settings?tab=billing"
+      data-tour="upgrade"
       className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-gradient-to-r from-[#4D6BFF] to-[#7B61FF] px-3 text-sm font-semibold text-white shadow-sm transition-all hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-4"
     >
       <Sparkles className="h-4 w-4" aria-hidden="true" />

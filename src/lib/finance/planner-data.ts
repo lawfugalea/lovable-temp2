@@ -8,42 +8,35 @@ import {
   type PlannerFrequency,
 } from '@/lib/budget'
 import {
-  buildMoneyFlow,
   financePeriod,
-  type FinancePlanAccountType,
   type FinancePlanAccountVisibility,
-  type MoneyFlowAccount,
-  type MoneyFlowRuleInput,
-  type MoneyFlowSummary,
-} from './money-flow'
+  type SavingsAccount,
+  type SavingsGoalMarker,
+} from './savings'
 
 export interface PlannerData {
-  incomes: Array<{ id: string; userId: string | null; label: string; amountCents: number; frequency: PlannerFrequency; planAccountId: string | null }>
-  commitments: Array<CommitmentEntry & { userId: string | null; planAccountId: string | null }>
+  incomes: Array<{ id: string; userId: string | null; label: string; amountCents: number; frequency: PlannerFrequency }>
+  commitments: Array<CommitmentEntry & { userId: string | null }>
   goals: Array<GoalPlan & { planAccountId: string | null; monthlyContributionCents: number; monthlyContributionOverrideCents: number | null }>
   members: Array<{ userId: string; name: string }>
   summary: PlanSummary
   period: string
-  accounts: MoneyFlowAccount[]
-  fundingRules: MoneyFlowRuleInput[]
-  moneyFlow: MoneyFlowSummary
+  accounts: SavingsAccount[]
+  goalMarkers: SavingsGoalMarker[]
 }
 
 export async function loadPlannerData(
   householdId: string,
   now = new Date(),
   viewerUserId?: string,
-  requestedPeriod = financePeriod(now),
 ): Promise<PlannerData> {
-  const [incomeRows, commitmentRows, goalRows, members, accountRows, ruleRows] = await Promise.all([
+  const [incomeRows, commitmentRows, goalRows, members, accountRows] = await Promise.all([
     prisma.incomeSource.findMany({
       where: { householdId },
-      include: { planAccount: { select: { visibility: true, ownerUserId: true, archivedAt: true } } },
       orderBy: { createdAt: 'asc' },
     }),
     prisma.commitment.findMany({
       where: { householdId },
-      include: { planAccount: { select: { visibility: true, ownerUserId: true, archivedAt: true } } },
       orderBy: [{ essential: 'desc' }, { createdAt: 'asc' }],
     }),
     prisma.savingsGoal.findMany({
@@ -59,37 +52,19 @@ export async function loadPlannerData(
       where: { householdId, archivedAt: null },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     }),
-    prisma.financeFundingRule.findMany({
-      where: {
-        householdId,
-        sourceAccount: { archivedAt: null },
-        targetAccount: { archivedAt: null },
-        OR: [
-          { archivedAt: null },
-          { checkoffs: { some: { period: requestedPeriod } } },
-        ],
-      },
-      include: {
-        sourceAccount: { select: { id: true, name: true, visibility: true, ownerUserId: true } },
-        targetAccount: { select: { id: true, name: true, visibility: true, ownerUserId: true } },
-        checkoffs: { where: { period: requestedPeriod }, take: 1 },
-      },
-      orderBy: { createdAt: 'asc' },
-    }),
   ])
 
   const canSee = (account: { visibility: string; ownerUserId: string; archivedAt?: Date | null } | null) =>
     !account || (!account.archivedAt && (account.visibility === 'SHARED' || account.ownerUserId === viewerUserId))
 
-  const incomes = incomeRows.filter(item => canSee(item.planAccount)).map(item => ({
+  const incomes = incomeRows.map(item => ({
     id: item.id,
     userId: item.userId,
     label: item.label,
     amountCents: item.amountCents,
     frequency: item.frequency as PlannerFrequency,
-    planAccountId: item.planAccountId,
   }))
-  const commitments = commitmentRows.filter(item => canSee(item.planAccount)).map(item => ({
+  const commitments = commitmentRows.map(item => ({
     id: item.id,
     userId: item.userId,
     label: item.label,
@@ -97,7 +72,7 @@ export async function loadPlannerData(
     amountCents: item.amountCents,
     frequency: item.frequency as PlannerFrequency,
     essential: item.essential,
-    planAccountId: item.planAccountId,
+    setAside: item.setAside,
   }))
   const summary = buildPlanSummary(incomes, commitments)
   const goals = goalRows.filter(item => canSee(item.planAccount)).map(item => {
@@ -120,48 +95,31 @@ export async function loadPlannerData(
     }
   })
 
-  const accounts = accountRows
+  const accounts: SavingsAccount[] = accountRows
     .filter(account => account.visibility === 'SHARED' || account.ownerUserId === viewerUserId)
     .map(account => ({
       id: account.id,
       name: account.name,
-      type: account.type as FinancePlanAccountType,
       visibility: account.visibility as FinancePlanAccountVisibility,
-      monthlyBufferCents: account.monthlyBufferCents,
+      openingBalanceCents: account.openingBalanceCents,
+      openingBalanceAt: account.openingBalanceAt ? account.openingBalanceAt.toISOString().slice(0, 10) : null,
+      monthlyContributionCents: account.monthlyContributionCents,
       owned: account.ownerUserId === viewerUserId,
       canEdit: account.visibility === 'SHARED' || account.ownerUserId === viewerUserId,
       canManagePrivacy: account.ownerUserId === viewerUserId,
     }))
 
+  // Goals only mark a target on the account they point at; their contributions are never
+  // added to it, or a €200/mo account holding a €100/mo goal would forecast €300/mo.
   const visibleAccountIds = new Set(accounts.map(account => account.id))
-  const fundingRules: MoneyFlowRuleInput[] = ruleRows
-    .filter(rule => visibleAccountIds.has(rule.targetAccountId))
-    .map(rule => {
-      const sourceVisible = visibleAccountIds.has(rule.sourceAccountId)
-      const checkoff = rule.checkoffs[0]
-      const sourceCanManage = rule.sourceAccount.visibility === 'SHARED' || rule.sourceAccount.ownerUserId === viewerUserId
-      return {
-        id: rule.id,
-        sourceAccountId: sourceVisible ? rule.sourceAccountId : null,
-        sourceName: sourceVisible ? rule.sourceAccount.name : 'Private contribution',
-        sourcePrivate: rule.sourceAccount.visibility === 'PRIVATE',
-        targetAccountId: rule.targetAccountId,
-        targetName: rule.targetAccount.name,
-        amountCents: checkoff?.amountCents ?? rule.amountCents,
-        completed: Boolean(checkoff),
-        completedAt: checkoff?.completedAt.toISOString() ?? null,
-        canComplete: !rule.archivedAt && sourceCanManage,
-        canEdit: !rule.archivedAt && sourceCanManage,
-      }
-    })
-
-  const moneyFlow = buildMoneyFlow(
-    accounts,
-    incomes,
-    commitments,
-    goals.map(goal => ({ planAccountId: goal.planAccountId, monthlyContributionCents: goal.monthlyContributionCents })),
-    fundingRules,
-  )
+  const goalMarkers: SavingsGoalMarker[] = goals
+    .filter(goal => goal.planAccountId && visibleAccountIds.has(goal.planAccountId) && goal.targetCents > 0)
+    .map(goal => ({
+      id: goal.id,
+      name: goal.name,
+      accountId: goal.planAccountId!,
+      targetCents: goal.targetCents,
+    }))
 
   return {
     incomes,
@@ -169,9 +127,8 @@ export async function loadPlannerData(
     goals,
     members: members.map(member => ({ userId: member.userId, name: member.user.name || member.user.email })),
     summary,
-    period: requestedPeriod,
-    accounts: moneyFlow.accounts,
-    fundingRules,
-    moneyFlow,
+    period: financePeriod(now),
+    accounts,
+    goalMarkers,
   }
 }

@@ -16,13 +16,13 @@ for the project agent roles and parallel-work rules.
 - `docs`: backup, open-banking, and security operational documentation.
 
 This is an npm project using Next.js 16, React 18, strict TypeScript, NextAuth,
-Prisma 6/PostgreSQL, Tailwind, and Docker Compose. Use Node 22 as documented in
-`README.md` and `Dockerfile`; `.nvmrc` currently says 20.11.1, so flag that
-known mismatch when it affects a task rather than silently changing runtimes.
+Prisma 6/PostgreSQL, Tailwind, and Docker Compose. Node 22 throughout: `.nvmrc`,
+the `engines` field in `package.json`, `Dockerfile`, and `README.md` all agree.
+(`.nvmrc` used to say 20.11.1 while everything else said 22; that is resolved.)
 
 ## Mobile continuation
 
-For iOS or Android work, read [.codex/MOBILE_HANDOFF.md](.codex/MOBILE_HANDOFF.md)
-before inspecting or changing files. Keep that handoff current at the end of
-every mobile session. It records the isolated worktree, completed milestone,
-validation state, safety gates, and the exact next task.
+Before any iOS or Android work, read the durable handoff at
+`/home/ryan/lovable-temp2-mobile/.codex/MOBILE_HANDOFF.md` and continue in that
+isolated worktree on branch `mobile/foundation`. Keep the handoff current at the
+end of every mobile session. Do not implement mobile changes in this worktree.

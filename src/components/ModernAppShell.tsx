@@ -2,10 +2,11 @@ import React, { useEffect, useMemo, useState } from "react"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { signOut, useSession } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import { useTheme } from "next-themes"
 import {
   ChevronsUpDown,
+  HelpCircle,
   LogOut,
   Menu,
   Monitor,
@@ -18,7 +19,8 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { withBasePath } from "@/lib/base-path"
-import { modules, moduleForPath } from "@/lib/modules"
+import { moduleForPath } from "@/lib/modules"
+import { useVisibleModules } from "@/hooks/useVisibleModules"
 import { Button } from "@/components/ui/Button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar"
 import {
@@ -35,13 +37,15 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/Sheet"
 import CommandPalette from "./CommandPalette"
 import BottomTabBar from "./BottomTabBar"
 import DemoBanner from "./DemoBanner"
-import HelpChat from "./HelpChat"
 import UpgradeButton from "./UpgradeButton"
 import BrandLogo from "./BrandLogo"
+import HouseholdSwitcher from "./HouseholdSwitcher"
+import { signOutAndClearDevice } from "@/lib/sign-out"
 
 const manageItems = [
   { name: "Household", href: "/household", icon: Users },
   { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Help", href: "/help", icon: HelpCircle },
 ]
 
 interface ModernAppShellProps {
@@ -72,6 +76,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
   const router = useRouter()
   const { data: session } = useSession()
   const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
+  const visibleModules = useVisibleModules()
 
   const activeModule = moduleForPath(router.pathname)
 
@@ -140,6 +145,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
     <DropdownMenuContent side="top" align="start" className="w-64">
       <DropdownMenuLabel>My account</DropdownMenuLabel>
       <DropdownMenuSeparator />
+      <HouseholdSwitcher />
       <DropdownMenuItem asChild><Link href="/settings"><Settings /> Settings</Link></DropdownMenuItem>
       <DropdownMenuItem asChild><Link href="/household"><Users /> Household</Link></DropdownMenuItem>
       <DropdownMenuSeparator />
@@ -148,7 +154,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       <DropdownMenuSeparator />
       <DropdownMenuItem
         className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-        onSelect={() => void signOut({ callbackUrl: withBasePath("/login") })}
+        onSelect={() => void signOutAndClearDevice()}
       >
         <LogOut /> Sign out
       </DropdownMenuItem>
@@ -188,8 +194,8 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
       <Link href="/dashboard" aria-label="Overview" className="mb-4">
         <BrandLogo compact priority />
       </Link>
-      <nav className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto" aria-label="Main navigation">
-        {modules.map((module) => {
+      <nav data-tour="nav" className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto" aria-label="Main navigation">
+        {visibleModules.map((module) => {
           const active = router.pathname === module.href
           const Icon = module.icon
           return (
@@ -250,7 +256,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
 
   const moduleLinks = (
     <div className="space-y-1">
-      {modules.map((module) => {
+      {visibleModules.map((module) => {
         const active = router.pathname === module.href
         const Icon = module.icon
         return (
@@ -292,7 +298,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Main navigation">
+      <nav data-tour="nav" className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Main navigation">
         <div>
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
             Household
@@ -318,7 +324,7 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
           <BrandLogo priority />
         </Link>
       </div>
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="More navigation">
+      <nav data-tour="nav" className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="More navigation">
         <div>
           <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
             Household
@@ -379,8 +385,12 @@ export default function ModernAppShell({ children, title }: ModernAppShellProps)
             <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search Clankeep">
               <Search className="h-4 w-4" />
             </Button>
+            {/* The tour's `upgrade` anchor lives on UpgradeButton itself, which
+                only renders for free households — matching that step's `when`. */}
             <UpgradeButton />
-            <HelpChat />
+            <Button asChild variant="outline" size="icon" data-tour="help" className="hidden sm:inline-flex" aria-label="Help">
+              <Link href="/help" title="Help"><HelpCircle className="h-4 w-4" /></Link>
+            </Button>
           </div>
         </header>
 

@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
+import { invalidateSessionUser } from '@/lib/session-user-cache';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 
@@ -54,6 +55,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         where: { id: user.id },
         data: { activeHouseholdId: existing.householdId },
       });
+      invalidateSessionUser(user.id);
     }
     return res.status(200).json({ householdId: existing.householdId });
   }
@@ -89,6 +91,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return { id: h.id, existing: false };
     });
 
+    invalidateSessionUser(user.id);
     return res.status(200).json({ householdId: household.id });
   } catch (e: any) {
     return res.status(500).json({ error: 'Failed to create default household' });

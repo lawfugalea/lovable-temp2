@@ -1,11 +1,10 @@
 import Head from 'next/head'
 import { withBasePath } from '@/lib/base-path'
 import KelmaWidget from '@/components/KelmaWidget'
-import CookieConsent from '@/components/CookieConsent'
+import PublicTracking from '@/components/PublicTracking'
 import Nav from '@/components/landing/Nav'
 import Hero from '@/components/landing/Hero'
 import TrustStrip from '@/components/landing/TrustStrip'
-import PriceCompare from '@/components/landing/PriceCompare'
 import Medicine from '@/components/landing/Medicine'
 import FeaturesBento from '@/components/landing/FeaturesBento'
 import HowItWorks from '@/components/landing/HowItWorks'
@@ -20,7 +19,7 @@ import Footer from '@/components/landing/Footer'
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://clankeep.com'
 const OG_IMAGE = `${SITE_URL}${withBasePath('/og-image.png')}`
 const DESCRIPTION =
-  'The private household HQ: shared shopping with Malta supermarket price comparison, meal planning, chores, medicine schedules with reminders, and notes — all in one private home.'
+  'The private household HQ: shared shopping lists, meal planning, chores, medicine schedules with reminders, money planning, and notes — all in one private home.'
 
 export default function LandingPage() {
   return (
@@ -56,7 +55,6 @@ export default function LandingPage() {
           <Hero />
           <TrustStrip />
           <FeaturesBento />
-          <PriceCompare />
           <Medicine />
           <HowItWorks />
           <Screenshots />
@@ -70,7 +68,7 @@ export default function LandingPage() {
       </div>
 
       <KelmaWidget />
-      <CookieConsent />
+      <PublicTracking />
     </>
   )
 }

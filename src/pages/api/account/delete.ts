@@ -3,8 +3,9 @@ import { withApiHandler } from '@/lib/api-handler'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
+import { collectAttachmentFilenamesForUser, deleteNoteAttachmentFiles } from '@/lib/note-attachment-files'
 import { rejectDemoUser } from '@/lib/demo'
-import { consumeLoginAttempt } from '@/lib/rate-limiter'
+import { consumeLoginAttempt } from '@/lib/rate-limit-store';
 
 /**
  * Self-service account deletion — GDPR right to erasure (Art. 17).
@@ -26,7 +27,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (await rejectDemoUser(res, userId, 'Deleting the account')) return
 
   const attemptKey = `account-delete:${userId}`
-  if (!consumeLoginAttempt(attemptKey)) {
+  if (!(await consumeLoginAttempt(attemptKey))) {
     return res.status(429).json({ error: 'Too many attempts. Try again later.' })
   }
 
@@ -39,6 +40,13 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!user || !(await bcrypt.compare(password, user.password))) {
     return res.status(400).json({ error: 'Password is incorrect' })
   }
+
+  // Collected before the transaction: the cascade below removes the
+  // NoteAttachment rows, and with them the only record of which files on the
+  // uploads volume belong to this user. Without this the rows vanished but the
+  // images stayed on disk indefinitely — the erasure this endpoint promises was
+  // only ever a database erasure.
+  const attachmentFiles = await collectAttachmentFilenamesForUser(userId)
 
   await prisma.$transaction(async (tx) => {
     const [legacyOwned, ownerMemberships] = await Promise.all([
@@ -69,6 +77,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     await tx.invite.updateMany({ where: { acceptedById: userId }, data: { acceptedById: null } })
     await tx.user.delete({ where: { id: userId } })
   })
+
+  // After the commit: the rows are gone for certain, so removing the files
+  // cannot orphan a row that still points at them.
+  deleteNoteAttachmentFiles(attachmentFiles)
 
   return res.status(200).json({ ok: true })
 }

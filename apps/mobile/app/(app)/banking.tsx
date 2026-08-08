@@ -39,6 +39,10 @@ const views: { value: BankingView; label: string; icon: keyof typeof Ionicons.gl
 function money(value: string | number, currency: string) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(value) || 0)
 }
+/** Analytics amounts arrive as integer cents, matching the web banking page. */
+function moneyCents(cents: number, currency: string) {
+  return money((Number(cents) || 0) / 100, currency)
+}
 function dateLabel(value: string | null) {
   return value ? new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'No date'
 }
@@ -225,16 +229,16 @@ function InsightsView({ insights, loading }: { insights: MobileFinanceInsightsRe
       {insights.currencies.map(currency => (
         <View key={currency.currency} style={styles.sectionStack}>
           <View style={styles.metrics}>
-            <MetricTile icon="arrow-down-circle-outline" label="Income" value={money(currency.summary.income, currency.currency)} color={colors.success} />
-            <MetricTile icon="arrow-up-circle-outline" label="Outgoing" value={money(currency.summary.outgoing, currency.currency)} color={colors.coral} />
-            <MetricTile icon="leaf-outline" label="Savings rate" value={currency.summary.savingsRate === null ? '—' : `${currency.summary.savingsRate.toFixed(0)}%`} color={colors.finances} />
+            <MetricTile icon="arrow-down-circle-outline" label="Income" value={moneyCents(currency.summary.incomeCents, currency.currency)} color={colors.success} />
+            <MetricTile icon="arrow-up-circle-outline" label="Outgoing" value={moneyCents(currency.summary.spendingCents, currency.currency)} color={colors.coral} />
+            <MetricTile icon="leaf-outline" label="Savings rate" value={currency.summary.savingsRatePercent === null ? '—' : `${currency.summary.savingsRatePercent.toFixed(0)}%`} color={colors.finances} />
           </View>
           <SectionHeader title={`Top categories · ${currency.currency}`} />
           {currency.categories.slice(0, 8).map(category => (
             <Card key={category.category} style={styles.insightCard}>
-              <View style={styles.insightHead}><Text style={[styles.cardTitle, { color: colors.text }]}>{category.category}</Text><Text style={[styles.rowAmount, { color: colors.text }]}>{money(category.amount, currency.currency)}</Text></View>
-              <View style={[styles.progressTrack, { backgroundColor: colors.backgroundRaised }]}><View style={[styles.progressFill, { width: `${Math.max(2, category.percentage)}%`, backgroundColor: colors.finances }]} /></View>
-              <Text style={[styles.cardBody, { color: colors.muted }]}>{category.percentage.toFixed(0)}% of outgoing · {category.count} transaction{category.count === 1 ? '' : 's'}</Text>
+              <View style={styles.insightHead}><Text style={[styles.cardTitle, { color: colors.text }]}>{category.category}</Text><Text style={[styles.rowAmount, { color: colors.text }]}>{moneyCents(category.amountCents, currency.currency)}</Text></View>
+              <View style={[styles.progressTrack, { backgroundColor: colors.backgroundRaised }]}><View style={[styles.progressFill, { width: `${Math.max(2, category.sharePercent)}%`, backgroundColor: colors.finances }]} /></View>
+              <Text style={[styles.cardBody, { color: colors.muted }]}>{category.sharePercent.toFixed(0)}% of outgoing · {category.count} transaction{category.count === 1 ? '' : 's'}</Text>
             </Card>
           ))}
         </View>

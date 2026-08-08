@@ -4,15 +4,52 @@ import type Stripe from 'stripe'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { billingGraceDays, getStripe, syncSubscriptionToHousehold } from '@/lib/billing/stripe'
+import { appUrl } from '@/lib/links'
+import { readCheckoutMeasurement } from '@/lib/meta/checkout'
+import { sendMetaEvents } from '@/lib/meta/conversions'
 
 // Stripe signatures are computed over the raw request body.
 export const config = { api: { bodyParser: false } }
 
+/**
+ * Turning off the body parser also turns off Next's built-in size limit, so the
+ * cap has to be reimposed here. Without it this route — which is unauthenticated
+ * by necessity, since the signature can only be checked after the body is read —
+ * buffers whatever an anonymous caller sends straight into process memory.
+ *
+ * Stripe event payloads are a few kilobytes; 1 MiB is far above anything real
+ * and far below anything that threatens the container.
+ */
+const MAX_WEBHOOK_BYTES = 1024 * 1024
+
 function readRawBody(req: NextApiRequest): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = []
-    req.on('data', chunk => chunks.push(Buffer.from(chunk)))
-    req.on('end', () => resolve(Buffer.concat(chunks)))
+    let chunks: Buffer[] = []
+    let total = 0
+    let aborted = false
+
+    const onData = (chunk: Buffer) => {
+      total += chunk.length
+      if (total > MAX_WEBHOOK_BYTES) {
+        aborted = true
+        // Drop what was buffered and stop reading — that is what bounds memory.
+        // Pause rather than destroy: destroying here kills the socket before the
+        // 413 can be flushed, so the sender sees a connection reset and cannot
+        // tell a size rejection from a network fault. Once nothing is draining
+        // the stream, TCP backpressure keeps the unread remainder off the heap.
+        chunks = []
+        req.off('data', onData)
+        req.pause()
+        reject(Object.assign(new Error('Webhook payload too large'), { tooLarge: true }))
+        return
+      }
+      chunks.push(Buffer.from(chunk))
+    }
+
+    req.on('data', onData)
+    req.on('end', () => {
+      if (!aborted) resolve(Buffer.concat(chunks, total))
+    })
     req.on('error', reject)
   })
 }
@@ -36,6 +73,28 @@ async function handleEvent(event: Stripe.Event): Promise<void> {
       }
       const subscriptionId = typeof session.subscription === 'string' ? session.subscription : session.subscription?.id
       if (subscriptionId) await syncSubscriptionToHousehold(subscriptionId)
+
+      // The conversion an ad campaign is actually buying. Reported from here
+      // rather than from the browser because this is the point at which Stripe
+      // confirms the money, and reported at most once because the idempotency
+      // ledger above rejects a repeated delivery of this event.
+      const measurement = readCheckoutMeasurement(session.metadata)
+      if (measurement.consented) {
+        const amountTotal = session.amount_total
+        void sendMetaEvents([{
+          eventName: 'Purchase',
+          eventId: measurement.eventId,
+          eventSourceUrl: appUrl('/settings?tab=billing'),
+          userData: {
+            email: session.customer_details?.email ?? null,
+            fbp: measurement.fbp,
+            fbc: measurement.fbc,
+          },
+          ...(amountTotal !== null && session.currency
+            ? { value: amountTotal / 100, currency: session.currency }
+            : {}),
+        }]).catch(error => console.warn('[meta] purchase conversion not reported', error))
+      }
       return
     }
     case 'customer.subscription.created':
@@ -83,9 +142,22 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const signature = req.headers['stripe-signature']
   if (typeof signature !== 'string') return res.status(400).json({ error: 'Missing signature' })
 
+  let raw: Buffer
+  try {
+    raw = await readRawBody(req)
+  } catch (error) {
+    if ((error as { tooLarge?: boolean })?.tooLarge) {
+      // The rest of the body is still in flight and will never be read, so this
+      // connection cannot be reused — keep-alive would parse the remainder as
+      // the start of the next request.
+      res.setHeader('Connection', 'close')
+      return res.status(413).json({ error: 'Payload too large' })
+    }
+    throw error
+  }
+
   let event: Stripe.Event
   try {
-    const raw = await readRawBody(req)
     event = stripe.webhooks.constructEvent(raw, signature, secret)
   } catch (error) {
     console.error('[billing] webhook signature verification failed', error instanceof Error ? error.message : error)

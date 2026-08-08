@@ -45,45 +45,16 @@ try {
   const bankDenied = await api(`/api/mobile/v1/finance/transactions?${query}`, token)
   expect(bankDenied.response.status === 403, `Bank-only route should be denied with 403, got ${bankDenied.response.status}`)
 
-  const starter = await api('/api/mobile/v1/finance/planner/accounts', token, { method: 'POST', body: JSON.stringify({ householdId: household.id, starter: true }) })
-  expect(starter.response.status === 201 && starter.body.ids?.length === 4, `Money-flow starter setup failed with ${starter.response.status}`)
-  const afterStarter = await api(`/api/mobile/v1/finance/planner?${query}`, token)
-  const personalAccount = afterStarter.body.accounts?.find(account => account.type === 'PERSONAL')
-  const commitmentAccount = afterStarter.body.accounts?.find(account => account.type === 'COMMITMENTS')
-  const savingsAccount = afterStarter.body.accounts?.find(account => account.type === 'SAVINGS')
-  expect(personalAccount?.visibility === 'PRIVATE' && commitmentAccount && savingsAccount, 'Starter accounts did not use the expected roles and privacy')
-
   const income = await api('/api/mobile/v1/finance/planner/income', token, { method: 'POST', body: JSON.stringify({ householdId: household.id, label: 'Smoke income', amount: '2400', frequency: 'MONTHLY' }) })
   const commitment = await api('/api/mobile/v1/finance/planner/commitment', token, { method: 'POST', body: JSON.stringify({ householdId: household.id, label: 'Smoke rent', amount: '900', frequency: 'MONTHLY', category: 'housing', essential: true }) })
   const goal = await api('/api/mobile/v1/finance/planner/goal', token, { method: 'POST', body: JSON.stringify({ householdId: household.id, name: 'Smoke goal', target: '5000', saved: '250', targetDate: '2027-12-31' }) })
   expect(income.response.status === 201 && commitment.response.status === 201 && goal.response.status === 201, 'A planner create request failed')
   const updated = await api('/api/mobile/v1/finance/planner/income', token, { method: 'PATCH', body: JSON.stringify({ householdId: household.id, id: income.body.id, label: 'Smoke income updated', amount: '2500', frequency: 'MONTHLY' }) })
   expect(updated.response.status === 200, `Income PATCH failed with ${updated.response.status}`)
-  for (const assignment of [
-    { kind: 'income', id: income.body.id, planAccountId: personalAccount.id },
-    { kind: 'commitment', id: commitment.body.id, planAccountId: commitmentAccount.id },
-    { kind: 'goal', id: goal.body.id, planAccountId: savingsAccount.id, monthlyContribution: '125' },
-  ]) {
-    const assigned = await api('/api/mobile/v1/finance/planner/assignments', token, { method: 'PATCH', body: JSON.stringify({ householdId: household.id, ...assignment }) })
-    expect(assigned.response.status === 200, `${assignment.kind} account assignment failed with ${assigned.response.status}`)
-  }
-  const funding = await api('/api/mobile/v1/finance/planner/funding-rules', token, { method: 'POST', body: JSON.stringify({ householdId: household.id, sourceAccountId: personalAccount.id, targetAccountId: commitmentAccount.id, amount: '900' }) })
-  expect(funding.response.status === 201, `Funding rule create failed with ${funding.response.status}`)
-
   const populated = await api(`/api/mobile/v1/finance/planner?${query}`, token)
   expect(populated.response.status === 200, `Populated planner GET failed with ${populated.response.status}`)
   expect(populated.body.incomes?.[0]?.label === 'Smoke income updated', 'Updated income did not round-trip')
   expect(populated.body.summary?.monthlyIncomeCents === 250000 && populated.body.summary?.monthlyCommitmentsCents === 90000, 'Planner summary is incorrect')
-  expect(populated.body.moneyFlow?.accounts?.find(account => account.id === commitmentAccount.id)?.remainingCents === 0, 'Commitments account was not fully funded')
-  expect(populated.body.goals?.[0]?.monthlyContributionCents === 12500, 'Goal monthly contribution did not round-trip')
-  const checked = await api('/api/mobile/v1/finance/planner/transfer-checkoffs', token, { method: 'PATCH', body: JSON.stringify({ householdId: household.id, ruleId: funding.body.id, period: populated.body.period, completed: true }) })
-  expect(checked.response.status === 200, `Transfer check-off failed with ${checked.response.status}`)
-  const checkedPlan = await api(`/api/mobile/v1/finance/planner?${query}&period=${encodeURIComponent(populated.body.period)}`, token)
-  expect(checkedPlan.body.fundingRules?.[0]?.completed === true, 'Transfer completion did not round-trip')
-  const aiOrganiserPreview = await api('/api/mobile/v1/finance/planner/money-flow-ai/preview', token, { method: 'POST', body: JSON.stringify({ householdId: household.id }) })
-  expect(aiOrganiserPreview.response.status === 200, `Money-flow AI preview failed with ${aiOrganiserPreview.response.status}`)
-  const aiJson = JSON.stringify(aiOrganiserPreview.body.payload)
-  expect(!aiJson.includes('Smoke income') && !aiJson.includes('Smoke rent') && !aiJson.includes('Smoke goal') && !aiJson.includes(user.email), 'Money-flow AI preview exposed labels or identity')
   const coachPreview = await api('/api/mobile/v1/finance/planner/coach', token, { method: 'POST', body: JSON.stringify({ householdId: household.id }) })
   if (populated.body.aiConfigured) {
     expect(coachPreview.response.status === 200 && coachPreview.body.requiresConsent === true, `AI coach privacy preview failed with ${coachPreview.response.status}`)
@@ -98,23 +69,19 @@ try {
     const removed = await api(`/api/mobile/v1/finance/planner/${kind}`, token, { method: 'DELETE', body: JSON.stringify({ householdId: household.id, id }) })
     expect(removed.response.status === 200, `${kind} DELETE failed with ${removed.response.status}`)
   }
-  const archivedFunding = await api('/api/mobile/v1/finance/planner/funding-rules', token, { method: 'DELETE', body: JSON.stringify({ householdId: household.id, id: funding.body.id }) })
-  expect(archivedFunding.response.status === 200, `Funding rule archive failed with ${archivedFunding.response.status}`)
   const emptyAgain = await api(`/api/mobile/v1/finance/planner?${query}`, token)
   expect(emptyAgain.body.incomes?.length === 0 && emptyAgain.body.commitments?.length === 0 && emptyAgain.body.goals?.length === 0, 'Temporary planner entries were not removed')
   console.log('Mobile Finance API smoke test passed; temporary planner records round-tripped and were removed.')
 } finally {
   if (householdId) await prisma.household.deleteMany({ where: { id: householdId, name: tag } })
   if (userId) await prisma.user.deleteMany({ where: { id: userId, email: `${tag}@example.invalid` } })
-  const [households, users, sessions, incomes, commitments, goals, aiPreferences, planAccounts, fundingRules, checkoffs] = await Promise.all([
+  const [households, users, sessions, incomes, commitments, goals, aiPreferences, planAccounts] = await Promise.all([
     prisma.household.count({ where: { name: tag } }), prisma.user.count({ where: { email: `${tag}@example.invalid` } }),
     userId ? prisma.mobileSession.count({ where: { userId } }) : 0, householdId ? prisma.incomeSource.count({ where: { householdId } }) : 0,
     householdId ? prisma.commitment.count({ where: { householdId } }) : 0, householdId ? prisma.savingsGoal.count({ where: { householdId } }) : 0,
     userId ? prisma.financeAiPreference.count({ where: { userId } }) : 0,
     householdId ? prisma.financePlanAccount.count({ where: { householdId } }) : 0,
-    householdId ? prisma.financeFundingRule.count({ where: { householdId } }) : 0,
-    householdId ? prisma.financeTransferCheckoff.count({ where: { rule: { householdId } } }) : 0,
   ])
-  if ([households, users, sessions, incomes, commitments, goals, aiPreferences, planAccounts, fundingRules, checkoffs].some(Boolean)) throw new Error('Mobile Finance smoke-test cleanup did not reach zero')
+  if ([households, users, sessions, incomes, commitments, goals, aiPreferences, planAccounts].some(Boolean)) throw new Error('Mobile Finance smoke-test cleanup did not reach zero')
   await prisma.$disconnect()
 }

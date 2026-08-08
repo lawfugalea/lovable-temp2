@@ -30,18 +30,18 @@ const features: Feature[] = [
     icon: ShoppingBasket,
     tone: 'teal',
     wide: true,
-    title: 'One list. Every store priced.',
+    title: 'One list. Everyone in sync.',
     description:
-      'Anyone in the household adds items; ClanKeep prices the list across Malta’s supermarket catalogues and highlights the cheapest full basket. Tick items off in the aisle — the list updates live for everyone.',
-    tags: ['Shared in real time', 'Malta price comparison', 'Cheapest-basket totals', 'Curated offers'],
+      'Anyone in the household can add what is needed and tick it off in the aisle. The list updates live, so there are no duplicate buys or forgotten messages.',
+    tags: ['Shared in real time', 'Multiple lists', 'Reusable templates', 'One-tap check-off'],
   },
   {
     icon: UtensilsCrossed,
     tone: 'amber',
     title: 'Dinner, decided.',
     description:
-      'Plan Monday to Sunday from your own recipes, then add the whole week to the shopping list in one tap — priced per store.',
-    bullets: ['Weekly planner', 'One-tap shopping list', 'Plan priced per store'],
+      'Plan Monday to Sunday from your own recipes, then add the whole week to the shopping list in one tap.',
+    bullets: ['Weekly planner', 'Saved family recipes', 'One-tap shopping list'],
   },
   {
     icon: Pill,

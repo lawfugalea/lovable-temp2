@@ -5,10 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Clankeep ships to Malta: dates read "27 July 2026", not "July 27, 2026", and
+ * money follows local grouping. The finance and meals modules already pass
+ * 'en-MT' explicitly at each call site; this is the shared default so that a
+ * new formatter cannot quietly reintroduce US conventions.
+ */
+export const APP_LOCALE = "en-MT"
+
 export function formatCurrency(
   amount: number,
   currency: string = "EUR",
-  locale: string = "en-US"
+  locale: string = APP_LOCALE
 ): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
@@ -20,7 +28,7 @@ export function formatDate(
   date: Date | string,
   options: Intl.DateTimeFormatOptions = {}
 ): string {
-  return new Intl.DateTimeFormat("en-US", {
+  return new Intl.DateTimeFormat(APP_LOCALE, {
     year: "numeric",
     month: "long",
     day: "numeric",

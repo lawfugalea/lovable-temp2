@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { FlowClass } from './classification'
 import type { CoachTransaction } from './coach'
 
 export type RedactedFinancePayload = {
@@ -48,11 +49,20 @@ function roundWhole(value: number): number {
   return Math.round(value)
 }
 
-export function buildRedactedFinancePayload(transactions: CoachTransaction[], now = new Date()): RedactedFinancePayload {
+/** A transaction the classifier has already labelled, so transfers stay out. */
+export type RedactableTransaction = CoachTransaction & { flowClass?: FlowClass }
+
+export function buildRedactedFinancePayload(transactions: RedactableTransaction[], now = new Date()): RedactedFinancePayload {
   const from = new Date(now)
   from.setUTCDate(from.getUTCDate() - 89)
   const eligible = transactions
-    .filter(transaction => transaction.signedAmount < 0 && transaction.status !== 'PENDING' && transaction.bookingDate)
+    // Where a flow class is available, trust it: sending the model internal
+    // transfers as spending made its narrative disagree with the dashboard.
+    .filter(transaction => (transaction.flowClass
+      ? transaction.flowClass === 'SPENDING'
+      : transaction.signedAmount < 0)
+      && transaction.status !== 'PENDING'
+      && transaction.bookingDate)
     .map(transaction => ({ ...transaction, date: new Date(transaction.bookingDate!) }))
     .filter(transaction => !Number.isNaN(transaction.date.getTime()) && transaction.date >= from && transaction.date <= now)
   const currencyGroups = new Map<string, typeof eligible>()

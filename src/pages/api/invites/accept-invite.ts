@@ -1,10 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
+import { invalidateSessionUser } from '@/lib/session-user-cache';
 import type { InviteStatus, MemberRole } from '@prisma/client';
 import { getUserIdOr401 } from '@/lib/api-guards';
-import { detachUserFromHouseholds } from '@/lib/household-membership';
 import { hashInviteToken, normalizeInviteToken } from '@/lib/invite-tokens';
+import { recordActivity } from '@/lib/activity';
 
 function httpError(status: number, message: string) {
   return Object.assign(new Error(message), { status });
@@ -59,14 +60,6 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         throw httpError(400, 'Invite expired');
       }
 
-      const conflictingOwner = await tx.membership.findFirst({
-        where: { userId, role: 'OWNER', householdId: { not: invite.householdId } },
-        select: { household: { select: { name: true } } },
-      });
-      if (conflictingOwner) {
-        throw httpError(409, `Transfer ownership of ${conflictingOwner.household.name} before joining another household`);
-      }
-
       const accepted = await tx.invite.updateMany({
         where: {
           id: invite.id,
@@ -81,16 +74,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       });
       if (accepted.count !== 1) throw httpError(409, 'Invite is no longer available');
 
-      const formerMemberships = await tx.membership.findMany({
-        where: { userId, householdId: { not: invite.householdId } },
-        select: { householdId: true },
-      });
-      await detachUserFromHouseholds(
-        tx,
-        userId,
-        formerMemberships.map(membership => membership.householdId),
-      );
-
+      // Joining is purely additive since 20260726120000_multi_household_membership.
+      // Previously this detached the user from every other household, which
+      // deleted their private plan accounts and savings goals as a side effect
+      // of accepting an invitation. Members now keep every household they are
+      // in and switch between them; leaving is an explicit, separate action.
       await tx.membership.upsert({
         where: { userId_householdId: { userId, householdId: invite.householdId } },
         create: {
@@ -108,6 +96,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return invite.householdId;
     });
 
+    invalidateSessionUser(userId);
+    const joiner = await prisma.user.findUnique({ where: { id: userId }, select: { name: true, email: true } });
+    void recordActivity({
+      householdId: acceptedHouseholdId,
+      userId,
+      module: 'home',
+      action: 'member-joined',
+      summary: `${joiner?.name || joiner?.email || 'Someone'} joined the household`,
+    });
     return res.status(200).json({ success: true, householdId: acceptedHouseholdId });
   } catch (error) {
     const status = typeof error === 'object' && error && 'status' in error

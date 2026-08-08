@@ -16,6 +16,7 @@ export default function BottomTabBar({ onOpenMore }: BottomTabBarProps) {
 
   return (
     <nav
+      data-tour="nav"
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 md:hidden"
     >

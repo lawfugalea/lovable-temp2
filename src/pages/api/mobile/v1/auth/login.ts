@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import type { MobileLoginRequest, MobileLoginResponse } from '../../../../../../packages/contracts'
 import { prisma } from '@/lib/prisma'
 import { withApiHandler } from '@/lib/api-handler'
-import { clearLoginAttempts, consumeLoginAttempt } from '@/lib/rate-limiter'
+import { clearLoginAttempts, consumeLoginAttempt } from '@/lib/rate-limit-store'
 import { createMobileSession } from '@/lib/mobile-auth'
 import { mobileBootstrap } from '@/lib/mobile-bootstrap'
 
@@ -31,7 +31,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<MobileLoginResp
   const loginKey = `${ip}:${email}`
   const accountKey = `account:${email}`
   const ipKey = `ip:${ip}`
-  if (!consumeLoginAttempt(ipKey) || !consumeLoginAttempt(accountKey) || !consumeLoginAttempt(loginKey)) {
+  if (!(await consumeLoginAttempt(ipKey)) || !(await consumeLoginAttempt(accountKey)) || !(await consumeLoginAttempt(loginKey))) {
     return res.status(429).json({ error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' })
   }
 
@@ -39,8 +39,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse<MobileLoginResp
   if (!user || !user.password || !(await bcrypt.compare(password, user.password))) {
     return res.status(401).json({ error: 'Invalid email or password', code: 'INVALID_CREDENTIALS' })
   }
-  clearLoginAttempts(loginKey)
-  clearLoginAttempts(accountKey)
+  await clearLoginAttempts(loginKey)
+  await clearLoginAttempts(accountKey)
 
   const [tokens, bootstrap] = await Promise.all([
     createMobileSession({

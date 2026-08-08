@@ -1,6 +1,6 @@
 # Clankeep
 
-Clankeep is a self-hosted household app built with Next.js, TypeScript, PostgreSQL, Prisma, NextAuth, and Tailwind CSS. It includes shared shopping lists with Malta supermarket price comparison, read-only open-banking visibility, medicine and fever tracking, notes, household invitations, and an administrator panel.
+Clankeep is a self-hosted household app built with Next.js, TypeScript, PostgreSQL, Prisma, NextAuth, and Tailwind CSS. It includes shared shopping lists, meal planning, chores, a household money planner, medicine and fever tracking, notes, household invitations, and an administrator panel.
 
 ## Requirements
 
@@ -56,7 +56,7 @@ npm run build
 
 ## Production deployment
 
-The production stack contains the application, PostgreSQL, a one-shot migration service, daily backup and supermarket-price workers, and a medicine-reminder worker:
+The production stack contains the application, PostgreSQL, a one-shot migration service, daily backup, a parked supermarket-price worker, and a medicine-reminder worker:
 
 ```bash
 docker compose --env-file .env.deploy up -d --build db migrate app backup backup-offsite reminder price-sync

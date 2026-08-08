@@ -22,6 +22,9 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       createdAt: true,
       updatedAt: true,
       activeHouseholdId: true,
+      tourStepId: true,
+      tourCompletedAt: true,
+      checklistDismissedAt: true,
       bankConnections: {
         select: {
           id: true,

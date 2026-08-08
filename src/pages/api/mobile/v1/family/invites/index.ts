@@ -7,7 +7,7 @@ import { appUrl } from '@/lib/links'
 import { sendInviteEmail } from '@/lib/mailer'
 import { requireMobileIdentity } from '@/lib/mobile-auth'
 import { prisma } from '@/lib/prisma'
-import { consumeInviteEmailAttempt } from '@/lib/rate-limiter'
+import { consumeInviteEmailAttempt } from '@/lib/rate-limit-store'
 
 async function requireOwner(userId: string, householdId: string) {
   return prisma.membership.findUnique({ where: { userId_householdId: { userId, householdId } }, select: { role: true } })
@@ -32,7 +32,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<{ invites: Mobi
   const role = body.role
   if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Enter a valid email address' })
   if (role !== 'OWNER' && role !== 'MEMBER') return res.status(400).json({ error: 'Select a valid role' })
-  if (!consumeInviteEmailAttempt(identity.userId)) { res.setHeader('Retry-After', '3600'); return res.status(429).json({ error: 'Too many invitation emails. Try again later.' }) }
+  if (!(await consumeInviteEmailAttempt(identity.userId))) { res.setHeader('Retry-After', '3600'); return res.status(429).json({ error: 'Too many invitation emails. Try again later.' }) }
 
   const rawToken = createInviteToken()
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)

@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { timingSafeEqual } from 'node:crypto'
+import { dispatchChoreReminderPush } from '@/lib/chore-push'
 import { dispatchMedicinePush } from '@/lib/medicine-push'
 import { markReminderRun } from '@/lib/reminder-heartbeat'
 
@@ -28,8 +29,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
   try {
     const result = await dispatchMedicinePush()
+    // The same heartbeat carries the household's morning chore summary; a
+    // failure there must not fail dose reminders, so it only logs.
+    const choresSent = await dispatchChoreReminderPush().catch(error => {
+      console.error('[medicine-reminders] chore summary failed', error instanceof Error ? error.message : error)
+      return 0
+    })
     markReminderRun()
-    return res.status(200).json(result)
+    return res.status(200).json({ ...result, choresSent })
   } catch (error) {
     console.error('[medicine-reminders] dispatch failed', error instanceof Error ? error.message : error)
     return res.status(500).json({ error: 'Reminder dispatch failed' })

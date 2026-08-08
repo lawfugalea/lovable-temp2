@@ -93,7 +93,10 @@ module.exports = {
   			'soft-sm': '0 1px 2px hsl(var(--shadow-color) / .05), 0 1px 8px hsl(var(--shadow-color) / .035)',
   			soft: '0 12px 30px -16px hsl(var(--shadow-color) / .24)',
   			'soft-lg': '0 24px 60px -24px hsl(var(--shadow-color) / .32)',
-  			glow: '0 10px 28px -12px hsl(var(--primary) / .45)'
+  			glow: '0 10px 28px -12px hsl(var(--primary) / .45)',
+  			'glow-primary': '0 0 var(--glow-spread) hsl(var(--primary) / var(--glow-opacity))',
+  			'glow-module': '0 0 var(--glow-spread) hsl(var(--module-finances) / var(--glow-opacity))',
+  			'glow-inset': 'inset 0 1px 0 hsl(0 0% 100% / .08), 0 0 var(--glow-spread) -6px hsl(var(--primary) / var(--glow-opacity))'
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
@@ -101,13 +104,65 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		animation: {
+  			// Shared entrance pace used across the app (shell page transitions,
+  			// empty states, notes, banking, dashboard) — deliberately slower than
+  			// the "Considered" interaction pace in src/lib/motion.ts, and not
+  			// governed by it. See
+  			// docs/superpowers/specs/2026-08-04-clankeep-shell-dashboard-design.md.
   			'fade-in': 'fade-in 0.4s ease-out',
   			rise: 'rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
   			'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'draw-line': 'draw-line 0.9s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			'grow-bar': 'grow-bar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			// Chore completion. `both` holds the end state, which is also what
+  			// the reduced-motion clamp in globals.css lands on.
+  			'check-in': 'check-in 0.26s cubic-bezier(0.34, 1.25, 0.64, 1) 0.06s both',
+  			strike: 'strike 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) 0.08s both',
+  			// The only always-on animation in the app.
+  			'breathe': 'breathe 4s ease-in-out infinite',
+  			'row-settle': 'row-settle 0.5s ease-out both',
+  			'skeleton-in': 'fade-in 0.18s ease-out, pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
   		},
+  		// Glow is measured in the theme so light mode can hold back; see
+  		// --glow-opacity and --glow-spread in globals.css.
   		keyframes: {
+  			'aurora-drift': {
+  				'0%': { transform: 'translate3d(0, 0, 0) scale(1)' },
+  				'100%': { transform: 'translate3d(12%, -8%, 0) scale(1.18)' }
+  			},
+  			sheen: {
+  				'0%': { transform: 'translateX(-120%)' },
+  				'100%': { transform: 'translateX(120%)' }
+  			},
+  			shimmer: {
+  				'0%': { transform: 'translateX(-100%)' },
+  				'100%': { transform: 'translateX(100%)' }
+  			},
+  			'pulse-ring': {
+  				'0%': { transform: 'scale(0.6)', opacity: '0.55' },
+  				'70%': { transform: 'scale(1.6)', opacity: '0' },
+  				'100%': { transform: 'scale(1.6)', opacity: '0' }
+  			},
+  			// Bars grow from their own base; `rise` translates, which reads wrong
+  			// on a bar anchored to an axis.
+  			'grow-bar': {
+  				'0%': {
+  					transform: 'scaleY(0)'
+  				},
+  				'100%': {
+  					transform: 'scaleY(1)'
+  				}
+  			},
+  			'draw-line': {
+  				'0%': {
+  					strokeDashoffset: '1'
+  				},
+  				'100%': {
+  					strokeDashoffset: '0'
+  				}
+  			},
   			rise: {
   				'0%': {
   					opacity: '0',
@@ -152,6 +207,47 @@ module.exports = {
   				},
   				to: {
   					height: '0'
+  				}
+  			},
+  			// The check mark arriving as the identity icon leaves.
+  			'check-in': {
+  				'0%': {
+  					opacity: '0',
+  					transform: 'scale(0.55)'
+  				},
+  				'100%': {
+  					opacity: '1',
+  					transform: 'scale(1)'
+  				}
+  			},
+  			// A strikethrough drawn left to right across a finished title.
+  			strike: {
+  				'0%': {
+  					transform: 'scaleX(0)'
+  				},
+  				'100%': {
+  					transform: 'scaleX(1)'
+  				}
+  			},
+  			// Overdue idle pulse. This ONLY modulates the border — the resting
+  			// amber lives on the row's base class, because globals.css clamps
+  			// animations under prefers-reduced-motion and the ring is the only
+  			// non-textual overdue signal. See choreBoxClasses in chore-view.ts.
+  			breathe: {
+  				'0%, 100%': {
+  					borderColor: 'hsl(var(--brand-amber) / 0.35)'
+  				},
+  				'50%': {
+  					borderColor: 'hsl(var(--brand-amber) / 0.9)'
+  				}
+  			},
+  			// A just-resolved row flashing faintly, then settling back.
+  			'row-settle': {
+  				'0%': {
+  					backgroundColor: 'hsl(var(--module-chores) / 0.07)'
+  				},
+  				'100%': {
+  					backgroundColor: 'transparent'
   				}
   			}
   		},

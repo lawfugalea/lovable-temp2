@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import { dateOnlyToDb, validateRecurrenceInput } from '@/lib/chore-recurrence'
 import { CHORE_NOTES_MAX, CHORE_TITLE_MAX, requireActiveHousehold, serializeChore } from '@/lib/chores'
+import { recordActivity } from '@/lib/activity'
+import { isChoreIconId } from '@/lib/chore-icons'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await getUserIdOr401(req, res)
@@ -28,6 +30,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
       return res.status(400).json({ error: `Title is required (max ${CHORE_TITLE_MAX} characters)` })
     }
     const notes = typeof body.notes === 'string' ? body.notes.trim().slice(0, CHORE_NOTES_MAX) : ''
+    // null or absent means "infer from the title". Anything else must be a known
+    // id: the registry is the allowlist that stops a stored string becoming an
+    // arbitrary rendered component.
+    let icon: string | null = null
+    if (body.icon !== undefined && body.icon !== null && body.icon !== '') {
+      if (!isChoreIconId(body.icon)) return res.status(400).json({ error: 'Unknown icon' })
+      icon = body.icon
+    }
     const validated = validateRecurrenceInput(body)
     if (!validated.ok) return res.status(400).json({ error: validated.error })
 
@@ -47,6 +57,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         householdId,
         title,
         notes: notes || null,
+        icon,
         assigneeId,
         recurrenceType: recurrence.type,
         daysOfWeek: recurrence.type === 'WEEKLY' ? recurrence.daysOfWeek : [],
@@ -55,6 +66,14 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
         dayOfMonth: recurrence.type === 'MONTHLY' ? recurrence.dayOfMonth : null,
       },
       include: { assignee: { select: { id: true, name: true } } },
+    })
+    void recordActivity({
+      householdId,
+      userId,
+      module: 'chores',
+      action: 'created',
+      summary: `New chore: ${title}${chore.assignee ? ` (assigned to ${chore.assignee.name})` : ''}`,
+      targetId: chore.id,
     })
     return res.status(201).json({ chore: serializeChore(chore) })
   }

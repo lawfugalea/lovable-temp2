@@ -6,11 +6,13 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { describeRecurrence, validateRecurrenceInput } from '@/lib/chore-recurrence'
 import { cn } from '@/lib/utils'
+import ChoreIconPicker from '@/components/chores/ChoreIconPicker'
 
 export interface ChoreDto {
   id: string
   title: string
   notes: string | null
+  icon: string | null
   active: boolean
   assignee: { id: string; name: string | null } | null
   recurrenceType: 'WEEKLY' | 'EVERY_N_DAYS' | 'MONTHLY'
@@ -57,6 +59,7 @@ function localDateOnly() {
 export default function ChoreFormDialog({ open, chore, members, onClose, onSaved }: ChoreFormDialogProps) {
   const [title, setTitle] = useState('')
   const [notes, setNotes] = useState('')
+  const [icon, setIcon] = useState<string | null>(null)
   const [assigneeId, setAssigneeId] = useState('')
   const [recurrenceType, setRecurrenceType] = useState<'WEEKLY' | 'EVERY_N_DAYS' | 'MONTHLY'>('WEEKLY')
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([])
@@ -71,6 +74,7 @@ export default function ChoreFormDialog({ open, chore, members, onClose, onSaved
     setError('')
     setTitle(chore?.title || '')
     setNotes(chore?.notes || '')
+    setIcon(chore?.icon ?? null)
     setAssigneeId(chore?.assignee?.id || '')
     setRecurrenceType(chore?.recurrenceType || 'WEEKLY')
     setDaysOfWeek(chore?.daysOfWeek?.length ? chore.daysOfWeek : [])
@@ -102,6 +106,7 @@ export default function ChoreFormDialog({ open, chore, members, onClose, onSaved
         body: JSON.stringify({
           title: title.trim(),
           notes: notes.trim(),
+          icon,
           assigneeId: assigneeId || null,
           ...recurrenceInput,
         }),
@@ -134,6 +139,8 @@ export default function ChoreFormDialog({ open, chore, members, onClose, onSaved
             <label htmlFor="chore-title" className="text-sm font-medium">Chore</label>
             <Input id="chore-title" autoFocus value={title} onChange={event => setTitle(event.target.value)} placeholder="Take out the recycling" maxLength={200} className="mt-1 h-11" />
           </div>
+
+          <ChoreIconPicker title={title} value={icon} onChange={setIcon} />
 
           <div>
             <span className="text-sm font-medium">Repeats</span>

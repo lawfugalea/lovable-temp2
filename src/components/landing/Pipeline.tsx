@@ -6,8 +6,8 @@ import Reveal from '@/components/landing/Reveal'
 const upcoming: Array<{ icon: LucideIcon; title: string; description: string }> = [
   {
     icon: ShoppingBasket,
-    title: 'More stores in the comparison',
-    description: 'Growing catalogue coverage so the cheapest-basket answer keeps getting sharper.',
+    title: 'Smarter shared lists',
+    description: 'Quicker repeat shops and better suggestions based on the lists your household chooses to reuse.',
   },
   {
     icon: CalendarDays,

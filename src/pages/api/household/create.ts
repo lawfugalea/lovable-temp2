@@ -2,6 +2,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
+import { invalidateSessionUser } from '@/lib/session-user-cache';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '../auth/[...nextauth]';
 
@@ -14,6 +15,9 @@ interface CreateHouseholdRequest {
 }
 
 const COUNTRY_RE = /^[A-Z]{2}$/;
+
+/** Abuse ceiling, not a product limit. See the count check in the handler. */
+const MAX_HOUSEHOLDS_PER_USER = 10;
 
 interface CreateHouseholdResponse {
   householdId: string;
@@ -55,18 +59,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(401).json({ error: 'User not found for session. Please sign out and sign in again.' });
   }
 
-  // 3) Check if user already has a household
-  const existing = await prisma.membership.findFirst({
-    where: { userId: user.id },
-    select: { householdId: true },
-    orderBy: { createdAt: 'asc' },
-  });
-
-  if (existing) {
-    return res.status(400).json({ 
-      error: 'User already belongs to a household',
-      existingHouseholdId: existing.householdId,
-      message: 'You can only belong to one household at a time. Please leave your current household first.'
+  // 3) Users may belong to several households since
+  // 20260726120000_multi_household_membership. The cap is not a product limit —
+  // it stops one account from creating households in a loop, since each one is
+  // a row that cascades into a lot of child tables.
+  const existingCount = await prisma.membership.count({ where: { userId: user.id } });
+  if (existingCount >= MAX_HOUSEHOLDS_PER_USER) {
+    return res.status(400).json({
+      error: `You can belong to at most ${MAX_HOUSEHOLDS_PER_USER} households`,
+      message: 'Leave a household before creating another one.',
     });
   }
 
@@ -85,13 +86,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   try {
     const household = await prisma.$transaction(async (tx) => {
+      // The row lock makes the cap hold under concurrent creates: two parallel
+      // requests would otherwise both read a count below the ceiling.
       await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${user!.id} FOR UPDATE`;
-      const concurrentMembership = await tx.membership.findFirst({
-        where: { userId: user!.id },
-        select: { householdId: true },
-      });
-      if (concurrentMembership) {
-        throw Object.assign(new Error('User already belongs to a household'), { status: 409 });
+      const concurrentCount = await tx.membership.count({ where: { userId: user!.id } });
+      if (concurrentCount >= MAX_HOUSEHOLDS_PER_USER) {
+        throw Object.assign(
+          new Error(`You can belong to at most ${MAX_HOUSEHOLDS_PER_USER} households`),
+          { status: 409 },
+        );
       }
       const h = await tx.household.create({
         data: {
@@ -114,6 +117,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
       return h;
     });
+
+    invalidateSessionUser(user.id);
 
     const response: CreateHouseholdResponse = {
       householdId: household.id,

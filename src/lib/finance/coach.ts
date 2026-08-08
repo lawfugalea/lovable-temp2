@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { NON_DISCRETIONARY_CATEGORIES } from './classification'
 import { normalizeMerchantKey } from './metadata'
 
 export type CoachTransaction = {
@@ -39,21 +40,7 @@ export type FinanceLimitLike = {
   enabled: boolean
 }
 
-export type LimitProgress = {
-  id: string
-  accountId: string | null
-  scope: string
-  scopeKey: string
-  displayName: string
-  amount: number
-  currency: string
-  spent: number
-  percentage: number
-  projected: number
-  exceeded: boolean
-}
-
-export const COACH_EXCLUDED_CATEGORIES = new Set(['Income', 'Refunds', 'Transfers', 'Cash', 'Bills & utilities'])
+export const COACH_EXCLUDED_CATEGORIES: ReadonlySet<string> = NON_DISCRETIONARY_CATEGORIES
 
 function round(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
@@ -220,37 +207,4 @@ export function buildCoachSignals(
   }
 
   return signals.sort((left, right) => right.currentValue - left.currentValue).slice(0, 20)
-}
-
-export function buildLimitProgress(limits: FinanceLimitLike[], transactions: CoachTransaction[], now = new Date()): LimitProgress[] {
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
-  const dayOfMonth = Math.max(1, now.getUTCDate())
-  const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate()
-  return limits.filter(limit => limit.enabled).map(limit => {
-    const matches = transactions.filter(transaction => {
-      if (transaction.signedAmount >= 0 || !transaction.bookingDate || transaction.status === 'PENDING') return false
-      const date = new Date(transaction.bookingDate)
-      if (date < start || date >= end || transaction.currency.toUpperCase() !== limit.currency.toUpperCase()) return false
-      if (limit.accountId && transaction.accountId !== limit.accountId) return false
-      return limit.scope === 'CATEGORY'
-        ? transaction.category === limit.scopeKey
-        : normalizeMerchantKey(transaction.merchantName) === limit.scopeKey
-    })
-    const spent = matches.reduce((sum, transaction) => sum + Math.abs(transaction.signedAmount), 0)
-    const amount = Number(limit.amount)
-    return {
-      id: limit.id,
-      accountId: limit.accountId,
-      scope: limit.scope,
-      scopeKey: limit.scopeKey,
-      displayName: limit.displayName,
-      amount: round(amount),
-      currency: limit.currency.toUpperCase(),
-      spent: round(spent),
-      percentage: amount > 0 ? round(spent / amount * 100) : 0,
-      projected: round(spent / dayOfMonth * daysInMonth),
-      exceeded: amount > 0 && spent > amount,
-    }
-  })
 }

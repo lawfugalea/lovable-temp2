@@ -7,19 +7,19 @@ import type { LucideIcon } from 'lucide-react'
 import InfiniteSlider from '@/components/smoothui/infinite-slider'
 
 const stats = [
-  { value: 5, suffix: '', label: 'supermarket catalogues compared' },
-  { value: 24, suffix: 'h', label: 'automatic price refresh cycle' },
+  { value: 7, suffix: '', label: 'days planned together at a glance' },
+  { value: 1, suffix: '', label: 'tap to turn meals into a shopping list' },
   { value: 1, suffix: '', label: 'shared home for every routine' },
   { value: 100, suffix: '%', label: 'private — never sold, never advertised' },
 ]
 
 const proofChips: Array<{ icon: LucideIcon; label: string }> = [
-  { icon: ShoppingBasket, label: 'Smart, Greens & Welbee’s catalogues priced daily' },
+  { icon: ShoppingBasket, label: 'Shopping lists update for everyone' },
   { icon: ShieldCheck, label: 'No ads. No tracking. Never sold.' },
   { icon: Pill, label: 'Dose-by-dose medicine schedules' },
   { icon: FileText, label: 'PDF health reports for the doctor' },
   { icon: LockKeyhole, label: 'Household-scoped access on every request' },
-  { icon: UtensilsCrossed, label: 'Weekly meal plans priced per store' },
+  { icon: UtensilsCrossed, label: 'Weekly meals become one shopping list' },
   { icon: BadgeCheck, label: 'Free plan with unlimited members' },
 ]
 

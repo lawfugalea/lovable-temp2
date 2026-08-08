@@ -5,6 +5,7 @@ import { getUserIdOr401 } from '@/lib/api-guards'
 import { requireActiveHousehold } from '@/lib/chores'
 import { mergeIntoExistingItems } from '@/lib/meal-planning'
 import { aggregatePlannedIngredients, parsePlanRange } from '@/lib/meals'
+import { normalizePantryName, pantryNameSet } from '@/lib/pantry'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -32,11 +33,19 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(400).json({ error: 'No recipes with ingredients are planned in this range' })
   }
 
+  // What the pantry already covers never reaches the list: buying a second
+  // bag of rice because a recipe mentions rice is exactly what this prevents.
+  const pantry = await pantryNameSet(householdId)
+  const skippedFromPantry = aggregated
+    .filter(ingredient => pantry.has(normalizePantryName(ingredient.name)))
+    .map(ingredient => ingredient.name)
+  const needed = aggregated.filter(ingredient => !pantry.has(normalizePantryName(ingredient.name)))
+
   const existing = await prisma.shoppingItem.findMany({
     where: { listId: list.id, status: 'ACTIVE' },
     select: { id: true, title: true, quantityCount: true, canonicalProductId: true },
   })
-  const merge = mergeIntoExistingItems(aggregated, existing)
+  const merge = mergeIntoExistingItems(needed, existing)
 
   await prisma.$transaction(async tx => {
     for (const increment of merge.increments) {
@@ -64,6 +73,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     plannedRecipeCount,
     created: merge.creates.length,
     merged: merge.increments.length,
+    skippedFromPantry,
   })
 }
 

@@ -11,8 +11,14 @@ application can return data.
 2. Activate it in restricted mode with **Activate by linking accounts**, then
    complete the Bank of Valletta flow for every account HouseFlow should read.
 3. Keep the downloaded PEM private key. Configure the public HouseFlow origin
-   and callback URL (`https://your-host/houseflow/api/finance/callback`) in the
-   provider control panel when requested.
+   and callback URL (`https://your-host/api/finance/callback`, plus the base path
+   if the deployment uses one) in the provider control panel when requested.
+   Enable Banking matches this string exactly and answers `Redirect URI not
+   allowed` on any mismatch, so re-register it whenever the public host or base
+   path changes — only the control panel at
+   <https://enablebanking.com/cp/applications> can change the list, as the API is
+   read-only here. `node scripts/check-enable-banking-app.mjs` compares what this
+   deployment sends against what is registered.
 4. For the required production application details, use a monitored personal
    email address for the data-protection email. Use your public HouseFlow URLs:
    `https://your-host/houseflow/privacy` and
@@ -34,6 +40,8 @@ ENABLE_BANKING_APPLICATION_ID=your-enable-banking-application-uuid
 ENABLE_BANKING_PRIVATE_KEY_BASE64=the-single-line-base64-value
 ENABLE_BANKING_ASPSP_NAME=Bank Of Valetta
 ENABLE_BANKING_ASPSP_COUNTRY=MT
+# Only needed when the registered callback URL is not APP_URL + the callback path.
+ENABLE_BANKING_REDIRECT_URL=
 ```
 
 If `DATA_PROTECTION_EMAIL` is omitted, HouseFlow falls back to

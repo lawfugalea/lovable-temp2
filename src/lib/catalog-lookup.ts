@@ -17,10 +17,15 @@ function wordBoundaryClauses(values: string[]) {
   }
 }
 
-export function fetchCatalogCandidates(tokenValueSets: string[][]) {
+export function fetchCatalogCandidates(tokenValueSets: string[][], storeSlugs?: string[]) {
   return prisma.canonicalProduct.findMany({
     where: {
-      products: { some: { active: true, store: { enabled: true } } },
+      products: {
+        some: {
+          active: true,
+          store: { enabled: true, ...(storeSlugs ? { slug: { in: storeSlugs } } : {}) },
+        },
+      },
       AND: tokenValueSets.map(wordBoundaryClauses),
     },
     select: {
@@ -34,11 +39,12 @@ export function fetchCatalogCandidates(tokenValueSets: string[][]) {
 }
 
 /** Recall with plural variants, then a typo-prefix fallback for long tokens. */
-export async function searchCatalogCandidates(tokens: string[]) {
-  let candidates = await fetchCatalogCandidates(tokens.map(tokenVariants))
+export async function searchCatalogCandidates(tokens: string[], storeSlugs?: string[]) {
+  let candidates = await fetchCatalogCandidates(tokens.map(tokenVariants), storeSlugs)
   if (!candidates.length && tokens.some(token => token.length >= 5)) {
     candidates = await fetchCatalogCandidates(
       tokens.map(token => (token.length >= 5 ? [token.slice(0, 3)] : tokenVariants(token))),
+      storeSlugs,
     )
   }
   return candidates

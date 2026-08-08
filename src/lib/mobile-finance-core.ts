@@ -1,7 +1,7 @@
 import { isCommitmentCategory, isPlannerFrequency, parseAmountToCents, type PlannerFrequency } from './budget'
 
 export type MobilePlannerKind = 'income' | 'commitment' | 'goal'
-type SharedEntry = { label: string; amountCents: number; frequency: PlannerFrequency; userId: string | null; planAccountId: string | null }
+type SharedEntry = { label: string; amountCents: number; frequency: PlannerFrequency; userId: string | null }
 export type ParsedMobilePlannerEntry =
   | ({ kind: 'income' } & SharedEntry)
   | ({ kind: 'commitment'; category: string; essential: boolean } & SharedEntry)
@@ -48,8 +48,7 @@ export function parseMobilePlannerEntry(kind: MobilePlannerKind, body: Record<st
   const frequency = typeof body.frequency === 'string' ? body.frequency : 'MONTHLY'
   if (!isPlannerFrequency(frequency)) return { ok: false, error: 'Unsupported frequency' }
   const userId = typeof body.userId === 'string' && body.userId ? body.userId : null
-  const planAccountId = typeof body.planAccountId === 'string' && body.planAccountId ? body.planAccountId : null
-  if (kind === 'income') return { ok: true, value: { kind, label, amountCents, frequency, userId, planAccountId } }
+  if (kind === 'income') return { ok: true, value: { kind, label, amountCents, frequency, userId } }
   const category = typeof body.category === 'string' && isCommitmentCategory(body.category) ? body.category : 'other'
-  return { ok: true, value: { kind, label, amountCents, frequency, userId, planAccountId, category, essential: body.essential !== false } }
+  return { ok: true, value: { kind, label, amountCents, frequency, userId, category, essential: body.essential !== false } }
 }

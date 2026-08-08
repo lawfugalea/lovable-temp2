@@ -6,6 +6,24 @@ x-logging: &default-logging
     max-size: "10m"
     max-file: "5"
 
+# Pin the Compose project name.
+#
+# The stack now serving clankeep.com was created from /home/ryan/lovable-temp2,
+# a directory that no longer exists — this tree lives at /var/www/clankeep — so
+# its containers carry the project name `lovable-temp2`. Compose otherwise
+# derives the project name from the current directory, which means a deploy run
+# from the new path would create a SECOND, parallel stack: fresh containers
+# attached to the same fixed-name volumes (see the note by `volumes:` at the
+# bottom of this file), a second Postgres pointed at the live data directory, and
+# a port clash on 8097.
+#
+# Pinning it keeps every deploy aimed at the stack that is actually serving
+# traffic. Renaming the project to `clankeep` is a deliberate migration — stop
+# the old stack, start the new one, and the data follows because the volume names
+# are fixed — not something that should happen implicitly because someone moved
+# a directory.
+name: ${CLANKEEP_COMPOSE_PROJECT:-lovable-temp2}
+
 services:
   db:
     image: postgres:16-alpine
@@ -26,6 +44,17 @@ services:
       timeout: 5s
       retries: 10
 
+  # This service builds its own image from `target: builder`, so
+  # `docker compose build app` does NOT rebuild it. On 2026-07-26 it therefore
+  # ran an image holding 35 migrations against a repo holding 38 and reported
+  # success; that was harmless only because those three had already been applied
+  # by hand from the host.
+  #
+  # The bind mount below is the structural fix: the SQL it applies now comes from
+  # the host working tree at run time rather than from whatever was baked into
+  # the image, so a stale image can no longer apply a stale migration set. Use
+  # scripts/deploy-production.sh, which builds both services and checks for
+  # drift either side of the migration.
   migrate:
     logging: *default-logging
     mem_limit: 1024m
@@ -46,6 +75,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      # Read-only, and only the migrations Prisma reads: the schema for its
+      # datasource block and the migration SQL itself. The generated client
+      # lives in node_modules/.prisma, so this cannot shadow it.
+      - ./prisma:/app/prisma:ro
     command: ["npm", "run", "prisma:migrate:deploy"]
     restart: "no"
 
@@ -178,6 +212,7 @@ services:
       INVITES_FROM: ${INVITES_FROM:-Clankeep <noreply@clankeep.com>}
       INVITES_FROM_DOMAIN: ${INVITES_FROM_DOMAIN:-clankeep.com}
       INVITES_REPLY_TO: ${INVITES_REPLY_TO:-}
+      SUPERMARKET_CONSENTED_STORES: ${HOUSEFLOW_CONSENTED_SUPERMARKET_STORES-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       ADMIN_EMAILS: ${ADMIN_EMAILS:?set ADMIN_EMAILS in .env.deploy}
       UPLOAD_DIR: /app/uploads
@@ -186,6 +221,20 @@ services:
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
       VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       REMINDER_WORKER_SECRET: ${REMINDER_WORKER_SECRET:-}
+      # Must match what the shopping-recurrence worker sends, or the endpoint
+      # answers 401 and scheduled templates silently never refill.
+      SHOPPING_RECURRENCE_SECRET: ${SHOPPING_RECURRENCE_SECRET:-}
+      # Must match what the finance-sync worker sends, or bank connections only
+      # refresh when someone presses the button and consent expiry goes unwarned.
+      FINANCE_SYNC_SECRET: ${FINANCE_SYNC_SECRET:-}
+      # Local timezone for in-app scheduling decisions (morning chore summary,
+      # weekly digest); the cron sidecars carry their own TZ for date stamping.
+      HOUSEFLOW_TZ: ${HOUSEFLOW_TZ:-Europe/Malta}
+      # Must match what the digest worker sends, or Monday summaries never go out.
+      WEEKLY_DIGEST_SECRET: ${WEEKLY_DIGEST_SECRET:-}
+      # Must match what the housekeeping worker sends, or expired demo users,
+      # rate-limit windows and processed-event ledgers accumulate forever.
+      DEMO_CLEANUP_SECRET: ${DEMO_CLEANUP_SECRET:-}
     volumes:
       - houseflow-uploads:/app/uploads
     ports:
@@ -237,6 +286,158 @@ services:
       app:
         condition: service_healthy
 
+  shopping-recurrence:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      SHOPPING_RECURRENCE_SECRET: ${SHOPPING_RECURRENCE_SECRET:-}
+      TZ: ${HOUSEFLOW_TZ:-Europe/Malta}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${SHOPPING_RECURRENCE_SECRET}" ]; then
+          echo "[shopping-recurrence] WARNING: SHOPPING_RECURRENCE_SECRET is not set — scheduled shopping templates are DISABLED"
+        fi
+        # Hourly rather than daily: the endpoint is idempotent per date, so an
+        # hourly poll simply refills soon after local midnight and recovers on
+        # its own if the container was down when the day rolled over.
+        while true; do
+          if [ -n "$${SHOPPING_RECURRENCE_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${SHOPPING_RECURRENCE_SECRET}" \
+              --header="Content-Type: application/json" \
+              --post-data="{\"date\":\"$$(date +%Y-%m-%d)\"}" \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/shopping-recurrence" \
+              || echo "[shopping-recurrence] WARNING: refill poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  finance-sync:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      FINANCE_SYNC_SECRET: ${FINANCE_SYNC_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${FINANCE_SYNC_SECRET}" ]; then
+          echo "[finance-sync] WARNING: FINANCE_SYNC_SECRET is not set — unattended bank sync and consent reminders are DISABLED"
+        fi
+        # Hourly poll; the endpoint itself decides what is due (about two syncs
+        # per connection per day, one lifecycle email per episode), so polling
+        # more often than the gap simply answers with nothing to do.
+        while true; do
+          if [ -n "$${FINANCE_SYNC_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${FINANCE_SYNC_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/finance-sync" \
+              || echo "[finance-sync] WARNING: sync poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  weekly-digest:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      WEEKLY_DIGEST_SECRET: ${WEEKLY_DIGEST_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${WEEKLY_DIGEST_SECRET}" ]; then
+          echo "[weekly-digest] WARNING: WEEKLY_DIGEST_SECRET is not set — Monday digest emails are DISABLED"
+        fi
+        # Hourly poll; the endpoint only acts on local Monday mornings and
+        # claims a per-household weekly key, so extra polls answer with nothing.
+        while true; do
+          if [ -n "$${WEEKLY_DIGEST_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${WEEKLY_DIGEST_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/weekly-digest" \
+              || echo "[weekly-digest] WARNING: digest poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  housekeeping:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      DEMO_CLEANUP_SECRET: ${DEMO_CLEANUP_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${DEMO_CLEANUP_SECRET}" ]; then
+          echo "[housekeeping] WARNING: DEMO_CLEANUP_SECRET is not set — demo purge and ledger sweeps are DISABLED"
+        fi
+        # Every six hours: purges expired demo users and sweeps elapsed
+        # rate-limit windows, old billing/push event ledgers and old activity.
+        while true; do
+          if [ -n "$${DEMO_CLEANUP_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${DEMO_CLEANUP_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/demo-cleanup" \
+              || echo "[housekeeping] WARNING: cleanup poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 21600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
   price-sync:
     build:
       context: .
@@ -264,7 +465,8 @@ services:
       HOME: /tmp/priceworker
       XDG_CONFIG_HOME: /tmp/priceworker/.config
       XDG_CACHE_HOME: /tmp/priceworker/.cache
-      CATALOG_SYNC_STORES: ${HOUSEFLOW_CATALOG_SYNC_STORES:-smart,welbees,greens}
+      CATALOG_SYNC_STORES: ${HOUSEFLOW_CATALOG_SYNC_STORES-}
+      SUPERMARKET_CONSENTED_STORES: ${HOUSEFLOW_CONSENTED_SUPERMARKET_STORES-}
       CATALOG_REQUEST_DELAY_MS: ${HOUSEFLOW_CATALOG_REQUEST_DELAY_MS:-250}
       GREENS_MAX_PAGES: ${HOUSEFLOW_GREENS_MAX_PAGES:-0}
       GREENS_IMAGE_USE_CONFIRMED: ${HOUSEFLOW_GREENS_IMAGE_USE_CONFIRMED:-false}

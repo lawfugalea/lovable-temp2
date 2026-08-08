@@ -1,4 +1,5 @@
 import type { NextApiResponse } from 'next'
+import { isSupermarketComparisonAvailable } from './supermarket-consent'
 
 export type PlanKey = 'FREE' | 'FAMILY'
 export type PlanSourceKey = 'STRIPE' | 'ADMIN' | null
@@ -46,7 +47,7 @@ export interface EntitlementInput {
 const UPGRADE_COPY: Record<EntitlementFeature, string> = {
   finance: 'Finances are part of the Family plan',
   ai: 'AI features are part of the Family plan',
-  pushReminders: 'Medicine push reminders are part of the Family plan',
+  pushReminders: 'Push reminders are part of the Family plan',
   medicinePdf: 'PDF health reports are part of the Family plan',
   children: 'The free plan tracks medicines for one child — upgrade to add more',
   priceComparison: 'Supermarket price comparison is part of the Family plan',
@@ -100,9 +101,18 @@ export function featureAllowed(entitlements: HouseholdEntitlements, feature: Ent
 }
 
 
+/**
+ * The paywall 403 body the UI recognises. Exposed separately from the responder
+ * so bearer-token (mobile) paths, which decide the status themselves, send the
+ * identical shape rather than a second copy that can drift.
+ */
+export function upgradeRequiredBody(feature: EntitlementFeature) {
+  return { error: UPGRADE_COPY[feature], code: 'upgrade_required', feature }
+}
+
 /** Respond with the paywall 403 shape the UI recognises. */
 export function respondUpgradeRequired(res: NextApiResponse, feature: EntitlementFeature): void {
-  res.status(403).json({ error: UPGRADE_COPY[feature], code: 'upgrade_required', feature })
+  res.status(403).json(upgradeRequiredBody(feature))
 }
 
 /** Respond with the region 403 shape the UI recognises — not a paywall, the feature simply doesn't exist here. */
@@ -114,11 +124,24 @@ export function respondRegionUnavailable(res: NextApiResponse, feature: Entitlem
   })
 }
 
+/** The catalogue feature remains parked until at least one retailer has consented. */
+export function respondPriceComparisonUnavailable(res: NextApiResponse): void {
+  res.status(503).json({
+    error: 'Supermarket price features are not currently available',
+    code: 'feature_unavailable',
+    feature: 'priceComparison',
+  })
+}
+
 /**
  * Single gate for the price-comparison routes: sends the right 403
  * (region vs paywall) and returns false when the feature is unavailable.
  */
 export function requirePriceComparison(res: NextApiResponse, entitlements: HouseholdEntitlements): boolean {
+  if (!isSupermarketComparisonAvailable()) {
+    respondPriceComparisonUnavailable(res)
+    return false
+  }
   if (!entitlements.priceComparisonRegionSupported) {
     respondRegionUnavailable(res, 'priceComparison')
     return false

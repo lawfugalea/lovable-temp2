@@ -37,8 +37,7 @@ export async function detachUserFromHouseholds(
   });
   const privateAccountIds = privateAccounts.map(account => account.id);
   if (privateAccountIds.length) {
-    await tx.incomeSource.deleteMany({ where: { planAccountId: { in: privateAccountIds } } });
-    await tx.commitment.deleteMany({ where: { planAccountId: { in: privateAccountIds } } });
+    // Goals kept in a private account must never become shared through an ON DELETE SET NULL.
     await tx.savingsGoal.deleteMany({ where: { planAccountId: { in: privateAccountIds } } });
     await tx.financePlanAccount.deleteMany({ where: { id: { in: privateAccountIds } } });
   }

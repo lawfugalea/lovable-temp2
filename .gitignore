@@ -26,6 +26,9 @@ apps/mobile/.eas
 .env.*
 !.env.example
 !.env.deploy.example
+# The verification-stack template is tracked; it holds only synthetic values.
+# The .env.verify it is copied to stays ignored by the .env.* rule above.
+!.env.verify.example
 
 # Private API signing keys
 /keys/
@@ -43,3 +46,29 @@ apps/mobile/.eas
 **/*.Zone.Identifier
 
 .env.deploy
+# ClanKeep promotional-video generated media
+marketing/video/captures/
+marketing/video/frames/
+marketing/video/intermediate/
+marketing/video/narration/
+marketing/video/output/
+marketing/video/music/*.mp3
+marketing/video/clips/
+marketing/video/sfx/
+marketing/video/.recordings/
+marketing/video/.campaign-work/
+marketing/video/.kinetic-work/
+marketing/video/.veo-work/
+marketing/video/.walk-work/
+# Generated stills and renders; only the scripts, fonts and configs are tracked.
+marketing/video/ai-scenes/
+marketing/video/*.mp4
+marketing/video/*.png
+
+# Editor backups and incremental build state
+*.save
+tsconfig.tsbuildinfo
+tsconfig.*.tsbuildinfo
+
+# Superpowers brainstorm visual companion (local only)
+.superpowers/

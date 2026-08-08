@@ -1,6 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next'
 import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
+import { deleteNoteAttachmentFiles } from '@/lib/note-attachment-files'
 import { getUserIdOr401 } from '@/lib/api-guards'
 import {
   validateContentJson,
@@ -249,9 +250,18 @@ async function handleDeleteNote(req: NextApiRequest, res: NextApiResponse, user:
       return res.status(404).json({ error: 'Note not found or no permission to delete' })
     }
 
+    // Read the filenames before the delete: the cascade removes the rows, and
+    // with them the only record of which files on disk belonged to this note.
+    const attachments = await prisma.noteAttachment.findMany({
+      where: { noteId },
+      select: { filename: true },
+    })
+
     await prisma.note.delete({
       where: { id: noteId }
     })
+
+    deleteNoteAttachmentFiles(attachments.map(attachment => attachment.filename))
 
     return res.status(200).json({ message: 'Note deleted successfully' })
   } catch (error) {

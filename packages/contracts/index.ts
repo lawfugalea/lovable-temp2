@@ -463,8 +463,8 @@ export interface MobileNoteResponse { note: MobileNoteSummary }
 export type MobilePlannerFrequency = 'WEEKLY' | 'FOUR_WEEKLY' | 'MONTHLY' | 'BIMONTHLY' | 'QUARTERLY' | 'ANNUAL'
 export type MobileFinancePlanAccountType = 'PERSONAL' | 'HOUSEHOLD_SPENDING' | 'COMMITMENTS' | 'SAVINGS' | 'OTHER'
 export type MobileFinancePlanAccountVisibility = 'SHARED' | 'PRIVATE'
-export interface MobileFinanceIncome { id: string; userId: string | null; label: string; amountCents: number; frequency: MobilePlannerFrequency; planAccountId: string | null }
-export interface MobileFinanceCommitment { id: string; userId: string | null; label: string; category: string; amountCents: number; frequency: MobilePlannerFrequency; essential: boolean; planAccountId: string | null }
+export interface MobileFinanceIncome { id: string; userId: string | null; label: string; amountCents: number; frequency: MobilePlannerFrequency }
+export interface MobileFinanceCommitment { id: string; userId: string | null; label: string; category: string; amountCents: number; frequency: MobilePlannerFrequency; essential: boolean; setAside: boolean }
 export interface MobileFinanceGoal { id: string; name: string; targetCents: number; savedCents: number; targetDate: string | null; remainingCents: number; progress: number; monthsRemaining: number | null; requiredMonthlyCents: number | null; achievable: boolean | null; planAccountId: string | null; monthlyContributionCents: number; monthlyContributionOverrideCents: number | null }
 export interface MobileFinancePlanSummary {
   monthlyIncomeCents: number
@@ -484,53 +484,30 @@ export interface MobileFinancePlannerResponse {
   members: Array<{ userId: string; name: string }>
   summary: MobileFinancePlanSummary
   period: string
-  accounts: MobileFinancePlanAccount[]
-  fundingRules: MobileFinanceFundingRule[]
-  moneyFlow: MobileFinanceMoneyFlowSummary
+  accounts: MobileFinanceSavingsAccount[]
+  goalMarkers: MobileFinanceGoalMarker[]
   suggestedEmergencyFundCents: number
   aiConfigured: boolean
   bankEnabled: boolean
 }
-export interface MobileFinancePlanAccount {
+/** Mirrors the web `SavingsAccount`; the planner is account-based, not funding-rule based. */
+export interface MobileFinanceSavingsAccount {
   id: string
   name: string
-  type: MobileFinancePlanAccountType
   visibility: MobileFinancePlanAccountVisibility
-  monthlyBufferCents: number
+  openingBalanceCents: number
+  openingBalanceAt: string | null
+  monthlyContributionCents: number
   owned: boolean
   canEdit: boolean
   canManagePrivacy: boolean
-  monthlyIncomeCents: number
-  monthlyCommitmentsCents: number
-  monthlyGoalsCents: number
-  incomingTransfersCents: number
-  outgoingTransfersCents: number
-  monthlyNeedCents: number
-  monthlyInflowCents: number
-  remainingCents: number
-  weeklySpendingCents: number | null
 }
-export interface MobileFinanceFundingRule {
+/** A goal pointed at an account, drawn as a target line on that account's forecast. */
+export interface MobileFinanceGoalMarker {
   id: string
-  sourceAccountId: string | null
-  sourceName: string
-  sourcePrivate: boolean
-  targetAccountId: string
-  targetName: string
-  amountCents: number
-  completed: boolean
-  completedAt: string | null
-  canComplete: boolean
-  canEdit: boolean
-}
-export interface MobileFinanceMoneyFlowSummary {
-  monthlyIncomeCents: number
-  monthlyCommitmentsCents: number
-  monthlyGoalsCents: number
-  monthlyBuffersCents: number
-  plannedAllocationCents: number
-  unallocatedCents: number
-  accounts: MobileFinancePlanAccount[]
+  name: string
+  accountId: string
+  targetCents: number
 }
 export interface MobileMoneyFlowAiPayload {
   schemaVersion: 1
@@ -591,15 +568,20 @@ export interface MobileFinanceOverviewResponse {
   recentTransactions: MobileFinanceTransaction[]
 }
 export interface MobileFinanceTransactionsResponse { transactions: MobileFinanceTransaction[]; nextCursor: string | null }
+/**
+ * A projection of the web banking analytics. Amounts are integer cents, as they
+ * are everywhere else on the server, so the phone never re-derives them.
+ */
 export interface MobileFinanceInsightsResponse {
   periodDays: number
   dateFrom: string
   dateTo: string
+  primaryCurrency: string | null
   currencies: Array<{
     currency: string
-    summary: { income: number; outgoing: number; net: number; averageOutgoing: number; transactionCount: number; outgoingChangePercent: number | null; incomeChangePercent: number | null; netChangePercent: number | null; savingsRate: number | null; averageTransaction: number; largestExpense: number; billsTotal: number; groceriesTotal: number }
-    categories: Array<{ category: string; amount: number; previousAmount: number; changePercent: number | null; count: number; percentage: number; average: number; largest: number; merchantCount: number }>
-    merchants: Array<{ merchantName: string; amount: number; count: number; average: number; percentage: number; category: string }>
+    summary: { incomeCents: number; spendingCents: number; netSpendingCents: number; netCents: number; savingsRatePercent: number | null; largestExpenseCents: number; averageSpendPerTransactionCents: number }
+    categories: Array<{ category: string; amountCents: number; previousAmountCents: number; changePercent: number | null; count: number; sharePercent: number; averageCents: number; largestCents: number; merchantCount: number }>
+    merchants: Array<{ merchantName: string; amountCents: number; count: number; averageCents: number; sharePercent: number; category: string }>
   }>
 }
 export interface MobileFinanceSubscription {
