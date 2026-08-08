@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
-import { MOBILE_CHORE_ICON_IDS } from '../packages/contracts'
 
 /**
  * Web and mobile are meant to stay in step. They drifted badly once already:
@@ -92,19 +91,48 @@ test('the web-only list has no stale entries', () => {
   assert.deepEqual(stale, [], `these are exempted but no longer exist on the web:\n  ${stale.join('\n  ')}`)
 })
 
-test('chore icons offered to the phone all exist in the web registry', () => {
-  // The two clients render different icon sets, but they must agree on which
-  // ids are valid, or a chore created on one shows as blank on the other.
-  const registry = fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'chore-icons.ts'), 'utf8')
-  const body = registry.split('CHORE_ICONS = {')[1].split('} satisfies')[0]
-  const webIds = new Set([...body.matchAll(/^\s*'?([a-z-]+)'?:/gm)].map(match => match[1]))
+function iconIds(source: string, open: string, close: string): Set<string> {
+  const body = source.split(open)[1].split(close)[0]
+  return new Set([...body.matchAll(/^\s*'?([a-z-]+)'?:/gm)].map(match => match[1]))
+}
 
-  const missing = MOBILE_CHORE_ICON_IDS.filter(id => !webIds.has(id))
-  assert.deepEqual(missing, [], `the app offers icon ids the web does not know:\n  ${missing.join(', ')}`)
+test('the phone maps every chore icon the web can produce, and invents none', () => {
+  // The two clients render different icon sets — lucide on the web, Ionicons on
+  // the phone — but they must agree on which ids exist, or a chore created on
+  // one shows blank on the other.
+  //
+  // Read from source rather than imported: @clankeep/contracts is types-only, so
+  // a value shared through it typechecks but fails to bundle in Metro.
+  const web = iconIds(fs.readFileSync(path.join(__dirname, '..', 'src', 'lib', 'chore-icons.ts'), 'utf8'), 'CHORE_ICONS = {', '} satisfies')
+  const app = iconIds(fs.readFileSync(path.join(__dirname, '..', 'apps', 'mobile', 'src', 'choreIcons.ts'), 'utf8'), 'const ICONS = {', '} satisfies')
+
+  const unmapped = [...web].filter(id => !app.has(id))
+  assert.deepEqual(unmapped, [], `the web can produce these icons but the phone cannot draw them:\n  ${unmapped.join(', ')}`)
+
+  const invented = [...app].filter(id => !web.has(id))
+  assert.deepEqual(invented, [], `the phone offers icon ids the web does not know:\n  ${invented.join(', ')}`)
 })
 
-test('the phone maps every chore icon the web can produce', () => {
-  const map = fs.readFileSync(path.join(__dirname, '..', 'apps', 'mobile', 'src', 'choreIcons.ts'), 'utf8')
-  const unmapped = MOBILE_CHORE_ICON_IDS.filter(id => !map.includes(`${/^[a-z]+$/.test(id) ? id : `'${id}'`}:`))
-  assert.deepEqual(unmapped, [], `these icon ids have no Ionicons mapping:\n  ${unmapped.join(', ')}`)
+test('no runtime value is imported from the types-only contracts package', () => {
+  // @clankeep/contracts exposes only a "types" export, so a value imported from
+  // it passes tsc and then fails the EAS bundle step. That cost a build once.
+  const appDir = path.join(__dirname, '..', 'apps', 'mobile')
+  const offenders: string[] = []
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) { walk(full); continue }
+      if (!/\.tsx?$/.test(entry.name)) continue
+      const source = fs.readFileSync(full, 'utf8')
+      // Matched as whole statements: a type-only import is routinely spread
+      // across several lines, so checking line by line reports false positives.
+      for (const match of source.matchAll(/import\s+(type\s+)?[^;]*?from\s*'@clankeep\/contracts'/g)) {
+        if (!match[1]) offenders.push(path.relative(appDir, full))
+      }
+    }
+  }
+  walk(path.join(appDir, 'app'))
+  walk(path.join(appDir, 'src'))
+  assert.deepEqual(offenders, [], `these import a runtime value from a types-only package:\n  ${offenders.join('\n  ')}`)
 })

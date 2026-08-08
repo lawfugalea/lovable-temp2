@@ -1,11 +1,10 @@
-import { MOBILE_CHORE_ICON_GROUPS } from '@clankeep/contracts'
 import type { MobileChore, MobileChoreMember, MobileChoresResponse, MobileSaveChoreResponse, MobileTodayChore, MobileTodayChoresResponse } from '@clankeep/contracts'
 import { Ionicons } from '@expo/vector-icons'
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '@/auth/AuthProvider'
-import { choreIconName } from '@/choreIcons'
+import { CHORE_ICON_GROUPS, choreIconName } from '@/choreIcons'
 import { DateTimeField } from '@/DateTimeField'
 import { fontFamilies, spacing, useAppTheme } from '@/theme'
 import { AppButton, Card, Chip, EmptyState, ErrorBanner, Field, IconButton, LoadingState, PageHeader, Screen, SectionHeader, SheetHeader, StatusPill, useResponsive } from '@/ui'
@@ -170,7 +169,7 @@ export default function ChoresScreen() {
             <View style={styles.choices}>
               <Chip label="Auto" selected={!form.icon} onPress={() => setForm(current => ({ ...current, icon: '' }))} tone={colors.chores} />
             </View>
-            {MOBILE_CHORE_ICON_GROUPS.map(group => (
+            {CHORE_ICON_GROUPS.map(group => (
               <View key={group.name}>
                 <Text style={[styles.meta, { color: colors.muted }]}>{group.name}</Text>
                 <View style={styles.choices}>

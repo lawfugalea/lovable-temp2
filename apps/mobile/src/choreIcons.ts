@@ -1,7 +1,15 @@
 import type { Ionicons } from '@expo/vector-icons'
-import type { MobileChoreIconId } from '@clankeep/contracts'
 
 type IconName = keyof typeof Ionicons.glyphMap
+
+/**
+ * The chore-icon ids, mirroring the web registry in src/lib/chore-icons.ts.
+ *
+ * Deliberately defined here rather than imported from @clankeep/contracts:
+ * that package is types-only, so a value imported from it typechecks but fails
+ * to bundle. A parity test keeps this list and the web registry in step.
+ */
+export type ChoreIconId = keyof typeof ICONS
 
 /**
  * The web registry maps chore icon ids to lucide-react components, which cannot
@@ -10,7 +18,7 @@ type IconName = keyof typeof Ionicons.glyphMap
  * nearest recognisable shape is used rather than falling back to a generic tick
  * — a wrong-but-plausible icon reads better than forty identical ones.
  */
-const ICONS: Record<MobileChoreIconId, IconName> = {
+const ICONS = {
   // Cleaning
   clean: 'sparkles-outline',
   sweep: 'brush-outline',
@@ -89,9 +97,22 @@ const ICONS: Record<MobileChoreIconId, IconName> = {
   parcels: 'cube-outline',
 
   general: 'checkmark-circle-outline',
-}
+} satisfies Record<string, IconName>
+
+/** Picker layout, mirroring the web groups. The fallback is deliberately absent. */
+export const CHORE_ICON_GROUPS: ReadonlyArray<{ name: string; ids: readonly ChoreIconId[] }> = [
+  { name: 'Cleaning', ids: ['clean', 'sweep', 'hoover', 'windows', 'bin', 'recycling', 'tidy'] },
+  { name: 'Kitchen', ids: ['dishes', 'cooking', 'fridge', 'microwave', 'meal-prep', 'veg', 'coffee'] },
+  { name: 'Laundry', ids: ['laundry', 'clothes', 'towels'] },
+  { name: 'Bathroom', ids: ['bathroom', 'shower'] },
+  { name: 'Home', ids: ['lightbulb', 'repair', 'diy', 'drill', 'paint', 'plugs', 'heating', 'blinds', 'doors', 'keys', 'bed', 'furniture', 'lamp'] },
+  { name: 'Outdoor', ids: ['plants', 'leaves', 'garden', 'flowers', 'digging', 'car', 'bike', 'fuel'] },
+  { name: 'Pets', ids: ['pets', 'dog', 'cat', 'fish', 'pet-food'] },
+  { name: 'Family', ids: ['baby', 'family', 'homework', 'school', 'medicine', 'health'] },
+  { name: 'Admin', ids: ['post', 'bills', 'budget', 'paperwork', 'calendar', 'calls', 'shopping', 'parcels'] },
+]
 
 export function choreIconName(id: string | null | undefined): IconName {
   if (!id) return ICONS.general
-  return ICONS[id as MobileChoreIconId] ?? ICONS.general
+  return ICONS[id as ChoreIconId] ?? ICONS.general
 }

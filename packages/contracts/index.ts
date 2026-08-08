@@ -608,40 +608,6 @@ export interface MobileFinanceSubscription {
 }
 export interface MobileFinanceSubscriptionsResponse { subscriptions: MobileFinanceSubscription[]; reminders: MobileFinanceSubscription[] }
 
-/**
- * Chore icons.
- *
- * The web registry maps these ids to lucide-react components, which cannot run
- * in React Native. The id is the shared contract; each client maps it to its own
- * icon set. Kept here so the two cannot drift apart on which ids exist.
- */
-export const MOBILE_CHORE_ICON_IDS = [
-  'clean', 'sweep', 'hoover', 'windows', 'bin', 'recycling', 'tidy',
-  'dishes', 'cooking', 'fridge', 'microwave', 'meal-prep', 'veg', 'coffee',
-  'laundry', 'clothes', 'towels',
-  'bathroom', 'shower',
-  'lightbulb', 'repair', 'diy', 'drill', 'paint', 'plugs', 'heating', 'blinds', 'doors', 'keys',
-  'bed', 'furniture', 'lamp',
-  'plants', 'leaves', 'garden', 'flowers', 'digging', 'car', 'bike', 'fuel',
-  'pets', 'dog', 'cat', 'fish', 'pet-food',
-  'baby', 'family', 'post', 'bills', 'budget', 'paperwork', 'calendar', 'calls',
-  'shopping', 'parcels', 'medicine', 'health', 'homework', 'school',
-  'general',
-] as const
-export type MobileChoreIconId = (typeof MOBILE_CHORE_ICON_IDS)[number]
-
-/** The picker layout, mirroring the web groups. The fallback is deliberately absent. */
-export const MOBILE_CHORE_ICON_GROUPS: ReadonlyArray<{ name: string; ids: readonly MobileChoreIconId[] }> = [
-  { name: 'Cleaning', ids: ['clean', 'sweep', 'hoover', 'windows', 'bin', 'recycling', 'tidy'] },
-  { name: 'Kitchen', ids: ['dishes', 'cooking', 'fridge', 'microwave', 'meal-prep', 'veg', 'coffee'] },
-  { name: 'Laundry', ids: ['laundry', 'clothes', 'towels'] },
-  { name: 'Bathroom', ids: ['bathroom', 'shower'] },
-  { name: 'Home', ids: ['lightbulb', 'repair', 'diy', 'drill', 'paint', 'plugs', 'heating', 'blinds', 'doors', 'keys', 'bed', 'furniture', 'lamp'] },
-  { name: 'Outdoor', ids: ['plants', 'leaves', 'garden', 'flowers', 'digging', 'car', 'bike', 'fuel'] },
-  { name: 'Pets', ids: ['pets', 'dog', 'cat', 'fish', 'pet-food'] },
-  { name: 'Family', ids: ['baby', 'family', 'homework', 'school', 'medicine', 'health'] },
-  { name: 'Admin', ids: ['post', 'bills', 'budget', 'paperwork', 'calendar', 'calls', 'shopping', 'parcels'] },
-]
 
 /** First-run state. Shares the web implementation, so the two describe first run identically. */
 export interface MobileOnboardingSteps {
