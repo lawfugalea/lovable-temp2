@@ -1,4 +1,5 @@
 import type { NextApiResponse } from 'next'
+import { appleEntitlementActive } from './billing/apple-subscription-state'
 import { isSupermarketComparisonAvailable } from './supermarket-consent'
 
 export type PlanKey = 'FREE' | 'FAMILY'
@@ -19,7 +20,7 @@ const GOOD_STANDING = new Set(['active', 'trialing'])
 
 export interface HouseholdEntitlements {
   plan: PlanKey
-  effectiveVia: 'free' | 'stripe' | 'admin' | 'demo' | 'grace'
+  effectiveVia: 'free' | 'stripe' | 'apple' | 'admin' | 'demo' | 'grace'
   canUseFinance: boolean
   canUseAi: boolean
   canUsePriceComparison: boolean
@@ -36,6 +37,9 @@ export interface EntitlementInput {
   plan: PlanKey
   planSource: PlanSourceKey
   stripeSubscriptionStatus: string | null
+  /** Apple subscription bought in the iOS app, brokered by RevenueCat. */
+  appleSubscriptionStatus?: string | null
+  appleExpiresAt?: Date | null
   currentPeriodEnd: Date | null
   graceUntil: Date | null
   ownerIsDemo: boolean
@@ -68,6 +72,21 @@ export function resolveEntitlements(input: EntitlementInput): HouseholdEntitleme
     GOOD_STANDING.has(input.stripeSubscriptionStatus)
   ) {
     effectiveVia = 'stripe'
+  } else if (
+    input.plan === 'FAMILY' &&
+    // Checked against the stored dates rather than the plan alone: Apple sends
+    // no event at the instant a subscription lapses, so a household left on
+    // FAMILY would otherwise keep access after its paid period ended.
+    appleEntitlementActive(
+      {
+        status: input.appleSubscriptionStatus ?? null,
+        expiresAt: input.appleExpiresAt ?? null,
+        graceUntil: input.graceUntil,
+      },
+      now,
+    )
+  ) {
+    effectiveVia = 'apple'
   } else if (input.plan === 'FAMILY' && input.graceUntil !== null && input.graceUntil.getTime() > now.getTime()) {
     effectiveVia = 'grace'
   }

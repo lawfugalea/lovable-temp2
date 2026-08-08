@@ -188,6 +188,15 @@ model Household {
   stripeSubscriptionId      String?                    @unique
   stripeSubscriptionStatus  String?
   stripePriceId             String?
+  /// Apple subscriptions bought in the iOS app, brokered by RevenueCat. Kept
+  /// alongside the Stripe columns rather than replacing them: a household can
+  /// have bought on either platform, and the entitlement check reads whichever
+  /// is in good standing.
+  appleAppUserId            String?                    @unique
+  appleOriginalTransactionId String?                   @unique
+  appleSubscriptionStatus   String?
+  appleProductId            String?
+  appleExpiresAt            DateTime?
   currentPeriodEnd          DateTime?
   graceUntil                DateTime?
   owner                     User?                      @relation("OwnerHouseholds", fields: [ownerId], references: [id], onDelete: SetNull)
@@ -1203,6 +1212,7 @@ enum HouseholdPlan {
 enum PlanSource {
   STRIPE
   ADMIN
+  APPLE
 }
 
 /// Processed Stripe webhook events; the primary key is the Stripe event id.
