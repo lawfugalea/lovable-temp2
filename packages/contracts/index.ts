@@ -173,7 +173,8 @@ export interface MobileTodayChore {
   id: string
   title: string
   notes: string | null
-  icon: MobileChoreIconId | null
+  /** A chore-icon id. Typed loosely on responses so an id added on the web cannot break an older app build. */
+  icon: string | null
   schedule: string
   assigneeName: string | null
   dueDate: string
@@ -194,7 +195,8 @@ export interface MobileChore {
   id: string
   title: string
   notes: string | null
-  icon: MobileChoreIconId | null
+  /** A chore-icon id. Typed loosely on responses so an id added on the web cannot break an older app build. */
+  icon: string | null
   active: boolean
   assignee: { id: string; name: string | null } | null
   recurrenceType: MobileChoreRecurrenceType
@@ -220,7 +222,8 @@ export interface MobileSaveChoreRequest {
   householdId: string
   title: string
   notes?: string | null
-  icon?: MobileChoreIconId | null
+  /** A chore-icon id. The server validates it against the shared registry. */
+  icon?: string | null
   active?: boolean
   assigneeId?: string | null
   recurrenceType: MobileChoreRecurrenceType

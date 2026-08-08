@@ -32,7 +32,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<Response>) {
   }
   const value = recurrence.recurrence
   let icon: string | null = null
-  if (body.icon !== undefined && body.icon !== null && body.icon !== '') {
+  if (typeof body.icon === 'string' && body.icon !== '') {
     if (!isChoreIconId(body.icon)) return res.status(400).json({ error: 'Unknown icon' })
     icon = body.icon
   }
