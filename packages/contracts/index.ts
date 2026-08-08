@@ -675,3 +675,21 @@ export interface MobilePantryItem {
 }
 export interface MobilePantryResponse { householdId: string; items: MobilePantryItem[] }
 export interface MobileSavePantryItemResponse { item: MobilePantryItem }
+
+/**
+ * Recurring shopping templates. Catalogue product links are deliberately absent:
+ * mobile shopping redacts retailer and catalogue metadata while supermarket
+ * comparison stays parked pending written retailer consent.
+ */
+export interface MobileShoppingTemplateItem { id: string; name: string; quantity: number; note: string | null }
+export interface MobileShoppingTemplate {
+  id: string
+  name: string
+  createdAt: string
+  /** Null when the template is imported by hand only. */
+  schedule: string | null
+  autoListId: string | null
+  items: MobileShoppingTemplateItem[]
+}
+export interface MobileShoppingTemplatesResponse { householdId: string; templates: MobileShoppingTemplate[] }
+export interface MobileImportTemplateResponse { imported: number }

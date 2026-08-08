@@ -4,7 +4,7 @@ export type MobilePlannerKind = 'income' | 'commitment' | 'goal'
 type SharedEntry = { label: string; amountCents: number; frequency: PlannerFrequency; userId: string | null }
 export type ParsedMobilePlannerEntry =
   | ({ kind: 'income' } & SharedEntry)
-  | ({ kind: 'commitment'; category: string; essential: boolean } & SharedEntry)
+  | ({ kind: 'commitment'; category: string; essential: boolean; setAside: boolean } & SharedEntry)
   | { kind: 'goal'; name: string; targetCents: number; savedCents: number; targetDate: Date | null; monthlyContributionCents: number | null; planAccountId: string | null }
 
 export type PlannerParseResult = { ok: true; value: ParsedMobilePlannerEntry } | { ok: false; error: string }
@@ -50,5 +50,5 @@ export function parseMobilePlannerEntry(kind: MobilePlannerKind, body: Record<st
   const userId = typeof body.userId === 'string' && body.userId ? body.userId : null
   if (kind === 'income') return { ok: true, value: { kind, label, amountCents, frequency, userId } }
   const category = typeof body.category === 'string' && isCommitmentCategory(body.category) ? body.category : 'other'
-  return { ok: true, value: { kind, label, amountCents, frequency, userId, category, essential: body.essential !== false } }
+  return { ok: true, value: { kind, label, amountCents, frequency, userId, category, essential: body.essential !== false, setAside: body.setAside === true } }
 }

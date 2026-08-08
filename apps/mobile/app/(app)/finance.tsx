@@ -41,7 +41,7 @@ type CoachState =
   | { kind: 'result'; result: Extract<MobileFinanceCoachResponse, { requiresConsent: false }> }
 type EntryEditor =
   | { kind: 'income'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string }
-  | { kind: 'commitment'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string; category: string; essential: boolean }
+  | { kind: 'commitment'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string; category: string; essential: boolean; setAside: boolean }
   | { kind: 'goal'; id?: string; name: string; target: string; saved: string; targetDate: string; monthlyContribution: string; planAccountId: string }
   | { kind: 'account'; id?: string; name: string; balance: string; monthlyContribution: string; visibility: 'SHARED' | 'PRIVATE'; previousVisibility?: 'SHARED' | 'PRIVATE' }
 
@@ -141,6 +141,7 @@ export default function FinanceScreen() {
     userId: item?.userId || '',
     category: item?.category || 'other',
     essential: item?.essential ?? true,
+    setAside: item?.setAside ?? false,
   })
   const openGoal = (item?: MobileFinanceGoal) => setEditor({
     kind: 'goal',
@@ -314,6 +315,13 @@ export default function FinanceScreen() {
                           <Text style={[styles.switchHint, { color: colors.muted }]}>Needed before flexible household spending.</Text>
                         </View>
                         <Switch value={editor.essential} onValueChange={essential => setEditor({ ...editor, essential })} trackColor={{ false: colors.borderStrong, true: colors.primary }} />
+                      </Pressable>
+                      <Pressable accessibilityRole="switch" accessibilityState={{ checked: editor.setAside }} onPress={() => setEditor({ ...editor, setAside: !editor.setAside })} style={[styles.switchRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
+                        <View style={styles.flex}>
+                          <Text style={[styles.switchTitle, { color: colors.text }]}>Put money aside for this</Text>
+                          <Text style={[styles.switchHint, { color: colors.muted }]}>For bills that arrive less often than monthly, so they never sting.</Text>
+                        </View>
+                        <Switch value={editor.setAside} onValueChange={setAside => setEditor({ ...editor, setAside })} trackColor={{ false: colors.borderStrong, true: colors.primary }} />
                       </Pressable>
                     </>
                   ) : null}
