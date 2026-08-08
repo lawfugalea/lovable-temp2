@@ -65,6 +65,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4e666cfb-f6d3-400f-9262-d78a8c6c89ac"
+      }
+    },
+    "owner": "lawfu"
   }
 }
