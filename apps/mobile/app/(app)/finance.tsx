@@ -4,6 +4,7 @@ import type {
   MobileFinanceGoal,
   MobileFinanceIncome,
   MobileFinancePlannerResponse,
+  MobileFinanceSavingsAccount,
   MobilePlannerFrequency,
 } from '@clankeep/contracts'
 import { Ionicons } from '@expo/vector-icons'
@@ -42,6 +43,7 @@ type EntryEditor =
   | { kind: 'income'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string }
   | { kind: 'commitment'; id?: string; label: string; amount: string; frequency: MobilePlannerFrequency; userId: string; category: string; essential: boolean }
   | { kind: 'goal'; id?: string; name: string; target: string; saved: string; targetDate: string; monthlyContribution: string; planAccountId: string }
+  | { kind: 'account'; id?: string; name: string; balance: string; monthlyContribution: string; visibility: 'SHARED' | 'PRIVATE'; previousVisibility?: 'SHARED' | 'PRIVATE' }
 
 const views: { value: FinanceView; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { value: 'plan', label: 'My plan', icon: 'calculator-outline' },
@@ -152,15 +154,32 @@ export default function FinanceScreen() {
       : amountInput(item.monthlyContributionOverrideCents),
     planAccountId: item?.planAccountId || '',
   })
+  const onAccount = (item?: MobileFinanceSavingsAccount) => setEditor({
+    kind: 'account',
+    id: item?.id,
+    name: item?.name || '',
+    balance: item ? amountInput(item.openingBalanceCents) : '',
+    monthlyContribution: item ? amountInput(item.monthlyContributionCents) : '',
+    visibility: item?.visibility || 'SHARED',
+    previousVisibility: item?.visibility,
+  })
 
   const saveEntry = async () => {
     if (!householdId || !editor) return
     setBusy('save')
     setError('')
     try {
-      await request(`/api/mobile/v1/finance/planner/${editor.kind}`, {
+      const path = editor.kind === 'account'
+        ? '/api/mobile/v1/finance/planner/accounts'
+        : `/api/mobile/v1/finance/planner/${editor.kind}`
+      // Turning a private account into a shared one needs an explicit
+      // confirmation server-side; the user gave it in the dialog below.
+      const body = editor.kind === 'account'
+        ? { householdId, ...editor, confirmVisibility: editor.previousVisibility === 'PRIVATE' && editor.visibility === 'SHARED' }
+        : { householdId, ...editor }
+      await request(path, {
         method: editor.id ? 'PATCH' : 'POST',
-        body: JSON.stringify({ householdId, ...editor }),
+        body: JSON.stringify(body),
       })
       await loadPlanner()
       setEditor(null)
@@ -238,7 +257,7 @@ export default function FinanceScreen() {
           {views.map(item => <Chip key={item.value} label={item.label} icon={item.icon} selected={view === item.value} tone={colors.finances} onPress={() => setView(item.value)} />)}
         </ScrollView>
         {view === 'plan' && planner ? (
-          <PlanView planner={planner} tablet={tablet} onIncome={openIncome} onCommitment={openCommitment} onGoal={openGoal} />
+          <PlanView planner={planner} tablet={tablet} onIncome={openIncome} onCommitment={openCommitment} onGoal={openGoal} onAccount={onAccount} />
         ) : null}
         {view === 'coach' && planner ? (
           <CoachView planner={planner} state={coach} busy={busy === 'coach'} onRequest={consent => void askCoach(consent)} onCancel={() => setCoach({ kind: 'idle' })} />
@@ -250,7 +269,20 @@ export default function FinanceScreen() {
           {editor ? (
             <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
               <SheetHeader title={editor.id ? 'Edit plan entry' : 'Add to your plan'} subtitle="Amounts are shared with household members who can view Finance." onClose={() => setEditor(null)} />
-              {editor.kind === 'goal' ? (
+              {editor.kind === 'account' ? (
+                <>
+                  <Field label="Account name" leadingIcon="wallet-outline" placeholder="Rainy day, house fund…" value={editor.name} onChangeText={name => setEditor({ ...editor, name })} />
+                  <Field label="What's in it today (€)" leadingIcon="cash-outline" keyboardType="decimal-pad" placeholder="0.00" value={editor.balance} onChangeText={balance => setEditor({ ...editor, balance })} />
+                  <Field label="Going in monthly (€)" leadingIcon="trending-up-outline" keyboardType="decimal-pad" placeholder="0.00" value={editor.monthlyContribution} onChangeText={monthlyContribution => setEditor({ ...editor, monthlyContribution })} />
+                  <ChoiceSection title="Who can see it?">
+                    <Chip label="Everyone in the household" selected={editor.visibility === 'SHARED'} tone={colors.finances} onPress={() => setEditor({ ...editor, visibility: 'SHARED' })} />
+                    <Chip label="Only me" selected={editor.visibility === 'PRIVATE'} tone={colors.finances} onPress={() => setEditor({ ...editor, visibility: 'PRIVATE' })} />
+                  </ChoiceSection>
+                  {editor.previousVisibility === 'PRIVATE' && editor.visibility === 'SHARED' ? (
+                    <InfoBanner tone="warning" title="This account will become visible" message="Everyone in your household will be able to see this account and its balance." />
+                  ) : null}
+                </>
+              ) : editor.kind === 'goal' ? (
                 <>
                   <Field label="Goal name" leadingIcon="flag-outline" placeholder="Emergency fund" value={editor.name} onChangeText={name => setEditor({ ...editor, name })} />
                   <Field label="Target amount (€)" leadingIcon="wallet-outline" keyboardType="decimal-pad" placeholder="5000" value={editor.target} onChangeText={target => setEditor({ ...editor, target })} />
@@ -302,12 +334,13 @@ function ChoiceSection({ title, children }: { title: string; children: React.Rea
   return <View style={styles.choice}><Text style={[styles.choiceTitle, { color: colors.text }]}>{title}</Text><View style={styles.choiceChips}>{children}</View></View>
 }
 
-function PlanView({ planner, tablet, onIncome, onCommitment, onGoal }: {
+function PlanView({ planner, tablet, onIncome, onCommitment, onGoal, onAccount }: {
   planner: MobileFinancePlannerResponse
   tablet: boolean
   onIncome: (item?: MobileFinanceIncome) => void
   onCommitment: (item?: MobileFinanceCommitment) => void
   onGoal: (item?: MobileFinanceGoal) => void
+  onAccount: (item?: MobileFinanceSavingsAccount) => void
 }) {
   const { colors } = useAppTheme()
   return (
@@ -331,6 +364,27 @@ function PlanView({ planner, tablet, onIncome, onCommitment, onGoal }: {
             : <EmptyState icon="receipt-outline" title="No commitments yet" message="Add rent, bills, and regular budgets to complete the plan." />}
         </View>
       </View>
+      <SectionHeader
+        title="Your savings"
+        detail="Where the money actually sits, and what goes in each month."
+        action={<AppButton compact variant="secondary" label="Add account" icon="add" onPress={() => onAccount()} />}
+      />
+      {planner.accounts.length ? (
+        <View style={styles.sectionStack}>
+          {planner.accounts.map(account => (
+            <PlannerRow
+              key={account.id}
+              icon={account.visibility === 'PRIVATE' ? 'lock-closed-outline' : 'wallet-outline'}
+              color={colors.finances}
+              title={account.name}
+              subtitle={`${eurosFromCents(account.openingBalanceCents)} in it today · ${eurosFromCents(account.monthlyContributionCents)} monthly${account.visibility === 'PRIVATE' ? ' · only you' : ''}`}
+              onPress={() => { if (account.canEdit) onAccount(account) }}
+            />
+          ))}
+        </View>
+      ) : (
+        <EmptyState icon="wallet-outline" title="No savings accounts yet" message="Add the accounts your household saves into to see how they grow." />
+      )}
       <SectionHeader title="Savings goals" detail={`Suggested emergency fund: ${eurosFromCents(planner.suggestedEmergencyFundCents)}`} action={<AppButton compact variant="secondary" label="Add goal" icon="add" onPress={() => onGoal()} />} />
       {planner.goals.length ? (
         <View style={styles.goalGrid}>
