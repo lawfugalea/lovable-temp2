@@ -142,7 +142,7 @@ export default function BankingScreen() {
     return (
       <Screen>
         <BrandHero eyebrow="BANKING" title="Connected accounts, kept separate" subtitle="Read-only balances, activity, and insights when Open Banking is enabled." compact />
-        <EmptyState icon="diamond-outline" title="Banking is in the Family plan" message="Upgrade on the Clankeep website whenever you are ready." />
+        <EmptyState icon="diamond-outline" title="Banking is in the Family plan" message="This household is on the free plan, so connected banking is not available here yet." />
       </Screen>
     )
   }
@@ -172,7 +172,7 @@ export default function BankingScreen() {
 function OverviewView({ overview }: { overview: MobileFinanceOverviewResponse }) {
   const { colors } = useAppTheme()
   if (!overview.accounts.length) {
-    return <EmptyState icon="card-outline" title="No connected accounts" message="Connect or manage your bank from the Banking page on the Clankeep website." />
+    return <EmptyState icon="card-outline" title="No connected accounts" message="No bank accounts are connected to this household yet." />
   }
   return (
     <View style={styles.sectionStack}>

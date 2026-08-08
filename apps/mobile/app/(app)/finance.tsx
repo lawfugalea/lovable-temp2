@@ -223,7 +223,7 @@ export default function FinanceScreen() {
     return (
       <Screen>
         <BrandHero eyebrow="FINANCE" title="A calmer view of your money" subtitle="Plan income, commitments, and goals together." compact />
-        <EmptyState icon="diamond-outline" title="Finance is in the Family plan" message="Upgrade on the Clankeep website whenever you are ready." />
+        <EmptyState icon="diamond-outline" title="Finance is in the Family plan" message="This household is on the free plan, so the money planner is not available here yet." />
       </Screen>
     )
   }
