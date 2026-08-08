@@ -33,7 +33,6 @@ const WEB_ONLY: Record<string, string> = {
   invites: 'Public invite acceptance happens in a browser from an email link.',
   register: 'Public web signup; the app re-exports the same handler.',
   uploads: 'Serves stored files to the browser.',
-  onboarding: 'Guided tour is web-only for now. NOT YET BUILT for mobile.',
   prices: 'Supermarket comparison is parked pending written retailer consent.',
   pantry: 'NOT YET BUILT for mobile.',
   health: 'Liveness probe for the container healthcheck.',

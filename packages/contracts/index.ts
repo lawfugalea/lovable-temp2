@@ -642,3 +642,25 @@ export const MOBILE_CHORE_ICON_GROUPS: ReadonlyArray<{ name: string; ids: readon
   { name: 'Family', ids: ['baby', 'family', 'homework', 'school', 'medicine', 'health'] },
   { name: 'Admin', ids: ['post', 'bills', 'budget', 'paperwork', 'calendar', 'calls', 'shopping', 'parcels'] },
 ]
+
+/** First-run state. Shares the web implementation, so the two describe first run identically. */
+export interface MobileOnboardingSteps {
+  invitedMember: boolean
+  addedShoppingItem: boolean
+  wroteNote: boolean
+  plannedMeal: boolean
+  createdChore: boolean
+}
+export interface MobileOnboardingResponse {
+  user: {
+    firstName: string | null
+    isDemo: boolean
+    tourStepId: string | null
+    tourCompletedAt: string | null
+    checklistDismissedAt: string | null
+  }
+  /** Null for an account that has not created or joined a household yet. */
+  household: { id: string; name: string; country: string; role: 'OWNER' | 'MEMBER'; isOwner: boolean } | null
+  steps: MobileOnboardingSteps | null
+  entitlements: { plan: 'FREE' | 'FAMILY'; canUseFinance: boolean; canUseAi: boolean } | null
+}
