@@ -637,6 +637,50 @@ brought up to the production web line before any release work.
 - Still open: whether the mobile work stays in this worktree or is merged into
   `agent/houseflow-production-release` so it lives in `/var/www/clankeep`.
 
+## App Store readiness work started (2026-08-08)
+
+Audited the app against App Review before any build. It was not submittable:
+no build configuration existed, the baked-in API base was the development
+gateway, and two guideline violations were present.
+
+Done:
+
+- `eas.json` added. The `development` profile keeps the Expo Go gateway;
+  `preview` and `production` use `https://clankeep.com`, so a store build
+  cannot ship pointing at the development server. Remote version source with
+  `autoIncrement` manages TestFlight build numbers.
+- `app.json`: version `1.0.0` and `ios.config.usesNonExemptEncryption: false`
+  so uploads do not stall on the export-compliance question.
+- Guideline 5.1.1(v), in-app account deletion: the browser route's erasure moved
+  to `src/lib/account-deletion.ts`, a bearer-authenticated
+  `POST /api/mobile/v1/account/delete` added, and a password-confirmed delete
+  card added to Family & Account. Structural tests fail if either client starts
+  erasing on its own or drops the password, demo, or ownership-handover rules.
+- Guideline 3.1.1, external purchase steering: the three screens that told free
+  households to "upgrade on the Clankeep website" now simply state the feature
+  is not on this household's plan. No external purchase path remains.
+
+Decisions taken with the user on 2026-08-08:
+
+- Paid plans on iOS will use RevenueCat in-app purchase, not a web hand-off.
+- The store build points at the existing production domain `https://clankeep.com`.
+
+Blocked on the user, in this order — each step needs an account only they hold:
+
+1. `eas init` from `apps/mobile` using their Expo account, which writes
+   `extra.eas.projectId`. Nothing can be built until this exists.
+2. An App Store Connect app record for `com.clankeep.mobile`, then the auto-
+   renewable subscription products. Their identifiers are the input RevenueCat
+   needs, so this precedes any purchase code.
+3. A RevenueCat account with an entitlement mapped to those products, plus the
+   iOS public SDK key for `EXPO_PUBLIC_REVENUECAT_IOS_KEY`.
+
+Note that `react-native-purchases` is a native module and does not run in Expo
+Go, so purchase work can only be tested on a development build produced by step
+1. Grant flow still to design: `PlanSource` currently has only `STRIPE` and
+`ADMIN`, so an Apple source plus a RevenueCat webhook into the household plan is
+the missing backend piece.
+
 ## Exact next step: native distribution preparation
 
 The Expo Go stability phase is complete. The next recommended phase is preparing
