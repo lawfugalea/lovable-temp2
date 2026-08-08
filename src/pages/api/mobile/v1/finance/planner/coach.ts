@@ -21,7 +21,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<MobileFinanceCo
   if (!isDeepSeekConfigured()) return res.status(503).json({ error: 'AI analysis is not configured on this deployment' })
   if (!(await mobilePlannerCoachRateLimit(req, res))) return
 
-  const data = await loadPlannerData(access.householdId)
+  const data = await loadPlannerData(access.householdId, new Date(), access.userId)
   if (!data.incomes.length && !data.commitments.length) {
     return res.status(400).json({ error: 'Add income and commitments before requesting a savings plan' })
   }

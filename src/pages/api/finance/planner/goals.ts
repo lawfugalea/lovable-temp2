@@ -3,10 +3,11 @@ import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
 import { requireFinanceAccess } from '@/lib/finance/access'
 import { parseAmountToCents } from '@/lib/budget'
+import { assignmentAccountId, financePlanErrorResponse, parseNonNegativeCents } from '@/lib/finance/plan-account-server'
 
-type ParsedInput = { name: string; targetCents: number; savedCents: number; targetDate: Date | null }
+type ParsedInput = { name: string; targetCents: number; savedCents: number; targetDate: Date | null; monthlyContributionCents: number | null; planAccountId: string | null }
 
-function parseInput(res: NextApiResponse, body: Record<string, unknown>): ParsedInput | null {
+async function parseInput(res: NextApiResponse, body: Record<string, unknown>, householdId: string, userId: string): Promise<ParsedInput | null> {
   const name = typeof body.name === 'string' ? body.name.trim().slice(0, 80) : ''
   if (!name) {
     res.status(400).json({ error: 'A goal name is required' })
@@ -38,7 +39,22 @@ function parseInput(res: NextApiResponse, body: Record<string, unknown>): Parsed
       return null
     }
   }
-  return { name, targetCents, savedCents, targetDate }
+  let monthlyContributionCents: number | null = null
+  if (body.monthlyContribution !== undefined && body.monthlyContribution !== null && body.monthlyContribution !== '') {
+    monthlyContributionCents = parseNonNegativeCents(body.monthlyContribution, { nullable: true })
+    if (monthlyContributionCents === null) {
+      res.status(400).json({ error: 'Enter a valid monthly contribution' })
+      return null
+    }
+  }
+  try {
+    const planAccountId = await assignmentAccountId(householdId, userId, body.planAccountId)
+    return { name, targetCents, savedCents, targetDate, monthlyContributionCents, planAccountId }
+  } catch (error) {
+    const failure = financePlanErrorResponse(error)
+    res.status(failure.status).json({ error: failure.message })
+    return null
+  }
 }
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -53,7 +69,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === 'POST') {
     const count = await prisma.savingsGoal.count({ where: { householdId: access.householdId } })
     if (count >= 30) return res.status(400).json({ error: 'Savings goal limit reached' })
-    const input = parseInput(res, req.body ?? {})
+    const input = await parseInput(res, req.body ?? {}, access.householdId, access.userId)
     if (!input) return
     const created = await prisma.savingsGoal.create({ data: { householdId: access.householdId, ...input } })
     return res.status(201).json({ id: created.id })
@@ -62,7 +78,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const id = typeof req.body?.id === 'string' ? req.body.id : ''
   if (!id) return res.status(400).json({ error: 'Missing id' })
   const existing = await prisma.savingsGoal.findFirst({
-    where: { id, householdId: access.householdId },
+    where: {
+      id,
+      householdId: access.householdId,
+      OR: [{ planAccountId: null }, { planAccount: { visibility: 'SHARED' } }, { planAccount: { ownerUserId: access.userId } }],
+    },
     select: { id: true },
   })
   if (!existing) return res.status(404).json({ error: 'Savings goal not found' })
@@ -72,7 +92,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     return res.status(200).json({ ok: true })
   }
 
-  const input = parseInput(res, req.body ?? {})
+  const input = await parseInput(res, req.body ?? {}, access.householdId, access.userId)
   if (!input) return
   await prisma.savingsGoal.update({ where: { id }, data: input })
   return res.status(200).json({ ok: true })

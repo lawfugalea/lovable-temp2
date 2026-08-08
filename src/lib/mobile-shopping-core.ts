@@ -45,9 +45,10 @@ export function normalizeMobileShoppingItemPatch(value: unknown): ValidationResu
   qty?: string | null
   quantityCount?: number
   status?: 'ACTIVE' | 'DONE'
+  category?: ShoppingCategoryKey
 }> {
   const input = value && typeof value === 'object' ? value as Record<string, unknown> : {}
-  const patch: { title?: string; qty?: string | null; quantityCount?: number; status?: 'ACTIVE' | 'DONE' } = {}
+  const patch: { title?: string; qty?: string | null; quantityCount?: number; status?: 'ACTIVE' | 'DONE'; category?: ShoppingCategoryKey } = {}
 
   if (Object.prototype.hasOwnProperty.call(input, 'title')) {
     const title = typeof input.title === 'string' ? input.title.trim() : ''
@@ -71,6 +72,11 @@ export function normalizeMobileShoppingItemPatch(value: unknown): ValidationResu
     if (input.status !== 'ACTIVE' && input.status !== 'DONE') return { ok: false, error: 'Invalid item status' }
     patch.status = input.status
   }
+  if (Object.prototype.hasOwnProperty.call(input, 'category')) {
+    if (!isShoppingCategory(input.category)) return { ok: false, error: 'Invalid shopping category' }
+    patch.category = input.category
+  }
   if (Object.keys(patch).length === 0) return { ok: false, error: 'No supported changes supplied' }
   return { ok: true, value: patch }
 }
+import { isShoppingCategory, type ShoppingCategoryKey } from './shopping-categories'

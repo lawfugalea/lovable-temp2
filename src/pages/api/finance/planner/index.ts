@@ -4,6 +4,7 @@ import { requireFinanceAccess } from '@/lib/finance/access'
 import { loadPlannerData } from '@/lib/finance/planner-data'
 import { suggestedEmergencyFundCents } from '@/lib/budget'
 import { isDeepSeekConfigured } from '@/lib/finance/deepseek'
+import { financePeriod, isFinancePeriod } from '@/lib/finance/money-flow'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
@@ -14,7 +15,8 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   const access = await requireFinanceAccess(req, res, householdId)
   if (!access) return
 
-  const data = await loadPlannerData(access.householdId)
+  const period = isFinancePeriod(req.query.period) ? req.query.period : financePeriod()
+  const data = await loadPlannerData(access.householdId, new Date(), access.userId, period)
   res.setHeader('Cache-Control', 'private, no-store')
   return res.status(200).json({
     ...data,

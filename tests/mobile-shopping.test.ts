@@ -59,3 +59,29 @@ test('mobile shopping routes require mobile identity and household-scoped access
   assert.match(list, /mobileShoppingListAvailable/)
   assert.doesNotMatch(`${lists}${items}${item}${list}`, /getServerSession|authOptions/)
 })
+
+test('mobile shopping keeps supermarket comparison and retailer metadata parked', () => {
+  const screen = readFileSync('apps/mobile/app/(app)/shopping.tsx', 'utf8')
+  const items = readFileSync('src/pages/api/mobile/v1/shopping/lists/[listId]/items.ts', 'utf8')
+  const item = readFileSync('src/pages/api/mobile/v1/shopping/items/[id].ts', 'utf8')
+  const serializer = readFileSync('src/lib/mobile-shopping.ts', 'utf8')
+
+  assert.doesNotMatch(screen, /supermarket|price comparison|priceCents|regularPriceCents|storeName|offers/i)
+  assert.doesNotMatch(`${items}${item}`, /store:\s*true|priceCents|regularPriceCents|storeName/)
+  assert.match(serializer, /store:\s*null/)
+})
+
+test('mobile shopping AI routes require mobile identity and keep proposal application server-side', () => {
+  for (const path of [
+    'src/pages/api/mobile/v1/shopping/ai/preview.ts',
+    'src/pages/api/mobile/v1/shopping/ai/suggest.ts',
+    'src/pages/api/mobile/v1/shopping/ai/apply.ts',
+    'src/pages/api/mobile/v1/shopping/category-order.ts',
+  ]) {
+    const source = readFileSync(path, 'utf8')
+    assert.match(source, /requireMobileIdentity/)
+  }
+  const apply = readFileSync('src/lib/shopping-ai-server.ts', 'utf8')
+  assert.match(apply, /shoppingListFingerprint\(current\)/)
+  assert.match(apply, /prisma\.\$transaction/)
+})

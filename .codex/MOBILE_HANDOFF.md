@@ -1,6 +1,6 @@
 # Clankeep mobile handoff
 
-Last updated: 2026-07-22
+Last updated: 2026-07-23
 
 This file is the durable continuation point for Codex sessions working on the
 Clankeep iOS and Android application. Update it whenever mobile work changes
@@ -265,8 +265,8 @@ The changes are implemented but intentionally uncommitted for review.
   card/sheet/input/button/status primitives, 44–48 pt touch targets, phone/tablet
   breakpoints, safe-area behavior, Android keyboard resize, tablet navigation
   rail, and narrow-iPhone fallbacks.
-- The approved six primary destinations are now `Home`, `Plan`, `Shop`,
-  `Finance`, `Notes`, and `Health`. Family & Account remains reachable from Home.
+- The current seven primary destinations are `Home`, `Plan`, `Shop`, `Finance`,
+  `Bank`, `Notes`, and `Health`. Family & Account remains reachable from Home.
   Chores and Meals stay together under Plan.
 - Rebuilt authentication, Home, Shopping, Chores, Meals, Notes, Family & Account,
   and Health using the new system without removing their existing mutations.
@@ -274,11 +274,11 @@ The changes are implemented but intentionally uncommitted for review.
 - Added Expo-managed Clankeep app icon, adaptive Android icon, optimized runtime
   logos, and light/dark splash assets inside the mobile project so native bundling
   does not depend on files outside the Expo root.
-- Added the native Finance workspace. Income, commitments, and savings goals are
-  editable. Enabled bank balances, recent/full transaction activity, 90-day
-  category insights, and recurring payments are read-only. Bank connection,
-  synchronization, transaction corrections, rules, and coach configuration remain
-  on the secure web client for now.
+- Added native Finance and Banking workspaces. Finance keeps editable income,
+  commitments, savings goals, and consented planning AI. Banking separately owns
+  read-only balances, recent/full activity, 90-day category insights, and recurring
+  payments. Bank connection, synchronization, transaction corrections, rules, and
+  coach configuration remain on the secure web client for now.
 - Added versioned `/api/mobile/v1/finance` routes and contracts. Browser and
   bearer-token finance APIs now share the same membership, Family entitlement,
   owner, bank-availability, and account-visibility authorization logic. Existing
@@ -337,9 +337,181 @@ The changes are implemented but intentionally uncommitted for review.
   The ignored `apps/mobile/.env.local` now intentionally retains the stable HTTPS
   API base rather than an expiring tunnel URL.
 
+## Supermarket comparison parking (implemented, local validation complete)
+
+- Confirmed the native app has no supermarket comparison, offers, catalogue
+  search, retailer, or price UI. Those features remain intentionally parked until
+  an individual retailer provides written consent and is explicitly reviewed for
+  mobile enablement.
+- Removed retailer metadata from the mobile shopping queries. The existing
+  `store` response field is retained for backward wire compatibility but is now
+  always `null`, so legacy retailer names on shopping items do not reach a phone.
+  Underlying shopping items and catalogue links were not deleted or rewritten.
+- Added a regression test that fails if mobile shopping begins exposing comparison
+  UI, price fields, offer fields, or retailer metadata before that policy changes.
+- Updated the mobile README with the consent requirement. No schema change,
+  database write, native signing, store submission, or device-session restart was
+  needed for implementation. The updated app was subsequently deployed to the
+  existing stable Expo Go development channel; it was not signed or submitted to
+  an app store.
+- Validation on 2026-07-22 passed: 151/151 root tests using a non-live placeholder
+  database URL, strict root/mobile TypeScript, mobile lint, `git diff --check`,
+  Expo Doctor 18/18, zero mobile production vulnerabilities, and fresh iOS and
+  Android exports. Validation used the available Node 24.16.0; Node 22 remains the
+  documented release target and `.nvmrc` still says 20.11.1.
+
+## AI shopping tidy and aisle route (implemented and deployed to Expo Go)
+
+- Shopping now groups active items into a stable supermarket-style route so
+  related departments, including Chilled & Dairy, stay together while shopping.
+  The default route has eleven controlled categories; any household member can
+  reorder the shared route with accessible up/down controls.
+- Item editing includes a manual department picker. The shared route is stored in
+  the nullable `Household.shoppingCategoryOrder` JSON field added by append-only
+  migration `20260722233000_shopping_category_order`.
+- Family households have a native `Tidy with AI` review flow. Every run first
+  shows the exact payload and requires consent. It includes only active item text,
+  quantities, counts and categories plus ingredients from an explicitly selected
+  meal-plan week. People, completed history, notes, retailers, catalogue links and
+  prices remain excluded.
+- DeepSeek can propose bounded updates, safe duplicate merges, categorisation and
+  missing selected meal ingredients. New items must be grounded in an ingredient
+  reference. Suggestions are individually selectable, meal additions start
+  unselected, and a signed 15-minute proposal fails safely if the list changes.
+- Added bearer-authenticated category-order and shopping-AI preview/suggest/apply
+  routes under `/api/mobile/v1/shopping`, shared server validation, contracts and
+  security tests. Supermarket comparison remains parked and retailer response
+  metadata remains `null`.
+- A reversible live smoke test changed only a clearly named temporary list/item,
+  temporarily changed and then restored the household aisle route, reviewed the
+  AI payload without calling DeepSeek, and removed its temporary mobile session.
+  Guarded cleanup found zero temporary lists and sessions.
+- Validation on 2026-07-22 passed: 157/157 root tests, strict root/mobile
+  TypeScript, root/mobile lint (only the three pre-existing root TipTap warnings),
+  Expo Doctor 18/18, zero mobile production vulnerabilities, fresh iOS and Android
+  exports, and `git diff --check`. Both Next builds compiled and generated all 19
+  pages; the production web Docker build also finalized traces and deployed cleanly
+  from the web worktree.
+
+## Finance money-flow accounts (implemented and deployed)
+
+- Added planning-only accounts that mirror a family's bank-account structure
+  without representing, connecting to, or moving real bank money. The starter
+  creates a private personal account plus shared family-spending, commitments,
+  and savings accounts; custom accounts and monthly buffers are supported.
+- Income, commitments, and savings goals can be assigned to accessible planning
+  accounts. Savings goals retain the deadline-based pace and can use a manual
+  monthly contribution override. The money-flow view shows each account's monthly
+  need, planned funding, remaining amount, and weekly family-spending guide without
+  double-counting transfers as spending.
+- Added fixed monthly funding rules and per-month transfer check-offs. Completed
+  periods retain their amount snapshot even if a rule changes later, and archived
+  rules remain visible for months with completed history.
+- Account privacy is enforced server-side. Shared accounts are household-visible;
+  a private account and its assigned entries are visible only to its owner. Other
+  household members see only an opaque `Private contribution` amount/status when
+  it funds a shared target. Shared-account edits remain household-scoped; only the
+  private owner manages that account or its privacy.
+- Added a consent-first AI organiser. Every run shows the exact payload before any
+  DeepSeek request, uses only opaque references, account roles, categories, and
+  rounded figures, and excludes names, labels, bank data, and identifiers. Returned
+  changes are grounded, individually selectable, signed for 15 minutes, stale-state
+  protected, and cannot delete records, change privacy, or move shared data into a
+  private account.
+- Added append-only migration `20260723010000_finance_plan_accounts`, shared
+  contracts, mobile bearer APIs, web APIs, native Finance UI, legal disclosures,
+  privacy cleanup for departing members, deterministic calculations, and security
+  tests in both worktrees.
+- The reversible live Finance smoke test used a wholly temporary Family household,
+  round-tripped starter accounts, assignments, a funding rule, a transfer check-off,
+  and the exact AI preview, then removed every temporary row. It made no external AI
+  request and cleanup was verified at zero.
+- Release validation on 2026-07-22 passed: 128/128 web tests, 163/163 mobile-root
+  tests, strict TypeScript in both roots and the native app, root/native lint with
+  only the three existing TipTap warnings, Prisma validation, Expo Doctor 18/18,
+  complete web and mobile-API production builds, and fresh iOS/Android exports.
+  A verified pre-migration backup is at
+  `/home/ryan/backups/houseflow/houseflow-20260722T223025Z.sql.gz` with its SHA-256
+  file. The migration and production web container deployed successfully; the
+  stable Expo Go launcher was restarted afterward.
+
+## Finance “This month” UX redesign (implemented and deployed)
+
+- Renamed the default Finance planning tab from `Money flow` to `This month` on
+  web and native mobile. The page now answers what must be moved this month before
+  showing account setup details.
+- Outstanding transfers appear first with a total still to move, month controls,
+  direct completion/reopen actions, and completed transfers de-emphasized below.
+  The summary keeps visible income, planned allocation, and unallocated/shortfall
+  as supporting figures instead of competing page sections.
+- Web now has one organiser tray and compact account buckets. Items can be assigned
+  by accessible desktop/keyboard drag-and-drop or the explicit `Move to` fallback.
+  Account contents are collapsed by default and expose required, planned, gap/ready,
+  and weekly-spending status.
+- Native mobile uses the same hierarchy without touch dragging. `Organise items`
+  opens a focused tap-to-move sheet, with unassigned/all filters and expandable
+  account contents. This avoids drag gestures conflicting with phone scrolling.
+- Assignment changes are optimistic on both surfaces, roll back on request failure,
+  and provide an eight-second Undo action. Moving into a private account requires
+  explicit confirmation that the item will disappear from other household members.
+  Existing server-side membership/privacy enforcement remains authoritative.
+- No schema, migration, calculation, AI-payload, or banking behavior changed. Web
+  added exact dependency `@dnd-kit/core` 6.3.1 for accessible assignment dragging;
+  native mobile added no gesture dependency.
+- Rendered QA used a wholly temporary Family household at desktop and 390px widths.
+  It verified the action hierarchy, balanced 2×2 narrow-screen Finance tabs, organiser
+  tray, account summaries, private badge, and transfer checklist. Guarded cleanup
+  found zero temporary users and households.
+- Release validation on 2026-07-23 passed: 131/131 web tests, 166/166 mobile-root
+  tests, strict TypeScript, root/native lint with only the three existing TipTap
+  warnings, Expo Doctor 18/18, both Next production builds, fresh iOS/Android
+  exports, and `git diff --check`. The reversible Finance API smoke test passed and
+  removed all temporary rows.
+- Production web redeployed without a data migration; the migration service reported
+  no pending migrations and app/reminder health is current. Stable Expo Go was
+  restarted and returned manifest 200, health 200, unauthenticated assignment 401,
+  and blocked legacy Finance API 404.
+
+## Finance and Banking split (implemented and deployed; supersedes “This month” UI)
+
+- At the user’s request, the temporary `This month` experience was removed from
+  native Finance. Finance now opens directly on `My plan` and contains only the
+  household plan plus consented planning AI.
+- Connected-bank balances, activity, insights, and recurring payments moved into
+  a separate top-level `Bank` destination and `/banking` route. Recurring-payment
+  notification taps now open Banking.
+- The planning-account assignment controls and native tap-to-move organiser were
+  removed from the customer UI. Existing stored account/assignment/funding data,
+  append-only schema, privacy enforcement, and APIs were preserved so this can be
+  redesigned later without deleting household data.
+- Validation on 2026-07-23 passed: 164/164 mobile-root tests with a non-live
+  placeholder database URL, strict root/native TypeScript, native/root lint with
+  only the three pre-existing TipTap warnings, Expo Doctor 18/18, fresh iOS and
+  Android exports, and `git diff --check`. The web build also compiled and generated
+  the new `/banking` and revised `/finances` pages.
+- Production web was rebuilt and deployed on 2026-07-23. The migration gate found
+  no pending migrations; the app/database became healthy and the reminder poll is
+  fresh. Both `/finances` and `/banking` now require authentication.
+- Stable Expo Go was restarted and its compiled iOS bundle contains the new Finance
+  and Banking screens. Public verification returned manifest 200, restricted
+  health 200, unauthenticated mobile Banking 401, and blocked legacy web Finance
+  API 404. No app-store signing/submission or database migration was performed.
+
 ## Last verified state
 
-- Final stability validation on 2026-07-22 passed: 150/150 root tests, strict
+- Supermarket comparison remains absent from the native UI, and mobile shopping
+  responses now redact stored retailer names to `null`. The production web app and
+  price worker were separately parked from the original web worktree; do not deploy
+  the older root web stack from this mobile branch over that production release.
+- Stable Expo Go deployment verification on 2026-07-22 returned 200 for the Expo
+  manifest and restricted `/api/health`, 401 for unauthenticated mobile bootstrap,
+  and 404 for a blocked legacy web Finance API. The separate production web health
+  endpoint remained 200.
+- The AI shopping update is live on the stable Expo Go development channel at
+  `exp://clankeep-dev.217-160-174-130.sslip.io`. Public verification returned 200
+  for the manifest and health route, 401 for the new unauthenticated mobile AI
+  preview, and 404 for the equivalent blocked legacy web API path.
+- Final shopping-AI validation on 2026-07-22 passed: 157/157 root tests, strict
   root/mobile TypeScript, mobile lint with no issues, root lint with only the three
   pre-existing TipTap warnings, Expo Doctor 18/18, zero mobile production
   vulnerabilities, fresh iOS and Android exports, `git diff --check`, and the
@@ -362,6 +534,12 @@ The changes are implemented but intentionally uncommitted for review.
 - Validation used the machine's available Node 24.16.0. The documented project
   target remains Node 22 while `.nvmrc` still says 20.11.1; this known mismatch
   was not silently changed.
+- Finance money-flow accounts are live in the production web app and on the stable
+  Expo Go channel. Public checks returned 200 for production and development
+  health, 200 for the SDK 54 Expo manifest, 401 for the unauthenticated mobile
+  money-flow AI preview, and 404 for the blocked legacy web Finance API through the
+  restricted gateway. The first real-data AI organiser request still requires the
+  user's explicit in-app consent.
 
 - Final two-phase validation on 2026-07-21 passed: 136/136 root tests, root and
   mobile strict TypeScript, mobile lint with no issues, Expo Doctor 18/18, and a
@@ -423,17 +601,22 @@ The changes are implemented but intentionally uncommitted for review.
 ## Exact next step: native distribution preparation
 
 The Expo Go stability phase is complete. The next recommended phase is preparing
-a standalone native development/release path: create the EAS project, confirm the
-Apple/Google developer-account plan, generate a development build for broader
-notification/device testing, add release observability and store privacy metadata,
-then prepare TestFlight and Android internal testing. Do not create paid accounts,
-sign builds, publish, submit, or change production services without the user's
-explicit confirmation. Continue using the permanent Expo Go address for ordinary
-development until that release phase is authorized.
+a standalone native development/release path. On 2026-07-22 the user reported
+completing paid Apple Developer Program enrollment and was told to wait up to two
+days for Apple's review. Do not request or store their Apple password, 2FA code,
+identity documents, or payment information. After the user confirms approval,
+create/configure the EAS project only with their explicit confirmation, generate a
+development build for broader notification/device testing, add release
+observability and store privacy metadata, then prepare TestFlight. Google/Apple
+sign-in and Android internal distribution are still separate unfinished phases.
+Do not sign builds, publish, submit, or change production services without the
+user's explicit confirmation. Continue using the permanent Expo Go address for
+ordinary development until that release phase is authorized.
 
 ### Active device session
 
-- Opened 2026-07-21 and completed the stability checkpoint on 2026-07-22.
+- Opened 2026-07-21, completed the stability checkpoint on 2026-07-22, and
+  restarted for the Finance/Banking split on 2026-07-23.
 - Isolated API: loopback `127.0.0.1:3001`; restricted mobile API proxy:
   loopback `127.0.0.1:3012`; combined Metro/restricted-API development gateway:
   loopback `127.0.0.1:3013`.
@@ -448,9 +631,10 @@ development until that release phase is authorized.
   non-mobile `/api/*` path instead of allowing Metro to answer with generic HTML.
   Repeated public checks confirmed the Expo manifest and restricted health route
   return 200 while a legacy web Finance API route returns 404.
-- One orchestrated launcher owns API, proxy, gateway, and Metro in active Codex
-  tool session `82391`. There is no localhost.run or Cloudflare tunnel. Tool
-  session identifiers do not survive a new host session; the address does.
+- One orchestrated launcher currently owns the isolated API, restricted proxy,
+  combined gateway, and Metro in Codex tool session `22823`. Public manifest and
+  health checks pass. There is no localhost.run or Cloudflare tunnel. Tool session
+  identifiers do not survive a new host session; the permanent address does.
 - If services are not running in a future session, start them from this worktree
   with `CLANKEEP_ENV_FILE=/home/ryan/lovable-temp2/.env npm run mobile:stable:dev`.
   Do not delete the stable `.env.local`. Keep the service running through the
@@ -615,7 +799,8 @@ user's iPhone against a development-only database.
   implemented yet. Health mutations deliberately require a live server.
 - Note image attachments are managed by filename in this phase; an in-app full-size
   attachment preview can be added in a later polish pass.
-- No Apple Developer account, App Store Connect project, EAS project, signing
+- Paid Apple Developer Program enrollment is awaiting Apple's review based on the
+  user's 2026-07-22 report. No App Store Connect project, EAS project, signing
   credential, or store submission has been configured.
 - Native generated `ios/` and `android/` projects are not committed; Expo managed
   configuration is the source of truth at this stage.

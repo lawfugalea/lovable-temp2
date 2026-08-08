@@ -1,11 +1,11 @@
 import { isCommitmentCategory, isPlannerFrequency, parseAmountToCents, type PlannerFrequency } from './budget'
 
 export type MobilePlannerKind = 'income' | 'commitment' | 'goal'
-type SharedEntry = { label: string; amountCents: number; frequency: PlannerFrequency; userId: string | null }
+type SharedEntry = { label: string; amountCents: number; frequency: PlannerFrequency; userId: string | null; planAccountId: string | null }
 export type ParsedMobilePlannerEntry =
   | ({ kind: 'income' } & SharedEntry)
   | ({ kind: 'commitment'; category: string; essential: boolean } & SharedEntry)
-  | { kind: 'goal'; name: string; targetCents: number; savedCents: number; targetDate: Date | null }
+  | { kind: 'goal'; name: string; targetCents: number; savedCents: number; targetDate: Date | null; monthlyContributionCents: number | null; planAccountId: string | null }
 
 export type PlannerParseResult = { ok: true; value: ParsedMobilePlannerEntry } | { ok: false; error: string }
 
@@ -31,7 +31,14 @@ export function parseMobilePlannerEntry(kind: MobilePlannerKind, body: Record<st
       targetDate = new Date(`${body.targetDate}T00:00:00.000Z`)
       if (Number.isNaN(targetDate.getTime())) return { ok: false, error: 'Enter a valid target date' }
     }
-    return { ok: true, value: { kind, name, targetCents, savedCents, targetDate } }
+    let monthlyContributionCents: number | null = null
+    if (body.monthlyContribution !== undefined && body.monthlyContribution !== null && body.monthlyContribution !== '') {
+      const normalized = typeof body.monthlyContribution === 'string' ? body.monthlyContribution.replace(/[€\s,]/g, '') : String(body.monthlyContribution)
+      if (!/^\d+(?:\.\d{1,2})?$/.test(normalized) || Number(normalized) > 10_000_000) return { ok: false, error: 'Enter a valid monthly contribution' }
+      monthlyContributionCents = Math.round(Number(normalized) * 100)
+    }
+    const planAccountId = typeof body.planAccountId === 'string' && body.planAccountId ? body.planAccountId : null
+    return { ok: true, value: { kind, name, targetCents, savedCents, targetDate, monthlyContributionCents, planAccountId } }
   }
 
   const label = typeof body.label === 'string' ? body.label.trim().slice(0, 80) : ''
@@ -41,7 +48,8 @@ export function parseMobilePlannerEntry(kind: MobilePlannerKind, body: Record<st
   const frequency = typeof body.frequency === 'string' ? body.frequency : 'MONTHLY'
   if (!isPlannerFrequency(frequency)) return { ok: false, error: 'Unsupported frequency' }
   const userId = typeof body.userId === 'string' && body.userId ? body.userId : null
-  if (kind === 'income') return { ok: true, value: { kind, label, amountCents, frequency, userId } }
+  const planAccountId = typeof body.planAccountId === 'string' && body.planAccountId ? body.planAccountId : null
+  if (kind === 'income') return { ok: true, value: { kind, label, amountCents, frequency, userId, planAccountId } }
   const category = typeof body.category === 'string' && isCommitmentCategory(body.category) ? body.category : 'other'
-  return { ok: true, value: { kind, label, amountCents, frequency, userId, category, essential: body.essential !== false } }
+  return { ok: true, value: { kind, label, amountCents, frequency, userId, planAccountId, category, essential: body.essential !== false } }
 }

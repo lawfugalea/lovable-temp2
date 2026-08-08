@@ -38,7 +38,7 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
         <ul className="list-disc space-y-2 pl-5">
           <li>account data such as your name, email address, password hash, household membership, role and your record of accepting the Terms;</li>
           <li>household content you enter, including shopping lists, meal plans, recipes, chores, notes, medicine schedules and health-related records;</li>
-          <li>money-planner information you type in yourself — incomes, commitments, budgets and savings goals. Clankeep offers no bank connection, so it never receives bank credentials, bank account details or bank transactions;</li>
+          <li>money-planner information you type in yourself — incomes, commitments, budgets, savings goals, planning-account names, monthly funding rules and transfer check-offs. These are manual planning records, so Clankeep receives no bank credentials, real bank account details or bank transactions;</li>
           <li>your household&apos;s country, used to decide whether region-specific features such as the Maltese price comparison are available;</li>
           <li>billing references when you subscribe to the Family plan — a Stripe customer and subscription identifier and subscription status. Clankeep never sees or stores your full card number;</li>
           <li>limited technical and security information needed to operate, troubleshoot and protect the service.</li>
@@ -65,7 +65,9 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
       <LegalSection title="4. Household sharing and the price comparison">
         <p>
           Clankeep is household-scoped by design: content you add is visible to members of your household according to
-          the feature in use, and access is checked against authenticated household membership on every request.
+          the feature in use, and access is checked against authenticated household membership on every request. A
+          private planning account is visible only to its owner; other members receive only the amount and completion
+          status of a contribution that private account sends to a shared account.
         </p>
         <p>
           The supermarket price comparison works by reading the public online catalogues of Maltese supermarkets and
@@ -80,7 +82,7 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
           <li>members of your Clankeep household, for content shared within that household;</li>
           <li>Stripe, our payment processor, to take and manage Family-plan payments (Stripe receives your email and billing details; Clankeep never sees or stores your full card number);</li>
           <li>Resend, our email provider, to deliver welcome, household-invitation and password-reset emails (it receives the recipient name and email address);</li>
-          <li>DeepSeek, only when the finance owner explicitly requests optional AI analysis after previewing a redacted aggregate payload;</li>
+          <li>DeepSeek, only when a user explicitly requests an optional AI feature after previewing the exact payload; shopping tidy may include selected active item text and selected meal ingredients, while finance coaching uses redacted aggregates and account organisation uses opaque references, roles, categories and rounded monthly figures;</li>
           <li>Kelma, the optional chat assistant embedded on our public pages, which loads only if you accept non-essential cookies and then receives what you type into the chat and basic connection data;</li>
           <li>the deployment&apos;s hosting, database and backup providers, where those services are configured; and</li>
           <li>public authorities where disclosure is legally required.</li>
@@ -91,14 +93,17 @@ export default function PrivacyPage({ config }: PrivacyPageProps) {
       <LegalSection title="6. International transfers">
         <p>
           Clankeep is hosted and backed up in the European Economic Area. Optional DeepSeek analysis involves processing
-          in China according to DeepSeek&apos;s privacy notice and is disabled unless the finance owner gives explicit,
-          informed consent after reviewing the redacted information that will be sent. DeepSeek&apos;s{' '}
+          in China according to DeepSeek&apos;s privacy notice and is disabled unless the requesting user gives explicit,
+          informed consent after reviewing the exact information that will be sent. DeepSeek&apos;s{' '}
           <a className="text-primary hover:underline" href="https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html?locale=en_US" rel="noreferrer" target="_blank">
             privacy policy
           </a>{' '}
-          states that submitted information may be used to improve its services; Clankeep therefore sends no raw
-          planner entries, exact dates, notes, names or user identity through this optional feature — only redacted
-          totals.
+          states that submitted information may be used to improve its services. Finance sends only redacted totals or,
+          for account organisation, opaque references, roles, categories and rounded monthly figures without account,
+          commitment or goal names;
+          shopping tidy sends only the selected active item names, quantities and categories plus any meal ingredients
+          from the week you select. Neither flow sends names of people, completed shopping history, retailer data,
+          catalogue links, prices or user identity.
         </p>
         <p>
           Stripe and Resend are established under EU frameworks but may process limited billing or email-delivery data

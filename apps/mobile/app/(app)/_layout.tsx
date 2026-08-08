@@ -21,6 +21,7 @@ export default function AppLayout() {
       <Tabs.Screen name="plan" options={{ title: 'Plan' }} />
       <Tabs.Screen name="shopping" options={{ title: 'Shop' }} />
       <Tabs.Screen name="finance" options={{ title: 'Finance' }} />
+      <Tabs.Screen name="banking" options={{ title: 'Banking' }} />
       <Tabs.Screen name="notes" options={{ title: 'Notes' }} />
       <Tabs.Screen name="medicine" options={{ title: 'Health' }} />
       <Tabs.Screen name="chores" options={{ href: null }} />

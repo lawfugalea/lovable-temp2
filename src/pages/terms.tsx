@@ -51,8 +51,9 @@ export default function TermsPage({ config }: TermsPageProps) {
 
       <LegalSection title="3. The money planner — no bank connection">
         <p>
-          The Clankeep money planner works entirely from information you type in yourself: incomes, commitments, budgets
-          and savings goals. <strong className="text-foreground">Clankeep does not offer open banking</strong>: it does
+          The Clankeep money planner works entirely from information you type in yourself: incomes, commitments, budgets,
+          savings goals and planning accounts that can mirror how you organise money at your bank. Monthly transfer
+          check-offs record only that a household member marked a planned transfer complete. <strong className="text-foreground">Clankeep does not offer open banking</strong>: it does
           not connect to your bank, does not read your bank accounts or transactions, does not receive your banking
           credentials, and cannot initiate transfers or payments. Planner figures are a convenience view, not an
           accounting system or financial advice.
@@ -85,9 +86,10 @@ export default function TermsPage({ config }: TermsPageProps) {
           medical or behavioural advice. You remain responsible for reviewing your own figures.
         </p>
         <p>
-          The optional AI savings coach (powered by DeepSeek) is manual and opt-in. The finance owner must review the
-          redacted aggregate payload and consent before it is sent. AI output may be inaccurate and never changes your
-          planner entries automatically.
+          Optional AI finance tools (powered by DeepSeek) are manual and opt-in. The requesting member must review the
+          exact redacted payload and consent before it is sent. Account organisation uses opaque references, roles,
+          categories and rounded monthly figures rather than names or labels. Every proposed change requires separate
+          selection and approval. AI output may be inaccurate and cannot move money at a bank.
         </p>
       </LegalSection>
 

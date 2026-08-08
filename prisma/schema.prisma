@@ -57,6 +57,8 @@ model User {
   financeCoachFeedback      FinanceCoachFeedback[]
   financeAiPreference       FinanceAiPreference?
   financeAiAnalyses         FinanceAiAnalysis[]
+  financePlanAccountsOwned  FinancePlanAccount[]          @relation("FinancePlanAccountOwner")
+  financeTransferCheckoffs  FinanceTransferCheckoff[]     @relation("FinanceTransferCompletedBy")
   pushSubscriptions         PushSubscription[]
   passwordResetTokens       PasswordResetToken[]
   mobileSessions            MobileSession[]
@@ -104,6 +106,8 @@ model Household {
   planSource                PlanSource?
   /// ISO 3166-1 alpha-2. Gates region-specific features (Malta price comparison).
   country                   String                     @default("MT")
+  /// Shared aisle/category order used by shopping lists. Validated by the application.
+  shoppingCategoryOrder     Json?
   stripeCustomerId          String?                    @unique
   stripeSubscriptionId      String?                    @unique
   stripeSubscriptionStatus  String?
@@ -119,6 +123,8 @@ model Household {
   incomeSources             IncomeSource[]
   commitments               Commitment[]
   savingsGoals              SavingsGoal[]
+  financePlanAccounts       FinancePlanAccount[]
+  financeFundingRules       FinanceFundingRule[]
   shoppingLists             ShoppingList[]
   shoppingTemplates         ShoppingTemplate[]
   activeForUsers            User[]                     @relation("ActiveHousehold")
@@ -1107,13 +1113,16 @@ model IncomeSource {
   label       String
   amountCents Int
   frequency   PlannerFrequency @default(MONTHLY)
+  planAccountId String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User?     @relation("IncomeSourceUser", fields: [userId], references: [id], onDelete: SetNull)
+  planAccount FinancePlanAccount? @relation(fields: [planAccountId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
+  @@index([planAccountId])
 }
 
 model Commitment {
@@ -1126,13 +1135,16 @@ model Commitment {
   amountCents Int
   frequency   PlannerFrequency @default(MONTHLY)
   essential   Boolean          @default(true)
+  planAccountId String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User?     @relation("CommitmentUser", fields: [userId], references: [id], onDelete: SetNull)
+  planAccount FinancePlanAccount? @relation(fields: [planAccountId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
+  @@index([planAccountId])
 }
 
 model SavingsGoal {
@@ -1143,10 +1155,90 @@ model SavingsGoal {
   savedCents  Int       @default(0)
   /// Date-only; when the household wants the goal reached.
   targetDate  DateTime? @db.Date
+  monthlyContributionCents Int?
+  planAccountId String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  planAccount FinancePlanAccount? @relation(fields: [planAccountId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
+  @@index([planAccountId])
+}
+
+enum FinancePlanAccountType {
+  PERSONAL
+  HOUSEHOLD_SPENDING
+  COMMITMENTS
+  SAVINGS
+  OTHER
+}
+
+enum FinancePlanAccountVisibility {
+  SHARED
+  PRIVATE
+}
+
+model FinancePlanAccount {
+  id                 String                       @id @default(cuid())
+  householdId        String
+  ownerUserId        String
+  name               String
+  type               FinancePlanAccountType      @default(OTHER)
+  visibility         FinancePlanAccountVisibility @default(SHARED)
+  monthlyBufferCents Int                          @default(0)
+  sortOrder          Int                          @default(0)
+  archivedAt         DateTime?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  household      Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  owner          User                   @relation("FinancePlanAccountOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  incomeSources  IncomeSource[]
+  commitments    Commitment[]
+  savingsGoals   SavingsGoal[]
+  outgoingRules  FinanceFundingRule[]   @relation("FinanceFundingRuleSource")
+  incomingRules  FinanceFundingRule[]   @relation("FinanceFundingRuleTarget")
+
+  @@index([householdId, archivedAt])
+  @@index([ownerUserId])
+}
+
+model FinanceFundingRule {
+  id              String    @id @default(cuid())
+  householdId     String
+  sourceAccountId String
+  targetAccountId String
+  amountCents     Int
+  archivedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  household     Household             @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  sourceAccount FinancePlanAccount    @relation("FinanceFundingRuleSource", fields: [sourceAccountId], references: [id], onDelete: Cascade)
+  targetAccount FinancePlanAccount    @relation("FinanceFundingRuleTarget", fields: [targetAccountId], references: [id], onDelete: Cascade)
+  checkoffs     FinanceTransferCheckoff[]
+
+  @@unique([sourceAccountId, targetAccountId])
+  @@index([householdId, archivedAt])
+  @@index([targetAccountId])
+}
+
+model FinanceTransferCheckoff {
+  id             String   @id @default(cuid())
+  ruleId         String
+  period         String
+  amountCents    Int
+  completedById  String?
+  completedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  rule        FinanceFundingRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  completedBy User?              @relation("FinanceTransferCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@unique([ruleId, period])
+  @@index([period])
+  @@index([completedById])
 }

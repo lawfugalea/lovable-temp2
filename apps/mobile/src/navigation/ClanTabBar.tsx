@@ -4,12 +4,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { fontFamilies, shadows, useAppTheme } from '@/theme'
 import { useResponsive, type IconName } from '@/ui'
 
-const visibleRoutes = ['index', 'plan', 'shopping', 'finance', 'notes', 'medicine'] as const
+const visibleRoutes = ['index', 'plan', 'shopping', 'finance', 'banking', 'notes', 'medicine'] as const
 const labels: Record<(typeof visibleRoutes)[number], string> = {
   index: 'Home',
   plan: 'Plan',
   shopping: 'Shop',
   finance: 'Finance',
+  banking: 'Bank',
   notes: 'Notes',
   medicine: 'Health',
 }
@@ -18,6 +19,7 @@ const icons: Record<(typeof visibleRoutes)[number], { active: IconName; idle: Ic
   plan: { active: 'calendar', idle: 'calendar-outline' },
   shopping: { active: 'cart', idle: 'cart-outline' },
   finance: { active: 'wallet', idle: 'wallet-outline' },
+  banking: { active: 'business', idle: 'business-outline' },
   notes: { active: 'document-text', idle: 'document-text-outline' },
   medicine: { active: 'heart', idle: 'heart-outline' },
 }
@@ -60,6 +62,7 @@ export function ClanTabBar({ state, navigation, insets }: BottomTabBarProps) {
               onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
               style={({ pressed }) => [
                 styles.item,
+                compact && styles.itemCompact,
                 tablet && styles.railItem,
                 focused && { backgroundColor: colors.primarySoft },
                 pressed && styles.pressed,
@@ -82,6 +85,7 @@ const styles = StyleSheet.create({
   items: { flex: 1, flexDirection: 'row', alignItems: 'stretch', justifyContent: 'space-around' },
   railItems: { width: '100%', flexDirection: 'column', justifyContent: 'flex-start', gap: 5, marginTop: 26 },
   item: { flex: 1, minWidth: 48, minHeight: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 3, marginHorizontal: 1 },
+  itemCompact: { minWidth: 40, borderRadius: 12, gap: 2, marginHorizontal: 0 },
   railItem: { width: '100%', flex: 0, minHeight: 66, marginHorizontal: 0 },
   label: { fontFamily: fontFamilies.bodySemiBold, fontSize: 10, lineHeight: 13 },
   labelCompact: { fontSize: 9 },
@@ -90,4 +94,3 @@ const styles = StyleSheet.create({
   railMark: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
   railMarkText: { color: '#FFFFFF', fontFamily: fontFamilies.displayExtraBold, fontSize: 19, letterSpacing: -1 },
 })
-

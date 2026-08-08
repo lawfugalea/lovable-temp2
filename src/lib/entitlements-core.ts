@@ -45,7 +45,7 @@ export interface EntitlementInput {
 
 const UPGRADE_COPY: Record<EntitlementFeature, string> = {
   finance: 'Finances are part of the Family plan',
-  ai: 'AI spending insights are part of the Family plan',
+  ai: 'AI features are part of the Family plan',
   pushReminders: 'Medicine push reminders are part of the Family plan',
   medicinePdf: 'PDF health reports are part of the Family plan',
   children: 'The free plan tracks medicines for one child — upgrade to add more',

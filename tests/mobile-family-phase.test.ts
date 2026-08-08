@@ -33,9 +33,9 @@ test('mobile note attachments validate authorization, size, and file signatures'
   assert.doesNotMatch(route, /getServerSession|authOptions/)
 })
 
-test('mobile navigation has six primary destinations and a restricted rich editor', () => {
+test('mobile navigation has separate Finance and Banking destinations and a restricted rich editor', () => {
   const layout = readFileSync('apps/mobile/app/(app)/_layout.tsx', 'utf8')
-  for (const title of ['Home', 'Plan', 'Shop', 'Finance', 'Notes', 'Health']) assert.match(layout, new RegExp(`title: '${title}'`))
+  for (const title of ['Home', 'Plan', 'Shop', 'Finance', 'Banking', 'Notes', 'Health']) assert.match(layout, new RegExp(`title: '${title}'`))
   assert.match(layout, /name="household" options=\{\{ href: null \}\}/)
   assert.match(layout, /name="chores" options=\{\{ href: null \}\}/)
   assert.match(layout, /name="meals" options=\{\{ href: null \}\}/)

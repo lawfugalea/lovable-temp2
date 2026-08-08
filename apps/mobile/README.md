@@ -3,6 +3,12 @@
 This Expo application is isolated from the existing Next.js web client. It uses
 versioned `/api/mobile/v1` endpoints and does not reuse browser cookies.
 
+Supermarket catalogue comparison is intentionally parked pending written
+retailer consent. The native app contains no comparison, offers, catalogue
+search, price, or retailer UI, and its shopping API redacts legacy retailer
+metadata. Do not expose a retailer until it is explicitly enabled through the
+shared consent policy and reviewed for mobile.
+
 ## Local setup
 
 1. Use Node 22 and run `npm install` in this directory.

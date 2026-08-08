@@ -11,11 +11,12 @@ test('mobile theme uses Clankeep brand colors, exact fonts, and system appearanc
   assert.match(theme, /tablet: 768/)
 })
 
-test('the branded navigation exposes exactly the approved six destinations', () => {
+test('the branded navigation exposes Finance and Banking as separate destinations', () => {
   const tabBar = readFileSync('apps/mobile/src/navigation/ClanTabBar.tsx', 'utf8')
-  assert.match(tabBar, /\['index', 'plan', 'shopping', 'finance', 'notes', 'medicine'\]/)
-  for (const label of ['Home', 'Plan', 'Shop', 'Finance', 'Notes', 'Health']) assert.match(tabBar, new RegExp(`'${label}'`))
+  assert.match(tabBar, /\['index', 'plan', 'shopping', 'finance', 'banking', 'notes', 'medicine'\]/)
+  for (const label of ['Home', 'Plan', 'Shop', 'Finance', 'Bank', 'Notes', 'Health']) assert.match(tabBar, new RegExp(`'${label}'`))
   assert.match(tabBar, /tablet \? styles\.rail : styles\.bottom/)
+  assert.match(tabBar, /compact && styles\.itemCompact/)
 })
 
 test('Expo configuration ships brand assets, adaptive layout, and dark splash', () => {
@@ -30,15 +31,17 @@ test('Expo configuration ships brand assets, adaptive layout, and dark splash', 
   assert.match(JSON.stringify(android), /SCHEDULE_EXACT_ALARM/)
 })
 
-test('Finance keeps planner and consented AI coaching native while bank surfaces stay enabled-account only', () => {
-  const screen = readFileSync('apps/mobile/app/(app)/finance.tsx', 'utf8')
-  assert.match(screen, /\/finance\/planner\/\$\{editor\.kind\}/)
-  assert.match(screen, /\/finance\/planner\/coach/)
-  assert.match(screen, /Review before anything is sent/)
-  assert.match(screen, /const visibleViews = overview\?\.bankEnabled/)
-  assert.match(screen, /title="AI privacy"/)
-  assert.doesNotMatch(screen, /Bank data is read-only in the app|Bank view is not enabled yet/)
-  assert.doesNotMatch(screen, /connections\/start|transactions\/.*correction|\/rules/)
+test('Finance keeps planning and consented AI separate from connected Banking', () => {
+  const finance = readFileSync('apps/mobile/app/(app)/finance.tsx', 'utf8')
+  const banking = readFileSync('apps/mobile/app/(app)/banking.tsx', 'utf8')
+  assert.match(finance, /\/finance\/planner\/\$\{editor\.kind\}/)
+  assert.match(finance, /\/finance\/planner\/coach/)
+  assert.match(finance, /Review before anything is sent/)
+  assert.doesNotMatch(finance, /This month|FinanceMoneyFlow|\/finance\/overview/)
+  assert.match(banking, /\/finance\/overview/)
+  assert.match(banking, /Read-only access/)
+  assert.doesNotMatch(banking, /\/finance\/planner/)
+  assert.doesNotMatch(banking, /connections\/start|transactions\/.*correction|\/rules/)
 })
 
 test('the permanent Expo launcher keeps a fixed restricted development address', () => {

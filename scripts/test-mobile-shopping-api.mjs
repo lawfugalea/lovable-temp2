@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import process from 'node:process'
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import dotenv from 'dotenv'
 import { encode } from 'next-auth/jwt'
 
@@ -16,6 +16,8 @@ if (!secret) throw new Error('NEXTAUTH_SECRET is required')
 const prisma = new PrismaClient()
 let sessionId = null
 let listId = null
+let householdId = null
+let categoryOrderBefore
 
 async function api(path, token, init) {
   const response = await fetch(`${apiBaseUrl}${path}`, {
@@ -63,7 +65,8 @@ try {
       tokenType: 'mobile-access',
     },
   })
-  const householdId = user.memberships[0].householdId
+  householdId = user.memberships[0].householdId
+  categoryOrderBefore = (await prisma.household.findUnique({ where: { id: householdId }, select: { shoppingCategoryOrder: true } }))?.shoppingCategoryOrder ?? null
   const suffix = `${Date.now()}-${randomBytes(3).toString('hex')}`
   const createdList = await api('/api/mobile/v1/shopping/lists', token, {
     method: 'POST', body: JSON.stringify({ householdId, name: `Codex mobile smoke ${suffix}` }),
@@ -80,6 +83,21 @@ try {
     method: 'POST', body: JSON.stringify({ title: 'Temporary milk', qty: '2 L', quantityCount: 2 }),
   })
   const itemId = createdItem.item.id
+  const categorized = await api(`/api/mobile/v1/shopping/items/${encodeURIComponent(itemId)}`, token, {
+    method: 'PATCH', body: JSON.stringify({ category: 'chilled_dairy' }),
+  })
+  expect(categorized.item.category === 'chilled_dairy', 'Manual shopping category did not persist')
+  const route = ['frozen', 'chilled_dairy', 'fruit_veg', 'bakery', 'meat_fish', 'pantry', 'drinks', 'household', 'personal_care', 'baby_pet', 'other']
+  const savedRoute = await api('/api/mobile/v1/shopping/category-order', token, {
+    method: 'PATCH', body: JSON.stringify({ listId, order: route }),
+  })
+  expect(savedRoute.order.join(',') === route.join(','), 'Aisle route did not persist in the selected order')
+  const preview = await api('/api/mobile/v1/shopping/ai/preview', token, {
+    method: 'POST', body: JSON.stringify({ listId }),
+  })
+  expect(preview.payload.activeItems.length === 1, 'AI privacy preview did not contain the selected active item')
+  expect(preview.payload.activeItems[0].category === 'chilled_dairy', 'AI privacy preview did not include the controlled category')
+  expect(!JSON.stringify(preview.payload).includes(user.email), 'AI privacy preview exposed the user email')
   const updated = await api(`/api/mobile/v1/shopping/items/${encodeURIComponent(itemId)}`, token, {
     method: 'PATCH', body: JSON.stringify({ status: 'DONE', quantityCount: 3 }),
   })
@@ -97,6 +115,10 @@ try {
   console.log('Mobile shopping API smoke test passed; temporary records will be removed.')
 } finally {
   if (listId) await prisma.shoppingList.deleteMany({ where: { id: listId } })
+  if (householdId && categoryOrderBefore !== undefined) await prisma.household.update({
+    where: { id: householdId },
+    data: { shoppingCategoryOrder: categoryOrderBefore === null ? Prisma.DbNull : categoryOrderBefore },
+  })
   if (sessionId) await prisma.mobileSession.deleteMany({ where: { id: sessionId } })
   await prisma.$disconnect()
 }

@@ -1,5 +1,6 @@
 import type { MobileShoppingItem, MobileShoppingList } from '../../packages/contracts'
 import { prisma } from '@/lib/prisma'
+import { isShoppingCategory } from '@/lib/shopping-categories'
 
 export async function mobileHouseholdAvailable(userId: string, householdId: string): Promise<boolean> {
   const membership = await prisma.membership.findUnique({
@@ -42,7 +43,6 @@ export function mobileShoppingItemDto(input: {
   qty: string | null
   quantityCount: number
   category: string | null
-  store: string | null
   status: 'ACTIVE' | 'DONE'
   doneAt: Date | null
   createdAt: Date
@@ -50,6 +50,10 @@ export function mobileShoppingItemDto(input: {
 }): MobileShoppingItem {
   return {
     ...input,
+    category: isShoppingCategory(input.category) ? input.category : null,
+    // Kept as null on the wire for older clients; retailer data is parked
+    // until an individual supermarket has provided written consent.
+    store: null,
     doneAt: input.doneAt?.toISOString() ?? null,
     createdAt: input.createdAt.toISOString(),
     updatedAt: input.updatedAt.toISOString(),

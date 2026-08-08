@@ -3,6 +3,7 @@ import { withApiHandler } from '@/lib/api-handler'
 import { requireMobileFinanceAccess } from '@/lib/mobile-finance'
 import { isMobilePlannerKind, parseMobilePlannerEntry } from '@/lib/mobile-finance-core'
 import { prisma } from '@/lib/prisma'
+import { assignmentAccountId } from '@/lib/finance/plan-account-server'
 
 async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (!['POST', 'PATCH', 'DELETE'].includes(req.method || '')) { res.setHeader('Allow', ['POST', 'PATCH', 'DELETE']); return res.status(405).json({ error: 'Method not allowed' }) }
@@ -24,10 +25,10 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
     const id = typeof req.body?.id === 'string' ? req.body.id : ''
     if (!id) return res.status(400).json({ error: 'Missing id' })
     const existing = kind === 'income'
-      ? await prisma.incomeSource.findFirst({ where: { id, householdId: access.householdId }, select: { id: true } })
+      ? await prisma.incomeSource.findFirst({ where: { id, householdId: access.householdId, OR: [{ planAccountId: null }, { planAccount: { visibility: 'SHARED' } }, { planAccount: { ownerUserId: access.userId } }] }, select: { id: true } })
       : kind === 'commitment'
-        ? await prisma.commitment.findFirst({ where: { id, householdId: access.householdId }, select: { id: true } })
-        : await prisma.savingsGoal.findFirst({ where: { id, householdId: access.householdId }, select: { id: true } })
+        ? await prisma.commitment.findFirst({ where: { id, householdId: access.householdId, OR: [{ planAccountId: null }, { planAccount: { visibility: 'SHARED' } }, { planAccount: { ownerUserId: access.userId } }] }, select: { id: true } })
+        : await prisma.savingsGoal.findFirst({ where: { id, householdId: access.householdId, OR: [{ planAccountId: null }, { planAccount: { visibility: 'SHARED' } }, { planAccount: { ownerUserId: access.userId } }] }, select: { id: true } })
     if (!existing) return res.status(404).json({ error: `${kind === 'income' ? 'Income source' : kind === 'commitment' ? 'Commitment' : 'Savings goal'} not found` })
     if (req.method === 'DELETE') {
       if (kind === 'income') await prisma.incomeSource.delete({ where: { id } })
@@ -39,6 +40,11 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
 
   const parsed = parseMobilePlannerEntry(kind, req.body ?? {})
   if (!parsed.ok) return res.status(400).json({ error: parsed.error })
+  try {
+    parsed.value.planAccountId = await assignmentAccountId(access.householdId, access.userId, parsed.value.planAccountId)
+  } catch {
+    return res.status(404).json({ error: 'Planning account not found' })
+  }
   if (parsed.value.kind !== 'goal' && parsed.value.userId) {
     const member = await prisma.membership.findFirst({ where: { householdId: access.householdId, userId: parsed.value.userId }, select: { id: true } })
     if (!member) return res.status(400).json({ error: 'That member is not part of this household' })

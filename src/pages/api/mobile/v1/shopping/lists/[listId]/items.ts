@@ -32,7 +32,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<Response>) {
       orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
       select: {
         id: true, listId: true, title: true, qty: true, quantityCount: true,
-        category: true, store: true, status: true, doneAt: true, createdAt: true, updatedAt: true,
+        category: true, status: true, doneAt: true, createdAt: true, updatedAt: true,
       },
     })
     return res.status(200).json({
@@ -47,7 +47,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<Response>) {
     data: { listId, createdById: identity.userId, status: 'ACTIVE', ...input.value },
     select: {
       id: true, listId: true, title: true, qty: true, quantityCount: true,
-      category: true, store: true, status: true, doneAt: true, createdAt: true, updatedAt: true,
+      category: true, status: true, doneAt: true, createdAt: true, updatedAt: true,
     },
   })
   return res.status(201).json({ item: mobileShoppingItemDto(item) })

@@ -18,7 +18,7 @@ import {
   useResponsive,
 } from '@/ui'
 
-type Destination = '/(app)/shopping' | '/(app)/plan' | '/(app)/notes' | '/(app)/medicine' | '/(app)/household' | '/(app)/finance'
+type Destination = '/(app)/shopping' | '/(app)/plan' | '/(app)/notes' | '/(app)/medicine' | '/(app)/household' | '/(app)/finance' | '/(app)/banking'
 
 export default function HomeScreen() {
   const router = useRouter() as unknown as { push: (route: string) => void }
@@ -83,7 +83,8 @@ export default function HomeScreen() {
         <MetricTile style={tileStyle} icon="checkmark-circle-outline" label="Chores today" value={`${data.chores.completedToday}/${data.chores.dueToday}`} detail="completed today" color={colors.chores} onPress={() => go('/(app)/plan')} />
         <MetricTile style={tileStyle} icon="restaurant-outline" label="Tonight" value={data.meals.tonight || 'Not planned'} detail="dinner plan" color={colors.meals} onPress={() => go('/(app)/plan')} />
         <MetricTile style={tileStyle} icon="heart-outline" label="Health" value={`${data.medicine.activeCourses} active`} detail={`${data.medicine.dosesLastSevenDays} doses this week`} color={colors.medicine} onPress={() => go('/(app)/medicine')} />
-        <MetricTile style={tileStyle} icon="wallet-outline" label="Finance" value="Money plan" detail="goals, balances, and activity" color={colors.finances} onPress={() => go('/(app)/finance')} />
+        <MetricTile style={tileStyle} icon="wallet-outline" label="Finance" value="Money plan" detail="income, commitments, and goals" color={colors.finances} onPress={() => go('/(app)/finance')} />
+        <MetricTile style={tileStyle} icon="business-outline" label="Banking" value="Connected accounts" detail="balances, activity, and insights" color={colors.finances} onPress={() => go('/(app)/banking')} />
         <MetricTile style={tileStyle} icon="document-text-outline" label="Notes" value="Family notes" detail="ideas and shared references" color={colors.notes} onPress={() => go('/(app)/notes')} />
       </View> : null}
 

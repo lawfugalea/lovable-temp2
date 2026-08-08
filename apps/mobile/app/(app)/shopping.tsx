@@ -7,6 +7,8 @@ import type {
   MobileShoppingListsResponse,
   MobileUpdateShoppingItemResponse,
   MobileUpdateShoppingListResponse,
+  MobileShoppingCategoryKey,
+  MobileShoppingCategoryOrderResponse,
 } from '@clankeep/contracts'
 import { Ionicons } from '@expo/vector-icons'
 import { useFocusEffect } from 'expo-router'
@@ -15,6 +17,8 @@ import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, St
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '@/auth/AuthProvider'
 import { fontFamilies, radii, spacing, useAppTheme } from '@/theme'
+import { categoryLabel, normalizeCategoryOrder, ShoppingAiSheet, ShoppingRouteSheet } from '@/ShoppingToolsSheets'
+import { MOBILE_DEFAULT_SHOPPING_CATEGORY_ORDER, MOBILE_SHOPPING_CATEGORIES } from '@/shoppingCategories'
 import {
   AppButton,
   Card,
@@ -54,7 +58,7 @@ function ItemRow({ item, busy, onUpdate, onEdit }: {
       </Pressable>
       <Pressable accessibilityLabel={'Edit ' + item.title} onPress={() => onEdit(item)} style={styles.itemText}>
         <Text numberOfLines={2} style={[styles.itemTitle, { color: colors.text }, done && styles.doneText]}>{item.title}</Text>
-        <Text numberOfLines={1} style={[styles.itemMeta, { color: colors.muted }]}>{item.qty || 'No unit or note'}</Text>
+        <Text numberOfLines={1} style={[styles.itemMeta, { color: colors.muted }]}>{categoryLabel(item.category)} · {item.qty || 'No unit or note'}</Text>
       </Pressable>
       <View style={[styles.stepper, { backgroundColor: colors.backgroundRaised }]}>
         <Pressable accessibilityLabel={'Decrease ' + item.title + ' quantity'} disabled={busy || item.quantityCount <= 1} onPress={() => void onUpdate(item.id, { quantityCount: item.quantityCount - 1 })} style={[styles.step, item.quantityCount <= 1 && styles.disabled]}><Ionicons name="remove" size={17} color={colors.text} /></Pressable>
@@ -81,8 +85,12 @@ export default function ShoppingScreen() {
   const [editingItem, setEditingItem] = useState<MobileShoppingItem | null>(null)
   const [editItemTitle, setEditItemTitle] = useState('')
   const [editItemQty, setEditItemQty] = useState('')
+  const [editItemCategory, setEditItemCategory] = useState<MobileShoppingCategoryKey>('other')
   const [showNewList, setShowNewList] = useState(false)
   const [showListSettings, setShowListSettings] = useState(false)
+  const [showRoute, setShowRoute] = useState(false)
+  const [showAi, setShowAi] = useState(false)
+  const [categoryOrder, setCategoryOrder] = useState<MobileShoppingCategoryKey[]>(MOBILE_DEFAULT_SHOPPING_CATEGORY_ORDER)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -108,6 +116,8 @@ export default function ShoppingScreen() {
     }
     const data = await request<MobileShoppingItemsResponse>('/api/mobile/v1/shopping/lists/' + encodeURIComponent(selectedListId) + '/items')
     setItems(data.items)
+    const route = await request<MobileShoppingCategoryOrderResponse>('/api/mobile/v1/shopping/category-order?listId=' + encodeURIComponent(selectedListId))
+    setCategoryOrder(normalizeCategoryOrder(route.order))
   }, [request, selectedListId])
 
   useFocusEffect(useCallback(() => {
@@ -221,13 +231,14 @@ export default function ShoppingScreen() {
     setEditingItem(item)
     setEditItemTitle(item.title)
     setEditItemQty(item.qty || '')
+    setEditItemCategory(item.category || 'other')
   }
   const saveItemEdit = async () => {
     if (!editingItem || !editItemTitle.trim()) return
     setBusyId(editingItem.id)
     setError('')
     try {
-      const response = await request<MobileUpdateShoppingItemResponse>('/api/mobile/v1/shopping/items/' + encodeURIComponent(editingItem.id), { method: 'PATCH', body: JSON.stringify({ title: editItemTitle, qty: editItemQty || null }) })
+      const response = await request<MobileUpdateShoppingItemResponse>('/api/mobile/v1/shopping/items/' + encodeURIComponent(editingItem.id), { method: 'PATCH', body: JSON.stringify({ title: editItemTitle, qty: editItemQty || null, category: editItemCategory }) })
       setItems(current => current.map(item => item.id === editingItem.id ? response.item : item))
       setEditingItem(null)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not edit the item.') }
@@ -240,6 +251,7 @@ export default function ShoppingScreen() {
   const activeItems = items.filter(item => item.status === 'ACTIVE')
   const doneItems = items.filter(item => item.status === 'DONE')
   const selected = lists.find(list => list.id === selectedListId)
+  const activeGroups = categoryOrder.map(category => ({ category, items: activeItems.filter(item => (item.category || 'other') === category) })).filter(group => group.items.length)
 
   return (
     <>
@@ -254,6 +266,7 @@ export default function ShoppingScreen() {
           {selected ? <>
             <Card tone="primary" style={styles.listSummary}>
               <View style={styles.summaryRow}><View style={styles.flex}><Text style={[styles.listTitle, { color: colors.text }]}>{selected.name}</Text><Text style={[styles.listSubtitle, { color: colors.muted }]}>{activeItems.length} to buy · {doneItems.length} completed</Text></View><IconButton icon="settings-outline" label="List settings" onPress={() => setShowListSettings(true)} /></View>
+              <View style={styles.toolRow}><AppButton compact variant="secondary" label="Tidy with AI" icon="sparkles-outline" onPress={() => setShowAi(true)} /><AppButton compact variant="secondary" label="Aisle route" icon="map-outline" onPress={() => setShowRoute(true)} /></View>
             </Card>
 
             <Card style={styles.composer}>
@@ -265,8 +278,8 @@ export default function ShoppingScreen() {
               </View>
             </Card>
 
-            <SectionHeader title="To buy" detail={activeItems.length + ' items'} />
-            <View style={styles.items}>{activeItems.map(item => <ItemRow key={item.id} item={item} busy={busyId === item.id} onUpdate={updateItem} onEdit={openItemEdit} />)}</View>
+            <SectionHeader title="To buy" detail={activeItems.length + ' items · aisle order'} />
+            {activeGroups.map(group => <View key={group.category} style={styles.categoryGroup}><View style={[styles.categoryHeader, { backgroundColor: colors.backgroundRaised }]}><Text style={[styles.categoryTitle, { color: colors.muted }]}>{categoryLabel(group.category).toUpperCase()}</Text><Text style={[styles.categoryCount, { color: colors.muted }]}>{group.items.length}</Text></View><View style={styles.items}>{group.items.map(item => <ItemRow key={item.id} item={item} busy={busyId === item.id} onUpdate={updateItem} onEdit={openItemEdit} />)}</View></View>)}
             {!activeItems.length ? <EmptyState icon="checkmark-circle-outline" title="Nothing left to buy" message="Everything on this list is complete." /> : null}
 
             {doneItems.length ? <><SectionHeader title="Completed" detail={doneItems.length + ' items'} /><View style={styles.items}>{doneItems.map(item => <ItemRow key={item.id} item={item} busy={busyId === item.id} onUpdate={updateItem} onEdit={openItemEdit} />)}</View></> : null}
@@ -291,9 +304,11 @@ export default function ShoppingScreen() {
       <Modal visible={Boolean(editingItem)} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setEditingItem(null)}>
         <SafeAreaView style={[styles.modal, { backgroundColor: colors.background }]}>
           <SheetHeader title="Edit item" onClose={() => setEditingItem(null)} action={<AppButton compact label="Save" busy={Boolean(editingItem && busyId === editingItem.id)} disabled={!editItemTitle.trim()} onPress={() => void saveItemEdit()} />} />
-          <View style={styles.sheetBody}><Field label="Item" maxLength={200} onChangeText={setEditItemTitle} value={editItemTitle} /><Field label="Unit or note" maxLength={80} onChangeText={setEditItemQty} value={editItemQty} />{editingItem ? <><StatusPill tone={editingItem.status === 'DONE' ? 'success' : 'primary'} label={editingItem.status === 'DONE' ? 'Completed' : 'To buy'} /><AppButton fullWidth variant="danger" label="Delete item" icon="trash-outline" onPress={() => deleteItem(editingItem)} /></> : null}</View>
+          <ScrollView contentContainerStyle={styles.sheetBody}><Field label="Item" maxLength={200} onChangeText={setEditItemTitle} value={editItemTitle} /><Field label="Unit or note" maxLength={80} onChangeText={setEditItemQty} value={editItemQty} /><View style={styles.categoryChoices}><Text style={[styles.choiceLabel, { color: colors.text }]}>Department</Text><View style={styles.chipWrap}>{MOBILE_SHOPPING_CATEGORIES.map(category => <Chip key={category.key} label={category.label} selected={editItemCategory === category.key} tone={colors.shopping} onPress={() => setEditItemCategory(category.key)} />)}</View></View>{editingItem ? <><StatusPill tone={editingItem.status === 'DONE' ? 'success' : 'primary'} label={editingItem.status === 'DONE' ? 'Completed' : 'To buy'} /><AppButton fullWidth variant="danger" label="Delete item" icon="trash-outline" onPress={() => deleteItem(editingItem)} /></> : null}</ScrollView>
         </SafeAreaView>
       </Modal>
+      <ShoppingRouteSheet visible={showRoute} listId={selectedListId || ''} order={categoryOrder} request={request} onClose={() => setShowRoute(false)} onSaved={setCategoryOrder} />
+      <ShoppingAiSheet visible={showAi} listId={selectedListId || ''} listName={selected?.name || 'shopping list'} request={request} onClose={() => setShowAi(false)} onApplied={async () => { await Promise.all([loadItems(), loadLists()]) }} />
     </>
   )
 }
@@ -304,11 +319,16 @@ const styles = StyleSheet.create({
   listPicker: { gap: 8, paddingRight: spacing.md },
   listSummary: { padding: spacing.md },
   summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  toolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   listTitle: { fontFamily: fontFamilies.displayBold, fontSize: 21, lineHeight: 26 },
   listSubtitle: { fontFamily: fontFamilies.body, fontSize: 12, marginTop: 3 },
   composer: { gap: 12 },
   composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
   items: { gap: 9 },
+  categoryGroup: { gap: 8 },
+  categoryHeader: { minHeight: 34, borderRadius: radii.medium, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' },
+  categoryTitle: { flex: 1, fontFamily: fontFamilies.bodyBold, fontSize: 11, letterSpacing: 0.8 },
+  categoryCount: { fontFamily: fontFamilies.bodySemiBold, fontSize: 11 },
   item: { minHeight: Platform.OS === 'ios' ? 72 : 78, flexDirection: 'row', alignItems: 'center', gap: 9, padding: 11 },
   itemDone: { opacity: 0.68 },
   check: { width: 36, height: 36, borderRadius: 13, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
@@ -322,5 +342,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.35 },
   modal: { flex: 1 },
   sheetBody: { width: '100%', maxWidth: 680, alignSelf: 'center', padding: spacing.lg, gap: spacing.lg },
+  categoryChoices: { gap: 8 },
+  choiceLabel: { fontFamily: fontFamilies.bodySemiBold, fontSize: 13 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 })
-

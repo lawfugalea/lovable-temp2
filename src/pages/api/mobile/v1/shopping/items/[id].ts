@@ -45,7 +45,7 @@ async function handler(req: NextApiRequest, res: NextApiResponse<Response>) {
     data: { ...fields, ...statusData },
     select: {
       id: true, listId: true, title: true, qty: true, quantityCount: true,
-      category: true, store: true, status: true, doneAt: true, createdAt: true, updatedAt: true,
+      category: true, status: true, doneAt: true, createdAt: true, updatedAt: true,
     },
   })
   return res.status(200).json({ item: mobileShoppingItemDto(item) })

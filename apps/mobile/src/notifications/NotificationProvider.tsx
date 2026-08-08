@@ -87,7 +87,7 @@ function reminderPlan(input: {
     const date = localTime(item.nextExpectedDate, 9)
     date.setDate(date.getDate() - Math.max(0, item.reminderDays))
     const amount = readableAmount(item.expectedAmount, item.currency)
-    reminders.push({ id: `finance-${item.id || item.displayName}-${item.nextExpectedDate}`, title: 'Upcoming recurring payment', body: `${item.displayName}${amount ? ` · ${amount}` : ''}`, date, route: '/(app)/finance' })
+    reminders.push({ id: `finance-${item.id || item.displayName}-${item.nextExpectedDate}`, title: 'Upcoming recurring payment', body: `${item.displayName}${amount ? ` · ${amount}` : ''}`, date, route: '/(app)/banking' })
   }
   const earliest = now.getTime() + 30_000
   const latest = now.getTime() + 180 * 86_400_000

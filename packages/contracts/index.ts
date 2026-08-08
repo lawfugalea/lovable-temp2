@@ -72,6 +72,7 @@ export interface MobileDashboardResponse {
 }
 
 export type MobileShoppingItemStatus = 'ACTIVE' | 'DONE'
+export type MobileShoppingCategoryKey = 'fruit_veg' | 'bakery' | 'meat_fish' | 'chilled_dairy' | 'pantry' | 'drinks' | 'frozen' | 'household' | 'personal_care' | 'baby_pet' | 'other'
 
 export interface MobileShoppingList {
   id: string
@@ -88,7 +89,8 @@ export interface MobileShoppingItem {
   title: string
   qty: string | null
   quantityCount: number
-  category: string | null
+  category: MobileShoppingCategoryKey | null
+  /** Always null while retailer catalogue features are parked pending consent. */
   store: string | null
   status: MobileShoppingItemStatus
   doneAt: string | null
@@ -105,6 +107,26 @@ export interface MobileShoppingItemsResponse {
   list: MobileShoppingList
   items: MobileShoppingItem[]
 }
+
+export interface MobileShoppingCategoryOrderResponse {
+  order: MobileShoppingCategoryKey[]
+}
+
+export interface MobileShoppingAiPayload {
+  schemaVersion: 1
+  privacy: string
+  activeItems: Array<{ ref: string; title: string; qty: string | null; quantityCount: number; category: MobileShoppingCategoryKey }>
+  mealPlan: null | { from: string; to: string; ingredients: Array<{ ref: string; title: string; qty: string | null; quantityCount: number }> }
+}
+
+export type MobileShoppingAiOperation =
+  | { id: string; kind: 'update'; itemId: string; before: { title: string; qty: string | null; quantityCount: number; category: MobileShoppingCategoryKey }; after: { title: string; qty: string | null; quantityCount: number; category: MobileShoppingCategoryKey }; reason: string }
+  | { id: string; kind: 'merge'; keepItemId: string; removeItemIds: string[]; before: Array<{ id: string; title: string; qty: string | null; quantityCount: number; category: MobileShoppingCategoryKey }>; after: { title: string; qty: string | null; quantityCount: number; category: MobileShoppingCategoryKey }; reason: string }
+  | { id: string; kind: 'add'; mealRef: string; after: { title: string; qty: string | null; quantityCount: number; category: MobileShoppingCategoryKey }; reason: string }
+
+export interface MobileShoppingAiPreviewResponse { configured: boolean; inputHash: string; payload: MobileShoppingAiPayload }
+export interface MobileShoppingAiProposalResponse { summary: string; operations: MobileShoppingAiOperation[]; proposalToken: string; expiresAt: string }
+export interface MobileShoppingAiApplyResponse { applied: number }
 
 export interface MobileCreateShoppingListRequest {
   householdId: string
@@ -138,6 +160,7 @@ export interface MobileUpdateShoppingItemRequest {
   qty?: string | null
   quantityCount?: number
   status?: MobileShoppingItemStatus
+  category?: MobileShoppingCategoryKey
 }
 
 export interface MobileUpdateShoppingItemResponse {
@@ -438,9 +461,11 @@ export interface MobileUpdateNoteRequest { householdId: string; title?: string; 
 export interface MobileNoteResponse { note: MobileNoteSummary }
 
 export type MobilePlannerFrequency = 'WEEKLY' | 'FOUR_WEEKLY' | 'MONTHLY' | 'BIMONTHLY' | 'QUARTERLY' | 'ANNUAL'
-export interface MobileFinanceIncome { id: string; userId: string | null; label: string; amountCents: number; frequency: MobilePlannerFrequency }
-export interface MobileFinanceCommitment { id: string; userId: string | null; label: string; category: string; amountCents: number; frequency: MobilePlannerFrequency; essential: boolean }
-export interface MobileFinanceGoal { id: string; name: string; targetCents: number; savedCents: number; targetDate: string | null; remainingCents: number; progress: number; monthsRemaining: number | null; requiredMonthlyCents: number | null; achievable: boolean | null }
+export type MobileFinancePlanAccountType = 'PERSONAL' | 'HOUSEHOLD_SPENDING' | 'COMMITMENTS' | 'SAVINGS' | 'OTHER'
+export type MobileFinancePlanAccountVisibility = 'SHARED' | 'PRIVATE'
+export interface MobileFinanceIncome { id: string; userId: string | null; label: string; amountCents: number; frequency: MobilePlannerFrequency; planAccountId: string | null }
+export interface MobileFinanceCommitment { id: string; userId: string | null; label: string; category: string; amountCents: number; frequency: MobilePlannerFrequency; essential: boolean; planAccountId: string | null }
+export interface MobileFinanceGoal { id: string; name: string; targetCents: number; savedCents: number; targetDate: string | null; remainingCents: number; progress: number; monthsRemaining: number | null; requiredMonthlyCents: number | null; achievable: boolean | null; planAccountId: string | null; monthlyContributionCents: number; monthlyContributionOverrideCents: number | null }
 export interface MobileFinancePlanSummary {
   monthlyIncomeCents: number
   monthlyCommitmentsCents: number
@@ -458,10 +483,73 @@ export interface MobileFinancePlannerResponse {
   goals: MobileFinanceGoal[]
   members: Array<{ userId: string; name: string }>
   summary: MobileFinancePlanSummary
+  period: string
+  accounts: MobileFinancePlanAccount[]
+  fundingRules: MobileFinanceFundingRule[]
+  moneyFlow: MobileFinanceMoneyFlowSummary
   suggestedEmergencyFundCents: number
   aiConfigured: boolean
   bankEnabled: boolean
 }
+export interface MobileFinancePlanAccount {
+  id: string
+  name: string
+  type: MobileFinancePlanAccountType
+  visibility: MobileFinancePlanAccountVisibility
+  monthlyBufferCents: number
+  owned: boolean
+  canEdit: boolean
+  canManagePrivacy: boolean
+  monthlyIncomeCents: number
+  monthlyCommitmentsCents: number
+  monthlyGoalsCents: number
+  incomingTransfersCents: number
+  outgoingTransfersCents: number
+  monthlyNeedCents: number
+  monthlyInflowCents: number
+  remainingCents: number
+  weeklySpendingCents: number | null
+}
+export interface MobileFinanceFundingRule {
+  id: string
+  sourceAccountId: string | null
+  sourceName: string
+  sourcePrivate: boolean
+  targetAccountId: string
+  targetName: string
+  amountCents: number
+  completed: boolean
+  completedAt: string | null
+  canComplete: boolean
+  canEdit: boolean
+}
+export interface MobileFinanceMoneyFlowSummary {
+  monthlyIncomeCents: number
+  monthlyCommitmentsCents: number
+  monthlyGoalsCents: number
+  monthlyBuffersCents: number
+  plannedAllocationCents: number
+  unallocatedCents: number
+  accounts: MobileFinancePlanAccount[]
+}
+export interface MobileMoneyFlowAiPayload {
+  schemaVersion: 1
+  privacy: string
+  period: string
+  accounts: Array<{ ref: string; type: MobileFinancePlanAccountType; visibility: MobileFinancePlanAccountVisibility; monthlyNeedEur: number; monthlyInflowEur: number; remainingEur: number }>
+  incomes: Array<{ ref: string; monthlyEur: number; accountRef: string | null }>
+  commitments: Array<{ ref: string; category: string; essential: boolean; monthlyEur: number; accountRef: string | null }>
+  goals: Array<{ ref: string; monthsRemaining: number | null; monthlyEur: number; accountRef: string | null }>
+  fundingRules: Array<{ ref: string; sourceRef: string; targetRef: string; monthlyEur: number }>
+}
+export type MobileMoneyFlowAiOperation =
+  | { id: string; kind: 'assign_entry'; entryKind: 'income' | 'commitment' | 'goal'; entryId: string; accountId: string; reason: string }
+  | { id: string; kind: 'set_account_type'; accountId: string; accountType: MobileFinancePlanAccountType; reason: string }
+  | { id: string; kind: 'set_account_buffer'; accountId: string; amountCents: number; reason: string }
+  | { id: string; kind: 'set_goal_contribution'; goalId: string; amountCents: number; reason: string }
+  | { id: string; kind: 'upsert_funding_rule'; sourceAccountId: string; targetAccountId: string; amountCents: number; reason: string }
+export interface MobileMoneyFlowAiPreviewResponse { payload: MobileMoneyFlowAiPayload; stateHash: string }
+export interface MobileMoneyFlowAiSuggestResponse { operations: MobileMoneyFlowAiOperation[]; proposalToken: string; expiresInSeconds: number }
 export interface MobileFinanceCoachPreview {
   schemaVersion: 1
   privacy: string
