@@ -24,6 +24,7 @@ export default function FamilyScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [deletePassword, setDeletePassword] = useState('')
   const load = useCallback(async () => {
     if (!householdId) { setWorkspace(null); return }
     const next = await request<MobileWorkspaceResponse>(`/api/mobile/v1/workspace?householdId=${encodeURIComponent(householdId)}`)
@@ -37,6 +38,22 @@ export default function FamilyScreen() {
   const revokeInvite = (id: string, email: string | null) => Alert.alert('Cancel invitation?', `Cancel the invitation for ${email || 'this person'}?`, [{ text: 'Keep', style: 'cancel' }, { text: 'Cancel invitation', style: 'destructive', onPress: () => { if (!householdId) return; setBusy(id); void request<{ ok: true }>(`/api/mobile/v1/family/invites/${encodeURIComponent(id)}`, { method: 'DELETE', body: JSON.stringify({ householdId }) }).then(() => setWorkspace(current => current ? { ...current, invites: current.invites.filter(item => item.id !== id) } : current)).catch(reason => setError(reason instanceof Error ? reason.message : 'Could not cancel invitation.')).finally(() => setBusy('')) } }])
   const updateMember = async (member: MobileWorkspaceMember, action: 'role' | 'remove') => { if (!householdId) return; setBusy(member.membershipId); setError(''); try { await request<{ ok: true }>(`/api/mobile/v1/family/members/${encodeURIComponent(member.membershipId)}`, { method: action === 'remove' ? 'DELETE' : 'PATCH', body: JSON.stringify({ householdId, ...(action === 'role' ? { role: member.role === 'OWNER' ? 'MEMBER' : 'OWNER' } : {}) }) }); await load() } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not update member.') } finally { setBusy('') } }
   const confirmRemove = (member: MobileWorkspaceMember) => Alert.alert('Remove household member?', `${member.name} will lose access to this household.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => void updateMember(member, 'remove') }])
+  const deleteAccount = async () => {
+    setBusy('delete-account'); setError('')
+    try {
+      await request<{ ok: true }>('/api/mobile/v1/account/delete', { method: 'POST', body: JSON.stringify({ password: deletePassword }) })
+      setDeletePassword('')
+      // The account no longer exists, so the stored tokens are dead either way.
+      await logout()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not delete your account.')
+    } finally { setBusy('') }
+  }
+  const confirmDeleteAccount = () => Alert.alert(
+    'Delete your account?',
+    'This permanently erases your Clankeep account and cannot be undone.',
+    [{ text: 'Keep my account', style: 'cancel' }, { text: 'Delete for ever', style: 'destructive', onPress: () => void deleteAccount() }],
+  )
 
   if (loading) return <LoadingState label="Loading family workspace…" />
   return <Screen refreshing={refreshing} onRefresh={() => void refresh()}>
@@ -74,6 +91,31 @@ export default function FamilyScreen() {
       </Card>
     </>}
     <Card tone="danger" style={styles.signOutCard}><View style={[styles.signOutRow, compact && styles.signOutCompact]}><View style={styles.flex}><Text style={[styles.signOutTitle, { color: colors.text }]}>Finished for now?</Text><Text style={[styles.meta, { color: colors.muted }]}>Your data stays safely in Clankeep.</Text></View><AppButton variant="danger" label="Sign out" icon="log-out-outline" onPress={() => void logout()} /></View></Card>
+    <SectionHeader title="Delete your account" detail="This permanently erases your account and cannot be undone." />
+    <Card tone="danger" style={styles.stack}>
+      <Text style={[styles.meta, { color: colors.muted }]}>
+        Households you are the only owner of are deleted with everything in them — children, medicine and health records,
+        finances, notes and shopping. A household that has another owner is handed over instead.
+      </Text>
+      <Field
+        label="Confirm with your password"
+        value={deletePassword}
+        onChangeText={setDeletePassword}
+        secureTextEntry
+        autoCapitalize="none"
+        textContentType="password"
+        leadingIcon="lock-closed-outline"
+      />
+      <AppButton
+        fullWidth
+        variant="danger"
+        label="Delete my account"
+        icon="trash-outline"
+        busy={busy === 'delete-account'}
+        disabled={deletePassword.length === 0}
+        onPress={confirmDeleteAccount}
+      />
+    </Card>
   </Screen>
 }
 
