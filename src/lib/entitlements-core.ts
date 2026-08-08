@@ -3,7 +3,7 @@ import { appleEntitlementActive } from './billing/apple-subscription-state'
 import { isSupermarketComparisonAvailable } from './supermarket-consent'
 
 export type PlanKey = 'FREE' | 'FAMILY'
-export type PlanSourceKey = 'STRIPE' | 'ADMIN' | null
+export type PlanSourceKey = 'STRIPE' | 'ADMIN' | 'APPLE' | null
 export type EntitlementFeature = 'finance' | 'ai' | 'pushReminders' | 'medicinePdf' | 'children' | 'priceComparison'
 
 export const FREE_CHILD_LIMIT = 1
