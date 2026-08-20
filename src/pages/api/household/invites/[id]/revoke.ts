@@ -1,46 +1,60 @@
-// src/pages/api/household/invites/[id]/revoke.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/pages/api/auth/[...nextauth]';
-import type { InviteStatus } from '@prisma/client';
+import { getUserIdOr401 } from '@/lib/api-guards';
 
-async function resolveUserId(req: NextApiRequest, res: NextApiResponse): Promise<string | null> {
-  const sess = (await getServerSession(req, res, authOptions as any)) as any;
-  const sid = sess?.user?.id as string | undefined;
-  const semail = (sess?.user?.email as string | undefined)?.toLowerCase();
-  if (!sid && !semail) { res.status(401).json({ error: 'Unauthorized' }); return null; }
-  if (sid) { const u = await prisma.user.findUnique({ where: { id: sid }, select: { id: true } }); if (u) return u.id; }
-  if (semail) { const u = await prisma.user.findUnique({ where: { email: semail }, select: { id: true } }); if (u) return u.id; }
-  res.status(401).json({ error: 'User for session not found. Please sign out and sign in again.' });
-  return null;
-}
+type Result = { ok: true } | { ok: false; status: number; error: string };
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== 'POST') { res.setHeader('Allow', ['POST']); return res.status(405).end('Method Not Allowed'); }
-  const { id } = req.query as { id: string };
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'private, no-store');
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).end('Method Not Allowed');
+  }
 
-  const invite = await prisma.invite.findUnique({
-    where: { id },
-    select: { id: true, status: true, householdId: true },
-  });
-  if (!invite) return res.status(404).json({ error: 'Invite not found' });
-
-  const userId = await resolveUserId(req, res);
+  const userId = await getUserIdOr401(req, res);
   if (!userId) return;
-  const membership = await prisma.membership.findFirst({
-    where: { userId, householdId: invite.householdId },
-    select: { role: true },
+  const id = typeof req.query.id === 'string' ? req.query.id : '';
+  if (!id) return res.status(400).json({ error: 'Missing invite id' });
+
+  const result = await prisma.$transaction<Result>(async (tx) => {
+    const inviteRef = await tx.invite.findUnique({ where: { id }, select: { id: true } });
+    if (!inviteRef) return { ok: false, status: 404, error: 'Invite not found' };
+
+    await tx.$queryRaw`SELECT "id" FROM "Invite" WHERE "id" = ${id} FOR UPDATE`;
+    const invite = await tx.invite.findUnique({
+      where: { id },
+      select: { id: true, status: true, expiresAt: true, householdId: true },
+    });
+    if (!invite) return { ok: false, status: 404, error: 'Invite not found' };
+
+    await tx.$queryRaw`SELECT "id" FROM "Household" WHERE "id" = ${invite.householdId} FOR UPDATE`;
+    const membership = await tx.membership.findUnique({
+      where: { userId_householdId: { userId, householdId: invite.householdId } },
+      select: { role: true },
+    });
+    if (membership?.role !== 'OWNER') {
+      return { ok: false, status: 403, error: 'Owner role required' };
+    }
+    if (invite.status !== 'PENDING') {
+      return { ok: false, status: 409, error: 'Invite is no longer pending' };
+    }
+    if (invite.expiresAt <= new Date()) {
+      await tx.invite.update({ where: { id }, data: { status: 'EXPIRED' } });
+      return { ok: false, status: 409, error: 'Invite is expired' };
+    }
+
+    const revoked = await tx.invite.updateMany({
+      where: { id, status: 'PENDING', expiresAt: { gt: new Date() } },
+      data: { status: 'REVOKED' },
+    });
+    return revoked.count === 1
+      ? { ok: true }
+      : { ok: false, status: 409, error: 'Invite is no longer pending' };
   });
-  if (!membership) return res.status(403).json({ error: 'Forbidden: not a member of this household' });
-  if (membership.role !== 'OWNER') return res.status(403).json({ error: 'Forbidden: owner role required' });
 
-  if (invite.status !== 'PENDING') return res.status(400).json({ error: 'Only pending invites can be revoked' });
-
-  await prisma.invite.update({
-    where: { id },
-    data: { status: ('REVOKED' as InviteStatus) },
-  });
-
+  if (!result.ok) return res.status(result.status).json({ error: result.error });
   return res.status(200).json({ ok: true });
 }
+
+export default withApiHandler(handler)

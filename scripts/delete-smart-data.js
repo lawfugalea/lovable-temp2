@@ -1,5 +1,4 @@
 /* scripts/delete-smart-data.js */
-/* eslint-disable no-console */
 const { prisma } = require('./prisma');
 
 async function deleteSmartData() {

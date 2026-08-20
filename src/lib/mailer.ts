@@ -1,5 +1,5 @@
 // src/lib/mailer.ts
-// Sends email via Resend. STRICT: sender must be on galeahub.online.
+// Sends email via Resend. STRICT: sender must be on the configured verified domain.
 // Reads INVITES_FROM first, then MAIL_FROM. Returns provider message id for debugging.
 
 export type MailResult =
@@ -13,16 +13,18 @@ type SendInviteArgs = {
   householdName?: string | null;
 };
 
-const REQUIRED_DOMAIN = 'galeahub.online';
-
 export async function sendInviteEmail({
   to,
   acceptUrl,
   inviterName,
   householdName,
 }: SendInviteArgs): Promise<MailResult> {
+  if (/@demo\.clankeep\.invalid$/i.test(String(to ?? ''))) {
+    throw new Error('Demo accounts cannot send email');
+  }
   const apiKey = process.env.RESEND_API_KEY;
   const fromHeader = (process.env.INVITES_FROM || process.env.MAIL_FROM || '').trim();
+  const requiredDomain = (process.env.INVITES_FROM_DOMAIN || 'clankeep.com').trim().toLowerCase();
   const replyTo = (process.env.INVITES_REPLY_TO || '').trim();
 
   if (!to) return { ok: false, error: 'Missing recipient email', fromUsed: fromHeader, to: '' };
@@ -32,35 +34,40 @@ export async function sendInviteEmail({
   if (!fromHeader || !fromEmail) {
     return {
       ok: false,
-      error: 'INVITES_FROM/MAIL_FROM not set or invalid. E.g. Houseflow <no-reply@galeahub.online>',
+      error: 'INVITES_FROM/MAIL_FROM not set or invalid. E.g. Clankeep <noreply@clankeep.com>',
       fromUsed: fromHeader,
       to,
     };
   }
   const domain = fromEmail.split('@')[1]?.toLowerCase();
-  if (domain !== REQUIRED_DOMAIN) {
+  if (domain !== requiredDomain) {
     return {
       ok: false,
-      error: `Sender must use ${REQUIRED_DOMAIN} (got ${domain || 'unknown'}). Update INVITES_FROM.`,
+      error: `Sender must use ${requiredDomain} (got ${domain || 'unknown'}). Update INVITES_FROM.`,
       fromUsed: fromHeader,
       to,
     };
   }
 
-  const subject = `You're invited to join ${householdName || 'a household'} on HouseFlow`;
-const text = [
-    `Hello!`,
+  const subject = `You're invited to join ${householdName || 'a household'} on Clankeep`;
+  const safeAcceptUrl = escapeHtml(acceptUrl);
+  const logoUrl = escapeHtml(resolveLogoUrl(acceptUrl));
+  const safeInviter = escapeHtml(inviterName || 'Someone');
+  const safeHousehold = escapeHtml(householdName || 'their household');
+  const preheader = `${inviterName || 'Someone'} invited you to ${householdName || 'a household'} — shopping lists, medicine schedules, notes and finances in one shared home.`;
+  const text = [
+    `Hi there,`,
     '',
-    `${inviterName || 'Someone'} has invited you to join ${householdName || 'a household'} on HouseFlow - a cozy app for managing your household together.`,
+    `${inviterName || 'Someone'} has invited you to join ${householdName || 'a household'} on Clankeep — the shared home for everything your household runs on.`,
     '',
-    `HouseFlow helps families organize shopping lists, track children's medicine, manage finances, and stay connected with everything that makes your house a home.`,
+    `Clankeep brings your household's shopping lists, medicine schedules, notes, and family finances together in one calm, private place.`,
     '',
     `Accept your invitation: ${acceptUrl}`,
     '',
-    `This invitation will expire in 7 days. If you weren't expecting this invitation, you can safely ignore this email.`,
+    `This invitation expires in 7 days. If you weren't expecting it, you can safely ignore this email.`,
     '',
-    `Welcome to the HouseFlow family!`,
-    `The HouseFlow Team`,
+    `Together. Organised. At home.`,
+    `The Clankeep Team`,
   ].join('\n');
 
   const html = `
@@ -69,75 +76,76 @@ const text = [
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>You're invited to join ${escapeHtml(householdName || 'a household')} on HouseFlow</title>
+      <meta name="color-scheme" content="light">
+      <meta name="supported-color-schemes" content="light">
+      <title>You're invited to join ${escapeHtml(householdName || 'a household')} on Clankeep</title>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #faf7f4; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;">
-      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #faf7f4;">
+    <body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">${escapeHtml(preheader)}</div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F8FAFC;">
         <tr>
           <td align="center" style="padding: 40px 20px;">
             <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden;">
-              
+
               <!-- Header with gradient background -->
               <tr>
-                <td style="background: linear-gradient(90deg, #f4d5c7 0%, #f0e8d6 30%, #e8f0d6 70%, #f2ead6 100%); padding: 40px 40px 30px 40px; text-align: center;">
-                  <div style="display: inline-block; background-color: #ffffff; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
-                    <h1 style="margin: 0; font-size: 24px; font-weight: 700; color: #c56a47; letter-spacing: -0.025em;">🏠 HouseFlow</h1>
+                <td style="background: linear-gradient(135deg, #4D6BFF 0%, #7B61FF 100%); padding: 40px 40px 30px 40px; text-align: center;">
+                  <div style="display: inline-block; background-color: #ffffff; padding: 14px 22px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <img src="${logoUrl}" width="176" height="51" alt="clankeep" style="display: block; width: 176px; height: auto; border: 0; font-size: 22px; font-weight: 700; color: #4D6BFF; letter-spacing: -0.025em;">
                   </div>
-                  <h2 style="margin: 0; font-size: 28px; font-weight: 600; color: #2d1810; line-height: 1.2;">You're Invited!</h2>
+                  <h2 style="margin: 0; font-size: 28px; font-weight: 600; color: #ffffff; line-height: 1.2;">You're invited</h2>
                 </td>
               </tr>
-              
+
               <!-- Main content -->
               <tr>
                 <td style="padding: 40px;">
-                  <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #2d1810; font-weight: 500;">Hello there! 👋</p>
-                  
-                  <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #6b5544;">
-                    <strong style="color: #c56a47;">${escapeHtml(inviterName || 'Someone')}</strong> has invited you to join 
-                    <strong style="color: #2d1810;">${escapeHtml(householdName || 'their household')}</strong> on HouseFlow.
+                  <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi there,</p>
+
+                  <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+                    <strong style="color: #4D6BFF;">${safeInviter}</strong> has invited you to join
+                    <strong style="color: #111827;">${safeHousehold}</strong> on Clankeep — the shared home for
+                    everything your household runs on.
                   </p>
-                  
-                  <div style="background-color: #f9f6f2; border-left: 4px solid #c56a47; padding: 20px; margin: 24px 0; border-radius: 8px;">
-                    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #6b5544;">
-                      <strong style="color: #2d1810;">What is HouseFlow?</strong><br>
-                      HouseFlow is your cozy digital home companion that helps families organize shopping lists, track children's medicine, manage household finances, and stay connected with everything that makes your house a home. 🏡✨
+
+                  <div style="background-color: #F4F6FE; padding: 20px; margin: 24px 0; border-radius: 12px;">
+                    <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #4B5563;">
+                      <strong style="color: #111827;">What is Clankeep?</strong><br>
+                      Clankeep brings your household's shopping lists, medicine schedules, notes, and family
+                      finances together in one calm, private place — so everyone is finally on the same page.
                     </p>
                   </div>
-                  
-                  <p style="margin: 24px 0; font-size: 16px; line-height: 1.6; color: #6b5544;">
-                    Ready to join your household and start organizing together?
-                  </p>
-                  
+
                   <!-- CTA Button -->
                   <div style="text-align: center; margin: 32px 0;">
-                    <a href="${acceptUrl}" style="display: inline-block; background-color: #c56a47; color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: -0.025em; box-shadow: 0 4px 6px -1px rgba(197, 106, 71, 0.3); transition: all 0.2s ease;">
-                      Accept Invitation
+                    <a href="${safeAcceptUrl}" style="display: inline-block; background: linear-gradient(135deg, #4D6BFF, #7B61FF); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: -0.025em; box-shadow: 0 4px 12px -2px rgba(77, 107, 255, 0.4);">
+                      Accept invitation
                     </a>
                   </div>
-                  
-                  <div style="background-color: #f9f6f2; border-radius: 8px; padding: 16px; margin: 24px 0;">
-                    <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #6b5544;">Having trouble with the button?</p>
-                    <p style="margin: 0; font-size: 13px; color: #8b7355; word-break: break-all; line-height: 1.4;">
+
+                  <div style="background-color: #F8FAFC; border-radius: 8px; padding: 16px; margin: 24px 0;">
+                    <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #4B5563;">Having trouble with the button?</p>
+                    <p style="margin: 0; font-size: 13px; color: #94A3B8; word-break: break-all; line-height: 1.4;">
                       Copy and paste this link in your browser:<br>
-                      <span style="color: #c56a47;">${acceptUrl}</span>
+                      <span style="color: #4D6BFF;">${safeAcceptUrl}</span>
                     </p>
                   </div>
                 </td>
               </tr>
-              
+
               <!-- Footer -->
               <tr>
-                <td style="background-color: #f9f6f2; padding: 30px 40px; border-top: 1px solid #e8ddd0;">
-                  <p style="margin: 0 0 12px 0; font-size: 14px; color: #6b5544; text-align: center;">
-                    This invitation will expire in <strong>7 days</strong>. If you weren't expecting this invitation, you can safely ignore this email.
+                <td style="background-color: #F8FAFC; padding: 30px 40px; border-top: 1px solid #E5E7EB;">
+                  <p style="margin: 0 0 12px 0; font-size: 14px; color: #4B5563; text-align: center;">
+                    This invitation expires in <strong>7 days</strong>. If you weren't expecting it, you can safely ignore this email.
                   </p>
-                  <p style="margin: 0; font-size: 13px; color: #8b7355; text-align: center;">
-                    Welcome to the HouseFlow family! 🌟<br>
-                    <span style="font-weight: 500;">The HouseFlow Team</span>
+                  <p style="margin: 0; font-size: 13px; color: #94A3B8; text-align: center;">
+                    Together. Organised. At home.<br>
+                    <span style="font-weight: 500;">The Clankeep Team</span>
                   </p>
                 </td>
               </tr>
-              
+
             </table>
           </td>
         </tr>
@@ -181,6 +189,404 @@ const text = [
     return { ok: true, providerId, fromUsed: fromHeader, to };
   } catch (e: any) {
     return { ok: false, error: e?.message || String(e), fromUsed: fromHeader, to };
+  }
+}
+
+type DeliverArgs = { to: string; subject: string; text: string; html: string };
+
+/** Shared Resend delivery with the same sender rules as invites. */
+async function deliver({ to, subject, text, html }: DeliverArgs): Promise<MailResult> {
+  if (/@demo\.clankeep\.invalid$/i.test(String(to ?? ''))) {
+    throw new Error('Demo accounts cannot send email');
+  }
+  const apiKey = process.env.RESEND_API_KEY;
+  const fromHeader = (process.env.INVITES_FROM || process.env.MAIL_FROM || '').trim();
+  const requiredDomain = (process.env.INVITES_FROM_DOMAIN || 'clankeep.com').trim().toLowerCase();
+  const replyTo = (process.env.INVITES_REPLY_TO || '').trim();
+
+  if (!to) return { ok: false, error: 'Missing recipient email', fromUsed: fromHeader, to: '' };
+  if (!apiKey) return { ok: false, error: 'RESEND_API_KEY not set', fromUsed: fromHeader, to };
+
+  const fromEmail = extractEmail(fromHeader);
+  if (!fromHeader || !fromEmail) {
+    return {
+      ok: false,
+      error: 'INVITES_FROM/MAIL_FROM not set or invalid. E.g. Clankeep <noreply@clankeep.com>',
+      fromUsed: fromHeader,
+      to,
+    };
+  }
+  const domain = fromEmail.split('@')[1]?.toLowerCase();
+  if (domain !== requiredDomain) {
+    return {
+      ok: false,
+      error: `Sender must use ${requiredDomain} (got ${domain || 'unknown'}). Update INVITES_FROM.`,
+      fromUsed: fromHeader,
+      to,
+    };
+  }
+
+  try {
+    const payload: any = {
+      from: fromHeader,
+      to,
+      subject,
+      text,
+      html,
+      headers: { 'Auto-Submitted': 'auto-generated' },
+    };
+    if (replyTo) payload.reply_to = replyTo;
+
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const ct = r.headers.get('content-type') || '';
+    const body = ct.includes('application/json') ? await r.json() : await r.text();
+    if (!r.ok) {
+      const msg = typeof body === 'string' ? body : body?.error || body?.message || JSON.stringify(body || {});
+      return { ok: false, error: `Resend ${r.status}: ${msg}`, fromUsed: fromHeader, to };
+    }
+    const providerId = typeof body === 'object' ? body?.id : undefined;
+    return { ok: true, providerId, fromUsed: fromHeader, to };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || String(e), fromUsed: fromHeader, to };
+  }
+}
+
+type ShellArgs = {
+  title: string;
+  preheader: string;
+  heading: string;
+  bodyHtml: string;
+  footerNote: string;
+  /** Any absolute URL on the app's origin, used to resolve the hosted logo. */
+  originUrl: string;
+};
+
+/** The shared branded HTML wrapper used by every transactional email. */
+function renderEmailShell({ title, preheader, heading, bodyHtml, footerNote, originUrl }: ShellArgs): string {
+  const logoUrl = escapeHtml(resolveLogoUrl(originUrl));
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="color-scheme" content="light">
+      <meta name="supported-color-schemes" content="light">
+      <title>${escapeHtml(title)}</title>
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #F8FAFC; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <div style="display: none; max-height: 0; overflow: hidden; mso-hide: all;">${escapeHtml(preheader)}</div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #F8FAFC;">
+        <tr>
+          <td align="center" style="padding: 40px 20px;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); overflow: hidden;">
+              <tr>
+                <td style="background: linear-gradient(135deg, #4D6BFF 0%, #7B61FF 100%); padding: 40px 40px 30px 40px; text-align: center;">
+                  <div style="display: inline-block; background-color: #ffffff; padding: 14px 22px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+                    <img src="${logoUrl}" width="176" height="51" alt="clankeep" style="display: block; width: 176px; height: auto; border: 0; font-size: 22px; font-weight: 700; color: #4D6BFF; letter-spacing: -0.025em;">
+                  </div>
+                  <h2 style="margin: 0; font-size: 28px; font-weight: 600; color: #ffffff; line-height: 1.2;">${escapeHtml(heading)}</h2>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 40px;">${bodyHtml}</td>
+              </tr>
+              <tr>
+                <td style="background-color: #F8FAFC; padding: 30px 40px; border-top: 1px solid #E5E7EB;">
+                  <p style="margin: 0 0 12px 0; font-size: 14px; color: #4B5563; text-align: center;">${footerNote}</p>
+                  <p style="margin: 0; font-size: 13px; color: #94A3B8; text-align: center;">
+                    Together. Organised. At home.<br>
+                    <span style="font-weight: 500;">The Clankeep Team</span>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
+function ctaButtonHtml(url: string, label: string): string {
+  return `
+    <div style="text-align: center; margin: 32px 0;">
+      <a href="${escapeHtml(url)}" style="display: inline-block; background: linear-gradient(135deg, #4D6BFF, #7B61FF); color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: -0.025em; box-shadow: 0 4px 12px -2px rgba(77, 107, 255, 0.4);">${escapeHtml(label)}</a>
+    </div>
+    <div style="background-color: #F8FAFC; border-radius: 8px; padding: 16px; margin: 24px 0;">
+      <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #4B5563;">Having trouble with the button?</p>
+      <p style="margin: 0; font-size: 13px; color: #94A3B8; word-break: break-all; line-height: 1.4;">
+        Copy and paste this link in your browser:<br>
+        <span style="color: #4D6BFF;">${escapeHtml(url)}</span>
+      </p>
+    </div>
+  `;
+}
+
+type SendWelcomeArgs = { to: string; name?: string | null; signInUrl: string };
+
+export async function sendWelcomeEmail({ to, name, signInUrl }: SendWelcomeArgs): Promise<MailResult> {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'there';
+  const subject = 'Welcome to Clankeep — your household HQ';
+  const preheader = 'Your account is ready. Set up your household and bring the whole clan on board.';
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    `Your Clankeep account is ready. Clankeep is the private HQ for everything your household shares — shopping lists, meal plans, chores, medicine schedules, money planning and notes.`,
+    '',
+    `Get started:`,
+    `1. Sign in: ${signInUrl}`,
+    `2. Create your household`,
+    `3. Invite your family by email or link`,
+    '',
+    `Everything in the Free plan is free forever — no card, no trial clock.`,
+    '',
+    `If you didn't create this account, you can safely ignore this email.`,
+    '',
+    `Together. Organised. At home.`,
+    `The Clankeep Team`,
+  ].join('\n');
+  const bodyHtml = `
+    <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi ${escapeHtml(firstName)},</p>
+    <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+      Your Clankeep account is ready. Clankeep is the private HQ for everything your household shares —
+      shopping lists, meal plans, chores, medicine schedules, money planning and notes.
+    </p>
+    <div style="background-color: #F4F6FE; padding: 20px; margin: 24px 0; border-radius: 12px;">
+      <p style="margin: 0; font-size: 15px; line-height: 1.8; color: #4B5563;">
+        <strong style="color: #111827;">Get started in three steps</strong><br>
+        1. Sign in to your new account<br>
+        2. Create your household<br>
+        3. Invite your family by email or link
+      </p>
+    </div>
+    ${ctaButtonHtml(signInUrl, 'Sign in to Clankeep')}
+  `;
+  const html = renderEmailShell({
+    title: subject,
+    preheader,
+    heading: 'Welcome to Clankeep',
+    bodyHtml,
+    footerNote: `Everything in the Free plan is free forever. If you didn't create this account, you can safely ignore this email.`,
+    originUrl: signInUrl,
+  });
+  return deliver({ to, subject, text, html });
+}
+
+type SendPasswordResetArgs = { to: string; name?: string | null; resetUrl: string; expiresMinutes: number };
+
+export async function sendPasswordResetEmail({ to, name, resetUrl, expiresMinutes }: SendPasswordResetArgs): Promise<MailResult> {
+  const firstName = (name || '').trim().split(/\s+/)[0] || 'there';
+  const subject = 'Reset your Clankeep password';
+  const preheader = `Use this link to choose a new password. It expires in ${expiresMinutes} minutes.`;
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    `Someone asked to reset the password for this Clankeep account. If it was you, use this link to choose a new password:`,
+    '',
+    resetUrl,
+    '',
+    `The link expires in ${expiresMinutes} minutes and can be used once.`,
+    '',
+    `If you didn't ask for this, you can safely ignore this email — your password stays unchanged.`,
+    '',
+    `Together. Organised. At home.`,
+    `The Clankeep Team`,
+  ].join('\n');
+  const bodyHtml = `
+    <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi ${escapeHtml(firstName)},</p>
+    <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+      Someone asked to reset the password for this Clankeep account. If it was you,
+      use the button below to choose a new password.
+    </p>
+    ${ctaButtonHtml(resetUrl, 'Choose a new password')}
+  `;
+  const html = renderEmailShell({
+    title: subject,
+    preheader,
+    heading: 'Reset your password',
+    bodyHtml,
+    footerNote: `The link expires in <strong>${expiresMinutes} minutes</strong> and can be used once. If you didn't ask for this, ignore this email — your password stays unchanged.`,
+    originUrl: resetUrl,
+  });
+  return deliver({ to, subject, text, html });
+}
+
+export type DigestSection = {
+  label: string
+  value: string
+  detail?: string
+}
+
+type SendWeeklyDigestArgs = {
+  to: string
+  name?: string | null
+  householdName: string
+  /** Rendered in order; empty sections should be filtered out by the caller. */
+  sections: DigestSection[]
+  digestUrl: string
+  settingsUrl: string
+}
+
+/** The Monday morning household summary. One per household member per week. */
+export async function sendWeeklyDigestEmail(args: SendWeeklyDigestArgs): Promise<MailResult> {
+  const firstName = (args.name || '').trim().split(/\s+/)[0] || 'there';
+  const subject = `Your week at ${args.householdName}`;
+  const preheader = args.sections.map((section) => `${section.label}: ${section.value}`).join(' · ').slice(0, 140);
+
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    `Here's how ${args.householdName} is doing this week:`,
+    '',
+    ...args.sections.map((section) =>
+      `- ${section.label}: ${section.value}${section.detail ? ` (${section.detail})` : ''}`),
+    '',
+    `Open Clankeep: ${args.digestUrl}`,
+    '',
+    `You get this every Monday. Turn it off under Settings → Notifications: ${args.settingsUrl}`,
+    '',
+    `Together. Organised. At home.`,
+    `The Clankeep Team`,
+  ].join('\n');
+
+  const rowsHtml = args.sections.map((section) => `
+    <tr>
+      <td style="padding: 12px 0; border-bottom: 1px solid #E2E8F0;">
+        <span style="font-size: 13px; font-weight: 600; color: #64748B; text-transform: uppercase; letter-spacing: 0.04em;">${escapeHtml(section.label)}</span><br>
+        <span style="font-size: 16px; font-weight: 600; color: #111827;">${escapeHtml(section.value)}</span>
+        ${section.detail ? `<br><span style="font-size: 13px; color: #64748B;">${escapeHtml(section.detail)}</span>` : ''}
+      </td>
+    </tr>
+  `).join('');
+
+  const bodyHtml = `
+    <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi ${escapeHtml(firstName)},</p>
+    <p style="margin: 0 0 8px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+      Here's how <strong>${escapeHtml(args.householdName)}</strong> is doing this week.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0 8px 0;">
+      ${rowsHtml}
+    </table>
+    ${ctaButtonHtml(args.digestUrl, 'Open Clankeep')}
+  `;
+
+  const html = renderEmailShell({
+    title: subject,
+    preheader,
+    heading: 'Your week at a glance',
+    bodyHtml,
+    footerNote: `You get this every Monday. <a href="${escapeHtml(args.settingsUrl)}" style="color: #4D6BFF;">Turn it off</a> under Settings → Notifications.`,
+    originUrl: args.digestUrl,
+  });
+  return deliver({ to: args.to, subject, text, html });
+}
+
+type SendBankConsentArgs = {
+  to: string;
+  name?: string | null;
+  bankName: string;
+  bankingUrl: string;
+} & (
+  | { kind: 'expiring'; expiresAt: Date }
+  | { kind: 'reauth' }
+);
+
+/**
+ * Consent lifecycle notices for a bank connection: a heads-up before the
+ * consent lapses, and a nudge when a sync discovered the bank wants the
+ * connection re-authorized. Sent by the finance-sync worker, once per episode
+ * (see BankConnection.consentReminderSentAt / reauthNotifiedAt).
+ */
+export async function sendBankConsentEmail(args: SendBankConsentArgs): Promise<MailResult> {
+  const firstName = (args.name || '').trim().split(/\s+/)[0] || 'there';
+  const safeBank = escapeHtml(args.bankName);
+
+  if (args.kind === 'expiring') {
+    const dateText = args.expiresAt.toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric',
+    });
+    const subject = `Your ${args.bankName} connection expires on ${dateText}`;
+    const preheader = `Renew read-only access before ${dateText} to keep balances and transactions flowing.`;
+    const text = [
+      `Hi ${firstName},`,
+      '',
+      `The read-only consent behind your ${args.bankName} connection on Clankeep expires on ${dateText}.`,
+      '',
+      `Banks require this consent to be renewed periodically. Renewing takes about a minute — you approve read-only access with your bank again, and nothing else changes.`,
+      '',
+      `Renew now: ${args.bankingUrl}`,
+      '',
+      `If you let it lapse, your imported history stays but new balances and transactions stop arriving until you reconnect.`,
+      '',
+      `Together. Organised. At home.`,
+      `The Clankeep Team`,
+    ].join('\n');
+    const bodyHtml = `
+      <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi ${escapeHtml(firstName)},</p>
+      <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+        The read-only consent behind your <strong>${safeBank}</strong> connection on Clankeep
+        expires on <strong>${escapeHtml(dateText)}</strong>. Banks require this consent to be renewed
+        periodically — renewing takes about a minute and nothing else changes.
+      </p>
+      ${ctaButtonHtml(args.bankingUrl, 'Renew bank access')}
+    `;
+    const html = renderEmailShell({
+      title: subject,
+      preheader,
+      heading: 'Bank consent expires soon',
+      bodyHtml,
+      footerNote: `If you let it lapse, your imported history stays put — new balances and transactions simply stop arriving until you reconnect.`,
+      originUrl: args.bankingUrl,
+    });
+    return deliver({ to: args.to, subject, text, html });
+  }
+
+  const subject = `Your ${args.bankName} connection stopped syncing`;
+  const preheader = `${args.bankName} wants the connection re-authorized before it hands over new data.`;
+  const text = [
+    `Hi ${firstName},`,
+    '',
+    `${args.bankName} is asking for the Clankeep connection to be re-authorized before it hands over any new balances or transactions.`,
+    '',
+    `Reconnecting takes about a minute — you approve read-only access with your bank again, and syncing resumes where it left off.`,
+    '',
+    `Reconnect now: ${args.bankingUrl}`,
+    '',
+    `Together. Organised. At home.`,
+    `The Clankeep Team`,
+  ].join('\n');
+  const bodyHtml = `
+    <p style="margin: 0 0 24px 0; font-size: 18px; line-height: 1.6; color: #111827; font-weight: 500;">Hi ${escapeHtml(firstName)},</p>
+    <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4B5563;">
+      <strong>${safeBank}</strong> is asking for the Clankeep connection to be re-authorized
+      before it hands over any new balances or transactions. Reconnecting takes about a minute,
+      and syncing resumes where it left off.
+    </p>
+    ${ctaButtonHtml(args.bankingUrl, 'Reconnect your bank')}
+  `;
+  const html = renderEmailShell({
+    title: subject,
+    preheader,
+    heading: 'Bank connection needs attention',
+    bodyHtml,
+    footerNote: `Your imported history is untouched — this only affects new data arriving.`,
+    originUrl: args.bankingUrl,
+  });
+  return deliver({ to: args.to, subject, text, html });
+}
+
+/** Hosted logo for the email header, served from the same origin the invite links to. */
+function resolveLogoUrl(acceptUrl: string): string {
+  try {
+    return new URL('/brand/clankeep-logo-email.png', acceptUrl).toString();
+  } catch {
+    return 'https://clankeep.com/brand/clankeep-logo-email.png';
   }
 }
 

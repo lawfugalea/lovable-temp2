@@ -1,29 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/router'
 import { useSession } from 'next-auth/react'
-import { 
-  Search, 
-  Home, 
-  ShoppingCart, 
-  DollarSign, 
-  CreditCard,
-  Settings, 
+import { useTheme } from 'next-themes'
+import {
+  Search,
+  Settings,
   Users,
   Plus,
-  TrendingUp,
-  Calendar,
   FileText,
   User,
   Bell,
   Shield,
-  Palette,
   Database,
   Command,
   ArrowRight,
-  Hash,
-  Pill,
+  Sun,
+  Moon,
+  Monitor,
+  HelpCircle,
+  Compass,
+  ListChecks,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useVisibleModules } from '@/hooks/useVisibleModules'
+import { moduleHelp } from '@/lib/help-content'
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/Dialog'
+import { useOnboarding } from '@/components/onboarding/OnboardingProvider'
+import { useTour } from '@/components/onboarding/TourProvider'
 
 interface CommandItem {
   id: string
@@ -45,56 +48,26 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const router = useRouter()
   const { data: session } = useSession()
+  const { setTheme } = useTheme()
+  const onboarding = useOnboarding()
+  const tour = useTour()
+  const hasHousehold = onboarding?.state?.household != null
+  const checklistDismissed = onboarding?.state?.user.checklistDismissedAt != null
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const visibleModules = useVisibleModules()
 
   const commands: CommandItem[] = [
-    // Navigation
-    {
-      id: 'nav-dashboard',
-      title: 'Go to Dashboard',
-      description: 'View your home dashboard',
-      icon: Home,
-      action: () => router.push('/dashboard'),
+    // Navigation — sourced from the shared module registry
+    ...visibleModules.map((module) => ({
+      id: `nav-${module.key}`,
+      title: `Go to ${module.name}`,
+      description: moduleHelp[module.key].tagline,
+      icon: module.icon,
+      action: () => router.push(module.href),
       category: 'Navigation',
-      keywords: ['dashboard', 'home', 'main']
-    },
-    {
-      id: 'nav-shopping',
-      title: 'Go to Shopping',
-      description: 'Manage your shopping lists',
-      icon: ShoppingCart,
-      action: () => router.push('/shopping'),
-      category: 'Navigation',
-      keywords: ['shopping', 'lists', 'groceries']
-    },
-    {
-      id: 'nav-finances',
-      title: 'Go to Finance Planner',
-      description: 'Plan your household budget and splits',
-      icon: DollarSign,
-      action: () => router.push('/finances'),
-      category: 'Navigation',
-      keywords: ['finances', 'money', 'budget', 'planning']
-    },
-    {
-      id: 'nav-medicine',
-      title: 'Go to Medicine',
-      description: 'Track children\'s medications',
-      icon: Pill,
-      action: () => router.push('/medicine'),
-      category: 'Navigation',
-      keywords: ['medicine', 'medication', 'children', 'kids', 'health']
-    },
-    {
-      id: 'nav-notes',
-      title: 'Go to Notes',
-      description: 'Manage your personal and shared notes',
-      icon: FileText,
-      action: () => router.push('/notes'),
-      category: 'Navigation',
-      keywords: ['notes', 'writing', 'personal', 'shared', 'memo', 'journal']
-    },
+      keywords: moduleHelp[module.key].keywords,
+    })),
     {
       id: 'nav-settings',
       title: 'Go to Settings',
@@ -115,7 +88,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     },
     
     // Admin Panel (only for admin user)
-    ...(session?.user?.email === 'lawfinuu@gmail.com' ? [{
+    ...((session?.user as any)?.isAdmin === true ? [{
       id: 'nav-admin',
       title: 'Go to Admin Panel',
       description: 'Manage users, households, and view system statistics',
@@ -139,30 +112,6 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       keywords: ['add', 'shopping', 'item', 'new']
     },
     {
-      id: 'add-expense',
-      title: 'Add Expense',
-      description: 'Record a new expense',
-      icon: TrendingUp,
-      action: () => {
-        router.push('/finances')
-        // Could trigger add expense modal here
-      },
-      category: 'Quick Actions',
-      keywords: ['add', 'expense', 'spending', 'cost']
-    },
-    {
-      id: 'add-income',
-      title: 'Add Income',
-      description: 'Record a new income source',
-      icon: DollarSign,
-      action: () => {
-        router.push('/finances')
-        // Could trigger add income modal here
-      },
-      category: 'Quick Actions',
-      keywords: ['add', 'income', 'salary', 'money']
-    },
-    {
       id: 'add-note',
       title: 'Add New Note',
       description: 'Create a new personal or shared note',
@@ -173,6 +122,73 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       },
       category: 'Quick Actions',
       keywords: ['add', 'note', 'writing', 'memo', 'personal', 'shared']
+    },
+
+    // Help
+    {
+      id: 'help-open',
+      title: 'Open Help',
+      description: 'How every area of ClanKeep works',
+      icon: HelpCircle,
+      action: () => router.push('/help'),
+      category: 'Help',
+      keywords: ['help', 'docs', 'guide', 'support', 'how', 'faq', 'questions'],
+    },
+    ...visibleModules.map((module) => ({
+      id: `help-${module.key}`,
+      title: `Help: ${module.name}`,
+      description: moduleHelp[module.key].summary,
+      icon: HelpCircle,
+      action: () => router.push(`/help#${module.key}`),
+      category: 'Help',
+      keywords: ['help', 'how', 'guide', ...moduleHelp[module.key].keywords],
+    })),
+    ...(tour && hasHousehold ? [{
+      id: 'help-tour',
+      title: 'Replay the product tour',
+      description: 'A short walk through each part of the app',
+      icon: Compass,
+      action: () => { void tour.startTour() },
+      category: 'Help',
+      keywords: ['tour', 'walkthrough', 'guide', 'onboarding', 'replay', 'intro'],
+    }] : []),
+    ...(checklistDismissed && hasHousehold ? [{
+      id: 'help-checklist',
+      title: 'Show the getting-started checklist',
+      description: 'Bring back the setup steps on your overview',
+      icon: ListChecks,
+      action: () => {
+        void onboarding?.update({ checklistDismissed: false }).catch(() => {})
+        void router.push('/dashboard')
+      },
+      category: 'Help',
+      keywords: ['checklist', 'getting started', 'setup', 'onboarding', 'steps'],
+    }] : []),
+
+    // Appearance
+    {
+      id: 'theme-light',
+      title: 'Switch to Light theme',
+      icon: Sun,
+      action: () => setTheme('light'),
+      category: 'Appearance',
+      keywords: ['theme', 'light', 'appearance', 'bright']
+    },
+    {
+      id: 'theme-dark',
+      title: 'Switch to Dark theme',
+      icon: Moon,
+      action: () => setTheme('dark'),
+      category: 'Appearance',
+      keywords: ['theme', 'dark', 'appearance', 'night']
+    },
+    {
+      id: 'theme-system',
+      title: 'Use System theme',
+      icon: Monitor,
+      action: () => setTheme('system'),
+      category: 'Appearance',
+      keywords: ['theme', 'system', 'appearance', 'auto']
     },
 
     // Settings
@@ -202,15 +218,6 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
       action: () => router.push('/settings?tab=privacy'),
       category: 'Settings',
       keywords: ['privacy', 'security', 'data']
-    },
-    {
-      id: 'appearance-settings',
-      title: 'Appearance Settings',
-      description: 'Customize the app appearance',
-      icon: Palette,
-      action: () => router.push('/settings?tab=appearance'),
-      category: 'Settings',
-      keywords: ['appearance', 'theme', 'colors', 'design']
     },
     {
       id: 'data-settings',
@@ -290,43 +297,38 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
     }
   }, [selectedIndex])
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]">
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Command Palette */}
-      <div className="relative w-full max-w-2xl mx-4">
-        <div className="bg-cozy-surface border border-cozy-gray-300 rounded-lg shadow-cozy-lg overflow-hidden">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="top-[18vh] max-w-2xl translate-y-0 gap-0 overflow-hidden p-0 max-sm:bottom-auto max-sm:top-0 max-sm:max-h-[calc(var(--viewport-height)_-_1rem)] max-sm:rounded-b-2xl max-sm:rounded-t-none max-sm:border-t-0 max-sm:border-x-0 max-sm:pb-0 max-sm:data-[state=open]:slide-in-from-top-6 max-sm:data-[state=closed]:slide-out-to-top-6">
+        <DialogTitle className="sr-only">Search Clankeep</DialogTitle>
+        <DialogDescription className="sr-only">Navigate to a page or choose a quick action.</DialogDescription>
           {/* Search Input */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-cozy-gray-300">
-            <Search className="w-5 h-5 text-cozy-text-muted" />
+          <div className="flex items-center gap-3 border-b px-4 py-3 pr-12">
+            <Search className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
             <input
               ref={inputRef}
               type="text"
-              placeholder="Type a command or search..."
+              role="combobox"
+              aria-expanded={isOpen}
+              aria-controls="houseflow-command-results"
+              aria-activedescendant={filteredCommands[selectedIndex] ? `command-${filteredCommands[selectedIndex].id}` : undefined}
+              placeholder="Search pages and actions..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 bg-transparent text-cozy-text placeholder:text-cozy-text-muted focus:outline-none"
+              className="h-8 flex-1 bg-transparent text-base text-foreground placeholder:text-muted-foreground focus:outline-none sm:text-sm"
             />
-            <div className="flex items-center gap-1 text-xs text-cozy-text-muted">
-              <kbd className="px-2 py-1 bg-cozy-gray-200 rounded text-xs">⌘</kbd>
-              <kbd className="px-2 py-1 bg-cozy-gray-200 rounded text-xs">K</kbd>
-            </div>
           </div>
 
           {/* Results */}
           <div 
             ref={listRef}
-            className="max-h-96 overflow-y-auto"
+            id="houseflow-command-results"
+            role="listbox"
+            // Shrinks with the keyboard so results never sit under it.
+            className="max-h-[min(24rem,calc(var(--viewport-height)_-_9rem))] overflow-y-auto overscroll-contain"
           >
             {Object.keys(groupedCommands).length === 0 ? (
-              <div className="px-4 py-8 text-center text-cozy-text-muted">
+              <div className="px-4 py-10 text-center text-muted-foreground">
                 <Command className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p>No commands found</p>
                 <p className="text-sm">Try a different search term</p>
@@ -334,7 +336,7 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
             ) : (
               Object.entries(groupedCommands).map(([category, categoryCommands]) => (
                 <div key={category}>
-                  <div className="px-4 py-2 bg-cozy-cream text-xs font-semibold text-cozy-text-muted uppercase tracking-wide">
+                  <div className="border-y bg-muted/70 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground first:border-t-0">
                     {category}
                   </div>
                   {categoryCommands.map((command, index) => {
@@ -343,16 +345,19 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                     return (
                       <button
                         key={command.id}
+                        id={`command-${command.id}`}
+                        role="option"
+                        aria-selected={globalIndex === selectedIndex}
                         data-index={globalIndex}
                         onClick={() => {
                           command.action()
                           onClose()
                         }}
                         className={cn(
-                          "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors",
+                          "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors",
                           globalIndex === selectedIndex
-                            ? "bg-cozy-primary text-white"
-                            : "text-cozy-text hover:bg-cozy-cream"
+                            ? "bg-primary text-primary-foreground"
+                            : "text-foreground hover:bg-accent"
                         )}
                       >
                         <Icon className="w-5 h-5 flex-shrink-0" />
@@ -362,8 +367,8 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
                             <div className={cn(
                               "text-sm truncate",
                               globalIndex === selectedIndex
-                                ? "text-white/80"
-                                : "text-cozy-text-muted"
+                                ? "text-primary-foreground/80"
+                                : "text-muted-foreground"
                             )}>
                               {command.description}
                             </div>
@@ -379,27 +384,26 @@ export default function CommandPalette({ isOpen, onClose }: CommandPaletteProps)
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-2 bg-cozy-cream border-t border-cozy-gray-300 text-xs text-cozy-text-muted">
+          <div className="border-t bg-muted/55 px-4 py-2 text-xs text-muted-foreground">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1 py-0.5 bg-cozy-gray-200 rounded text-xs">↑↓</kbd>
+                  <kbd className="rounded border bg-background px-1 py-0.5 text-xs">↑↓</kbd>
                   Navigate
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1 py-0.5 bg-cozy-gray-200 rounded text-xs">↵</kbd>
+                  <kbd className="rounded border bg-background px-1 py-0.5 text-xs">↵</kbd>
                   Select
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1 py-0.5 bg-cozy-gray-200 rounded text-xs">esc</kbd>
+                  <kbd className="rounded border bg-background px-1 py-0.5 text-xs">esc</kbd>
                   Close
                 </span>
               </div>
               <span>{filteredCommands.length} command{filteredCommands.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

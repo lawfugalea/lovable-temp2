@@ -1,8 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { requireAdmin } from '@/lib/admin-helpers';
+import { isAdminEmail } from '@/lib/admin-config';
 import { prisma } from '@/lib/prisma';
+import { deleteNoteAttachmentFiles } from '@/lib/note-attachment-files';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     await requireAdmin(req);
   } catch (error: any) {
@@ -16,6 +19,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         select: {
           id: true,
           name: true,
+          plan: true,
+          planSource: true,
+          stripeSubscriptionStatus: true,
           createdAt: true,
           updatedAt: true,
           owner: {
@@ -87,9 +93,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Prevent deleting household owned by admin
-      if (household.owner && household.owner.email === 'lawfinuu@gmail.com') {
+      if (household.owner && isAdminEmail(household.owner.email)) {
         return res.status(400).json({ error: 'Cannot delete admin household' });
       }
+
+      // Shared notes in this household cascade away with it, taking their
+      // attachment rows but not the image files. Collected before the delete,
+      // while the rows that name them still exist.
+      const attachments = await prisma.noteAttachment.findMany({
+        where: { note: { householdId } },
+        select: { filename: true },
+      });
 
       // Delete household and all related data in a transaction
       await prisma.$transaction(async (tx) => {
@@ -163,6 +177,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await tx.household.delete({ where: { id: householdId } });
       });
 
+      deleteNoteAttachmentFiles(attachments.map(attachment => attachment.filename));
+
       return res.status(200).json({ message: 'Household deleted successfully' });
     } catch (error) {
       console.error('Error deleting household:', error);
@@ -180,6 +196,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (!householdId || !newOwnerUserId) return res.status(400).json({ error: 'Missing householdId or newOwnerUserId' });
 
         await prisma.$transaction(async (tx) => {
+          await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${newOwnerUserId} FOR UPDATE`;
+          await tx.$queryRaw`SELECT "id" FROM "Household" WHERE "id" = ${householdId} FOR UPDATE`;
+          const [household, user] = await Promise.all([
+            tx.household.findUnique({ where: { id: householdId }, select: { id: true } }),
+            tx.user.findUnique({ where: { id: newOwnerUserId }, select: { id: true } }),
+          ]);
+          if (!household) throw Object.assign(new Error('Household not found'), { status: 404 });
+          if (!user) throw Object.assign(new Error('New owner not found'), { status: 404 });
+          // Belonging to another household no longer blocks ownership here.
+          // That check existed only to uphold the one-household-per-user
+          // constraint dropped in 20260726120000_multi_household_membership.
           // Ensure new owner is a member; if not, add as MEMBER
           const existing = await tx.membership.findFirst({ where: { userId: newOwnerUserId, householdId }, select: { id: true } });
           if (!existing) {
@@ -202,9 +229,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Unknown action' });
     } catch (error) {
       console.error('Error updating household:', error);
-      return res.status(500).json({ error: 'Failed to update household' });
+      const status = typeof error === 'object' && error && 'status' in error
+        ? Number((error as { status: number }).status)
+        : 500;
+      return res.status(status).json({ error: status === 500 ? 'Failed to update household' : (error as Error).message });
     }
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
+
+export default withApiHandler(handler)

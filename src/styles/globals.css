@@ -2,15 +2,316 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Fix for contentEditable text direction */
-[contenteditable] {
-  direction: ltr !important;
-  text-align: left !important;
-  unicode-bidi: normal !important;
-  writing-mode: horizontal-tb !important;
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 221 39% 11%;
+    --heading: 221 39% 11%;
+    --body-foreground: 215 14% 34%;
+    --soft-foreground: 215 20% 65%;
+    --card: 0 0% 100%;
+    --card-foreground: 221 39% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 221 39% 11%;
+    --primary: 229 100% 65%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 229 100% 96%;
+    --secondary-foreground: 229 70% 42%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 14% 34%;
+    --accent: 181 72% 94%;
+    --accent-foreground: 181 72% 28%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 86%;
+    --ring: 229 100% 65%;
+    --radius: 0.875rem;
+
+    /* Brand palette (from the ClanKeep logo). */
+    --brand-blue: 229 100% 65%;
+    --brand-purple: 250 100% 69%;
+    --brand-teal: 181 72% 45%;
+    --brand-coral: 0 100% 71%;
+    --brand-amber: 32 95% 48%;
+    --brand-green: 152 60% 40%;
+
+    /* Module colour coding. */
+    --module-shopping: var(--brand-teal);
+    --module-finances: var(--brand-blue);
+    --module-medicine: var(--brand-coral);
+    --module-notes: var(--brand-purple);
+    --module-meals: var(--brand-amber);
+    --module-chores: var(--brand-green);
+
+    /* Data visualisation.
+       Eight categorical hues at fixed saturation and lightness, so no series is
+       quietly louder than another, with at least 29 degrees between neighbours.
+       The two closest pairs are lifted 6% so they stay separable with red-green
+       colour deficiency. Colour is never the only channel: every chart also
+       carries a legend swatch and a text readout. */
+    --chart-1: 152 62% 45%;
+    --chart-2: 32 62% 45%;
+    --chart-3: 229 62% 45%;
+    --chart-4: 258 62% 51%;
+    --chart-5: 300 62% 45%;
+    --chart-6: 181 62% 51%;
+    --chart-7: 0 62% 45%;
+    --chart-8: 95 62% 45%;
+    --chart-other: 215 14% 55%;
+
+    /* Semantic series. These carry meaning, so they sit outside the ramp. */
+    --chart-income: var(--brand-green);
+    --chart-spending: var(--module-finances);
+    --chart-internal: 215 14% 60%;
+    --chart-projected: var(--brand-amber);
+    --chart-over: var(--brand-coral);
+
+    /* Shadows derive from this, never from --foreground. */
+    --shadow-color: 221 39% 11%;
+
+    /* Instrument-panel treatment for the banking surfaces. Glow is deliberately
+       weaker in light mode: the same halo that reads as emitted light on a dark
+       panel just muddies a near-white card. */
+    --glow-opacity: 0.28;
+    --glow-spread: 18px;
+    --grid-line: 221 39% 11%;
+    --grid-opacity: 0.045;
+
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 96%;
+    --heading: 210 40% 98%;
+    --body-foreground: 215 20% 78%;
+    --soft-foreground: 215 20% 65%;
+    --card: 221 39% 15%;
+    --card-foreground: 210 40% 96%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 229 100% 70%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 229 35% 22%;
+    --secondary-foreground: 229 100% 90%;
+    --muted: 217 25% 20%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 181 42% 20%;
+    --accent-foreground: 181 72% 78%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 24% 27%;
+    --input: 217 24% 32%;
+    --ring: 229 100% 70%;
+
+    /* Lift brand colours for contrast on dark surfaces. */
+    --brand-blue: 229 100% 72%;
+    --brand-purple: 250 100% 75%;
+    --brand-teal: 181 65% 52%;
+    --brand-coral: 0 90% 74%;
+    --brand-amber: 36 92% 58%;
+    --brand-green: 152 55% 52%;
+
+    /* Data visualisation: same hues, lifted for dark surfaces. */
+    --chart-1: 152 60% 68%;
+    --chart-2: 32 60% 68%;
+    --chart-3: 229 60% 68%;
+    --chart-4: 258 60% 74%;
+    --chart-5: 300 60% 68%;
+    --chart-6: 181 60% 74%;
+    --chart-7: 0 60% 68%;
+    --chart-8: 95 60% 68%;
+    --chart-other: 215 20% 55%;
+    --chart-internal: 215 20% 50%;
+
+    --shadow-color: 222 47% 4%;
+
+    --glow-opacity: 0.55;
+    --glow-spread: 26px;
+    --grid-line: 210 40% 96%;
+    --grid-opacity: 0.07;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  :root {
+    /* Overwritten from the visual viewport by useVisualViewport; these fallbacks
+       hold on the server, before hydration, and wherever the API is missing. */
+    --viewport-height: 100dvh;
+    --viewport-offset-top: 0px;
+    --keyboard-inset: 0px;
+  }
+
+  html {
+    min-width: 320px;
+    background: hsl(var(--background));
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  [role="button"],
+  a {
+    touch-action: manipulation;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    min-height: 100vh;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
+    color: hsl(var(--foreground));
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
-/* More specific targeting for notes editor */
+/*
+ * The chart panel.
+ *
+ * Charts sit on a deliberately dark surface in both themes, the way an
+ * instrument reads on a dashboard: it gives emitted light somewhere to land, and
+ * on a white page a glow has nothing to glow against. The panel carries its own
+ * copy of the categorical ramp — the lifted dark-theme values — because the
+ * light-theme ramp is tuned for dark ink on white and would disappear here.
+ *
+ * Same hue, different lightness per surface. The category colour is still the
+ * category colour.
+ */
+.chart-panel {
+  --chart-panel-surface: 222 47% 10%;
+  --chart-panel-border: 217 33% 24%;
+  --chart-panel-grid: 210 40% 96%;
+  --chart-panel-ink: 215 25% 74%;
+
+  --chart-1: 152 60% 68%;
+  --chart-2: 32 60% 68%;
+  --chart-3: 229 60% 72%;
+  --chart-4: 258 60% 74%;
+  --chart-5: 300 60% 68%;
+  --chart-6: 181 60% 74%;
+  --chart-7: 0 60% 68%;
+  --chart-8: 95 60% 68%;
+  --chart-other: 215 20% 62%;
+  --chart-internal: 215 20% 58%;
+  --chart-income: 152 55% 60%;
+  --chart-spending: 229 100% 76%;
+  --chart-projected: 36 92% 62%;
+  --chart-over: 0 90% 74%;
+  /* Glow always behaves as it does on a dark surface here. */
+  --glow-opacity: 0.55;
+  --glow-spread: 26px;
+}
+
+/*
+ * Instrument-panel surfaces (banking).
+ *
+ * A financial dashboard earns a bit of hardware feel: a faint measurement grid,
+ * light that appears to come from the data itself, and a slow drift so a static
+ * page is not completely inert. Every effect here is decoration *layered under*
+ * content that already renders without it — nothing is revealed by a transition,
+ * so a headless render or a hidden tab still ships the whole page.
+ *
+ * The reduced-motion block above clamps all of this to a single 0.01ms pass.
+ */
+
+/* A fine measurement grid, like the face of an instrument. */
+.instrument-grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, hsl(var(--grid-line) / var(--grid-opacity)) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--grid-line) / var(--grid-opacity)) 1px, transparent 1px);
+  background-size: 28px 28px;
+  /* Fades out before the card edge so the grid reads as texture, not a table. */
+  mask-image: radial-gradient(120% 100% at 50% 0%, black 35%, transparent 100%);
+}
+
+/* Slow-drifting light behind the hero figure. */
+.aurora-orb {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 9999px;
+  filter: blur(42px);
+  opacity: 0.55;
+  will-change: transform;
+  animation: aurora-drift 26s cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+.aurora-orb-slow {
+  animation-duration: 38s;
+  animation-direction: alternate-reverse;
+}
+
+/* A light sweep across a surface, once, on mount. */
+.sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, hsl(0 0% 100% / 0.16) 50%, transparent 65%);
+  transform: translateX(-120%);
+  animation: sheen 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.5s both;
+}
+
+/* Light emitted by a figure, rather than a gradient applied to its letters. */
+.glow-text {
+  text-shadow: 0 0 calc(var(--glow-spread) * 1.4) hsl(0 0% 100% / 0.45);
+}
+
+/* Loading placeholders sweep rather than blink; it reads as work in progress. */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--foreground) / 0.07) 45%,
+    hsl(var(--foreground) / 0.11) 50%,
+    hsl(var(--foreground) / 0.07) 55%,
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Marks data as live. Motion here reports state: it stops when the data is stale. */
+.pulse-dot {
+  position: relative;
+}
+
+.pulse-dot::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.4;
+  animation: pulse-ring 2.6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* Notes are authored left-to-right even when pasted markup has direction data. */
+[contenteditable],
 [contenteditable] * {
   direction: ltr !important;
   text-align: left !important;
@@ -18,325 +319,10 @@
   writing-mode: horizontal-tb !important;
 }
 
-/* Force direction on all elements inside contentEditable */
-[contenteditable] p,
-[contenteditable] div,
-[contenteditable] span,
-[contenteditable] li,
-[contenteditable] td,
-[contenteditable] th {
-  direction: ltr !important;
-  text-align: left !important;
-  unicode-bidi: normal !important;
-  writing-mode: horizontal-tb !important;
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
-/* Warm, cozy design system */
-:root {
-  /* Main background - warm ivory */
-  --cozy-bg: hsl(35, 25%, 97%);
-  --cozy-surface: hsl(35, 15%, 99%);
-  
-  /* Text colors */
-  --cozy-text: hsl(25, 15%, 15%);
-  --cozy-text-muted: hsl(25, 8%, 45%);
-  --cozy-text-soft: hsl(25, 5%, 65%);
-  
-  /* Warm accent colors */
-  --cozy-primary: hsl(18, 75%, 65%);      /* warm coral */
-  --cozy-primary-soft: hsl(18, 85%, 85%);  /* light coral */
-  --cozy-primary-deep: hsl(18, 65%, 45%);  /* deep coral */
-  
-  /* Secondary warm tones */
-  --cozy-sage: hsl(95, 20%, 65%);         /* warm sage */
-  --cozy-sage-soft: hsl(95, 25%, 85%);   /* light sage */
-  --cozy-terracotta: hsl(15, 60%, 60%);  /* terracotta */
-  --cozy-cream: hsl(45, 40%, 92%);       /* warm cream */
-  --cozy-sand: hsl(35, 30%, 85%);        /* warm sand */
-  
-  /* Warm grays */
-  --cozy-gray-100: hsl(25, 8%, 95%);
-  --cozy-gray-200: hsl(25, 6%, 88%);
-  --cozy-gray-300: hsl(25, 5%, 75%);
-  --cozy-gray-400: hsl(25, 4%, 60%);
-  
-  /* Gradients */
-  --cozy-gradient-warm: linear-gradient(135deg, 
-    hsl(35, 40%, 95%) 0%, 
-    hsl(25, 35%, 92%) 50%, 
-    hsl(18, 30%, 90%) 100%
-  );
-  
-  --cozy-gradient-header: linear-gradient(90deg, 
-    hsl(18, 85%, 90%) 0%, 
-    hsl(35, 60%, 88%) 30%, 
-    hsl(95, 30%, 88%) 70%, 
-    hsl(45, 50%, 90%) 100%
-  );
-  
-  /* Shadows - warm and soft */
-  --cozy-shadow-sm: 0 2px 8px hsla(25, 15%, 15%, 0.08);
-  --cozy-shadow-md: 0 4px 16px hsla(25, 15%, 15%, 0.12);
-  --cozy-shadow-lg: 0 8px 32px hsla(25, 15%, 15%, 0.16);
-  --cozy-shadow-glow: 0 0 20px hsla(18, 75%, 65%, 0.15);
-}
-
-/* Base styling with warm, cozy foundation */
-html, body { 
-  background: var(--cozy-bg);
-  color: var(--cozy-text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-}
-
-/* Warm focus ring */
-*:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--cozy-surface), 0 0 0 5px var(--cozy-primary);
-  border-radius: 1rem;
-}
-
-/* Cozy glass panel */
-.cozy-glass {
-  background: var(--cozy-gradient-warm);
-  backdrop-filter: blur(12px);
-  border: 1px solid hsla(25, 15%, 85%, 0.4);
-  box-shadow: var(--cozy-shadow-md);
-}
-
-/* Warm card styling */
-.cozy-card { 
-  background: var(--cozy-surface);
-  border-radius: 1.5rem;
-  border: 1px solid var(--cozy-gray-200);
-  box-shadow: var(--cozy-shadow-sm);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.cozy-card:hover {
-  box-shadow: var(--cozy-shadow-md);
-  transform: translateY(-1px);
-}
-
-/* Warm button styles */
-.cozy-btn-primary {
-  background: var(--cozy-primary);
-  color: var(--cozy-surface);
-  border-radius: 1rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  box-shadow: var(--cozy-shadow-sm);
-}
-
-.cozy-btn-primary:hover {
-  background: var(--cozy-primary-deep);
-  box-shadow: var(--cozy-shadow-glow);
-  transform: translateY(-1px);
-}
-
-.cozy-btn-secondary {
-  background: var(--cozy-surface);
-  color: var(--cozy-text);
-  border: 1px solid var(--cozy-gray-300);
-  border-radius: 1rem;
-  padding: 0.75rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.cozy-btn-secondary:hover {
-  background: var(--cozy-cream);
-  border-color: var(--cozy-primary-soft);
-}
-
-/* Safe-area util (for sticky footers on iOS) */
-.pb-safe { 
-  padding-bottom: max(12px, env(safe-area-inset-bottom)); 
-}
-
-/* Fun hover animations */
-.cozy-wiggle {
-  animation: wiggle 0.5s ease-in-out;
-}
-
-.cozy-bounce-in {
-  animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-.cozy-shake {
-  animation: shake 0.5s ease-in-out;
-}
-
-.cozy-glow {
-  animation: glow 2s ease-in-out infinite alternate;
-}
-
-.cozy-float {
-  animation: float 3s ease-in-out infinite;
-}
-
-.cozy-pulse-gentle {
-  animation: pulseGentle 2s ease-in-out infinite;
-}
-
-/* Delightful button press effect */
-.cozy-btn-press {
-  transform: scale(0.98);
-  transition: transform 0.1s ease;
-}
-
-/* Fun keyframe animations */
-@keyframes wiggle {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(5deg); }
-  75% { transform: rotate(-5deg); }
-}
-
-@keyframes bounceIn {
-  0% { 
-    opacity: 0;
-    transform: scale(0.3) rotate(-10deg);
-  }
-  50% { 
-    opacity: 1;
-    transform: scale(1.05) rotate(2deg);
-  }
-  70% { 
-    transform: scale(0.95) rotate(-1deg);
-  }
-  100% { 
-    opacity: 1;
-    transform: scale(1) rotate(0deg);
-  }
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-3px); }
-  20%, 40%, 60%, 80% { transform: translateX(3px); }
-}
-
-@keyframes glow {
-  from { box-shadow: 0 0 20px hsla(18, 75%, 65%, 0.3); }
-  to { box-shadow: 0 0 30px hsla(18, 75%, 65%, 0.6); }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-6px); }
-}
-
-@keyframes pulseGentle {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-@keyframes confetti {
-  0% { 
-    transform: translateY(0) rotate(0deg);
-    opacity: 1;
-  }
-  100% { 
-    transform: translateY(-100px) rotate(360deg);
-    opacity: 0;
-  }
-}
-
-.cozy-confetti {
-  animation: confetti 1s ease-out forwards;
-}
-
-/* Enhanced card hover effects */
-.cozy-card:hover {
-  box-shadow: var(--cozy-shadow-lg);
-  transform: translateY(-2px) scale(1.01);
-}
-
-/* Satisfying button interactions */
-.cozy-btn-primary:active, .cozy-btn-secondary:active {
-  transform: translateY(1px) scale(0.98);
-}
-
-.cozy-btn-primary:hover {
-  background: var(--cozy-primary-deep);
-  box-shadow: var(--cozy-shadow-glow);
-  transform: translateY(-2px);
-}
-
-.cozy-btn-secondary:hover {
-  background: var(--cozy-cream);
-  border-color: var(--cozy-primary-soft);
-  transform: translateY(-1px);
-}
-
-/* Fun loading states */
-.cozy-loading-dance {
-  animation: loadingDance 1.5s ease-in-out infinite;
-}
-
-@keyframes loadingDance {
-  0%, 100% { transform: rotate(0deg) scale(1); }
-  25% { transform: rotate(10deg) scale(1.1); }
-  50% { transform: rotate(0deg) scale(0.9); }
-  75% { transform: rotate(-10deg) scale(1.1); }
-}
-
-/* Interactive emoji animations */
-.cozy-emoji:hover {
-  transform: scale(1.3) rotate(15deg);
-  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-/* Celebration effects */
-.cozy-celebrate {
-  position: relative;
-  overflow: hidden;
-}
-
-.cozy-celebrate::after {
-  content: '🎉✨🎊';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  opacity: 0;
-  animation: celebrate 0.6s ease-out;
-  pointer-events: none;
-  font-size: 1.2em;
-  white-space: nowrap;
-}
-
-@keyframes celebrate {
-  0% { 
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
-  }
-  50% { 
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.2);
-  }
-  100% { 
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.8) translateY(-20px);
-  }
-}
-
-/* Cozy scrollbars */
-*::-webkit-scrollbar { 
-  height: 8px; 
-  width: 8px; 
-}
-
-*::-webkit-scrollbar-thumb { 
-  background: var(--cozy-primary-soft); 
-  border-radius: 999px; 
-}
-
-*::-webkit-scrollbar-track {
-  background: var(--cozy-gray-100);
-}
-
-/* Animation delay utilities */
 .animation-delay-100 { animation-delay: 100ms; }
 .animation-delay-200 { animation-delay: 200ms; }
 .animation-delay-300 { animation-delay: 300ms; }
@@ -346,3 +332,42 @@ html, body {
 .animation-delay-1000 { animation-delay: 1000ms; }
 .animation-delay-1500 { animation-delay: 1500ms; }
 .animation-delay-2000 { animation-delay: 2000ms; }
+
+* {
+  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * The tour's spotlight is a very large box-shadow spread. Safari composites that
+ * incorrectly over an element with backdrop-filter, so the sticky header drops
+ * its blur for as long as a tour step is open.
+ */
+html[data-tour-active] header {
+  backdrop-filter: none;
+}

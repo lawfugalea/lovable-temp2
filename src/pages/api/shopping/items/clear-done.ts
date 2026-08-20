@@ -1,7 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import { recordActivity } from '@/lib/activity';
 
 async function requireUser(req: NextApiRequest, res: NextApiResponse) {
   const sess = (await getServerSession(req, res, authOptions as any)) as any;
@@ -10,7 +12,7 @@ async function requireUser(req: NextApiRequest, res: NextApiResponse) {
   return userId;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
@@ -34,8 +36,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   });
   if (!isMember) return res.status(403).json({ error: 'Forbidden' });
 
-  await prisma.shoppingItem.deleteMany({ where: { listId, status: 'DONE' } });
+  const { count } = await prisma.shoppingItem.deleteMany({ where: { listId, status: 'DONE' } });
+
+  if (count > 0) {
+    void recordActivity({
+      householdId: list.householdId,
+      userId,
+      module: 'shopping',
+      action: 'cleared-done',
+      summary: `${count} bought item${count === 1 ? '' : 's'} cleared from the shopping list`,
+      targetId: listId,
+    });
+  }
 
   res.setHeader('Cache-Control', 'no-store');
   return res.status(200).json({ ok: true });
 }
+
+export default withApiHandler(handler)

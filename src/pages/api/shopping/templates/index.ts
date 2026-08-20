@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
@@ -11,14 +12,21 @@ async function requireUser(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function requireHouseholdAccess(userId: string) {
-  const membership = await prisma.membership.findFirst({
-    where: { userId },
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { activeHouseholdId: true },
+  });
+  if (!user?.activeHouseholdId) return null;
+  const membership = await prisma.membership.findUnique({
+    where: {
+      userId_householdId: { userId, householdId: user.activeHouseholdId },
+    },
     select: { householdId: true },
   });
-  return membership?.householdId || null;
+  return membership?.householdId ?? null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
@@ -44,12 +52,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       items: Array<{
         name: string;
         quantity?: number;
+        productId?: string;
         note?: string;
       }>;
     };
 
-    if (!name || !items || !Array.isArray(items)) {
+    if (!name?.trim() || name.trim().length > 100 || !items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Missing name or items' });
+    }
+    if (items.length > 200 || items.some(item => {
+      const quantity = item.quantity ?? 1;
+      return !item?.name?.trim()
+        || item.name.trim().length > 200
+        || !Number.isFinite(quantity)
+        || quantity <= 0
+        || quantity > 10000
+        || (item.productId !== undefined && (typeof item.productId !== 'string' || !item.productId.trim()))
+        || (item.note?.length || 0) > 1000;
+    })) {
+      return res.status(400).json({ error: 'Template contains invalid items' });
+    }
+    const productIds = Array.from(new Set(items.map(item => item.productId).filter((id): id is string => Boolean(id))));
+    if (productIds.length) {
+      const existingProducts = await prisma.canonicalProduct.count({
+        where: {
+          id: { in: productIds },
+          products: { some: { active: true, store: { enabled: true } } },
+        },
+      });
+      if (existingProducts !== productIds.length) {
+        return res.status(409).json({ error: 'A catalogue product is no longer current; please refresh the list' });
+      }
     }
 
     const template = await prisma.shoppingTemplate.create({
@@ -59,7 +92,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         items: {
           create: items.map(item => ({
             name: item.name.trim(),
-            quantity: item.quantity || 1,
+            quantity: item.quantity ?? 1,
+            productId: item.productId || undefined,
             note: item.note?.trim() || undefined,
           })),
         },
@@ -76,3 +110,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['GET', 'POST']);
   return res.status(405).end('Method Not Allowed');
 }
+
+export default withApiHandler(handler)

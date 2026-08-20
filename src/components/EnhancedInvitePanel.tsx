@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Badge } from './ui/Badge';
-import { Mail, Copy, Check, AlertCircle, Users, Share2, QrCode } from 'lucide-react';
+import { Mail, Copy, Check, AlertCircle, Users, Share2 } from 'lucide-react';
 
 interface CreateInviteResponse {
   id: string;
@@ -72,7 +72,7 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
   }, [status, session, householdId]);
 
   const handleInvite = async () => {
-    if (!email.trim() || !activeHouseholdId) return;
+    if (!activeHouseholdId) return;
 
     setSubmitting(true);
     setError(null);
@@ -84,7 +84,7 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           householdId: activeHouseholdId,
-          email: email.trim().toLowerCase(),
+          email: email.trim() ? email.trim().toLowerCase() : null,
           role
         })
       });
@@ -119,7 +119,25 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
     }
   };
 
-  const isDisabled = submitting || !email.trim() || !activeHouseholdId || status !== 'authenticated';
+  const shareInvite = async () => {
+    if (!result) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `Join ${householdName || 'our household'} on Clankeep`,
+          text: `You have been invited to join ${householdName || 'a household'} on Clankeep.`,
+          url: result.acceptUrl,
+        });
+      } else {
+        await copyToClipboard(result.acceptUrl);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setError('Could not share the invite. Copy the link instead.');
+    }
+  };
+
+  const isDisabled = submitting || !activeHouseholdId || status !== 'authenticated';
 
   return (
     <Card>
@@ -129,20 +147,13 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
           Invite Members
         </CardTitle>
         <CardDescription>
-          Send invitations to join {householdName || 'your household'}
+          Email an invitation or create a secure link for {householdName || 'your household'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Household ID display */}
-        {activeHouseholdId && (
-          <div className="text-xs text-cozy-text-muted">
-            Household: <span className="font-mono bg-cozy-gray-100 px-2 py-1 rounded">{activeHouseholdId}</span>
-          </div>
-        )}
-
         {/* Email input */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-cozy-text">Email Address</label>
+          <label className="text-sm font-medium text-foreground">Email Address</label>
           <Input
             type="email"
             placeholder="family@example.com"
@@ -150,33 +161,36 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
             onChange={(e) => setEmail(e.target.value)}
             className="w-full"
           />
+          <p className="text-xs text-muted-foreground">
+            Leave this blank to create a link you can share yourself.
+          </p>
         </div>
 
         {/* Role selection */}
         <div className="space-y-2">
-          <label className="text-sm font-medium text-cozy-text">Role</label>
+          <label className="text-sm font-medium text-foreground">Role</label>
           <div className="flex gap-2">
             <button
               onClick={() => setRole('MEMBER')}
               className={`flex-1 p-3 border rounded-lg text-sm transition-all ${
                 role === 'MEMBER'
-                  ? 'border-cozy-primary bg-cozy-primary/10 text-cozy-primary'
-                  : 'border-cozy-gray-200 hover:border-cozy-gray-300'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border hover:border-input'
               }`}
             >
               <div className="font-medium">Member</div>
-              <div className="text-xs text-cozy-text-muted">Can manage lists and items</div>
+              <div className="text-xs text-muted-foreground">Household access without member administration</div>
             </button>
             <button
               onClick={() => setRole('OWNER')}
               className={`flex-1 p-3 border rounded-lg text-sm transition-all ${
                 role === 'OWNER'
-                  ? 'border-cozy-primary bg-cozy-primary/10 text-cozy-primary'
-                  : 'border-cozy-gray-200 hover:border-cozy-gray-300'
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border hover:border-input'
               }`}
             >
               <div className="font-medium">Owner</div>
-              <div className="text-xs text-cozy-text-muted">Full access and can invite others</div>
+              <div className="text-xs text-muted-foreground">Can invite, promote, remove, and manage members</div>
             </button>
           </div>
         </div>
@@ -195,8 +209,10 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
           disabled={isDisabled}
           className="w-full"
         >
-          <Mail className="w-4 h-4 mr-2" />
-          {submitting ? 'Sending Invite...' : 'Send Invite'}
+          {email.trim() ? <Mail className="w-4 h-4 mr-2" /> : <Share2 className="w-4 h-4 mr-2" />}
+          {submitting
+            ? (email.trim() ? 'Sending Invite...' : 'Creating Link...')
+            : (email.trim() ? 'Send Invite' : 'Create Invite Link')}
         </Button>
 
         {/* Success result */}
@@ -239,19 +255,12 @@ export default function EnhancedInvitePanel({ householdId, householdName }: Enha
           </div>
         )}
 
-        {/* Additional options */}
-        <div className="pt-4 border-t border-cozy-gray-200">
-          <div className="text-sm text-cozy-text-muted mb-3">Other ways to invite:</div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="flex-1">
-              <Share2 className="w-4 h-4 mr-2" />
-              Share Link
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1">
-              <QrCode className="w-4 h-4 mr-2" />
-              QR Code
-            </Button>
-          </div>
+        {/* Native share where supported; clipboard fallback elsewhere. */}
+        <div className="pt-4 border-t border-border">
+          <Button variant="outline" size="sm" className="w-full" onClick={shareInvite} disabled={!result}>
+            <Share2 className="w-4 h-4 mr-2" />
+            Share latest invite
+          </Button>
         </div>
       </CardContent>
     </Card>

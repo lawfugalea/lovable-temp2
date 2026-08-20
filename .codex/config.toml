@@ -1,0 +1,15 @@
+[agents]
+max_threads = 3
+max_depth = 1
+
+[agents.explorer]
+description = "Read-only repository investigation and execution-path tracing."
+config_file = "./agents/explorer.toml"
+
+[agents.worker]
+description = "Bounded implementation within an explicitly owned writable area."
+config_file = "./agents/worker.toml"
+
+[agents.reviewer]
+description = "Normally read-only review for substantial or risky completed changes."
+config_file = "./agents/reviewer.toml"

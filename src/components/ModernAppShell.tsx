@@ -1,37 +1,51 @@
-import React, { useState, useEffect } from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { useSession } from 'next-auth/react'
-import { 
-  Home, 
-  ShoppingCart, 
-  DollarSign, 
-  CreditCard,
-  Settings, 
-  Users,
-  Search,
-  Bell,
+import React, { useEffect, useMemo, useState } from "react"
+import Head from "next/head"
+import Link from "next/link"
+import { useRouter } from "next/router"
+import { useSession } from "next-auth/react"
+import { useTheme } from "next-themes"
+import {
+  ChevronsUpDown,
+  HelpCircle,
+  LogOut,
   Menu,
-  X,
-  Command,
-  Pill,
-  Shield,
-  FileText
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import CommandPalette from './CommandPalette'
-import MedicineNotifications from './MedicineNotifications'
+  Monitor,
+  Moon,
+  Search,
+  Settings,
+  ShieldCheck,
+  Sun,
+  Users,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { withBasePath } from "@/lib/base-path"
+import { moduleForPath } from "@/lib/modules"
+import { useVisibleModules } from "@/hooks/useVisibleModules"
+import { Button } from "@/components/ui/Button"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/DropdownMenu"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/Sheet"
+import CommandPalette from "./CommandPalette"
+import BottomTabBar from "./BottomTabBar"
+import DemoBanner from "./DemoBanner"
+import UpgradeButton from "./UpgradeButton"
+import BrandLogo from "./BrandLogo"
+import HouseholdSwitcher from "./HouseholdSwitcher"
+import { signOutAndClearDevice } from "@/lib/sign-out"
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Shopping', href: '/shopping', icon: ShoppingCart },
-  { name: 'Finance Planner', href: '/finances', icon: DollarSign },
-  { name: 'Medicine', href: '/medicine', icon: Pill },
-  { name: 'Notes', href: '/notes', icon: FileText },
-  { name: 'Settings', href: '/settings', icon: Settings },
-  { name: 'Household', href: '/household', icon: Users },
+const manageItems = [
+  { name: "Household", href: "/household", icon: Users },
+  { name: "Settings", href: "/settings", icon: Settings },
+  { name: "Help", href: "/help", icon: HelpCircle },
 ]
 
 interface ModernAppShellProps {
@@ -39,192 +53,354 @@ interface ModernAppShellProps {
   title?: string
 }
 
+function getInitials(name?: string | null, email?: string | null) {
+  const source = name?.trim() || email?.trim() || "Clankeep"
+  const parts = source.split(/\s+/).filter(Boolean)
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "CK"
+}
+
+function ThemePicker() {
+  const { theme, setTheme } = useTheme()
+  return (
+    <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
+      <DropdownMenuRadioItem value="light"><Sun /> Light</DropdownMenuRadioItem>
+      <DropdownMenuRadioItem value="dark"><Moon /> Dark</DropdownMenuRadioItem>
+      <DropdownMenuRadioItem value="system"><Monitor /> System</DropdownMenuRadioItem>
+    </DropdownMenuRadioGroup>
+  )
+}
+
 export default function ModernAppShell({ children, title }: ModernAppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const router = useRouter()
   const { data: session } = useSession()
+  const isAdmin = (session?.user as { isAdmin?: boolean } | undefined)?.isAdmin === true
+  const visibleModules = useVisibleModules()
 
-  const currentPath = router.pathname
+  const activeModule = moduleForPath(router.pathname)
 
-  // Keyboard shortcut for command palette
+  const activeTitle = useMemo(() => {
+    if (title) return title
+    if (activeModule) return activeModule.name
+    const manageMatch = manageItems.find((item) => item.href === router.pathname)
+    if (manageMatch) return manageMatch.name
+    return router.pathname === "/admin" ? "Admin" : "Clankeep"
+  }, [router.pathname, title, activeModule])
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault()
         setCommandPaletteOpen(true)
       }
     }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
   }, [])
 
-  return (
-    <div className="min-h-screen bg-cozy-bg lg:flex">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 bg-cozy-surface border-r border-cozy-gray-200 lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto",
-          "lg:flex lg:flex-col lg:flex-shrink-0",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        )}
-      >
-        {/* Sidebar header */}
-        <div className="flex items-center justify-between p-6 border-b border-cozy-gray-200">
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-cozy-primary rounded-lg flex items-center justify-center">
-              <Home className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-lg text-cozy-text">Houseflow</span>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
+  const manageLinks = (
+    <div className="space-y-1">
+      {manageItems.map((item) => {
+        const active = router.pathname === item.href
+        const Icon = item.icon
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
             onClick={() => setSidebarOpen(false)}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+              active
+                ? "bg-secondary text-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
           >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
+            <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+            <span>{item.name}</span>
+          </Link>
+        )
+      })}
+      {isAdmin && (
+        <Link
+          href="/admin"
+          onClick={() => setSidebarOpen(false)}
+          aria-current={router.pathname === "/admin" ? "page" : undefined}
+          className={cn(
+            "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+            router.pathname === "/admin"
+              ? "bg-secondary text-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+          )}
+        >
+          <ShieldCheck className="h-[18px] w-[18px]" aria-hidden="true" />
+          <span>Admin</span>
+        </Link>
+      )}
+    </div>
+  )
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          {navigation.map((item) => {
-            const isActive = currentPath === item.href
-            const Icon = item.icon
-            
-            return (
-              <Link
-                key={item.name}
-                href={item.href}
-                onClick={() => setSidebarOpen(false)}
-                className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-cozy-primary text-white shadow-cozy-sm"
-                    : "text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-cream"
-                )}
-              >
-                <Icon className="w-5 h-5" />
-                <span>{item.name}</span>
-              </Link>
-            )
-          })}
-          
-          {/* Admin Panel Link - Only for admin user */}
-          {session?.user?.email === 'lawfinuu@gmail.com' && (
+  const accountMenuContent = (
+    <DropdownMenuContent side="top" align="start" className="w-64">
+      <DropdownMenuLabel>My account</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <HouseholdSwitcher />
+      <DropdownMenuItem asChild><Link href="/settings"><Settings /> Settings</Link></DropdownMenuItem>
+      <DropdownMenuItem asChild><Link href="/household"><Users /> Household</Link></DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">Theme</DropdownMenuLabel>
+      <ThemePicker />
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+        onSelect={() => void signOutAndClearDevice()}
+      >
+        <LogOut /> Sign out
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  )
+
+  const userMenu = (
+    <div className="border-t p-3">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-auto w-full justify-start gap-3 px-2 py-2 text-left">
+            <Avatar className="h-9 w-9 border border-primary/15">
+              {session?.user?.image && <AvatarImage src={session.user.image} alt="" />}
+              <AvatarFallback>{getInitials(session?.user?.name, session?.user?.email)}</AvatarFallback>
+            </Avatar>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-foreground">{session?.user?.name || "Clankeep member"}</span>
+              <span className="block truncate text-xs font-normal text-muted-foreground">{session?.user?.email || "Account"}</span>
+            </span>
+            <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        {accountMenuContent}
+      </DropdownMenu>
+    </div>
+  )
+
+  const railLinkClass = (active: boolean, activeClass: string) =>
+    cn(
+      "grid h-11 w-11 place-items-center rounded-xl transition-colors",
+      active ? activeClass : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    )
+
+  // Compact icon rail for tablets (md–lg): modules + manage, no labels.
+  const rail = (
+    <div className="flex h-full flex-col items-center bg-card py-4">
+      <Link href="/dashboard" aria-label="Overview" className="mb-4">
+        <BrandLogo compact priority />
+      </Link>
+      <nav data-tour="nav" className="flex flex-1 flex-col items-center gap-1.5 overflow-y-auto" aria-label="Main navigation">
+        {visibleModules.map((module) => {
+          const active = router.pathname === module.href
+          const Icon = module.icon
+          return (
             <Link
-              href="/admin"
-              onClick={() => setSidebarOpen(false)}
+              key={module.key}
+              href={module.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={module.name}
+              title={module.name}
+              className={railLinkClass(active, module.activeClass)}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          )
+        })}
+        <div className="my-2 h-px w-8 bg-border" aria-hidden="true" />
+        {manageItems.map((item) => {
+          const active = router.pathname === item.href
+          const Icon = item.icon
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={item.name}
+              title={item.name}
+              className={railLinkClass(active, "bg-secondary text-foreground")}
+            >
+              <Icon className="h-5 w-5" aria-hidden="true" />
+            </Link>
+          )
+        })}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            aria-current={router.pathname === "/admin" ? "page" : undefined}
+            aria-label="Admin"
+            title="Admin"
+            className={railLinkClass(router.pathname === "/admin", "bg-secondary text-foreground")}
+          >
+            <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+          </Link>
+        )}
+      </nav>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button type="button" aria-label="Account menu" className="mt-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <Avatar className="h-9 w-9 border border-primary/15">
+              {session?.user?.image && <AvatarImage src={session.user.image} alt="" />}
+              <AvatarFallback>{getInitials(session?.user?.name, session?.user?.email)}</AvatarFallback>
+            </Avatar>
+          </button>
+        </DropdownMenuTrigger>
+        {accountMenuContent}
+      </DropdownMenu>
+    </div>
+  )
+
+  const moduleLinks = (
+    <div className="space-y-1">
+      {visibleModules.map((module) => {
+        const active = router.pathname === module.href
+        const Icon = module.icon
+        return (
+          <Link
+            key={module.key}
+            href={module.href}
+            onClick={() => setSidebarOpen(false)}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+              active
+                ? cn(module.activeClass, "font-semibold")
+                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            {active && (
+              <span aria-hidden="true" className={cn("absolute inset-y-2 left-0 w-[3px] rounded-full", module.barClass)} />
+            )}
+            <span
               className={cn(
-                "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                currentPath === '/admin'
-                  ? "bg-cozy-primary text-white shadow-cozy-sm"
-                  : "text-cozy-text-muted hover:text-cozy-text hover:bg-cozy-cream"
+                "grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors",
+                active ? module.tileClass : "bg-muted/60 text-muted-foreground group-hover:bg-card group-hover:text-accent-foreground"
               )}
             >
-              <Shield className="w-5 h-5" />
-              <span>Admin Panel</span>
-            </Link>
-          )}
-        </nav>
+              <Icon className="h-[17px] w-[17px]" aria-hidden="true" />
+            </span>
+            <span>{module.name}</span>
+          </Link>
+        )
+      })}
+    </div>
+  )
 
-        {/* Sidebar footer */}
-        <div className="p-4 border-t border-cozy-gray-200">
-          <div className="flex items-center space-x-3 p-3 rounded-lg bg-cozy-cream">
-            <div className="w-8 h-8 bg-cozy-primary rounded-full flex items-center justify-center">
-              <span className="text-xs font-medium text-white">
-                {session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-cozy-text truncate">
-                {session?.user?.name || 'User'}
-              </p>
-              <p className="text-xs text-cozy-text-muted truncate">
-                {session?.user?.email || 'user@example.com'}
-              </p>
-            </div>
-          </div>
+  const sidebar = (
+    <div className="flex h-full flex-col bg-card">
+      <div className="flex h-[72px] items-center border-b px-5">
+        <Link href="/dashboard" className="group flex items-center" onClick={() => setSidebarOpen(false)}>
+          <BrandLogo priority className="transition-transform group-hover:scale-[1.02]" />
+        </Link>
+      </div>
+
+      <nav data-tour="nav" className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="Main navigation">
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+            Household
+          </p>
+          {moduleLinks}
         </div>
-      </aside>
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+            Manage
+          </p>
+          {manageLinks}
+        </div>
+      </nav>
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0 lg:flex lg:flex-col">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-cozy-surface/80 backdrop-blur-xl border-b border-cozy-gray-200 w-full">
-          <div className="flex items-center justify-between px-4 py-3 sm:px-6 max-w-full">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                onClick={() => setSidebarOpen(true)}
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-              {title && (
-                <h1 className="text-xl font-semibold text-cozy-text">
-                  {title}
-                </h1>
-              )}
-            </div>
+      {userMenu}
+    </div>
+  )
 
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden sm:flex"
-                onClick={() => setCommandPaletteOpen(true)}
-              >
-                <Search className="w-4 h-4 mr-2" />
-                Search...
-                <kbd className="ml-2 inline-flex h-5 select-none items-center gap-1 rounded border bg-cozy-cream px-1.5 font-mono text-[10px] font-medium text-cozy-text-muted opacity-100">
-                  <span className="text-xs">⌘</span>K
-                </kbd>
-              </Button>
-              
-              <Button variant="ghost" size="icon">
-                <Bell className="w-5 h-5" />
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="icon"
-                className="sm:hidden"
-                onClick={() => setCommandPaletteOpen(true)}
-              >
-                <Search className="w-5 h-5" />
-              </Button>
+  const drawer = (
+    <div className="flex h-full flex-col bg-card">
+      <div className="flex h-[72px] items-center border-b px-5">
+        <Link href="/dashboard" className="flex items-center" onClick={() => setSidebarOpen(false)}>
+          <BrandLogo priority />
+        </Link>
+      </div>
+      <nav data-tour="nav" className="flex-1 space-y-6 overflow-y-auto px-3 py-5" aria-label="More navigation">
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+            Household
+          </p>
+          {moduleLinks}
+        </div>
+        <div>
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
+            Manage
+          </p>
+          {manageLinks}
+        </div>
+      </nav>
+      {userMenu}
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-background md:grid md:grid-cols-[76px_minmax(0,1fr)] lg:grid-cols-[280px_minmax(0,1fr)]">
+      <Head>
+        <title>{`${activeTitle} · Clankeep`}</title>
+      </Head>
+      <aside className="sticky top-0 hidden h-screen border-r bg-card md:block lg:hidden">{rail}</aside>
+      <aside className="sticky top-0 hidden h-screen border-r bg-card lg:block">{sidebar}</aside>
+
+      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <SheetContent side="left" className="w-[min(88vw,320px)] p-0">
+          <SheetTitle className="sr-only">Clankeep navigation</SheetTitle>
+          {drawer}
+        </SheetContent>
+      </Sheet>
+
+      <div className="min-w-0">
+        <DemoBanner />
+        <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75">
+          <div className="flex h-[72px] items-center gap-3 px-4 sm:px-6 lg:px-8">
+            <Button variant="outline" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
+              <Menu className="h-5 w-5" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-muted-foreground">Household workspace</p>
+              <h1 className="truncate font-display text-lg font-semibold tracking-tight">
+                {activeTitle}
+                <span
+                  aria-hidden="true"
+                  className={cn("mt-0.5 block h-0.5 w-8 rounded-full", activeModule ? activeModule.barClass : "bg-transparent")}
+                />
+              </h1>
             </div>
+            <Button
+              variant="outline"
+              className="hidden min-w-[210px] justify-between bg-card text-muted-foreground shadow-soft-sm sm:flex"
+              onClick={() => setCommandPaletteOpen(true)}
+            >
+              <span className="flex items-center gap-2"><Search className="h-4 w-4" /> Search</span>
+              <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
+            </Button>
+            <Button variant="outline" size="icon" className="sm:hidden" onClick={() => setCommandPaletteOpen(true)} aria-label="Search Clankeep">
+              <Search className="h-4 w-4" />
+            </Button>
+            {/* The tour's `upgrade` anchor lives on UpgradeButton itself, which
+                only renders for free households — matching that step's `when`. */}
+            <UpgradeButton />
+            <Button asChild variant="outline" size="icon" data-tour="help" className="hidden sm:inline-flex" aria-label="Help">
+              <Link href="/help" title="Help"><HelpCircle className="h-4 w-4" /></Link>
+            </Button>
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 px-4 pt-2 pb-6 sm:px-6 max-w-full overflow-x-hidden lg:flex-1">
-          <div className="animate-cozy-fade-in w-full">
-            {children}
-          </div>
+        <main className="min-h-[calc(100vh-72px)] px-4 py-5 pb-28 sm:px-6 sm:py-7 md:pb-8 lg:px-8 lg:py-8">
+          <div className="mx-auto w-full max-w-[1520px] animate-fade-in">{children}</div>
         </main>
       </div>
 
-      {/* Command Palette */}
-      <CommandPalette 
-        isOpen={commandPaletteOpen} 
-        onClose={() => setCommandPaletteOpen(false)} 
-      />
-
-      {/* Medicine Notifications */}
-      <MedicineNotifications />
+      <BottomTabBar onOpenMore={() => setSidebarOpen(true)} />
+      <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
     </div>
   )
 }

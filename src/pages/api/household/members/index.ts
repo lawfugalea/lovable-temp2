@@ -1,9 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') { res.setHeader('Allow', ['GET']); return res.status(405).end('Method Not Allowed'); }
   const sess = (await getServerSession(req, res, authOptions as any)) as any;
   const userId = sess?.user?.id as string | undefined;
@@ -29,3 +30,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   return res.status(200).json({ viewerRole: viewer.role, members });
 }
+
+export default withApiHandler(handler)

@@ -1,0 +1,55 @@
+# Overlay for the throwaway verification stack.
+#
+# Production is live at https://clankeep.com and there is no staging copy, so a
+# patched image is exercised here first. Used only through
+# scripts/verify-stack.sh, which asserts the safety properties below against the
+# *resolved* configuration before anything starts.
+#
+# Every override here exists to keep this stack away from production. Two are
+# load-bearing:
+#
+#   1. The volume names. docker-compose.yml gives both volumes an explicit
+#      `name:`, which defeats Compose's project-name prefixing entirely — so
+#      `-p clankeep-verify` alone would attach these containers to the live
+#      production database volume. Renaming them is the only thing that
+#      actually separates the data.
+#
+#   2. `!override` on every list field. Compose *merges* sequences across files
+#      rather than replacing them, so a plain `env_file: [.env.verify]` would
+#      load production `.env` as well and hand this stack the live Stripe
+#      secret, Resend key, Enable Banking private key and NEXTAUTH_SECRET.
+#      `!override` replaces the list instead of appending to it.
+#
+# Only db, migrate and app are ever started. The backup service bind-mounts the
+# real backup directory and backup-offsite carries the Cloudflare R2
+# credentials; neither belongs anywhere near a test stack.
+
+services:
+  db:
+    ports: !override
+      - "127.0.0.1:5435:5432"
+
+  migrate:
+    env_file: !override
+      - .env.verify
+
+  app:
+    env_file: !override
+      - .env.verify
+    ports: !override
+      - "127.0.0.1:3100:3000"
+
+  # Never started by scripts/verify-stack.sh, but `compose config` still resolves
+  # every service, and this one also declares `env_file: .env`. Overridden so the
+  # whole resolved configuration is free of production secrets — which is what
+  # lets the preflight assert that property over the entire file instead of
+  # having to special-case which services it trusts.
+  price-sync:
+    env_file: !override
+      - .env.verify
+
+volumes:
+  houseflow-postgres-data:
+    name: clankeep-verify-postgres-data
+  houseflow-uploads:
+    name: clankeep-verify-uploads

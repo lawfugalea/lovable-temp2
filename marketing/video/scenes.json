@@ -1,0 +1,151 @@
+{
+  "landscape": [
+    {
+      "id": "intro",
+      "image": "landing-hero.png",
+      "title": "Everything your home juggles",
+      "subtitle": "One calm place for the whole family",
+      "badge": "CLANKEEP",
+      "narration": "Family life is a team sport. Shopping, meals, chores, medicine, money and all the little notes in between. ClanKeep brings it together in one calm, private household workspace."
+    },
+    {
+      "id": "overview",
+      "image": "dashboard.png",
+      "title": "Your household at a glance",
+      "subtitle": "See what needs attention today",
+      "badge": "FREE",
+      "narration": "Start with an overview everyone can understand. See the next shop, tonight's dinner, today's jobs, medicine schedules and your household plan without bouncing between five different apps."
+    },
+    {
+      "id": "shopping",
+      "image": "shopping-list.png",
+      "title": "One shared shopping list",
+      "subtitle": "Live updates, quantities and reusable templates",
+      "badge": "FREE",
+      "narration": "Shopping lists are free forever. Anyone in the household can add an item, change a quantity or tick it off in the aisle, and the list stays up to date for everyone. Save the lists you repeat as templates, then bring them back in a tap."
+    },
+    {
+      "id": "compare",
+      "image": "shopping-compare.png",
+      "title": "Where is this basket cheapest?",
+      "subtitle": "Daily Malta catalogue prices and honest basket totals",
+      "badge": "FAMILY · MALTA ONLY",
+      "narration": "On the Family plan in Malta, ClanKeep matches the products on your real list against supported supermarket catalogues, compares the available basket at each store and highlights the lowest total. Daily offers are shown clearly, with freshness and availability kept visible."
+    },
+    {
+      "id": "meals",
+      "image": "meals.png",
+      "title": "Dinner, decided",
+      "subtitle": "Plan the week, then shop it in one tap",
+      "badge": "FREE + FAMILY PRICING",
+      "narration": "The weekly meal planner and your own recipe collection are included on Free. Plan dinner from Monday to Sunday and send every ingredient to shopping in one tap. Family households can also price the whole week by supermarket."
+    },
+    {
+      "id": "chores",
+      "image": "chores.png",
+      "title": "The rota that runs itself",
+      "subtitle": "Recurring jobs and a shared completion log",
+      "badge": "FREE",
+      "narration": "Chores appear on the right day, can be assigned to a household member and disappear with one satisfying tick. The shared log keeps everyone in sync without another round of reminders in the family chat."
+    },
+    {
+      "id": "notes",
+      "image": "notes.png",
+      "title": "Notes that behave like notes",
+      "subtitle": "Private, shared, rich and easy to find",
+      "badge": "FREE",
+      "narration": "Keep the information your home actually uses: a babysitter brief, packing checklist or boiler instructions. Notes can stay private or be shared, pinned and organised, with rich formatting when a plain text box is not enough."
+    },
+    {
+      "id": "medicine",
+      "image": "medicine.png",
+      "title": "A health journal with context",
+      "subtitle": "Doses, temperatures and schedules in one timeline",
+      "badge": "FREE + FAMILY EXTRAS",
+      "narration": "Medicine tracking for one child is included on Free. Record what was actually given, temperatures and useful context in a clear timeline. Family adds unlimited children, private push reminders for verified schedules, and printable PDF reports to take to a clinician. ClanKeep records and reminds; it does not replace medical advice."
+    },
+    {
+      "id": "finances",
+      "image": "finances.png",
+      "title": "Your money, in one calm view",
+      "subtitle": "Income, commitments, goals and a privacy-aware coach",
+      "badge": "FAMILY",
+      "narration": "The Family money planner maps what comes in, what must go out and what is really left to direct. Set budgets and savings goals, track progress and ask the AI savings coach for a route forward. The coach sees only the redacted summary you approve, never names or bank logins."
+    },
+    {
+      "id": "household",
+      "image": "household.png",
+      "title": "The whole clan is included",
+      "subtitle": "Invite partners, children and grandparents",
+      "badge": "FREE",
+      "narration": "Invite the people who help your home run by email or link. Unlimited household members are included on Free, with shared access and simple member management from the same home."
+    },
+    {
+      "id": "pricing",
+      "image": "pricing.png",
+      "title": "Free for everyday life",
+      "subtitle": "One Family plan for the money and health superpowers",
+      "badge": "CLEAR PRICING",
+      "narration": "Free is zero euro forever, with no card and no trial clock: shared shopping, meal planning, chores, notes, unlimited members and medicine tracking for one child. Family is four euro ninety-nine per month, or forty-nine euro per year with VAT included. It adds Malta price comparison and offers, weekly store pricing, the money planner and AI coach, unlimited children, push dose reminders and PDF health reports. Cancel anytime; your data and every Free feature stay with you."
+    },
+    {
+      "id": "outro",
+      "image": "landing-cta.png",
+      "title": "Together. Organised. At home.",
+      "subtitle": "Start your household free at clankeep.com",
+      "badge": "NO CARD NEEDED",
+      "narration": "Less chasing, fewer scattered apps and one calmer place for the people who matter most. Start your household free today at ClanKeep dot com. No card needed."
+    }
+  ],
+  "vertical": [
+    {
+      "id": "short-intro",
+      "image": "mobile-dashboard.png",
+      "title": "Family life is a team sport",
+      "subtitle": "Put the whole household in one calm place",
+      "badge": "CLANKEEP",
+      "narration": "Family life is a team sport. ClanKeep puts the whole household in one calm place."
+    },
+    {
+      "id": "short-shopping",
+      "image": "mobile-shopping.png",
+      "title": "Share the shopping",
+      "subtitle": "Live lists are free forever",
+      "badge": "FREE",
+      "narration": "Share live shopping lists for free, then compare your basket across supported Malta supermarkets with Family."
+    },
+    {
+      "id": "short-life",
+      "image": "mobile-meals.png",
+      "title": "Plan meals. Share chores.",
+      "subtitle": "Keep the notes everyone needs",
+      "badge": "FREE",
+      "narration": "Plan meals, send ingredients to shopping, share recurring chores and keep the notes everyone needs."
+    },
+    {
+      "id": "short-health",
+      "image": "mobile-medicine.png",
+      "title": "Keep the health timeline",
+      "subtitle": "One child on Free · unlimited on Family",
+      "badge": "FREE + FAMILY",
+      "narration": "Track medicine for one child on Free. Family adds unlimited children, push reminders and PDF reports."
+    },
+    {
+      "id": "short-finance",
+      "image": "mobile-finances.png",
+      "title": "Give every euro a direction",
+      "subtitle": "Money planner and redacted AI coach",
+      "badge": "FAMILY",
+      "narration": "Family also includes the money planner and an AI coach that sees only the redacted summary you approve."
+    },
+    {
+      "id": "short-outro",
+      "image": "mobile-pricing.png",
+      "title": "Start free. Upgrade when useful.",
+      "subtitle": "€4.99/month or €49/year for Family",
+      "badge": "CLANKEEP.COM",
+      "narration": "Start free at ClanKeep dot com. Upgrade when the extra money and health tools make sense for your family."
+    }
+  ]
+}
+

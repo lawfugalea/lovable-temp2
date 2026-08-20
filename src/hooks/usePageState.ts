@@ -18,10 +18,6 @@ type UsePageStateReturn<T> = {
   saveNow: () => void;              // flush the debounced save immediately
 };
 
-function deepEqual(a: unknown, b: unknown) {
-  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
-}
-
 export function usePageState<T>(opts: UsePageStateOptions<T>): UsePageStateReturn<T> {
   const { householdId, page, initial, saveDelayMs = 800, localKey } = opts;
 
@@ -37,6 +33,7 @@ export function usePageState<T>(opts: UsePageStateOptions<T>): UsePageStateRetur
   const inFlightRef       = useRef<boolean>(false);
   const lastSavedJsonRef  = useRef<string>(JSON.stringify(initial));
   const didHydrateRef     = useRef<boolean>(false);
+  const updatedAtRef      = useRef<string | null>(null);
   const hidRef            = useRef<string>(householdId);
   const pageRef           = useRef<string>(page);
   const abortRef          = useRef<AbortController | null>(null);
@@ -52,8 +49,45 @@ export function usePageState<T>(opts: UsePageStateOptions<T>): UsePageStateRetur
         lastSavedJsonRef.current = JSON.stringify(parsed);
       }
     } catch { /* ignore */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localKey]);
+
+  // ---- doSave (PUT)
+  const doSave = useCallback(async (data: T) => {
+    if (!mountedRef.current || !householdId || !page) { setSaving(false); return; }
+    const json = JSON.stringify(data);
+    if (json === lastSavedJsonRef.current) { setSaving(false); return; } // no changes
+
+    if (inFlightRef.current) {
+      // If a save is currently in flight, queue the newest state.
+      timerRef.current = setTimeout(() => { void doSave(data); }, 200);
+      return;
+    }
+
+    inFlightRef.current = true;
+    setError(null);
+    try {
+      const res = await fetch('/api/page-state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ householdId, page, data, expectedUpdatedAt: updatedAtRef.current }),
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || `Save failed (${res.status})`);
+      }
+
+      const payload = await res.json();
+      updatedAtRef.current = payload.updatedAt ?? updatedAtRef.current;
+      lastSavedJsonRef.current = json;
+    } catch (e: any) {
+      setError(e?.message || 'Failed to save');
+    } finally {
+      inFlightRef.current = false;
+      setSaving(false);
+    }
+  }, [householdId, page]);
 
   // ---- helper: schedule save
   const scheduleSave = useCallback((data: T) => {
@@ -64,8 +98,7 @@ export function usePageState<T>(opts: UsePageStateOptions<T>): UsePageStateRetur
       timerRef.current = null;
       await doSave(data);
     }, Math.max(0, saveDelayMs));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [householdId, page, saveDelayMs]);
+  }, [doSave, householdId, page, saveDelayMs]);
 
   // ---- public setValue (updates local + schedules save)
   const setValue = useCallback((next: T | ((prev: T) => T)) => {
@@ -93,44 +126,7 @@ export function usePageState<T>(opts: UsePageStateOptions<T>): UsePageStateRetur
       timerRef.current = null;
     }
     void doSave(value);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
-
-  // ---- doSave (PUT)
-  const doSave = useCallback(async (data: T) => {
-    if (!mountedRef.current || !householdId || !page) { setSaving(false); return; }
-    const json = JSON.stringify(data);
-    if (deepEqual(json, lastSavedJsonRef.current)) { setSaving(false); return; } // no changes
-
-    if (inFlightRef.current) {
-      // very conservative: if a save is currently in flight, queue another small debounce
-      timerRef.current = setTimeout(() => { void doSave(data); }, 200);
-      return;
-    }
-
-    inFlightRef.current = true;
-    setError(null);
-    try {
-      const res = await fetch('/api/page-state', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // IMPORTANT: send NextAuth cookies
-        body: JSON.stringify({ householdId, page, data }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(text || `Save failed (${res.status})`);
-      }
-
-      lastSavedJsonRef.current = json;
-    } catch (e: any) {
-      setError(e?.message || 'Failed to save');
-    } finally {
-      inFlightRef.current = false;
-      setSaving(false);
-    }
-  }, [householdId, page]);
+  }, [doSave, value]);
 
   // ---- initial load (GET) whenever hid/page changes
   useEffect(() => {
@@ -153,6 +149,7 @@ export function usePageState<T>(opts: UsePageStateOptions<T>): UsePageStateRetur
     // reset lifecycle flags when context changes
     if (hidChanged || pageChanged) {
       didHydrateRef.current = false;
+      updatedAtRef.current = null;
       hidRef.current = householdId;
       pageRef.current = page;
     }
@@ -179,6 +176,7 @@ export function usePageState<T>(opts: UsePageStateOptions<T>): UsePageStateRetur
 
         const j = await res.json().catch(() => ({}));
         const serverData = (j?.data ?? null) as T | null;
+        updatedAtRef.current = typeof j?.updatedAt === 'string' ? j.updatedAt : null;
 
         // If server has no data yet, keep current local state (from initial or localStorage)
         if (serverData && mountedRef.current) {

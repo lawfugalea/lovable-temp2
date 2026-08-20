@@ -1,17 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { requireAdmin } from '@/lib/admin-helpers';
 import { prisma } from '@/lib/prisma';
-import type { InviteStatus } from '@prisma/client';
 
-function makeAcceptUrl(req: NextApiRequest, token: string) {
-  const base = (process.env.INVITES_BASE_URL || '').replace(/\/$/, '');
-  if (base) return `${base}/invites/accept?token=${encodeURIComponent(token)}`;
-  const proto = (req.headers['x-forwarded-proto'] as string) || 'http';
-  const host = (req.headers['host'] as string) || 'localhost:3000';
-  return `${proto}://${host}/invites/accept?token=${encodeURIComponent(token)}`;
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  res.setHeader('Cache-Control', 'private, no-store');
   try {
     await requireAdmin(req);
   } catch (error: any) {
@@ -20,20 +13,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (req.method === 'GET') {
     try {
-      const limit = Math.min(Number(req.query.limit || 100), 500);
+      const requested = Number(req.query.limit || 100);
+      const limit = Number.isFinite(requested) ? Math.max(1, Math.min(Math.floor(requested), 500)) : 100;
       const invites = await prisma.invite.findMany({
         orderBy: { createdAt: 'desc' },
         take: limit,
         select: {
           id: true,
-          token: true,
           email: true,
           role: true,
           status: true,
           expiresAt: true,
           createdAt: true,
           household: { select: { id: true, name: true } },
-        }
+        },
       });
       return res.status(200).json({ invites });
     } catch (error) {
@@ -43,39 +36,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'PATCH') {
-    const { action } = (req.body || {}) as { action?: string };
+    const { action, inviteId } = (req.body || {}) as { action?: string; inviteId?: string };
     if (!action) return res.status(400).json({ error: 'Missing action' });
+    if (!inviteId) return res.status(400).json({ error: 'Missing inviteId' });
+
+    if (action !== 'revoke' && action !== 'expire') {
+      return res.status(400).json({ error: 'Unknown action' });
+    }
 
     try {
-      if (action === 'revoke') {
-        const { inviteId } = req.body as { inviteId?: string };
-        if (!inviteId) return res.status(400).json({ error: 'Missing inviteId' });
-        const updated = await prisma.invite.update({
-          where: { id: inviteId },
-          data: { status: 'REVOKED' as InviteStatus },
-          select: { id: true, status: true }
-        });
-        return res.status(200).json({ ok: true, invite: updated });
+      const status = action === 'revoke' ? 'REVOKED' : 'EXPIRED';
+      const updated = await prisma.invite.updateMany({
+        where: { id: inviteId, status: 'PENDING' },
+        data: { status },
+      });
+      if (updated.count !== 1) {
+        return res.status(409).json({ error: 'Invite is no longer pending' });
       }
-
-      if (action === 'expire') {
-        const { inviteId } = req.body as { inviteId?: string };
-        if (!inviteId) return res.status(400).json({ error: 'Missing inviteId' });
-        const updated = await prisma.invite.update({
-          where: { id: inviteId },
-          data: { status: 'EXPIRED' as InviteStatus },
-          select: { id: true, status: true }
-        });
-        return res.status(200).json({ ok: true, invite: updated });
-      }
-
-      if (action === 'acceptLink') {
-        const { token } = req.body as { token?: string };
-        if (!token) return res.status(400).json({ error: 'Missing token' });
-        return res.status(200).json({ ok: true, acceptUrl: makeAcceptUrl(req, token) });
-      }
-
-      return res.status(400).json({ error: 'Unknown action' });
+      return res.status(200).json({ ok: true, invite: { id: inviteId, status } });
     } catch (error) {
       console.error('Error updating invite:', error);
       return res.status(500).json({ error: 'Failed to update invite' });
@@ -86,4 +64,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   return res.status(405).end('Method Not Allowed');
 }
 
-
+export default withApiHandler(handler)

@@ -1,122 +1,96 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from "react"
+import { CheckCircle2, RefreshCw, ShieldCheck } from "lucide-react"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { Label } from "@/components/ui/Label"
+import { cn } from "@/lib/utils"
+import { withBasePath } from "@/lib/base-path"
+
+export type CaptchaSolution = { id: string; answer: string }
 
 interface MathCaptchaProps {
-  onVerify: (isValid: boolean) => void;
-  className?: string;
+  /**
+   * Called with the challenge id and the user's current answer whenever the
+   * input changes, or `null` when there is no usable answer. The parent submits
+   * this to the server, which holds the real answer — the check is authoritative
+   * server-side, not in this component.
+   */
+  onChange: (solution: CaptchaSolution | null) => void
+  className?: string
 }
 
-export default function MathCaptcha({ onVerify, className = '' }: MathCaptchaProps) {
-  const [question, setQuestion] = useState('');
-  const [answer, setAnswer] = useState('');
-  const [userAnswer, setUserAnswer] = useState('');
-  const [isVerified, setIsVerified] = useState(false);
+export default function MathCaptcha({ onChange, className }: MathCaptchaProps) {
+  const questionId = React.useId()
+  const [challengeId, setChallengeId] = useState("")
+  const [question, setQuestion] = useState("")
+  const [userAnswer, setUserAnswer] = useState("")
+  const [loading, setLoading] = useState(true)
 
-  const generateQuestion = () => {
-    const operations = ['+', '-', '*'];
-    const operation = operations[Math.floor(Math.random() * operations.length)];
-    
-    let num1: number, num2: number, result: number;
-    
-    switch (operation) {
-      case '+':
-        num1 = Math.floor(Math.random() * 20) + 1;
-        num2 = Math.floor(Math.random() * 20) + 1;
-        result = num1 + num2;
-        break;
-      case '-':
-        num1 = Math.floor(Math.random() * 20) + 10;
-        num2 = Math.floor(Math.random() * 10) + 1;
-        result = num1 - num2;
-        break;
-      case '*':
-        num1 = Math.floor(Math.random() * 10) + 1;
-        num2 = Math.floor(Math.random() * 10) + 1;
-        result = num1 * num2;
-        break;
-      default:
-        num1 = 1;
-        num2 = 1;
-        result = 2;
+  const loadChallenge = useCallback(async () => {
+    setLoading(true)
+    setUserAnswer("")
+    onChange(null)
+    try {
+      const response = await fetch(withBasePath("/api/captcha/challenge"), { headers: { accept: "application/json" } })
+      const data = await response.json()
+      if (!response.ok || typeof data.id !== "string") throw new Error("challenge unavailable")
+      setChallengeId(data.id)
+      setQuestion(data.question)
+    } catch {
+      setChallengeId("")
+      setQuestion("Could not load the security check. Please refresh.")
+    } finally {
+      setLoading(false)
     }
-    
-    setQuestion(`${num1} ${operation} ${num2} = ?`);
-    setAnswer(result.toString());
-    setUserAnswer('');
-    setIsVerified(false);
-    onVerify(false);
-  };
+  }, [onChange])
 
   useEffect(() => {
-    generateQuestion();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void loadChallenge()
+  }, [loadChallenge])
 
-  const handleAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setUserAnswer(value);
-    
-    if (value === answer) {
-      setIsVerified(true);
-      onVerify(true);
-    } else {
-      setIsVerified(false);
-      onVerify(false);
-    }
-  };
+  const handleAnswerChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value
+    setUserAnswer(value)
+    onChange(challengeId && value.trim() ? { id: challengeId, answer: value.trim() } : null)
+  }
 
-  const handleRefresh = () => {
-    generateQuestion();
-  };
+  const hasAnswer = Boolean(userAnswer.trim())
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      <label className="block text-sm font-medium text-cozy-text mb-2 flex items-center gap-2">
-        <span>🧮</span>
-        Security Check
-      </label>
-      
-      <div className="flex items-center gap-3">
-        <div className="flex-1">
-          <div className="bg-cozy-surface border border-cozy-gray-300 rounded-lg px-4 py-3 text-center font-mono text-lg">
-            {question}
-          </div>
-        </div>
-        
-        <button
-          type="button"
-          onClick={handleRefresh}
-          className="px-3 py-2 text-cozy-text-muted hover:text-cozy-primary transition-colors"
-          title="Generate new question"
-        >
-          🔄
-        </button>
+    <fieldset className={cn("space-y-3 rounded-lg border bg-muted/35 p-4", className)}>
+      <legend className="sr-only">Security check</legend>
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="h-4 w-4 text-primary" aria-hidden="true" />
+        <Label htmlFor="captcha-answer">Security check</Label>
       </div>
-      
-      <input
+      <div className="flex items-center gap-2">
+        <div id={questionId} className="flex h-10 flex-1 items-center justify-center rounded-md border bg-background px-3 font-mono text-base font-semibold">
+          {loading ? "Loading…" : question}
+        </div>
+        <Button type="button" variant="outline" size="icon" onClick={() => void loadChallenge()} aria-label="Generate a new question" disabled={loading}>
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+        </Button>
+      </div>
+      <Input
+        id="captcha-answer"
+        name="captcha-answer"
         type="number"
+        inputMode="numeric"
         value={userAnswer}
         onChange={handleAnswerChange}
-        className={`w-full border rounded-lg px-4 py-3 text-cozy-text focus:outline-none focus:ring-2 transition-all ${
-          isVerified
-            ? 'border-green-500 focus:border-green-500 focus:ring-green-500/20'
-            : userAnswer && !isVerified
-            ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
-            : 'border-cozy-gray-300 focus:border-cozy-primary focus:ring-cozy-primary/20'
-        }`}
-        placeholder="Your answer"
+        disabled={loading || !challengeId}
+        className={cn(hasAnswer && "border-emerald-500 focus-visible:ring-emerald-500")}
+        placeholder="Enter the answer"
+        aria-describedby={questionId}
         required
       />
-      
-      {isVerified && (
-        <div className="text-green-600 text-sm flex items-center gap-2">
-          <span>✅</span>
-          Verification complete!
-        </div>
-      )}
-      
-      <p className="text-xs text-cozy-text-muted">
-        Please solve this simple math problem to verify you&apos;re human
-      </p>
-    </div>
-  );
+      <div className="min-h-5 text-xs" aria-live="polite">
+        {hasAnswer ? (
+          <span className="flex items-center gap-1.5 font-medium text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Ready to submit</span>
+        ) : (
+          <span className="text-muted-foreground">Solve the short calculation to continue.</span>
+        )}
+      </div>
+    </fieldset>
+  )
 }

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import useSWR from 'swr';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 const fetcher = (u: string) => fetch(u, { credentials: 'include' }).then(r => r.json());
 
@@ -16,6 +17,7 @@ export default function ListPicker({ selectedId, onChange }: Props) {
   });
 
   const [newName, setNewName] = useState('');
+  const confirm = useConfirm();
   const lists = (data?.lists ?? []) as Array<any>;
   const activeLists = lists.filter((l) => !l.archivedAt);
   const archivedLists = lists.filter((l) => l.archivedAt);
@@ -54,7 +56,7 @@ export default function ListPicker({ selectedId, onChange }: Props) {
   }
 
   async function deleteList(id: string) {
-    if (!confirm('Delete this list? This cannot be undone.')) return;
+    if (!(await confirm({ title: 'Delete list', description: 'Delete this list? This cannot be undone.', confirmText: 'Delete', destructive: true }))) return;
     await fetch(`/api/shopping/lists/${id}?force=true`, { method: 'DELETE', credentials: 'include' });
     if (selectedId === id) onChange('');
     mutate();
@@ -67,7 +69,7 @@ export default function ListPicker({ selectedId, onChange }: Props) {
       {/* Row 1: Select (full width on mobile) */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex-1">
-          <label className="block text-xs text-gray-600 mb-1">Current list</label>
+          <label className="block text-xs text-muted-foreground mb-1">Current list</label>
           <select
             className="w-full rounded-xl px-3 py-2 bg-white/10 min-h-[40px]"
             disabled={isLoading || lists.length === 0}

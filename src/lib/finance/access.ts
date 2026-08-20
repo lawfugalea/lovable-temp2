@@ -1,0 +1,118 @@
+import type { NextApiRequest, NextApiResponse } from 'next'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/pages/api/auth/[...nextauth]'
+import { prisma } from '@/lib/prisma'
+import { getHouseholdEntitlements } from '@/lib/entitlements'
+import { upgradeRequiredBody } from '@/lib/entitlements-core'
+import { isBankingAllowedEmail } from '@/lib/banking-allowlist'
+import { buildAccessibleBankAccountWhere, dedupeAccountsByIdentity } from './visibility'
+
+export type FinanceAccess = {
+  userId: string
+  email: string
+  householdId: string
+  canManage: boolean
+  bankEnabled: boolean
+}
+
+/**
+ * Bank connections (open banking) are limited to the individually allowlisted
+ * account holders while the Enable Banking application runs in restricted
+ * production. Everyone else — including other members of the same household —
+ * uses the manual money planner and never sees the banking surface.
+ */
+export function isBankFeaturesEnabled(email: string | null | undefined): boolean {
+  return isBankingAllowedEmail(email)
+}
+
+/** A refusal the caller still has to send, so this stays usable without a response object. */
+export type FinanceAccessDenied = { status: number; body: Record<string, unknown> }
+
+/**
+ * The finance authorization rules themselves, decided from an already-verified
+ * identity. Browser sessions and mobile bearer tokens authenticate differently
+ * but must authorize identically, so both funnel through here.
+ */
+export async function financeAccessForIdentity(
+  identity: { userId: string; email: string },
+  householdId: string | undefined,
+  options: { manage?: boolean; bank?: boolean } = {},
+): Promise<FinanceAccess | FinanceAccessDenied> {
+  if (!householdId) return { status: 400, body: { error: 'Missing householdId' } }
+
+  const membership = await prisma.membership.findFirst({
+    where: { userId: identity.userId, householdId },
+    select: { id: true, role: true },
+  })
+  if (!membership) {
+    return { status: 403, body: { error: 'You are not a member of this household' } }
+  }
+
+  const entitlements = await getHouseholdEntitlements(householdId)
+  if (!entitlements.canUseFinance) {
+    return { status: 403, body: upgradeRequiredBody('finance') }
+  }
+
+  // Bank connections are managed by the household owner.
+  const canManage = membership.role === 'OWNER'
+  if (options.manage && !canManage) {
+    return { status: 403, body: { error: 'Only the household owner can manage bank connections' } }
+  }
+
+  const bankEnabled = isBankFeaturesEnabled(identity.email)
+  if (options.bank && !bankEnabled) {
+    return { status: 403, body: { error: 'Bank connections are not available for this account' } }
+  }
+
+  return { userId: identity.userId, email: identity.email, householdId, canManage, bankEnabled }
+}
+
+export async function requireFinanceAccess(
+  req: NextApiRequest,
+  res: NextApiResponse,
+  householdId: string | undefined,
+  options: { manage?: boolean; bank?: boolean } = {},
+): Promise<FinanceAccess | null> {
+  const session = (await getServerSession(req, res, authOptions as any)) as
+    | { user?: { id?: string; email?: string | null } }
+    | null
+  const userId = session?.user?.id
+  const email = session?.user?.email?.trim().toLowerCase()
+
+  if (!userId || !email) {
+    res.status(401).json({ error: 'Sign in required' })
+    return null
+  }
+
+  const result = await financeAccessForIdentity({ userId, email }, householdId, options)
+  if ('status' in result) {
+    res.status(result.status).json(result.body)
+    return null
+  }
+  return result
+}
+
+export function accessibleBankAccountWhere(access: FinanceAccess) {
+  return buildAccessibleBankAccountWhere(access.userId, access.householdId)
+}
+
+/**
+ * The account rows a viewer should actually be shown, with jointly held accounts
+ * collapsed to one copy. Every read path filters on this instead of the raw
+ * predicate, so a joint account cannot be counted once per owner.
+ *
+ * Returned as ids rather than a predicate because the choice of copy depends on
+ * the rows themselves — which owner and which sync is freshest — and so cannot
+ * be expressed as a `where` clause.
+ */
+export async function accessibleBankAccountIds(access: FinanceAccess): Promise<string[]> {
+  const accounts = await prisma.bankAccount.findMany({
+    where: accessibleBankAccountWhere(access),
+    select: {
+      id: true,
+      identificationHash: true,
+      connection: { select: { userId: true, lastSyncedAt: true } },
+    },
+  })
+  return dedupeAccountsByIdentity(accounts, access.userId).map(account => account.id)
+}

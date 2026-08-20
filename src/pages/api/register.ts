@@ -1,10 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { Prisma } from '@prisma/client';
 import { registrationRateLimit, emailRegistrationRateLimit } from '@/lib/rate-limiter';
+import { validatePassword } from '@/lib/password-policy';
+import { sendWelcomeEmail } from '@/lib/mailer';
+import { appUrl } from '@/lib/links';
+import { verifyCaptcha } from '@/lib/captcha';
+import { reportConversion, userDataFromRequest } from '@/lib/meta/conversions';
+import { safeEventId } from '@/lib/meta/event-id';
+import { TERMS_VERSION } from '@/lib/public-legal';
 
-// Enhanced validation
-function validateRegistrationData(data: any) {
+type RegistrationData = { name?: unknown; email?: unknown; password?: unknown };
+
+function validateRegistrationData(data: RegistrationData) {
   const errors: string[] = [];
   
   const { name, email, password } = data ?? {};
@@ -22,89 +32,21 @@ function validateRegistrationData(data: any) {
   if (!email || typeof email !== 'string') {
     errors.push('Email is required');
   } else {
+    const normalizedEmail = email.trim();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (normalizedEmail.length > 254 || !emailRegex.test(normalizedEmail)) {
       errors.push('Invalid email format');
     }
     
-    // Check for suspicious email patterns
-    const suspiciousPatterns = [
-      /^test\d*@/i,
-      /^admin\d*@/i,
-      /^user\d*@/i,
-      /@(test|example|fake|temp)\./i,
-    ];
-    
-    if (suspiciousPatterns.some(pattern => pattern.test(email))) {
-      errors.push('Please use a valid email address');
-    }
   }
   
   // Password validation
-  if (!password || typeof password !== 'string') {
-    errors.push('Password is required');
-  } else {
-    if (password.length < 8) {
-      errors.push('Password must be at least 8 characters');
-    }
-    if (password.length > 128) {
-      errors.push('Password must be less than 128 characters');
-    }
-    
-    // Check password strength
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    
-    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-      errors.push('Password must contain uppercase, lowercase, and numbers');
-    }
-    
-    // Check for common passwords
-    const commonPasswords = [
-      'password', '123456', '123456789', 'qwerty', 'abc123',
-      'password123', 'admin', 'letmein', 'welcome', 'monkey'
-    ];
-    
-    if (commonPasswords.includes(password.toLowerCase())) {
-      errors.push('Password is too common, please choose a stronger password');
-    }
-  }
+  errors.push(...validatePassword(password));
   
   return errors;
 }
 
-// Check for suspicious registration patterns
-function isSuspiciousRegistration(req: NextApiRequest, email: string) {
-  const userAgent = req.headers['user-agent'] || '';
-  const referer = req.headers.referer || '';
-  
-  // Check for bot-like user agents
-  const botPatterns = [
-    /bot/i, /crawler/i, /spider/i, /scraper/i, /curl/i, /wget/i,
-    /python/i, /java/i, /php/i, /go-http/i
-  ];
-  
-  if (botPatterns.some(pattern => pattern.test(userAgent))) {
-    return true;
-  }
-  
-  // Check for missing or suspicious referer
-  if (!referer) {
-    return true;
-  }
-  
-  // Only block localhost in production
-  if (process.env.NODE_ENV === 'production' && (referer.includes('localhost') || referer.includes('127.0.0.1'))) {
-    return true;
-  }
-  
-  // Check for rapid-fire registrations (this would be caught by rate limiting, but good to log)
-  return false;
-}
-
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
@@ -113,11 +55,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Apply rate limiting
     const ipRateLimitPassed = await registrationRateLimit(req, res);
     if (!ipRateLimitPassed) return;
-    
-    const emailRateLimitPassed = await emailRegistrationRateLimit(req, res);
-    if (!emailRateLimitPassed) return;
 
-    const { name, email, password } = req.body ?? {};
+    const { name, email, password, captchaId, captchaAnswer, acceptedTerms } = req.body ?? {};
+
+    // Verify the security check server-side. The client only holds the challenge
+    // id; the answer is validated against the server-held challenge, so scripted
+    // signups cannot bypass it.
+    if (!verifyCaptcha(captchaId, captchaAnswer)) {
+      return res.status(400).json({ ok: false, error: 'Security check failed. Please solve the calculation again.' });
+    }
+
+    // Require (and record) Terms/Privacy acceptance — mandatory for a public SaaS.
+    if (acceptedTerms !== true) {
+      return res.status(400).json({ ok: false, error: 'You must accept the Terms and Privacy Policy to create an account.' });
+    }
 
     // Enhanced validation
     const validationErrors = validateRegistrationData({ name, email, password });
@@ -129,22 +80,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       });
     }
 
+    const emailRateLimitPassed = await emailRegistrationRateLimit(req, res);
+    if (!emailRateLimitPassed) return;
+
     const _email = email.toString().trim().toLowerCase();
     const _name = name.toString().trim();
     const _password = password.toString();
 
-    // Check for suspicious registration patterns
-    if (isSuspiciousRegistration(req, _email)) {
-      console.warn(`Suspicious registration attempt from IP: ${req.headers['x-forwarded-for'] || req.connection?.remoteAddress}, Email: ${_email}`);
-      return res.status(400).json({ 
-        ok: false, 
-        error: 'Registration temporarily unavailable. Please try again later.' 
-      });
-    }
-
     // Check if email already exists
-    const existingUser = await prisma.user.findUnique({ 
-      where: { email: _email },
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: _email, mode: 'insensitive' } },
       select: { id: true, email: true, createdAt: true }
     });
     
@@ -161,10 +106,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Create user
     const user = await prisma.user.create({
-      data: { 
-        name: _name, 
-        email: _email, 
-        password: hash 
+      data: {
+        name: _name,
+        email: _email,
+        password: hash,
+        acceptedTermsAt: new Date(),
+        termsVersion: TERMS_VERSION,
       },
       select: { 
         id: true, 
@@ -174,16 +121,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     });
 
-    // Log successful registration for monitoring
-    console.log(`New user registered: ${_email} at ${new Date().toISOString()}`);
+    // Same shape as the welcome email: reporting a conversion must never be able
+    // to fail or delay a signup, and it sends nothing unless this request carried
+    // consent for advertising measurement.
+    void reportConversion(req, {
+      eventName: 'CompleteRegistration',
+      eventId: safeEventId(req.body?.metaEventId),
+      eventSourceUrl: appUrl('/register'),
+      userData: userDataFromRequest(req, user.email),
+    }).catch(err => console.warn('[meta] registration conversion not reported:', err));
 
-    return res.status(201).json({ 
+    // Fire-and-forget: a failed welcome email must never fail the signup.
+    void sendWelcomeEmail({ to: user.email, name: user.name, signInUrl: appUrl('/login') })
+      .then(result => {
+        if (!result.ok) console.warn('Welcome email not sent:', result.error);
+        else console.info(`Welcome email sent (resend id ${result.providerId ?? 'unknown'})`);
+      })
+      .catch(err => console.warn('Welcome email failed:', err));
+
+    return res.status(201).json({
       ok: true, 
       user,
       message: 'Account created successfully. You can now sign in.' 
     });
 
   } catch (err: any) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return res.status(400).json({
+        ok: false,
+        error: 'Registration failed. Please check your information and try again.'
+      });
+    }
     console.error('Registration error:', err);
     
     // Don't expose internal errors
@@ -193,3 +161,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
   }
 }
+
+export default withApiHandler(handler)

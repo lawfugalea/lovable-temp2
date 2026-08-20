@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -15,6 +15,8 @@ import {
   Activity
 } from 'lucide-react'
 import { format, parseISO, isToday, isYesterday } from 'date-fns'
+import { toast } from 'sonner'
+import { useConfirm } from '@/components/ui/confirm-dialog'
 
 interface Child {
   id: string
@@ -85,6 +87,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingReading, setEditingReading] = useState<FeverReading | null>(null)
   const [selectedChildFilter, setSelectedChildFilter] = useState<string>('all')
+  const confirm = useConfirm()
 
   // Handle external trigger to open add modal
   useEffect(() => {
@@ -104,17 +107,11 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
     takenAt: getCurrentLocalTime()
   })
 
-  useEffect(() => {
-    loadReadings()
-  }, [householdId])
-
-  const loadReadings = async () => {
+  const loadReadings = useCallback(async () => {
     try {
-      console.log('Loading fever readings...')
       const response = await fetch(`/api/medicine/fever-readings?householdId=${householdId}`)
       if (response.ok) {
         const data = await response.json()
-        console.log('Loaded readings:', data.length, 'items')
         setReadings(data)
       } else {
         console.error('Failed to load readings:', response.status)
@@ -122,7 +119,11 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
     } catch (error) {
       console.error('Failed to load fever readings:', error)
     }
-  }
+  }, [householdId])
+
+  useEffect(() => {
+    void loadReadings()
+  }, [loadReadings])
 
   const handleAddReading = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -132,9 +133,9 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
     try {
       const requestData = {
         ...newReading,
+        takenAt: new Date(newReading.takenAt).toISOString(),
         householdId: householdId
       }
-      console.log('Sending fever reading data:', requestData)
       
       const response = await fetch('/api/medicine/fever-readings', {
         method: 'POST',
@@ -174,9 +175,9 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
       const requestData = {
         id: editingReading.id,
         ...newReading,
+        takenAt: new Date(newReading.takenAt).toISOString(),
         householdId: householdId
       }
-      console.log('Updating fever reading data:', requestData)
       
       const response = await fetch('/api/medicine/fever-readings', {
         method: 'PUT',
@@ -185,9 +186,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
       })
 
       if (response.ok) {
-        console.log('Update successful, refreshing readings...')
         await loadReadings()
-        console.log('Readings refreshed')
         setEditingReading(null)
         setNewReading({
           childId: '',
@@ -240,7 +239,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
     : readings.filter(reading => reading.childId === selectedChildFilter)
 
   const handleDeleteReading = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this reading?')) return
+    if (!(await confirm({ title: 'Delete reading', description: 'Are you sure you want to delete this reading?', confirmText: 'Delete', destructive: true }))) return
 
     try {
       const response = await fetch(`/api/medicine/fever-readings?id=${id}&householdId=${householdId}`, {
@@ -252,11 +251,11 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
       } else {
         const errorData = await response.json()
         console.error('Failed to delete fever reading:', response.status, errorData)
-        alert('Failed to delete fever reading. Please try again.')
+        toast.error('Failed to delete fever reading. Please try again.')
       }
     } catch (error) {
       console.error('Failed to delete fever reading:', error)
-      alert('Failed to delete fever reading. Please try again.')
+      toast.error('Failed to delete fever reading. Please try again.')
     }
   }
 
@@ -302,6 +301,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
         <div className="flex items-center gap-3">
           {/* Child Filter */}
           <select
+            aria-label="Filter by child"
             value={selectedChildFilter}
             onChange={(e) => setSelectedChildFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
@@ -341,7 +341,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-medium">{child.name}</h3>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       {formatTemperature(latestReading.temperature, latestReading.unit)}
                     </p>
                     <Badge className={`mt-1 ${feverLevel.color}`}>
@@ -388,7 +388,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
                         <Badge className={feverLevel.color}>
                           {feverLevel.label}
                         </Badge>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-sm text-muted-foreground">
                           {reading.child.name} ({ageInMonths}mo)
                         </div>
                         <div className="text-sm text-gray-500">
@@ -401,7 +401,7 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
                           {format(parseISO(reading.takenAt), 'h:mm a')}
                         </div>
                         {reading.notes && (
-                          <div className="text-sm text-gray-600 max-w-xs truncate">
+                          <div className="text-sm text-muted-foreground max-w-xs truncate">
                             {reading.notes}
                           </div>
                         )}
@@ -439,8 +439,8 @@ export default function FeverJournal({ householdId, kids, triggerAddModal, onAdd
         <Card>
           <CardContent className="text-center py-8">
             <Thermometer className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No fever readings yet</h3>
-            <p className="text-gray-600 mb-4">Start tracking your child&apos;s temperature to monitor their health</p>
+            <h3 className="text-lg font-medium text-foreground mb-2">No fever readings yet</h3>
+            <p className="text-muted-foreground mb-4">Start tracking your child&apos;s temperature to monitor their health</p>
             <Button onClick={() => setShowAddModal(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Add First Reading

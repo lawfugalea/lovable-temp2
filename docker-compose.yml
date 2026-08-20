@@ -1,0 +1,493 @@
+# Cap container log files so a noisy or crash-looping service cannot fill the
+# host disk (Docker's json-file driver is unbounded by default).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+# Pin the Compose project name.
+#
+# The stack now serving clankeep.com was created from /home/ryan/lovable-temp2,
+# a directory that no longer exists — this tree lives at /var/www/clankeep — so
+# its containers carry the project name `lovable-temp2`. Compose otherwise
+# derives the project name from the current directory, which means a deploy run
+# from the new path would create a SECOND, parallel stack: fresh containers
+# attached to the same fixed-name volumes (see the note by `volumes:` at the
+# bottom of this file), a second Postgres pointed at the live data directory, and
+# a port clash on 8097.
+#
+# Pinning it keeps every deploy aimed at the stack that is actually serving
+# traffic. Renaming the project to `clankeep` is a deliberate migration — stop
+# the old stack, start the new one, and the data follows because the volume names
+# are fixed — not something that should happen implicitly because someone moved
+# a directory.
+name: ${CLANKEEP_COMPOSE_PROJECT:-lovable-temp2}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1024m
+    environment:
+      POSTGRES_DB: houseflow
+      POSTGRES_USER: houseflow
+      POSTGRES_PASSWORD: ${HOUSEFLOW_POSTGRES_PASSWORD:?set HOUSEFLOW_POSTGRES_PASSWORD in .env.deploy}
+    volumes:
+      - houseflow-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${HOUSEFLOW_DB_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U houseflow -d houseflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # This service builds its own image from `target: builder`, so
+  # `docker compose build app` does NOT rebuild it. On 2026-07-26 it therefore
+  # ran an image holding 35 migrations against a repo holding 38 and reported
+  # success; that was harmless only because those three had already been applied
+  # by hand from the host.
+  #
+  # The bind mount below is the structural fix: the SQL it applies now comes from
+  # the host working tree at run time rather than from whatever was baked into
+  # the image, so a stale image can no longer apply a stale migration set. Use
+  # scripts/deploy-production.sh, which builds both services and checks for
+  # drift either side of the migration.
+  migrate:
+    logging: *default-logging
+    mem_limit: 1024m
+    build:
+      context: .
+      target: builder
+      args:
+        NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+        NEXT_PUBLIC_KELMA_AGENT_ID: ${HOUSEFLOW_KELMA_AGENT_ID-}
+        NEXT_PUBLIC_DEMO_MODE_ENABLED: ${HOUSEFLOW_DEMO_MODE_ENABLED-}
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      DIRECT_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      DIRECT_DATABASE_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      PUPPETEER_SKIP_DOWNLOAD: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Read-only, and only the migrations Prisma reads: the schema for its
+      # datasource block and the migration SQL itself. The generated client
+      # lives in node_modules/.prisma, so this cannot shadow it.
+      - ./prisma:/app/prisma:ro
+    command: ["npm", "run", "prisma:migrate:deploy"]
+    restart: "no"
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    environment:
+      PGPASSWORD: ${HOUSEFLOW_POSTGRES_PASSWORD}
+      HOUSEFLOW_BACKUP_KEEP_DAYS: ${HOUSEFLOW_BACKUP_KEEP_DAYS:-30}
+    volumes:
+      - ${HOUSEFLOW_BACKUP_DIR:-/home/ryan/backups/houseflow}:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        set -o pipefail
+        umask 077
+        chmod 700 /backups
+        cd /backups
+        while true; do
+          stamp=$$(date -u +%Y%m%dT%H%M%SZ)
+          file=houseflow-$$stamp.sql.gz
+          tmp=.$$file.tmp
+          trap 'rm -f "$$tmp"' EXIT INT TERM
+          pg_dump -h db -U houseflow -d houseflow | gzip -9 > "$$tmp"
+          gzip -t "$$tmp"
+          mv "$$tmp" "$$file"
+          sha256sum "$$file" > "$$file.sha256"
+          trap - EXIT INT TERM
+          find /backups -type f \( -name 'houseflow-*.sql.gz' -o -name 'houseflow-*.sql.gz.sha256' \) -mtime +$${HOUSEFLOW_BACKUP_KEEP_DAYS:-30} -delete
+          sleep 86400
+        done
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m
+
+  # Pushes the local dumps to Cloudflare R2 (S3-compatible) so a dead host
+  # disk cannot take the data and the backups with it. No-ops loudly until
+  # the CLANKEEP_R2_* variables are set in .env.deploy.
+  backup-offsite:
+    image: rclone/rclone:1.68
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    environment:
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: ${CLANKEEP_R2_ENDPOINT-}
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${CLANKEEP_R2_ACCESS_KEY_ID-}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${CLANKEEP_R2_SECRET_ACCESS_KEY-}
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+      CLANKEEP_R2_BUCKET: ${CLANKEEP_R2_BUCKET-}
+      HOUSEFLOW_BACKUP_KEEP_DAYS: ${HOUSEFLOW_BACKUP_KEEP_DAYS:-30}
+    volumes:
+      - ${HOUSEFLOW_BACKUP_DIR:-/home/ryan/backups/houseflow}:/backups:ro
+    depends_on:
+      - backup
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        while true; do
+          if [ -z "$${CLANKEEP_R2_BUCKET}" ] || [ -z "$${RCLONE_CONFIG_R2_ENDPOINT}" ] || [ -z "$${RCLONE_CONFIG_R2_ACCESS_KEY_ID}" ]; then
+            echo "WARNING: offsite backups DISABLED - set CLANKEEP_R2_ENDPOINT, CLANKEEP_R2_ACCESS_KEY_ID, CLANKEEP_R2_SECRET_ACCESS_KEY and CLANKEEP_R2_BUCKET in .env.deploy"
+            sleep 21600
+            continue
+          fi
+          # copy (not sync): local pruning must never delete remote history.
+          if rclone copy /backups "r2:$${CLANKEEP_R2_BUCKET}/clankeep" \
+              --include 'houseflow-*.sql.gz' --include 'houseflow-*.sql.gz.sha256' \
+              --s3-no-check-bucket --transfers 2 --contimeout 30s --timeout 5m; then
+            rclone delete "r2:$${CLANKEEP_R2_BUCKET}/clankeep" --min-age "$${HOUSEFLOW_BACKUP_KEEP_DAYS:-30}d" || true
+            echo "offsite backup sync OK at $$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          else
+            echo "ERROR: offsite backup sync FAILED at $$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          fi
+          sleep 21600
+        done
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m
+      - /root/.cache:rw,noexec,nosuid,nodev,size=16m
+
+  app:
+    build:
+      context: .
+      target: runner
+      args:
+        NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+        NEXT_PUBLIC_KELMA_AGENT_ID: ${HOUSEFLOW_KELMA_AGENT_ID-}
+        NEXT_PUBLIC_DEMO_MODE_ENABLED: ${HOUSEFLOW_DEMO_MODE_ENABLED-}
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1536m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      DIRECT_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      DIRECT_DATABASE_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      NEXT_PUBLIC_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      APP_URL: ${HOUSEFLOW_PUBLIC_URL:-http://10.77.0.1:8097/houseflow}
+      APP_INTERNAL_URL: http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH-/houseflow}
+      NEXTAUTH_URL: ${HOUSEFLOW_PUBLIC_URL:-http://10.77.0.1:8097/houseflow}/api/auth
+      NEXTAUTH_URL_INTERNAL: http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH-/houseflow}/api/auth
+      INVITES_BASE_URL: ${HOUSEFLOW_PUBLIC_URL:-http://10.77.0.1:8097}
+      INVITES_FROM: ${INVITES_FROM:-Clankeep <noreply@clankeep.com>}
+      INVITES_FROM_DOMAIN: ${INVITES_FROM_DOMAIN:-clankeep.com}
+      INVITES_REPLY_TO: ${INVITES_REPLY_TO:-}
+      SUPERMARKET_CONSENTED_STORES: ${HOUSEFLOW_CONSENTED_SUPERMARKET_STORES-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:?set ADMIN_EMAILS in .env.deploy}
+      UPLOAD_DIR: /app/uploads
+      PUPPETEER_SKIP_DOWNLOAD: "1"
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      REMINDER_WORKER_SECRET: ${REMINDER_WORKER_SECRET:-}
+      # Must match what the shopping-recurrence worker sends, or the endpoint
+      # answers 401 and scheduled templates silently never refill.
+      SHOPPING_RECURRENCE_SECRET: ${SHOPPING_RECURRENCE_SECRET:-}
+      # Must match what the finance-sync worker sends, or bank connections only
+      # refresh when someone presses the button and consent expiry goes unwarned.
+      FINANCE_SYNC_SECRET: ${FINANCE_SYNC_SECRET:-}
+      # Local timezone for in-app scheduling decisions (morning chore summary,
+      # weekly digest); the cron sidecars carry their own TZ for date stamping.
+      HOUSEFLOW_TZ: ${HOUSEFLOW_TZ:-Europe/Malta}
+      # Must match what the digest worker sends, or Monday summaries never go out.
+      WEEKLY_DIGEST_SECRET: ${WEEKLY_DIGEST_SECRET:-}
+      # Must match what the housekeeping worker sends, or expired demo users,
+      # rate-limit windows and processed-event ledgers accumulate forever.
+      DEMO_CLEANUP_SECRET: ${DEMO_CLEANUP_SECRET:-}
+    volumes:
+      - houseflow-uploads:/app/uploads
+    ports:
+      - "10.77.0.1:${HOUSEFLOW_PORT:-8097}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000${HOUSEFLOW_BASE_PATH-/houseflow}/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  reminder:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      REMINDER_WORKER_SECRET: ${REMINDER_WORKER_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${REMINDER_WORKER_SECRET}" ]; then
+          echo "[reminder] WARNING: REMINDER_WORKER_SECRET is not set — medicine dose reminders are DISABLED"
+        fi
+        while true; do
+          if [ -n "$${REMINDER_WORKER_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${REMINDER_WORKER_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/medicine-reminders" \
+              || echo "[reminder] WARNING: dispatch poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 60
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  shopping-recurrence:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      SHOPPING_RECURRENCE_SECRET: ${SHOPPING_RECURRENCE_SECRET:-}
+      TZ: ${HOUSEFLOW_TZ:-Europe/Malta}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${SHOPPING_RECURRENCE_SECRET}" ]; then
+          echo "[shopping-recurrence] WARNING: SHOPPING_RECURRENCE_SECRET is not set — scheduled shopping templates are DISABLED"
+        fi
+        # Hourly rather than daily: the endpoint is idempotent per date, so an
+        # hourly poll simply refills soon after local midnight and recovers on
+        # its own if the container was down when the day rolled over.
+        while true; do
+          if [ -n "$${SHOPPING_RECURRENCE_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${SHOPPING_RECURRENCE_SECRET}" \
+              --header="Content-Type: application/json" \
+              --post-data="{\"date\":\"$$(date +%Y-%m-%d)\"}" \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/shopping-recurrence" \
+              || echo "[shopping-recurrence] WARNING: refill poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  finance-sync:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      FINANCE_SYNC_SECRET: ${FINANCE_SYNC_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${FINANCE_SYNC_SECRET}" ]; then
+          echo "[finance-sync] WARNING: FINANCE_SYNC_SECRET is not set — unattended bank sync and consent reminders are DISABLED"
+        fi
+        # Hourly poll; the endpoint itself decides what is due (about two syncs
+        # per connection per day, one lifecycle email per episode), so polling
+        # more often than the gap simply answers with nothing to do.
+        while true; do
+          if [ -n "$${FINANCE_SYNC_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${FINANCE_SYNC_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/finance-sync" \
+              || echo "[finance-sync] WARNING: sync poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  weekly-digest:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      WEEKLY_DIGEST_SECRET: ${WEEKLY_DIGEST_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${WEEKLY_DIGEST_SECRET}" ]; then
+          echo "[weekly-digest] WARNING: WEEKLY_DIGEST_SECRET is not set — Monday digest emails are DISABLED"
+        fi
+        # Hourly poll; the endpoint only acts on local Monday mornings and
+        # claims a per-household weekly key, so extra polls answer with nothing.
+        while true; do
+          if [ -n "$${WEEKLY_DIGEST_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${WEEKLY_DIGEST_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/weekly-digest" \
+              || echo "[weekly-digest] WARNING: digest poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 3600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  housekeeping:
+    image: alpine:3.21
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 64m
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      HOUSEFLOW_BASE_PATH: ${HOUSEFLOW_BASE_PATH-/houseflow}
+      DEMO_CLEANUP_SECRET: ${DEMO_CLEANUP_SECRET:-}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        if [ -z "$${DEMO_CLEANUP_SECRET}" ]; then
+          echo "[housekeeping] WARNING: DEMO_CLEANUP_SECRET is not set — demo purge and ledger sweeps are DISABLED"
+        fi
+        # Every six hours: purges expired demo users and sweeps elapsed
+        # rate-limit windows, old billing/push event ledgers and old activity.
+        while true; do
+          if [ -n "$${DEMO_CLEANUP_SECRET}" ]; then
+            wget -q -O /dev/null \
+              --header="Authorization: Bearer $${DEMO_CLEANUP_SECRET}" \
+              --post-data='' \
+              "http://app:3000$${HOUSEFLOW_BASE_PATH}/api/internal/demo-cleanup" \
+              || echo "[housekeeping] WARNING: cleanup poll failed at $$(date -u +%FT%TZ)"
+          fi
+          sleep 21600
+        done
+    depends_on:
+      app:
+        condition: service_healthy
+
+  price-sync:
+    build:
+      context: .
+      target: price-worker
+    restart: unless-stopped
+    logging: *default-logging
+    # Headless Chromium is memory-hungry; cap it so a scraper leak restarts this
+    # container instead of OOM-ing the shared host (and the database with it).
+    mem_limit: 1536m
+    cpus: 1.5
+    init: true
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      DIRECT_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      DIRECT_DATABASE_URL: postgresql://houseflow:${HOUSEFLOW_POSTGRES_PASSWORD}@db:5432/houseflow?schema=public
+      PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH: /usr/bin/chromium-browser
+      HOME: /tmp/priceworker
+      XDG_CONFIG_HOME: /tmp/priceworker/.config
+      XDG_CACHE_HOME: /tmp/priceworker/.cache
+      CATALOG_SYNC_STORES: ${HOUSEFLOW_CATALOG_SYNC_STORES-}
+      SUPERMARKET_CONSENTED_STORES: ${HOUSEFLOW_CONSENTED_SUPERMARKET_STORES-}
+      CATALOG_REQUEST_DELAY_MS: ${HOUSEFLOW_CATALOG_REQUEST_DELAY_MS:-250}
+      GREENS_MAX_PAGES: ${HOUSEFLOW_GREENS_MAX_PAGES:-0}
+      GREENS_IMAGE_USE_CONFIRMED: ${HOUSEFLOW_GREENS_IMAGE_USE_CONFIRMED:-false}
+      PAVIPAMA_MAX_PAGES: ${HOUSEFLOW_PAVIPAMA_MAX_PAGES:-0}
+      PAVIPAMA_PERMISSION_CONFIRMED: ${HOUSEFLOW_PAVIPAMA_PERMISSION_CONFIRMED:-false}
+      HAPPYSHOPPER_MAX_PAGES: ${HOUSEFLOW_HAPPYSHOPPER_MAX_PAGES:-0}
+      HOUSEFLOW_PRICE_SYNC_INTERVAL_SECONDS: ${HOUSEFLOW_PRICE_SYNC_INTERVAL_SECONDS:-86400}
+    entrypoint:
+      - /bin/sh
+      - -ec
+      - |
+        while true; do
+          node scripts/sync-supermarket-prices.js || true
+          sleep "$${HOUSEFLOW_PRICE_SYNC_INTERVAL_SECONDS:-86400}"
+        done
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  houseflow-postgres-data:
+    name: houseflow-postgres-data
+  houseflow-uploads:
+    name: houseflow-uploads

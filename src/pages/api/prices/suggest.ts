@@ -1,5 +1,14 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
+import { apiRateLimit } from '@/lib/rate-limiter';
+import { getUserIdOr401 } from '@/lib/api-guards';
+import { requireActiveHousehold } from '@/lib/chores';
+import { getHouseholdEntitlements } from '@/lib/entitlements';
+import { requirePriceComparison } from '@/lib/entitlements-core';
+import { isSupermarketConsented } from '@/lib/supermarket-consent';
+
+const MAX_QUERY_LENGTH = 200;
 
 /**
  * Response shape:
@@ -34,13 +43,24 @@ function formatImageUrl(imageUrl: string | null): string | null {
   return imageUrl;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  const userId = await getUserIdOr401(req, res);
+  if (!userId) return;
+  if (!(await apiRateLimit(req, res))) return;
+  const householdId = await requireActiveHousehold(req, res, userId);
+  if (!householdId) return;
+  const entitlements = await getHouseholdEntitlements(householdId);
+  if (!requirePriceComparison(res, entitlements)) return;
+  if (!isSupermarketConsented('smart')) return res.status(200).json({ items: [] });
 
   const qRaw = (req.query.q ?? '').toString().trim();
+  if (qRaw.length > MAX_QUERY_LENGTH) {
+    return res.status(400).json({ error: `Search query must be ${MAX_QUERY_LENGTH} characters or fewer` });
+  }
   if (!qRaw) {
     return res.status(200).json({ items: [] });
   }
@@ -61,6 +81,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       where: {
         imageUrl: { not: null },
         sourceUrl: { contains: 'smart.com.mt' },
+        store: { slug: 'smart', enabled: true },
         OR: whereOr.length ? whereOr : undefined,
       },
       select: {
@@ -153,3 +174,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ items: [] });
   }
 }
+
+export default withApiHandler(handler)

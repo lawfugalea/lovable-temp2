@@ -1,5 +1,6 @@
 // /src/pages/api/shopping/lists/[id].ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
@@ -11,7 +12,7 @@ async function requireUser(req: NextApiRequest, res: NextApiResponse) {
   return userId;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
@@ -34,6 +35,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.setHeader('Cache-Control', 'no-store');
     return res.status(404).json({ error: 'List not found' });
   }
+  const membership = await prisma.membership.findUnique({
+    where: { userId_householdId: { userId, householdId } },
+    select: { id: true },
+  });
+  if (!membership) return res.status(403).json({ error: 'Active household is no longer available' });
 
   if (req.method === 'PATCH') {
     const { name, archive, unarchive } = req.body as {
@@ -41,7 +47,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     const data: any = {};
-    if (typeof name === 'string' && name.trim()) data.name = name.trim();
+    if (typeof name === 'string') {
+      if (!name.trim() || name.trim().length > 100) {
+        return res.status(400).json({ error: 'A list name of 100 characters or fewer is required' });
+      }
+      data.name = name.trim();
+    }
     if (archive) data.archivedAt = new Date();
     if (unarchive) data.archivedAt = null;
 
@@ -57,7 +68,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       res.setHeader('Cache-Control', 'no-store');
       return res.status(400).json({ error: 'List not empty. Use ?force=true to delete.' });
     }
-    await prisma.shoppingList.delete({ where: { id } });
+    await prisma.$transaction(async (tx) => {
+      if (force) await tx.shoppingItem.deleteMany({ where: { listId: id } });
+      await tx.shoppingList.delete({ where: { id } });
+    });
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ ok: true });
   }
@@ -65,3 +79,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['PATCH', 'DELETE']);
   return res.status(405).end('Method Not Allowed');
 }
+
+export default withApiHandler(handler)

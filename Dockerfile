@@ -1,33 +1,76 @@
+# syntax=docker/dockerfile:1
+
 # ---- Builder ----
-FROM node:20.11.1-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
+
+ARG NEXT_PUBLIC_BASE_PATH=""
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+ARG NEXT_PUBLIC_KELMA_AGENT_ID=""
+ENV NEXT_PUBLIC_KELMA_AGENT_ID=$NEXT_PUBLIC_KELMA_AGENT_ID
+ARG NEXT_PUBLIC_DEMO_MODE_ENABLED=""
+ENV NEXT_PUBLIC_DEMO_MODE_ENABLED=$NEXT_PUBLIC_DEMO_MODE_ENABLED
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PUPPETEER_SKIP_DOWNLOAD=1
+
 RUN apk add --no-cache libc6-compat
 
-# Copy deps manifests + PRISMA SCHEMA before npm ci (important!)
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci --legacy-peer-deps
 
-# Copy rest and build Next.js (standalone output)
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# ---- Runner (non-standalone; includes node_modules) ----
-FROM node:20.11.1-alpine AS runner
+# ---- Runner ----
+FROM node:22-alpine AS runner
 WORKDIR /app
+
+ARG NEXT_PUBLIC_BASE_PATH=""
+ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN apk add --no-cache libc6-compat
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+ENV PUPPETEER_SKIP_DOWNLOAD=1
 
-# Copy runtime deps & build output
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
+RUN apk add --no-cache libc6-compat \
+  && addgroup --system --gid 1001 nodejs \
+  && adduser --system --uid 1001 nextjs
+
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# (Remove the prisma CLI copy and the entrypoint that ran prisma)
-# We’ll run migrations manually once instead of on every boot.
+RUN mkdir -p /app/uploads/notes \
+  && chown -R nextjs:nodejs /app/uploads
+
+USER nextjs
 
 EXPOSE 3000
-CMD ["node", "node_modules/next/dist/bin/next", "start", "-p", "3000"]
+
+CMD ["node", "server.js"]
+
+# ---- Scheduled supermarket catalogue worker ----
+FROM node:22-alpine AS price-worker
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+ENV HOME=/tmp/priceworker
+ENV XDG_CONFIG_HOME=/tmp/priceworker/.config
+ENV XDG_CACHE_HOME=/tmp/priceworker/.cache
+
+RUN apk add --no-cache ca-certificates chromium freetype harfbuzz nss ttf-freefont \
+  && addgroup --system --gid 1002 priceworker \
+  && adduser --system --uid 1002 --ingroup priceworker priceworker
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder --chown=priceworker:priceworker /app/scripts ./scripts
+
+USER priceworker
+
+CMD ["node", "scripts/sync-supermarket-prices.js"]

@@ -1,17 +1,23 @@
 import { NextApiRequest, NextApiResponse } from 'next'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '../auth/[...nextauth]'
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma'
+import { getUserIdOr401 } from '@/lib/api-guards'
+import { recordActivity } from '@/lib/activity'
+import {
+  validateContentJson,
+  validateNoteColor,
+  validateOptionalBoolean,
+  validateOptionalText,
+} from '@/lib/note-validation'
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  const session = await getServerSession(req, res, authOptions)
-  
-  if (!session?.user?.email) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
+type NoteUser = { id: string; activeHouseholdId: string | null }
 
+async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const userId = await getUserIdOr401(req, res)
+  if (!userId) return
   const user = await prisma.user.findUnique({
-    where: { email: session.user.email }
+    where: { id: userId },
+    select: { id: true, activeHouseholdId: true },
   })
 
   if (!user) {
@@ -28,12 +34,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: any) {
+async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: NoteUser) {
   try {
     const { type = 'all', householdId } = req.query
-    
-    console.log('API: Getting notes with params:', { type, householdId, userId: user.id })
-    
+    const memberships = await prisma.membership.findMany({
+      where: { userId: user.id },
+      select: { householdId: true },
+    })
+    const householdIds = memberships.map(membership => membership.householdId)
+    if (householdId && (typeof householdId !== 'string' || !householdIds.includes(householdId))) {
+      return res.status(403).json({ error: 'Not a member of this household' })
+    }
+
+    const accessibleSharedNote = {
+      isShared: true,
+      householdId: { in: householdIds },
+    }
     let whereClause: any = {
       OR: [
         { createdById: user.id }, // User's own notes
@@ -43,7 +59,8 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
               userId: user.id
             }
           }
-        } // Notes where user is a collaborator
+        }, // Notes where user is a collaborator
+        accessibleSharedNote,
       ]
     }
 
@@ -55,18 +72,17 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
       }
     } else if (type === 'shared') {
       whereClause = {
+        isShared: true,
         OR: [
-          { 
-            createdById: user.id,
-            isShared: true
-          },
+          { createdById: user.id },
           { 
             collaborators: {
               some: {
                 userId: user.id
               }
             }
-          }
+          },
+          accessibleSharedNote,
         ]
       }
     }
@@ -76,7 +92,6 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
       whereClause.householdId = householdId
     }
 
-    console.log('API: Final whereClause:', JSON.stringify(whereClause, null, 2))
 
     const notes = await prisma.note.findMany({
       where: whereClause,
@@ -112,9 +127,6 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
       ]
     })
 
-    console.log('API: Found notes:', notes.length)
-    console.log('API: Notes data:', notes.map(n => ({ id: n.id, title: n.title, isShared: n.isShared, householdId: n.householdId, color: n.color })))
-    console.log('API: First note full data:', notes[0])
 
     return res.status(200).json({ notes })
   } catch (error) {
@@ -123,21 +135,40 @@ async function handleGetNotes(req: NextApiRequest, res: NextApiResponse, user: a
   }
 }
 
-async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user: any) {
+async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user: NoteUser) {
   try {
     const { title, content, contentJson, contentText, isShared, color, householdId } = req.body
+    const normalizedTitle = typeof title === 'string' ? title.trim() : ''
+    const errors = [
+      validateOptionalText(content, 'Content', 200_000),
+      validateOptionalText(contentText, 'Plain-text content', 200_000),
+      validateContentJson(contentJson),
+      validateNoteColor(color),
+      validateOptionalBoolean(isShared, 'isShared'),
+    ].filter(Boolean)
 
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' })
+    if (!normalizedTitle || normalizedTitle.length > 200) {
+      return res.status(400).json({ error: 'A title of 200 characters or fewer is required' })
+    }
+    if (errors.length) return res.status(400).json({ error: errors[0], details: errors })
+    if (householdId !== undefined && householdId !== null && typeof householdId !== 'string') {
+      return res.status(400).json({ error: 'Invalid household' })
+    }
+
+    const shared = isShared === true
+    const effectiveHouseholdId = shared ? (householdId || user.activeHouseholdId) : null
+
+    if (shared && !effectiveHouseholdId) {
+      return res.status(400).json({ error: 'A household is required for shared notes' })
     }
 
     // Validate household access for shared notes
-    if (isShared && householdId) {
+    if (shared && effectiveHouseholdId) {
       const membership = await prisma.membership.findUnique({
         where: {
           userId_householdId: {
             userId: user.id,
-            householdId: householdId
+            householdId: effectiveHouseholdId
           }
         }
       })
@@ -149,14 +180,14 @@ async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user:
 
     const note = await prisma.note.create({
       data: {
-        title,
-        content: content || '',
-        contentJson: contentJson || null,
-        contentText: contentText || '',
-        isShared: isShared || false,
-        color: color || 'yellow',
+        title: normalizedTitle,
+        content: typeof content === 'string' ? content : '',
+        contentJson: contentJson ?? null,
+        contentText: typeof contentText === 'string' ? contentText : '',
+        isShared: shared,
+        color: typeof color === 'string' ? color : 'yellow',
         createdById: user.id,
-        householdId: isShared ? householdId : null
+        householdId: effectiveHouseholdId
       },
       include: {
         createdBy: {
@@ -186,9 +217,23 @@ async function handleCreateNote(req: NextApiRequest, res: NextApiResponse, user:
       }
     })
 
+    // Only shared notes appear in the feed; a private note's title is private.
+    if (shared && effectiveHouseholdId) {
+      void recordActivity({
+        householdId: effectiveHouseholdId,
+        userId: user.id,
+        module: 'notes',
+        action: 'created',
+        summary: `${note.createdBy?.name || 'Someone'} shared a note: ${normalizedTitle}`,
+        targetId: note.id,
+      })
+    }
+
     return res.status(201).json({ note })
   } catch (error) {
     console.error('Error creating note:', error)
     return res.status(500).json({ error: 'Failed to create note' })
   }
 }
+
+export default withApiHandler(handler)

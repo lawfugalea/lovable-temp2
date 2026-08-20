@@ -1,5 +1,15 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
+import { apiRateLimit } from '@/lib/rate-limiter';
+import { getUserIdOr401 } from '@/lib/api-guards';
+import { requireActiveHousehold } from '@/lib/chores';
+import { getHouseholdEntitlements } from '@/lib/entitlements';
+import { requirePriceComparison } from '@/lib/entitlements-core';
+import { isSupermarketConsented } from '@/lib/supermarket-consent';
+
+const MAX_TITLES = 25;
+const MAX_TITLE_LENGTH = 200;
 
 /**
  * Aggressive normalization and fuzzy ranking to estimate a price for a free-typed title.
@@ -8,8 +18,6 @@ import { prisma } from '@/lib/prisma';
  * {
  *   results: Record<string, { priceCents: number; name: string; url: string }>
  * }
- *
- * No auth requirement (public).
  */
 
 // --- Normalization utilities ---
@@ -98,12 +106,19 @@ function buildOrWhere(tokens: string[]) {
   return tokens.map((t) => ({ nameNormalized: { contains: t } }));
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Public endpoint: do not enforce auth here
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET' && req.method !== 'POST') {
     res.setHeader('Allow', 'GET, POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+  const userId = await getUserIdOr401(req, res);
+  if (!userId) return;
+  if (!(await apiRateLimit(req, res))) return;
+  const householdId = await requireActiveHousehold(req, res, userId);
+  if (!householdId) return;
+  const entitlements = await getHouseholdEntitlements(householdId);
+  if (!requirePriceComparison(res, entitlements)) return;
+  if (!isSupermarketConsented('smart')) return res.status(200).json({ results: {} });
 
   const qInput =
     req.method === 'GET'
@@ -112,14 +127,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ? req.body.q
       : '';
 
-  const titles: string[] =
-    req.method === 'GET'
-      ? [qInput].filter(Boolean)
-      : Array.isArray(req.body?.titles)
-      ? (req.body.titles as string[]).filter((s) => typeof s === 'string' && s.trim())
+  if (req.method === 'POST' && req.body?.titles !== undefined && !Array.isArray(req.body.titles)) {
+    return res.status(400).json({ error: 'titles must be an array' });
+  }
+  if (Array.isArray(req.body?.titles) && req.body.titles.length > MAX_TITLES) {
+    return res.status(400).json({ error: `A maximum of ${MAX_TITLES} titles is allowed` });
+  }
+
+  const rawTitles: unknown[] = req.method === 'GET'
+    ? [qInput]
+    : Array.isArray(req.body?.titles)
+      ? req.body.titles
       : qInput
-      ? [qInput]
-      : [];
+        ? [qInput]
+        : [];
+  const titles: string[] = rawTitles
+    .filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))
+    .map(value => value.trim());
+
+  if (titles.some(title => title.length > MAX_TITLE_LENGTH)) {
+    return res.status(400).json({ error: `Titles must be ${MAX_TITLE_LENGTH} characters or fewer` });
+  }
 
   if (!titles.length) {
     return res.status(200).json({ results: {} });
@@ -144,6 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const candidates = await prisma.priceProduct.findMany({
         where: {
           sourceUrl: { contains: 'smart.com.mt' },
+          store: { slug: 'smart', enabled: true },
           OR: orTokens.length ? buildOrWhere(orTokens) : undefined,
         },
         select: {
@@ -243,3 +272,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({ results: {} });
   }
 }
+
+export default withApiHandler(handler)

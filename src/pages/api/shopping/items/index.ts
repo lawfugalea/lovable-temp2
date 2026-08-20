@@ -1,7 +1,10 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
+import { withBasePath } from '@/lib/base-path';
+import { recordActivity } from '@/lib/activity';
 
 async function requireUser(req: NextApiRequest, res: NextApiResponse) {
   const sess = (await getServerSession(req, res, authOptions as any)) as any;
@@ -24,7 +27,21 @@ async function requireListAccess(userId: string, listId: string) {
   return m ? list : null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+function safeHttpUrl(value: unknown, allowLocalProxy = false): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  if (allowLocalProxy && (
+    value.startsWith('/api/image-proxy?url=')
+    || value.startsWith(withBasePath('/api/image-proxy?url='))
+  )) return value;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
@@ -41,6 +58,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       include: {
         createdBy: { select: { id: true, name: true, email: true } },
         doneBy: { select: { id: true, name: true, email: true } },
+        canonicalProduct: { select: { id: true, displayName: true, brand: true, packageValue: true, packageUnit: true, packCount: true } },
       },
     });
 
@@ -49,34 +67,68 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   if (req.method === 'POST') {
-    const { listId, title, qty, price, imageUrl, productUrl, store } = (req.body || {}) as {
+    const { listId, title, qty, quantityCount, canonicalProductId, price, imageUrl, productUrl, store } = (req.body || {}) as {
       listId?: string;
       title?: string;
       qty?: string | number;
+      quantityCount?: number;
+      canonicalProductId?: string;
       price?: number;
       imageUrl?: string;
       productUrl?: string;
       store?: string;
     };
-    if (!listId || !title) return res.status(400).json({ error: 'Missing listId or title' });
+    const normalizedTitle = typeof title === 'string' ? title.trim() : '';
+    const normalizedQty = qty === undefined || qty === null ? '' : String(qty).trim();
+    const normalizedStore = typeof store === 'string' ? store.trim() : '';
+    const normalizedImageUrl = safeHttpUrl(imageUrl, true);
+    const normalizedProductUrl = safeHttpUrl(productUrl);
+    if (!listId || !normalizedTitle || normalizedTitle.length > 200 || normalizedQty.length > 80 || normalizedStore.length > 100) {
+      return res.status(400).json({ error: 'Invalid list item details' });
+    }
+    if ((imageUrl && !normalizedImageUrl) || (productUrl && !normalizedProductUrl)) {
+      return res.status(400).json({ error: 'Product links must use HTTP or HTTPS' });
+    }
+    if (price !== undefined && (!Number.isFinite(price) || price < 0)) {
+      return res.status(400).json({ error: 'Invalid price' });
+    }
+    const normalizedQuantityCount = quantityCount ?? 1;
+    if (!Number.isInteger(normalizedQuantityCount) || normalizedQuantityCount < 1 || normalizedQuantityCount > 999) {
+      return res.status(400).json({ error: 'Quantity count must be an integer between 1 and 999' });
+    }
+    if (canonicalProductId !== undefined && (typeof canonicalProductId !== 'string' || !canonicalProductId.trim())) {
+      return res.status(400).json({ error: 'Invalid catalogue product' });
+    }
 
     const list = await requireListAccess(userId, listId);
     if (!list) return res.status(403).json({ error: 'Forbidden' });
+    if (canonicalProductId) {
+      const product = await prisma.canonicalProduct.findFirst({
+        where: {
+          id: canonicalProductId,
+          products: { some: { active: true, store: { enabled: true } } },
+        },
+        select: { id: true },
+      });
+      if (!product) return res.status(409).json({ error: 'Catalogue product is no longer current; please search again' });
+    }
 
     // Store additional product info in notes as JSON
     const productInfo = {
-      price: price || null,
-      imageUrl: imageUrl || null,
-      productUrl: productUrl || null,
-      originalStore: store || null,
+      price: price ?? null,
+      imageUrl: normalizedImageUrl,
+      productUrl: normalizedProductUrl,
+      originalStore: normalizedStore || null,
     };
 
     const item = await prisma.shoppingItem.create({
       data: {
         listId,
-        title: title.trim(),
-        qty: qty ? String(qty).trim() : undefined,
-        store: store || undefined,
+        title: normalizedTitle,
+        qty: normalizedQty || undefined,
+        quantityCount: normalizedQuantityCount,
+        canonicalProductId: canonicalProductId || undefined,
+        store: normalizedStore || undefined,
         notes: Object.values(productInfo).some(v => v !== null) ? JSON.stringify(productInfo) : undefined,
         createdById: userId,
         status: 'ACTIVE',
@@ -84,7 +136,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       include: {
         createdBy: { select: { id: true, name: true, email: true } },
         doneBy: { select: { id: true, name: true, email: true } },
+        canonicalProduct: { select: { id: true, displayName: true, brand: true, packageValue: true, packageUnit: true, packCount: true } },
       },
+    });
+
+    void recordActivity({
+      householdId: list.householdId,
+      userId,
+      module: 'shopping',
+      action: 'item-added',
+      summary: `${item.createdBy?.name || 'Someone'} added ${normalizedTitle} to the shopping list`,
+      targetId: item.id,
     });
 
     res.setHeader('Cache-Control', 'no-store');
@@ -94,3 +156,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['GET', 'POST']);
   return res.status(405).end('Method Not Allowed');
 }
+
+export default withApiHandler(handler)

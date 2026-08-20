@@ -9,47 +9,219 @@ datasource db {
 }
 
 model PageState {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   householdId String
   page        String
   data        Json
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime  @updatedAt
   updatedBy   String?
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 
   @@unique([householdId, page])
 }
 
 model User {
-  id                     String         @id @default(cuid())
-  name                   String?
-  email                  String         @unique
-  password               String
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
-  activeHouseholdId      String?
-  ownedHouseholds        Household[]    @relation("OwnerHouseholds")
-  memberships            Membership[]
-  shoppingItemsCreated   ShoppingItem[] @relation("ShoppingItemCreatedBy")
-  shoppingItemsCompleted ShoppingItem[] @relation("ShoppingItemDoneBy")
-  activeHousehold        Household?     @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id])
-  notesCreated           Note[]         @relation("NoteCreatedBy")
-  noteCollaborations     NoteCollaborator[] @relation("NoteCollaborator")
-  noteCollaborationsAdded NoteCollaborator[] @relation("NoteCollaboratorAddedBy")
+  id                        String                       @id @default(cuid())
+  name                      String?
+  email                     String                       @unique
+  password                  String
+  isDemo                    Boolean                      @default(false)
+  demoExpiresAt             DateTime?
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
+  acceptedTermsAt           DateTime?
+  termsVersion              String?
+  activeHouseholdId         String?
+  /// Opts this person out of the Monday household digest email.
+  weeklyDigestOptOut        Boolean                      @default(false)
+  /// Guided product tour: the step the user paused on. Null when not mid-tour.
+  tourStepId                String?
+  /// Set when the tour was finished or skipped. Backfilled for accounts that
+  /// predate the tour so it never ambushes an existing user. Null = tour owed.
+  tourCompletedAt           DateTime?
+  /// Per-user dismissal of the dashboard getting-started checklist. Replaces the
+  /// household-scoped PageState flag, which hid the card for every member at once.
+  checklistDismissedAt      DateTime?
+  ownedHouseholds           Household[]                  @relation("OwnerHouseholds")
+  memberships               Membership[]
+  assignedChores            Chore[]                      @relation("ChoreAssignee")
+  choreCompletions          ChoreCompletion[]            @relation("ChoreCompletedBy")
+  incomeSources             IncomeSource[]               @relation("IncomeSourceUser")
+  commitments               Commitment[]                 @relation("CommitmentUser")
+  shoppingItemsCreated      ShoppingItem[]               @relation("ShoppingItemCreatedBy")
+  shoppingItemsCompleted    ShoppingItem[]               @relation("ShoppingItemDoneBy")
+  activeHousehold           Household?                   @relation("ActiveHousehold", fields: [activeHouseholdId], references: [id], onDelete: SetNull)
+
+  @@index([isDemo, demoExpiresAt])
+  notesCreated              Note[]                       @relation("NoteCreatedBy")
+  noteCollaborations        NoteCollaborator[]           @relation("NoteCollaborator")
+  noteCollaborationsAdded   NoteCollaborator[]           @relation("NoteCollaboratorAddedBy")
+  noteAttachmentsUploaded   NoteAttachment[]             @relation("NoteAttachmentUploadedBy")
+  bankConnections           BankConnection[]
+  bankAuthorizationAttempts BankAuthorizationAttempt[]
+  bankAccountSharesCreated  BankAccountShare[]           @relation("BankAccountShareCreatedBy")
+  financePatternRules       FinancePatternRule[]
+  financeTransactionEdits   FinanceTransactionOverride[]
+  financeSubscriptions      FinanceSubscription[]
+  financeLimits             FinanceLimit[]
+  financeCoachFeedback      FinanceCoachFeedback[]
+  financeAiPreference       FinanceAiPreference?
+  financeAiAnalyses         FinanceAiAnalysis[]
+  financePlanAccountsOwned  FinancePlanAccount[]          @relation("FinancePlanAccountOwner")
+  pushSubscriptions         PushSubscription[]
+  passwordResetTokens       PasswordResetToken[]
+  mobileSessions            MobileSession[]
+  activityEvents            ActivityEvent[]
+  pantryItemsUpdated        PantryItem[]
+}
+
+/// What the household already has at home. Bridges meals and shopping:
+/// meal-plan shopping generation skips ingredients found here, and recipe
+/// suggestions rank by pantry coverage. Identity is the normalized name.
+model PantryItem {
+  id             String    @id @default(cuid())
+  householdId    String
+  name           String
+  normalizedName String
+  /// Free-text amount ("2 packs", "500g"); precision is not the point.
+  quantity       String?
+  updatedById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  household      Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  updatedBy      User?     @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([householdId, normalizedName])
+}
+
+/// Household activity feed: one row per notable action, written best-effort by
+/// the mutating routes and read newest-first on the dashboard. Doubles as a
+/// lightweight audit trail; the actor survives account deletion as null.
+model ActivityEvent {
+  id          String    @id @default(cuid())
+  householdId String
+  userId      String?
+  /// Module key the event belongs to ("shopping", "chores", ...).
+  module      String
+  /// Machine-readable action within the module ("item-added", "completed", ...).
+  action      String
+  /// Human-readable one-liner, precomputed at write time.
+  summary     String
+  targetId    String?
+  createdAt   DateTime  @default(now())
+  household   Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([householdId, createdAt])
+}
+
+/// Mobile authentication sessions. Additive: browser NextAuth sessions are
+/// untouched by this table.
+///
+/// The migration that creates this table (20260720210000_mobile_sessions) was
+/// applied to production from the mobile/foundation branch on 2026-07-20 and was
+/// missing from this branch until 2026-07-27, while the table itself held live
+/// refresh tokens. The model is recorded here — not only the migration — because
+/// a schema without it describes a database that does not exist, and any schema
+/// diff run from this branch would propose dropping the table.
+///
+/// Mobile feature work still belongs on mobile/foundation; this is the schema of
+/// record for what production actually runs.
+model MobileSession {
+  id               String    @id @default(cuid())
+  userId           String
+  refreshTokenHash String    @unique
+  passwordVersion  String
+  deviceName       String?
+  platform         String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastUsedAt       DateTime  @default(now())
+  expiresAt        DateTime
+  revokedAt        DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+/// Abuse counters that must survive a deploy and hold across app replicas.
+/// The in-memory limiter they replaced reset on every restart and counted
+/// per-process, so N containers meant N times the intended allowance.
+model RateLimitCounter {
+  /// Caller-scoped identity, e.g. "login:account:someone@example.com".
+  key     String   @id
+  count   Int      @default(0)
+  /// When the window ends; the row is reusable (and sweepable) after this.
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  /// SHA-256 of the raw token; the raw value only ever travels in the email link.
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Household {
-  id             String         @id @default(cuid())
-  name           String
-  ownerId        String?        // Made nullable to support multiple owners
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  owner          User?          @relation("OwnerHouseholds", fields: [ownerId], references: [id])
-  invites        Invite[]
-  members        Membership[]
-  shoppingLists  ShoppingList[]
-  activeForUsers User[]         @relation("ActiveHousehold")
-  children       Child[]
-  notes          Note[]
+  id                        String                     @id @default(cuid())
+  name                      String
+  ownerId                   String? // Made nullable to support multiple owners
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  plan                      HouseholdPlan              @default(FREE)
+  planSource                PlanSource?
+  /// ISO 3166-1 alpha-2. Gates region-specific features (Malta price comparison).
+  country                   String                     @default("MT")
+  /// Shared aisle/category order used by shopping lists. Validated by the application.
+  shoppingCategoryOrder     Json?
+  stripeCustomerId          String?                    @unique
+  stripeSubscriptionId      String?                    @unique
+  stripeSubscriptionStatus  String?
+  stripePriceId             String?
+  /// Apple subscriptions bought in the iOS app, brokered by RevenueCat. Kept
+  /// alongside the Stripe columns rather than replacing them: a household can
+  /// have bought on either platform, and the entitlement check reads whichever
+  /// is in good standing.
+  appleAppUserId            String?                    @unique
+  appleOriginalTransactionId String?                   @unique
+  appleSubscriptionStatus   String?
+  appleProductId            String?
+  appleExpiresAt            DateTime?
+  currentPeriodEnd          DateTime?
+  graceUntil                DateTime?
+  owner                     User?                      @relation("OwnerHouseholds", fields: [ownerId], references: [id], onDelete: SetNull)
+  invites                   Invite[]
+  members                   Membership[]
+  chores                    Chore[]
+  recipes                   Recipe[]
+  mealPlanEntries           MealPlanEntry[]
+  incomeSources             IncomeSource[]
+  commitments               Commitment[]
+  savingsGoals              SavingsGoal[]
+  financePlanAccounts       FinancePlanAccount[]
+  shoppingLists             ShoppingList[]
+  shoppingTemplates         ShoppingTemplate[]
+  activeForUsers            User[]                     @relation("ActiveHousehold")
+  children                  Child[]
+  medicines                 Medicine[]
+  notes                     Note[]
+  pageStates                PageState[]
+  bankAuthorizationAttempts BankAuthorizationAttempt[]
+  bankAccountShares         BankAccountShare[]
+  healthEpisodes            HealthEpisode[]
+  pushSubscriptions         PushSubscription[]
+  activityEvents            ActivityEvent[]
+  pantryItems               PantryItem[]
 }
 
 model Membership {
@@ -58,8 +230,8 @@ model Membership {
   householdId String
   role        MemberRole @default(MEMBER)
   createdAt   DateTime   @default(now())
-  household   Household  @relation(fields: [householdId], references: [id])
-  user        User       @relation(fields: [userId], references: [id])
+  household   Household  @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, householdId], name: "userId_householdId")
   @@index([householdId])
@@ -70,7 +242,7 @@ model Invite {
   householdId  String
   email        String?
   role         MemberRole   @default(MEMBER)
-  token        String       @unique
+  tokenHash    String       @unique @map("token")
   status       InviteStatus @default(PENDING)
   expiresAt    DateTime
   invitedById  String
@@ -78,7 +250,7 @@ model Invite {
   acceptedAt   DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
-  household    Household    @relation(fields: [householdId], references: [id])
+  household    Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
 }
 
 model ShoppingList {
@@ -89,75 +261,147 @@ model ShoppingList {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   items       ShoppingItem[]
-  household   Household      @relation(fields: [householdId], references: [id])
+  household   Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  /// Templates scheduled to refill this list.
+  autoTemplates ShoppingTemplate[] @relation("TemplateAutoList")
 
   @@unique([householdId, name], name: "householdId_name_unique")
   @@index([householdId])
 }
 
 model ShoppingItem {
-  id          String             @id @default(cuid())
-  listId      String
-  title       String
-  qty         String?
-  notes       String?
-  category    String?
-  store       String?
-  status      ShoppingItemStatus @default(ACTIVE)
-  createdById String
-  doneById    String?
-  doneAt      DateTime?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  createdBy   User               @relation("ShoppingItemCreatedBy", fields: [createdById], references: [id])
-  doneBy      User?              @relation("ShoppingItemDoneBy", fields: [doneById], references: [id])
-  list        ShoppingList       @relation(fields: [listId], references: [id])
+  id                 String             @id @default(cuid())
+  listId             String
+  title              String
+  qty                String?
+  quantityCount      Int                @default(1)
+  notes              String?
+  category           String?
+  store              String?
+  canonicalProductId String?
+  status             ShoppingItemStatus @default(ACTIVE)
+  createdById        String
+  doneById           String?
+  doneAt             DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  createdBy          User               @relation("ShoppingItemCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  doneBy             User?              @relation("ShoppingItemDoneBy", fields: [doneById], references: [id], onDelete: SetNull)
+  list               ShoppingList       @relation(fields: [listId], references: [id], onDelete: Cascade)
+  canonicalProduct   CanonicalProduct?  @relation(fields: [canonicalProductId], references: [id], onDelete: SetNull)
 
   @@index([listId])
+  @@index([canonicalProductId])
   @@index([status])
   @@index([updatedAt])
 }
 
 model Store {
-  id        String         @id @default(cuid())
-  name      String
-  domain    String         @unique
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  offers    PriceOffer[]
-  products  PriceProduct[]
+  id                   String         @id @default(cuid())
+  slug                 String         @unique
+  name                 String
+  domain               String         @unique
+  sourceType           String         @default("PUBLIC_CATALOGUE")
+  enabled              Boolean        @default(true)
+  lastSyncAttemptAt    DateTime?
+  lastSuccessfulSyncAt DateTime?
+  consecutiveFailures  Int            @default(0)
+  syncError            String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  offers               PriceOffer[]
+  products             PriceProduct[]
+  syncRuns             PriceSyncRun[]
+}
+
+model CanonicalProduct {
+  id             String                 @id @default(cuid())
+  exactKey       String                 @unique
+  displayName    String
+  brand          String?
+  normalizedName String
+  barcode        String?                @unique
+  packageValue   Decimal?               @db.Decimal(12, 3)
+  packageUnit    String?
+  packCount      Int                    @default(1)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+  products       PriceProduct[]
+  shoppingItems  ShoppingItem[]
+  templateItems  ShoppingTemplateItem[]
+
+  @@index([normalizedName])
+  @@index([brand, normalizedName])
+  recipeIngredients RecipeIngredient[]
 }
 
 model PriceProduct {
-  id             String       @id @default(cuid())
-  storeId        String
-  name           String
-  brand          String?
-  sku            String?
-  sourceUrl      String       @unique
-  imageUrl       String?
-  nameNormalized String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  offers         PriceOffer[] @relation("ProductOffers")
-  store          Store        @relation(fields: [storeId], references: [id])
+  id                 String            @id @default(cuid())
+  storeId            String
+  canonicalProductId String?
+  externalId         String?
+  name               String
+  brand              String?
+  barcode            String?
+  sku                String?
+  sourceUrl          String            @unique
+  imageUrl           String?
+  nameNormalized     String
+  packageValue       Decimal?          @db.Decimal(12, 3)
+  packageUnit        String?
+  packCount          Int               @default(1)
+  active             Boolean           @default(true)
+  lastSeenAt         DateTime?
+  missingSyncCount   Int               @default(0)
+  matchSource        String?
+  matchConfidence    Int?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  offers             PriceOffer[]      @relation("ProductOffers")
+  store              Store             @relation(fields: [storeId], references: [id])
+  canonicalProduct   CanonicalProduct? @relation(fields: [canonicalProductId], references: [id], onDelete: SetNull)
 
+  @@unique([storeId, externalId])
   @@index([storeId, nameNormalized])
+  @@index([canonicalProductId, active])
+  @@index([barcode])
+  @@index([lastSeenAt])
 }
 
 model PriceOffer {
-  id         String       @id @default(cuid())
-  productId  String
-  priceCents Int
-  currency   String       @default("EUR")
-  unit       String?
-  scrapedAt  DateTime     @default(now())
-  storeId    String?
-  category   String?
-  product    PriceProduct @relation("ProductOffers", fields: [productId], references: [id])
-  Store      Store?       @relation(fields: [storeId], references: [id])
+  id                String       @id @default(cuid())
+  productId         String
+  priceCents        Int
+  regularPriceCents Int?
+  loyaltyPriceCents Int?
+  isPublicPromotion Boolean      @default(false)
+  available         Boolean      @default(true)
+  currency          String       @default("EUR")
+  unit              String?
+  unitPriceCents    Int?
+  unitPriceUnit     String?
+  scrapedAt         DateTime     @default(now())
+  storeId           String?
+  category          String?
+  product           PriceProduct @relation("ProductOffers", fields: [productId], references: [id])
+  Store             Store?       @relation(fields: [storeId], references: [id])
 
   @@index([productId, scrapedAt])
+}
+
+model PriceSyncRun {
+  id            String            @id @default(cuid())
+  storeId       String
+  status        CatalogSyncStatus @default(RUNNING)
+  productsSeen  Int               @default(0)
+  offersChanged Int               @default(0)
+  error         String?
+  startedAt     DateTime          @default(now())
+  finishedAt    DateTime?
+  store         Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, startedAt])
+  @@index([status, startedAt])
 }
 
 enum MemberRole {
@@ -177,14 +421,341 @@ enum ShoppingItemStatus {
   DONE
 }
 
+enum CatalogSyncStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum BankProvider {
+  ENABLE_BANKING
+}
+
+enum BankConnectionStatus {
+  PENDING
+  ACTIVE
+  REAUTH_REQUIRED
+  ERROR
+}
+
+enum BankTransactionStatus {
+  BOOKED
+  PENDING
+}
+
+enum FinancePatternMatchType {
+  EXACT
+  CONTAINS
+}
+
+enum FinanceSubscriptionStatus {
+  CANDIDATE
+  CONFIRMED
+  DISMISSED
+}
+
+enum FinanceCadence {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+  CUSTOM
+}
+
+enum FinanceLimitScope {
+  CATEGORY
+  MERCHANT
+}
+
+enum FinanceCoachFeedbackState {
+  DISMISSED
+  SNOOZED
+}
+
+model BankConnection {
+  id                    String                     @id @default(cuid())
+  userId                String
+  provider              BankProvider               @default(ENABLE_BANKING)
+  aspspName             String
+  aspspCountry          String                     @default("MT")
+  psuType               String                     @default("personal")
+  providerSessionId     String?                    @unique
+  status                BankConnectionStatus       @default(PENDING)
+  consentExpiresAt      DateTime?
+  /// When the "consent expires soon" email went out for the current consent.
+  consentReminderSentAt DateTime?
+  /// When the "bank needs reauthorization" email went out for the current episode.
+  reauthNotifiedAt      DateTime?
+  lastSyncedAt          DateTime?
+  lastSyncAttemptAt     DateTime?
+  syncStartedAt         DateTime?
+  syncError             String?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  user                  User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts              BankAccount[]
+  authorizationAttempts BankAuthorizationAttempt[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model BankAuthorizationAttempt {
+  id           String          @id @default(cuid())
+  state        String          @unique
+  userId       String
+  householdId  String
+  connectionId String?
+  provider     BankProvider    @default(ENABLE_BANKING)
+  aspspName    String
+  aspspCountry String          @default("MT")
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  household    Household       @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  connection   BankConnection? @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([householdId])
+}
+
+model BankAccount {
+  id                 String                       @id @default(cuid())
+  connectionId       String
+  providerAccountId  String
+  identificationHash String
+  displayName        String
+  customName         String?
+  maskedIdentifier   String?
+  currency           String
+  cashAccountType    String?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+  connection         BankConnection               @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  balances           BankBalance[]
+  transactions       BankTransaction[]
+  shares             BankAccountShare[]
+  patternRules       FinancePatternRule[]
+  transactionEdits   FinanceTransactionOverride[]
+  subscriptions      FinanceSubscription[]
+  financeLimits      FinanceLimit[]
+  coachFeedback      FinanceCoachFeedback[]
+
+  @@unique([connectionId, identificationHash])
+  @@index([connectionId])
+}
+
+model BankAccountShare {
+  id          String      @id @default(cuid())
+  accountId   String
+  householdId String
+  createdById String
+  createdAt   DateTime    @default(now())
+  account     BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  household   Household   @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  createdBy   User        @relation("BankAccountShareCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, householdId])
+  @@index([householdId])
+  @@index([createdById])
+}
+
+model BankBalance {
+  id            String      @id @default(cuid())
+  accountId     String
+  balanceType   String
+  currency      String
+  amount        Decimal     @db.Decimal(19, 4)
+  referenceDate DateTime?   @db.Date
+  changedAt     DateTime?
+  updatedAt     DateTime    @updatedAt
+  account       BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, balanceType, currency])
+  @@index([accountId])
+}
+
+model BankTransaction {
+  id                    String                      @id @default(cuid())
+  accountId             String
+  providerTransactionId String?
+  deduplicationKey      String
+  status                BankTransactionStatus
+  amount                Decimal                     @db.Decimal(19, 4)
+  currency              String
+  bookingDate           DateTime?                   @db.Date
+  valueDate             DateTime?                   @db.Date
+  counterparty          String?
+  description           String?
+  providerData          Json?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  account               BankAccount                 @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  financeOverride       FinanceTransactionOverride?
+
+  @@unique([accountId, deduplicationKey])
+  @@index([accountId, bookingDate])
+  @@index([accountId, status])
+}
+
+model FinancePatternRule {
+  id           String                  @id @default(cuid())
+  userId       String
+  accountId    String?
+  matchType    FinancePatternMatchType @default(EXACT)
+  matchValue   String
+  merchantName String?
+  category     String?
+  enabled      Boolean                 @default(true)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      BankAccount?            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+  @@index([accountId])
+}
+
+model FinanceTransactionOverride {
+  id            String          @id @default(cuid())
+  userId        String
+  accountId     String
+  transactionId String          @unique
+  merchantName  String?
+  category      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account       BankAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  transaction   BankTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([accountId])
+}
+
+model FinanceSubscription {
+  id               String                    @id @default(cuid())
+  userId           String
+  accountId        String
+  merchantKey      String
+  displayName      String
+  status           FinanceSubscriptionStatus @default(CANDIDATE)
+  cadence          FinanceCadence
+  intervalDays     Int?
+  expectedAmount   Decimal?                  @db.Decimal(19, 4)
+  amountTolerance  Decimal?                  @db.Decimal(19, 4)
+  currency         String
+  nextExpectedDate DateTime?                 @db.Date
+  reminderDays     Int                       @default(3)
+  lastSeenAt       DateTime?                 @db.Date
+  occurrenceCount  Int                       @default(0)
+  confidence       Float                     @default(0)
+  manual           Boolean                   @default(false)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  user             User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account          BankAccount               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, merchantKey])
+  @@index([userId, status])
+  @@index([accountId, nextExpectedDate])
+}
+
+model FinanceLimit {
+  id          String            @id @default(cuid())
+  userId      String
+  accountId   String?
+  scope       FinanceLimitScope
+  scopeKey    String
+  displayName String
+  amount      Decimal           @db.Decimal(19, 4)
+  currency    String            @default("EUR")
+  enabled     Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account     BankAccount?      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([userId, enabled])
+  @@index([accountId])
+}
+
+model FinanceCoachFeedback {
+  id           String                    @id @default(cuid())
+  userId       String
+  accountId    String?
+  signalKey    String
+  state        FinanceCoachFeedbackState
+  snoozedUntil DateTime?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  user         User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      BankAccount?              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, signalKey])
+  @@index([accountId])
+}
+
+model FinanceAiPreference {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  consentedAt DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FinanceAiAnalysis {
+  id             String   @id @default(cuid())
+  userId         String
+  inputHash      String
+  model          String
+  accountIds     Json
+  payloadSummary Json
+  result         Json
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, inputHash])
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
 model ShoppingTemplate {
   id          String                 @id @default(cuid())
   householdId String
   name        String
   createdAt   DateTime               @default(now())
-  items       ShoppingTemplateItem[] // <-- one-to-many
+
+  /// Null means the template is imported by hand only, which is how every
+  /// template behaved before scheduling existed. Set it and the worker refills
+  /// `autoList` on each due date. Shares ChoreRecurrenceType deliberately: the
+  /// schedule semantics and the tested engine in lib/chore-recurrence are the
+  /// same, and a second identical enum would only drift.
+  recurrenceType ChoreRecurrenceType?
+  /// ISO weekday numbers 1 (Monday) to 7 (Sunday); used when WEEKLY.
+  daysOfWeek     Int[]               @default([])
+  /// Interval in days; used when EVERY_N_DAYS.
+  intervalDays   Int?
+  /// Phase anchor for EVERY_N_DAYS; date-only.
+  anchorDate     DateTime?           @db.Date
+  /// Day of month 1-31 (clamped to month length); used when MONTHLY.
+  dayOfMonth     Int?
+  /// Which list a scheduled run fills. Cleared if that list is deleted, which
+  /// also stops the schedule — refilling an arbitrary other list would be worse.
+  autoListId     String?
+  /// Guards against a double run when the worker is retried; date-only.
+  lastRunOn      DateTime?           @db.Date
+
+  items     ShoppingTemplateItem[] // <-- one-to-many
+  household Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  autoList  ShoppingList?          @relation("TemplateAutoList", fields: [autoListId], references: [id], onDelete: SetNull)
 
   @@index([householdId])
+  @@index([recurrenceType])
 }
 
 model ShoppingTemplateItem {
@@ -196,8 +767,9 @@ model ShoppingTemplateItem {
   // RELATION field (this is what Prisma was missing)
   template ShoppingTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
-  // optional link to catalogue product
+  // optional link to a confirmed cross-store catalogue identity
   productId String?
+  product   CanonicalProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   name       String
   quantity   Decimal @default(1)
@@ -206,6 +778,7 @@ model ShoppingTemplateItem {
   note       String?
 
   @@index([templateId])
+  @@index([productId])
   @@index([unitId])
   @@index([categoryId])
 }
@@ -220,75 +793,107 @@ model Child {
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  household     Household @relation(fields: [householdId], references: [id])
-  medicines     Medicine[]
-  doses         MedicineDose[]
-  reminders     MedicineReminder[]
-  feverReadings FeverReading[]
-  
+
+  household          Household           @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  medicines          Medicine[]
+  doses              MedicineDose[]
+  reminders          MedicineReminder[]
+  feverReadings      FeverReading[]
+  healthEpisodes     HealthEpisode[]
+  weightMeasurements WeightMeasurement[]
+
   @@index([householdId])
 }
 
 model Medicine {
-  id          String   @id @default(cuid())
-  childId     String?  // Optional for templates, required for active courses
+  id          String    @id @default(cuid())
+  householdId String
+  childId     String? // Optional for templates, required for active courses
   name        String
   description String?
-  dosage      String   // e.g., "5ml", "1 tablet", "2 drops"
-  frequency   String   // e.g., "every 6 hours", "twice daily", "as needed"
+  dosage      String // e.g., "5ml", "1 tablet", "2 drops"
+  frequency   String // e.g., "every 6 hours", "twice daily", "as needed"
   startDate   DateTime
   endDate     DateTime?
-  isActive    Boolean  @default(true)
-  isTemplate  Boolean  @default(false) // True for reusable templates, false for active courses
+  isActive    Boolean   @default(true)
+  isTemplate  Boolean   @default(false) // True for reusable templates, false for active courses
   notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   // Next dose override fields
   nextDoseOverride DateTime? // When parent manually sets next dose time
-  overrideReason   String?   // Reason for override (e.g., "sleep schedule", "meal timing")
-  
-  child       Child?        @relation(fields: [childId], references: [id])
-  doses       MedicineDose[]
-  reminders   MedicineReminder[]
-  
+  overrideReason   String? // Reason for override (e.g., "sleep schedule", "meal timing")
+
+  // Safety guardrails
+  minGapHours    Float? // Minimum hours between doses; falls back to the frequency interval
+  maxDosesPer24h Int? // Optional cap on doses in any 24h window
+  isPrn          Boolean @default(false) // "As needed" medicine: never scheduled/due, gap-checked only
+
+  // Parent-verified product and schedule details. Migrated records remain
+  // unverified until a carer confirms them from packaging or clinician advice.
+  activeIngredient    String?
+  formulation         String?
+  concentration       String?
+  doseAmount          Float?
+  doseUnit            String?
+  scheduleSource      MedicineScheduleSource?
+  scheduleSourceNotes String?
+  scheduleVerifiedAt  DateTime?
+  scheduleVerifiedBy  String?
+  episodeId           String?
+
+  household      Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  child          Child?             @relation(fields: [childId], references: [id], onDelete: Cascade)
+  doses          MedicineDose[]
+  reminders      MedicineReminder[]
+  episode        HealthEpisode?     @relation(fields: [episodeId], references: [id], onDelete: SetNull)
+  pushDeliveries PushDelivery[]
+
+  @@index([householdId])
   @@index([childId])
   @@index([isActive])
   @@index([isTemplate])
 }
 
 model MedicineDose {
-  id         String   @id @default(cuid())
-  childId    String
-  medicineId String
-  takenAt    DateTime
-  dosage     String   // Actual dosage taken (might differ from prescribed)
-  notes      String?
-  takenBy    String?  // User ID who administered the dose
-  createdAt  DateTime @default(now())
-  
-  child      Child    @relation(fields: [childId], references: [id])
-  medicine   Medicine @relation(fields: [medicineId], references: [id])
-  
+  id                    String    @id @default(cuid())
+  childId               String
+  medicineId            String
+  takenAt               DateTime
+  dosage                String // Actual dosage taken (might differ from prescribed)
+  notes                 String?
+  takenBy               String? // User ID who administered the dose
+  createdAt             DateTime  @default(now())
+  episodeId             String
+  safetyWarnings        Json?
+  warningAcknowledgedAt DateTime?
+  warningAcknowledgedBy String?
+  warningReason         String?
+
+  child    Child         @relation(fields: [childId], references: [id], onDelete: Cascade)
+  medicine Medicine      @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  episode  HealthEpisode @relation(fields: [episodeId], references: [id], onDelete: Restrict)
+
   @@index([childId, takenAt])
   @@index([medicineId])
   @@index([takenAt])
+  @@index([episodeId, takenAt])
 }
 
 model MedicineReminder {
-  id         String   @id @default(cuid())
-  childId    String
-  medicineId String
-  scheduledAt DateTime
+  id           String       @id @default(cuid())
+  childId      String
+  medicineId   String
+  scheduledAt  DateTime
   reminderType ReminderType
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  
-  child      Child    @relation(fields: [childId], references: [id])
-  medicine   Medicine @relation(fields: [medicineId], references: [id])
-  
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  child    Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  medicine Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
   @@index([childId, scheduledAt])
   @@index([medicineId])
   @@index([scheduledAt, isActive])
@@ -301,41 +906,147 @@ enum ReminderType {
 }
 
 model FeverReading {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   childId     String
-  temperature Float    // Temperature in Celsius
-  unit        String   @default("C") // C or F
-  method      String   @default("oral") // oral, rectal, axillary, ear, forehead
-  takenAt     DateTime @default(now())
+  temperature Float // Temperature in Celsius
+  unit        String        @default("C") // C or F
+  method      String        @default("oral") // oral, rectal, axillary, ear, forehead
+  takenAt     DateTime      @default(now())
   notes       String?
-  takenBy     String?  // Who took the reading
-  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  takenBy     String? // Who took the reading
+  episodeId   String
+  createdAt   DateTime      @default(now())
+  child       Child         @relation(fields: [childId], references: [id], onDelete: Cascade)
+  episode     HealthEpisode @relation(fields: [episodeId], references: [id], onDelete: Restrict)
 
   @@index([childId, takenAt])
   @@index([takenAt])
+  @@index([episodeId, takenAt])
+}
+
+model HealthEpisode {
+  id          String    @id @default(cuid())
+  householdId String
+  childId     String
+  title       String?
+  notes       String?
+  startedAt   DateTime
+  endedAt     DateTime?
+  isInferred  Boolean   @default(false)
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  household     Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  child         Child          @relation(fields: [childId], references: [id], onDelete: Cascade)
+  medicines     Medicine[]
+  doses         MedicineDose[]
+  feverReadings FeverReading[]
+
+  @@index([householdId, startedAt])
+  @@index([childId, startedAt])
+}
+
+model WeightMeasurement {
+  id         String   @id @default(cuid())
+  childId    String
+  weightKg   Float
+  measuredAt DateTime
+  notes      String?
+  recordedBy String?
+  createdAt  DateTime @default(now())
+
+  child Child @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@index([childId, measuredAt])
+}
+
+model PushSubscription {
+  id          String   @id @default(cuid())
+  userId      String
+  householdId String
+  endpoint    String   @unique
+  p256dh      String
+  auth        String
+  userAgent   String?
+  enabled     Boolean  @default(true)
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  household  Household      @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  deliveries PushDelivery[]
+
+  @@index([householdId, enabled])
+  @@index([userId])
+}
+
+/// Once-only ledger for event pushes (chores due, bank consent, shopping
+/// refills): the first run to claim a dedupe key sends, later runs stay quiet.
+model PushEvent {
+  id        String   @id @default(cuid())
+  dedupeKey String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model PushDelivery {
+  id             String             @id @default(cuid())
+  subscriptionId String
+  medicineId     String
+  scheduledAt    DateTime
+  status         PushDeliveryStatus @default(PENDING)
+  attempts       Int                @default(0)
+  lastError      String?
+  sentAt         DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  subscription PushSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  medicine     Medicine         @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, medicineId, scheduledAt])
+  @@index([status, scheduledAt])
+}
+
+enum MedicineScheduleSource {
+  PACKAGING
+  LEAFLET
+  CLINICIAN
+}
+
+enum PushDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
 }
 
 // Notes System Models
 model Note {
   id          String   @id @default(cuid())
   title       String
-  content     String   // Legacy rich text content (HTML or Markdown) - kept for backward compatibility
-  contentJson Json?    // TipTap JSON content
-  contentText String?  // Plain text content for search
+  content     String // Legacy rich text content (HTML or Markdown) - kept for backward compatibility
+  contentJson Json? // TipTap JSON content
+  contentText String? // Plain text content for search
   isShared    Boolean  @default(false) // true = shared with household, false = personal
   color       String   @default("yellow") // Note color theme
   isPinned    Boolean  @default(false) // Pin important notes
   isArchived  Boolean  @default(false) // Archive old notes
   createdById String
-  householdId String?  // null for personal notes, set for shared notes
+  householdId String? // null for personal notes, set for shared notes
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   // Relations
-  createdBy   User     @relation("NoteCreatedBy", fields: [createdById], references: [id])
-  household   Household? @relation(fields: [householdId], references: [id])
+  createdBy     User               @relation("NoteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  household     Household?         @relation(fields: [householdId], references: [id], onDelete: Cascade)
   collaborators NoteCollaborator[] // Users who can edit shared notes
-  
+  attachments   NoteAttachment[]
+
   @@index([createdById])
   @@index([householdId])
   @@index([isShared])
@@ -344,19 +1055,34 @@ model Note {
   @@index([updatedAt])
 }
 
+model NoteAttachment {
+  id           String   @id @default(cuid())
+  filename     String
+  noteId       String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  note       Note  @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation("NoteAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@unique([filename, noteId])
+  @@index([noteId])
+  @@index([uploadedById])
+}
+
 model NoteCollaborator {
   id        String   @id @default(cuid())
   noteId    String
   userId    String
   role      NoteRole @default(VIEWER) // VIEWER, EDITOR
   addedAt   DateTime @default(now())
-  addedById String   // Who added this collaborator
-  
+  addedById String // Who added this collaborator
+
   // Relations
-  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
-  user      User     @relation("NoteCollaborator", fields: [userId], references: [id])
-  addedBy   User     @relation("NoteCollaboratorAddedBy", fields: [addedById], references: [id])
-  
+  note    Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user    User @relation("NoteCollaborator", fields: [userId], references: [id], onDelete: Cascade)
+  addedBy User @relation("NoteCollaboratorAddedBy", fields: [addedById], references: [id], onDelete: Cascade)
+
   @@unique([noteId, userId])
   @@index([noteId])
   @@index([userId])
@@ -365,4 +1091,235 @@ model NoteCollaborator {
 enum NoteRole {
   VIEWER
   EDITOR
+}
+
+enum ChoreRecurrenceType {
+  WEEKLY
+  EVERY_N_DAYS
+  MONTHLY
+}
+
+enum ChoreCompletionStatus {
+  DONE
+  SKIPPED
+}
+
+model Chore {
+  id             String              @id @default(cuid())
+  householdId    String
+  title          String
+  notes          String?
+  /// Semantic icon id from src/lib/chore-icons.ts ("hoover", "dishes"), never a
+  /// lucide component name. NULL means infer from the title.
+  icon           String?
+  recurrenceType ChoreRecurrenceType
+  /// Weekday numbers 1 (Monday) to 7 (Sunday); used when recurrenceType is WEEKLY.
+  daysOfWeek     Int[]               @default([])
+  /// Interval in days; used when recurrenceType is EVERY_N_DAYS.
+  intervalDays   Int?
+  /// Phase anchor for EVERY_N_DAYS; date-only.
+  anchorDate     DateTime?           @db.Date
+  /// Day of month 1-31 (clamped to month length); used when recurrenceType is MONTHLY.
+  dayOfMonth     Int?
+  assigneeId     String?
+  active         Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  household   Household         @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  assignee    User?             @relation("ChoreAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  completions ChoreCompletion[]
+
+  @@index([householdId, active])
+}
+
+model ChoreCompletion {
+  id            String                @id @default(cuid())
+  choreId       String
+  /// The scheduled occurrence this resolves; date-only.
+  dueDate       DateTime              @db.Date
+  status        ChoreCompletionStatus @default(DONE)
+  completedById String?
+  completedAt   DateTime              @default(now())
+
+  chore       Chore @relation(fields: [choreId], references: [id], onDelete: Cascade)
+  completedBy User? @relation("ChoreCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@unique([choreId, dueDate])
+  @@index([choreId, dueDate])
+}
+
+enum MealSlot {
+  DINNER
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  householdId String
+  name        String
+  servings    Int      @default(4)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household   Household          @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  ingredients RecipeIngredient[]
+  planEntries MealPlanEntry[]
+
+  @@unique([householdId, name])
+  @@index([householdId])
+}
+
+model RecipeIngredient {
+  id                 String  @id @default(cuid())
+  recipeId           String
+  name               String
+  quantity           Decimal @default(1)
+  unit               String?
+  canonicalProductId String?
+  sortOrder          Int     @default(0)
+
+  recipe           Recipe            @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  canonicalProduct CanonicalProduct? @relation(fields: [canonicalProductId], references: [id], onDelete: SetNull)
+
+  @@index([recipeId])
+}
+
+model MealPlanEntry {
+  id          String   @id @default(cuid())
+  householdId String
+  /// Date-only; the day this meal is planned for.
+  date        DateTime @db.Date
+  slot        MealSlot @default(DINNER)
+  recipeId    String?
+  /// Free-text alternative when no recipe is linked ("Pizza night out").
+  freeText    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  recipe    Recipe?   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, date, slot])
+  @@index([householdId, date])
+}
+
+enum HouseholdPlan {
+  FREE
+  FAMILY
+}
+
+enum PlanSource {
+  STRIPE
+  ADMIN
+  APPLE
+}
+
+/// Processed Stripe webhook events; the primary key is the Stripe event id.
+model BillingEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
+}
+
+/// Frequencies the household money planner understands. BIMONTHLY covers
+/// Malta's two-monthly utility (ARMS) billing cycle.
+enum PlannerFrequency {
+  WEEKLY
+  FOUR_WEEKLY
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+model IncomeSource {
+  id          String           @id @default(cuid())
+  householdId String
+  /// The member this income belongs to; null for household-level income.
+  userId      String?
+  label       String
+  amountCents Int
+  frequency   PlannerFrequency @default(MONTHLY)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User?     @relation("IncomeSourceUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([householdId])
+}
+
+model Commitment {
+  id          String           @id @default(cuid())
+  householdId String
+  /// The member this commitment belongs to; null for shared household commitments.
+  userId      String?
+  label       String
+  category    String           @default("other")
+  amountCents Int
+  frequency   PlannerFrequency @default(MONTHLY)
+  essential   Boolean          @default(true)
+  /// Whether the household puts money aside monthly for this commitment. Set per
+  /// commitment rather than derived from frequency: a bill entered as monthly can
+  /// still be one you save up for, and an irregular one may be paid from income.
+  setAside    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  user      User?     @relation("CommitmentUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([householdId])
+}
+
+model SavingsGoal {
+  id          String    @id @default(cuid())
+  householdId String
+  name        String
+  targetCents Int
+  savedCents  Int       @default(0)
+  /// Date-only; when the household wants the goal reached.
+  targetDate  DateTime? @db.Date
+  monthlyContributionCents Int?
+  planAccountId String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  planAccount FinancePlanAccount? @relation(fields: [planAccountId], references: [id], onDelete: SetNull)
+
+  @@index([householdId])
+  @@index([planAccountId])
+}
+
+enum FinancePlanAccountVisibility {
+  SHARED
+  PRIVATE
+}
+
+/// A savings pot: what it holds today, and what goes into it each month.
+model FinancePlanAccount {
+  id                 String                       @id @default(cuid())
+  householdId        String
+  ownerUserId        String
+  name               String
+  visibility         FinancePlanAccountVisibility @default(SHARED)
+  /// Balance the household last stated for this account; the starting point for forecasts.
+  openingBalanceCents Int                         @default(0)
+  /// Date-only; when openingBalanceCents was last stated.
+  openingBalanceAt   DateTime?                    @db.Date
+  /// What the household puts into this account every month.
+  monthlyContributionCents Int                    @default(0)
+  sortOrder          Int                          @default(0)
+  archivedAt         DateTime?
+  createdAt          DateTime                     @default(now())
+  updatedAt          DateTime                     @updatedAt
+
+  household      Household              @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  owner          User                   @relation("FinancePlanAccountOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+  savingsGoals   SavingsGoal[]
+
+  @@index([householdId, archivedAt])
+  @@index([ownerUserId])
 }

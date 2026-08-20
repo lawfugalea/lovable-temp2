@@ -1,129 +1,275 @@
-// tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: ['class'],
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx}',
     './src/components/**/*.{js,ts,jsx,tsx}',
+    './src/lib/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
-    extend: {
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'ui-sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji'],
-        display: ['Inter', 'system-ui', 'ui-sans-serif'],
-      },
-      colors: {
-        cozy: {
-          // Backgrounds
-          bg: 'hsl(35, 25%, 97%)',
-          surface: 'hsl(35, 15%, 99%)',
-          
-          // Text
-          text: 'hsl(25, 15%, 15%)',
-          'text-muted': 'hsl(25, 8%, 45%)',
-          'text-soft': 'hsl(25, 5%, 65%)',
-          
-          // Primary warm coral
-          primary: 'hsl(18, 75%, 65%)',
-          'primary-soft': 'hsl(18, 85%, 85%)',
-          'primary-deep': 'hsl(18, 65%, 45%)',
-          
-          // Secondary warm tones
-          sage: 'hsl(95, 20%, 65%)',
-          'sage-soft': 'hsl(95, 25%, 85%)',
-          terracotta: 'hsl(15, 60%, 60%)',
-          cream: 'hsl(45, 40%, 92%)',
-          sand: 'hsl(35, 30%, 85%)',
-          
-          // Warm grays
-          gray: {
-            100: 'hsl(25, 8%, 95%)',
-            200: 'hsl(25, 6%, 88%)',
-            300: 'hsl(25, 5%, 75%)',
-            400: 'hsl(25, 4%, 60%)',
-          },
-        },
-      },
-      backgroundImage: {
-        'cozy-warm': 'linear-gradient(135deg, hsl(35, 40%, 95%) 0%, hsl(25, 35%, 92%) 50%, hsl(18, 30%, 90%) 100%)',
-        'cozy-header': 'linear-gradient(90deg, hsl(18, 85%, 90%) 0%, hsl(35, 60%, 88%) 30%, hsl(95, 30%, 88%) 70%, hsl(45, 50%, 90%) 100%)',
-      },
-      boxShadow: {
-        'cozy-sm': '0 2px 8px hsla(25, 15%, 15%, 0.08)',
-        'cozy-md': '0 4px 16px hsla(25, 15%, 15%, 0.12)',
-        'cozy-lg': '0 8px 32px hsla(25, 15%, 15%, 0.16)',
-        'cozy-glow': '0 0 20px hsla(18, 75%, 65%, 0.15)',
-      },
-      borderRadius: {
-        'cozy': '1.25rem',
-        'cozy-lg': '1.75rem',
-        'cozy-xl': '2rem',
-      },
-      animation: {
-        'cozy-fade-in': 'fade-in 0.4s ease-out',
-        'cozy-bounce': 'bounce 0.3s ease-out',
-        'cozy-pulse': 'pulse 1.5s ease-in-out infinite',
-        'cozy-wiggle': 'wiggle 0.5s ease-in-out',
-        'cozy-bounce-in': 'bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-        'cozy-shake': 'shake 0.5s ease-in-out',
-        'cozy-glow': 'glow 2s ease-in-out infinite alternate',
-        'cozy-float': 'float 3s ease-in-out infinite',
-        'cozy-loading-dance': 'loadingDance 1.5s ease-in-out infinite',
-        'cozy-confetti': 'confetti 1s ease-out forwards',
-      },
-      keyframes: {
-        wiggle: {
-          '0%, 100%': { transform: 'rotate(0deg)' },
-          '25%': { transform: 'rotate(5deg)' },
-          '75%': { transform: 'rotate(-5deg)' },
-        },
-        bounceIn: {
-          '0%': { 
-            opacity: '0',
-            transform: 'scale(0.3) rotate(-10deg)',
-          },
-          '50%': { 
-            opacity: '1',
-            transform: 'scale(1.05) rotate(2deg)',
-          },
-          '70%': { 
-            transform: 'scale(0.95) rotate(-1deg)',
-          },
-          '100%': { 
-            opacity: '1',
-            transform: 'scale(1) rotate(0deg)',
-          },
-        },
-        shake: {
-          '0%, 100%': { transform: 'translateX(0)' },
-          '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-3px)' },
-          '20%, 40%, 60%, 80%': { transform: 'translateX(3px)' },
-        },
-        glow: {
-          'from': { boxShadow: '0 0 20px hsla(18, 75%, 65%, 0.3)' },
-          'to': { boxShadow: '0 0 30px hsla(18, 75%, 65%, 0.6)' },
-        },
-        float: {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%': { transform: 'translateY(-6px)' },
-        },
-        loadingDance: {
-          '0%, 100%': { transform: 'rotate(0deg) scale(1)' },
-          '25%': { transform: 'rotate(10deg) scale(1.1)' },
-          '50%': { transform: 'rotate(0deg) scale(0.9)' },
-          '75%': { transform: 'rotate(-10deg) scale(1.1)' },
-        },
-        confetti: {
-          '0%': { 
-            transform: 'translateY(0) rotate(0deg)',
-            opacity: '1',
-          },
-          '100%': { 
-            transform: 'translateY(-100px) rotate(360deg)',
-            opacity: '0',
-          },
-        },
-      },
-    },
+  	extend: {
+  		fontFamily: {
+  			sans: [
+  				'var(--font-body)',
+  				'ui-sans-serif',
+  				'system-ui',
+  				'-apple-system',
+  				'BlinkMacSystemFont',
+  				'Segoe UI',
+  				'sans-serif'
+  			],
+  			display: [
+  				'var(--font-display)',
+  				'var(--font-body)',
+  				'ui-sans-serif',
+  				'system-ui',
+  				'sans-serif'
+  			]
+  		},
+  		colors: {
+  			brand: {
+  				blue: 'hsl(var(--brand-blue) / <alpha-value>)',
+  				purple: 'hsl(var(--brand-purple) / <alpha-value>)',
+  				teal: 'hsl(var(--brand-teal) / <alpha-value>)',
+  				coral: 'hsl(var(--brand-coral) / <alpha-value>)',
+  				amber: 'hsl(var(--brand-amber) / <alpha-value>)',
+  				green: 'hsl(var(--brand-green) / <alpha-value>)',
+  				dark: '#0F172A',
+  				heading: '#111827',
+  				body: '#4B5563',
+  				muted: '#94A3B8',
+  				success: '#22C55E',
+  				warning: '#F59E0B',
+  				error: '#EF4444'
+  			},
+  			border: 'hsl(var(--border) / <alpha-value>)',
+  			input: 'hsl(var(--input) / <alpha-value>)',
+  			ring: 'hsl(var(--ring) / <alpha-value>)',
+  			background: 'hsl(var(--background) / <alpha-value>)',
+  			foreground: 'hsl(var(--foreground) / <alpha-value>)',
+  			primary: {
+  				DEFAULT: 'hsl(var(--primary) / <alpha-value>)',
+  				foreground: 'hsl(var(--primary-foreground) / <alpha-value>)'
+  			},
+  			secondary: {
+  				DEFAULT: 'hsl(var(--secondary) / <alpha-value>)',
+  				foreground: 'hsl(var(--secondary-foreground) / <alpha-value>)'
+  			},
+  			destructive: {
+  				DEFAULT: 'hsl(var(--destructive) / <alpha-value>)',
+  				foreground: 'hsl(var(--destructive-foreground) / <alpha-value>)'
+  			},
+  			muted: {
+  				DEFAULT: 'hsl(var(--muted) / <alpha-value>)',
+  				foreground: 'hsl(var(--muted-foreground) / <alpha-value>)'
+  			},
+  			accent: {
+  				DEFAULT: 'hsl(var(--accent) / <alpha-value>)',
+  				foreground: 'hsl(var(--accent-foreground) / <alpha-value>)'
+  			},
+  			popover: {
+  				DEFAULT: 'hsl(var(--popover) / <alpha-value>)',
+  				foreground: 'hsl(var(--popover-foreground) / <alpha-value>)'
+  			},
+  			card: {
+  				DEFAULT: 'hsl(var(--card) / <alpha-value>)',
+  				foreground: 'hsl(var(--card-foreground) / <alpha-value>)'
+  			},
+  			module: {
+  				shopping: 'hsl(var(--module-shopping) / <alpha-value>)',
+  				finances: 'hsl(var(--module-finances) / <alpha-value>)',
+  				medicine: 'hsl(var(--module-medicine) / <alpha-value>)',
+  				notes: 'hsl(var(--module-notes) / <alpha-value>)',
+  				meals: 'hsl(var(--module-meals) / <alpha-value>)',
+  				chores: 'hsl(var(--module-chores) / <alpha-value>)'
+  			}
+  		},
+  		backgroundImage: {
+  			'brand-primary': 'linear-gradient(135deg, #4D6BFF, #7B61FF)',
+  			'brand-secondary': 'linear-gradient(135deg, #20C5C8, #4D6BFF)',
+  			'brand-accent': 'linear-gradient(135deg, #FF6B6B, #7B61FF)'
+  		},
+  		boxShadow: {
+  			'soft-sm': '0 1px 2px hsl(var(--shadow-color) / .05), 0 1px 8px hsl(var(--shadow-color) / .035)',
+  			soft: '0 12px 30px -16px hsl(var(--shadow-color) / .24)',
+  			'soft-lg': '0 24px 60px -24px hsl(var(--shadow-color) / .32)',
+  			glow: '0 10px 28px -12px hsl(var(--primary) / .45)',
+  			'glow-primary': '0 0 var(--glow-spread) hsl(var(--primary) / var(--glow-opacity))',
+  			'glow-module': '0 0 var(--glow-spread) hsl(var(--module-finances) / var(--glow-opacity))',
+  			'glow-inset': 'inset 0 1px 0 hsl(0 0% 100% / .08), 0 0 var(--glow-spread) -6px hsl(var(--primary) / var(--glow-opacity))'
+  		},
+  		borderRadius: {
+  			lg: 'var(--radius)',
+  			md: 'calc(var(--radius) - 2px)',
+  			sm: 'calc(var(--radius) - 4px)'
+  		},
+  		animation: {
+  			// Shared entrance pace used across the app (shell page transitions,
+  			// empty states, notes, banking, dashboard) — deliberately slower than
+  			// the "Considered" interaction pace in src/lib/motion.ts, and not
+  			// governed by it. See
+  			// docs/superpowers/specs/2026-08-04-clankeep-shell-dashboard-design.md.
+  			'fade-in': 'fade-in 0.4s ease-out',
+  			rise: 'rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			'scale-in': 'scale-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			'accordion-down': 'accordion-down 0.2s ease-out',
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+  			'draw-line': 'draw-line 0.9s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			'grow-bar': 'grow-bar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+  			// Chore completion. `both` holds the end state, which is also what
+  			// the reduced-motion clamp in globals.css lands on.
+  			'check-in': 'check-in 0.26s cubic-bezier(0.34, 1.25, 0.64, 1) 0.06s both',
+  			strike: 'strike 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) 0.08s both',
+  			// The only always-on animation in the app.
+  			'breathe': 'breathe 4s ease-in-out infinite',
+  			'row-settle': 'row-settle 0.5s ease-out both',
+  			'skeleton-in': 'fade-in 0.18s ease-out, pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+  		},
+  		// Glow is measured in the theme so light mode can hold back; see
+  		// --glow-opacity and --glow-spread in globals.css.
+  		keyframes: {
+  			'aurora-drift': {
+  				'0%': { transform: 'translate3d(0, 0, 0) scale(1)' },
+  				'100%': { transform: 'translate3d(12%, -8%, 0) scale(1.18)' }
+  			},
+  			sheen: {
+  				'0%': { transform: 'translateX(-120%)' },
+  				'100%': { transform: 'translateX(120%)' }
+  			},
+  			shimmer: {
+  				'0%': { transform: 'translateX(-100%)' },
+  				'100%': { transform: 'translateX(100%)' }
+  			},
+  			'pulse-ring': {
+  				'0%': { transform: 'scale(0.6)', opacity: '0.55' },
+  				'70%': { transform: 'scale(1.6)', opacity: '0' },
+  				'100%': { transform: 'scale(1.6)', opacity: '0' }
+  			},
+  			// Bars grow from their own base; `rise` translates, which reads wrong
+  			// on a bar anchored to an axis.
+  			'grow-bar': {
+  				'0%': {
+  					transform: 'scaleY(0)'
+  				},
+  				'100%': {
+  					transform: 'scaleY(1)'
+  				}
+  			},
+  			'draw-line': {
+  				'0%': {
+  					strokeDashoffset: '1'
+  				},
+  				'100%': {
+  					strokeDashoffset: '0'
+  				}
+  			},
+  			rise: {
+  				'0%': {
+  					opacity: '0',
+  					transform: 'translateY(16px)'
+  				},
+  				'100%': {
+  					opacity: '1',
+  					transform: 'translateY(0)'
+  				}
+  			},
+  			'scale-in': {
+  				'0%': {
+  					opacity: '0',
+  					transform: 'scale(0.96)'
+  				},
+  				'100%': {
+  					opacity: '1',
+  					transform: 'scale(1)'
+  				}
+  			},
+  			'fade-in': {
+  				'0%': {
+  					opacity: '0',
+  					transform: 'translateY(4px)'
+  				},
+  				'100%': {
+  					opacity: '1',
+  					transform: 'translateY(0)'
+  				}
+  			},
+  			'accordion-down': {
+  				from: {
+  					height: '0'
+  				},
+  				to: {
+  					height: 'var(--radix-accordion-content-height)'
+  				}
+  			},
+  			'accordion-up': {
+  				from: {
+  					height: 'var(--radix-accordion-content-height)'
+  				},
+  				to: {
+  					height: '0'
+  				}
+  			},
+  			// The check mark arriving as the identity icon leaves.
+  			'check-in': {
+  				'0%': {
+  					opacity: '0',
+  					transform: 'scale(0.55)'
+  				},
+  				'100%': {
+  					opacity: '1',
+  					transform: 'scale(1)'
+  				}
+  			},
+  			// A strikethrough drawn left to right across a finished title.
+  			strike: {
+  				'0%': {
+  					transform: 'scaleX(0)'
+  				},
+  				'100%': {
+  					transform: 'scaleX(1)'
+  				}
+  			},
+  			// Overdue idle pulse. This ONLY modulates the border — the resting
+  			// amber lives on the row's base class, because globals.css clamps
+  			// animations under prefers-reduced-motion and the ring is the only
+  			// non-textual overdue signal. See choreBoxClasses in chore-view.ts.
+  			breathe: {
+  				'0%, 100%': {
+  					borderColor: 'hsl(var(--brand-amber) / 0.35)'
+  				},
+  				'50%': {
+  					borderColor: 'hsl(var(--brand-amber) / 0.9)'
+  				}
+  			},
+  			// A just-resolved row flashing faintly, then settling back.
+  			'row-settle': {
+  				'0%': {
+  					backgroundColor: 'hsl(var(--module-chores) / 0.07)'
+  				},
+  				'100%': {
+  					backgroundColor: 'transparent'
+  				}
+  			}
+  		},
+  		typography: {
+  			DEFAULT: {
+  				css: {
+  					'code::before': {
+  						content: ''
+  					},
+  					'code::after': {
+  						content: ''
+  					},
+  					code: {
+  						background: '#f3f3f3',
+  						wordWrap: 'break-word',
+  						padding: '.1rem .2rem',
+  						borderRadius: '.2rem'
+  					}
+  				}
+  			}
+  		}
+  	}
   },
-  plugins: [],
+  plugins: [require('tailwindcss-animate'), require("@tailwindcss/typography")],
 };

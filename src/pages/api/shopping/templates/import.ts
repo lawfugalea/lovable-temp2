@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { withApiHandler } from '@/lib/api-handler'
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/pages/api/auth/[...nextauth]';
@@ -24,7 +25,7 @@ async function requireListAccess(userId: string, listId: string) {
   return m ? list : null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+async function handler(req: NextApiRequest, res: NextApiResponse) {
   const userId = await requireUser(req, res);
   if (!userId) return;
 
@@ -38,16 +39,36 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!listId || !templateId) {
       return res.status(400).json({ error: 'Missing listId or templateId' });
     }
+    if (selectedItems && (!Array.isArray(selectedItems) || selectedItems.length > 200 || selectedItems.some(id => typeof id !== 'string'))) {
+      return res.status(400).json({ error: 'Invalid selected items' });
+    }
 
     // Check list access
     const list = await requireListAccess(userId, listId);
     if (!list) return res.status(403).json({ error: 'Forbidden' });
+
+    const template = await prisma.shoppingTemplate.findFirst({
+      where: { id: templateId, householdId: list.householdId },
+      select: { id: true },
+    });
+    if (!template) return res.status(404).json({ error: 'Template not found in this household' });
 
     // Get template items
     const templateItems = await prisma.shoppingTemplateItem.findMany({
       where: {
         templateId,
         ...(selectedItems && selectedItems.length > 0 ? { id: { in: selectedItems } } : {}),
+      },
+      include: {
+        product: {
+          select: {
+            products: {
+              where: { active: true, store: { enabled: true } },
+              take: 1,
+              select: { id: true },
+            },
+          },
+        },
       },
     });
 
@@ -56,13 +77,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Create shopping items
-    const createdItems = await Promise.all(
+    const createdItems = await prisma.$transaction(
       templateItems.map(item =>
         prisma.shoppingItem.create({
           data: {
             listId,
             title: item.name,
             qty: item.quantity.toString(),
+            quantityCount: Math.max(1, Math.min(999, Math.trunc(Number(item.quantity)))),
+            canonicalProductId: item.productId && item.product?.products.length ? item.productId : undefined,
             notes: item.note || undefined,
             createdById: userId,
             status: 'ACTIVE',
@@ -70,6 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           include: {
             createdBy: { select: { id: true, name: true, email: true } },
             doneBy: { select: { id: true, name: true, email: true } },
+            canonicalProduct: { select: { id: true, displayName: true, brand: true, packageValue: true, packageUnit: true, packCount: true } },
           },
         })
       )
@@ -82,3 +106,5 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   res.setHeader('Allow', ['POST']);
   return res.status(405).end('Method Not Allowed');
 }
+
+export default withApiHandler(handler)

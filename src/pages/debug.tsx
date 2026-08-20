@@ -1,12 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useSession, signOut } from "next-auth/react";
+import { withBasePath } from "@/lib/base-path";
+import type { GetServerSideProps } from "next";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/pages/api/auth/[...nextauth]";
 
 type DebugPayload = {
   when: string;
   session: any;
   dbUser: any;
+};
+
+/**
+ * Server-side admin gate.
+ *
+ * Every endpoint this page calls is already admin-only, so a non-admin could
+ * never read anything here — but the page still rendered for anyone who typed
+ * the URL, showing a wall of diagnostic controls that all return 403. Deciding
+ * on the server means non-admins get a plain 404 instead.
+ */
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const session = (await getServerSession(ctx.req, ctx.res, authOptions as never)) as
+    | { user?: { isAdmin?: boolean } }
+    | null;
+  if (session?.user?.isAdmin !== true) return { notFound: true };
+  return { props: {} };
 };
 
 export default function DebugLab() {
@@ -47,7 +68,7 @@ export default function DebugLab() {
       const ok = r.ok;
       await update({ reason: "debug-activate" } as any); // force JWT/session refresh
       await load();
-      alert(ok ? "Activated & session refreshed." : "Activate failed.");
+      if (ok) toast.success("Activated & session refreshed."); else toast.error("Activate failed.");
     } finally {
       setLoading(false);
     }
@@ -71,7 +92,7 @@ export default function DebugLab() {
     <div className="mx-auto max-w-4xl p-6">
       <h1 className="mb-3 text-2xl font-semibold">Debug Lab</h1>
 
-      <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="mb-4 rounded-2xl border bg-card p-4 shadow-sm">
         <div className="mb-2 text-sm opacity-70">
           Signed in as:{" "}
           <span className="font-mono">
@@ -117,7 +138,7 @@ export default function DebugLab() {
           </button>
 
           <Link
-            href="/api/auth/signout"
+            href={withBasePath("/api/auth/signout")}
             className="rounded-lg border px-3 py-1 text-sm hover:bg-gray-50"
           >
             Sign out
@@ -125,7 +146,7 @@ export default function DebugLab() {
         </div>
       </div>
 
-      <div className="mb-4 rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="mb-4 rounded-2xl border bg-card p-4 shadow-sm">
         <div className="mb-2 text-sm opacity-70">
           Test actions (use a known <code>householdId</code> below)
         </div>
@@ -153,7 +174,7 @@ export default function DebugLab() {
             Simulate invite landing (?joined=1&household=...)
           </button>
           <Link
-            href="/"
+            href={withBasePath("/")}
             className="rounded-lg border px-3 py-2 text-sm hover:bg-gray-50"
           >
             Go Home
@@ -161,7 +182,7 @@ export default function DebugLab() {
         </div>
       </div>
 
-      <div className="rounded-2xl border bg-white p-4 shadow-sm">
+      <div className="rounded-2xl border bg-card p-4 shadow-sm">
         <div className="mb-2 text-sm opacity-70">Raw payload</div>
         <pre className="max-h-[40vh] overflow-auto rounded-lg bg-gray-50 p-3 text-xs">
 {JSON.stringify(payload, null, 2)}

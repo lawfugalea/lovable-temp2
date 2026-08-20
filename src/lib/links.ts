@@ -4,5 +4,6 @@ export function appUrl(path = "/") {
     process.env.APP_URL ??
     process.env.NEXTAUTH_URL ??
     "http://localhost:3000";
-  return new URL(path, base).toString();
+  const normalizedBase = `${base.replace(/\/$/, '')}/`;
+  return new URL(path.replace(/^\//, ''), normalizedBase).toString();
 }
